@@ -1,0 +1,219 @@
+import os
+
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QAction, QMessageBox
+from qgis.core import (
+    Qgis,
+    QgsDataCollectionItem,
+    QgsDataItemProvider,
+    QgsDataProvider,
+    QgsMessageLog,
+)
+
+from ..imgs import IMGS_PATH
+from ..qgishub import api
+from ..settings_manager import SettingsManager
+from ..ui.dialog_config import DialogConfig
+from ..ui.dialog_project_select import ProjectSelectDialog
+from .styledmap import StyledMapRoot
+from .utils import ErrorItem
+from .vector import DbRoot
+
+
+class DataItemProvider(QgsDataItemProvider):
+    """Provider for QGISHub browser items"""
+
+    def __init__(self):
+        QgsDataItemProvider.__init__(self)
+
+    def name(self):
+        return "QGISHub"
+
+    def capabilities(self):
+        return QgsDataProvider.Net
+
+    def createDataItem(self, path, parent):
+        return RootCollection()
+
+
+class RootCollection(QgsDataCollectionItem):
+    """Root collection for QGISHub browser"""
+
+    def __init__(self):
+        # Initialize with default name, will update with project name later
+        QgsDataCollectionItem.__init__(self, None, "QGISHub", "qgishub:/")
+        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
+
+        # Update name with project if available
+        self.update_name_with_project()
+
+    def actions(self, parent):
+        actions = []
+
+        # Login action
+        login_action = QAction("Login", parent)
+        login_action.triggered.connect(self.login)
+        actions.append(login_action)
+
+        # Logout action
+        logout_action = QAction("Logout", parent)
+        logout_action.triggered.connect(self.logout)
+        actions.append(logout_action)
+
+        # Select Project action
+        select_project_action = QAction("Select Project", parent)
+        select_project_action.triggered.connect(self.select_project)
+        actions.append(select_project_action)
+
+        # Refresh action
+        refresh_action = QAction("Refresh", parent)
+        refresh_action.triggered.connect(self.refresh)
+        actions.append(refresh_action)
+
+        return actions
+
+    def login(self):
+        """Login to QGISHub"""
+
+        # Show config dialog with Supabase login tab
+        dialog = DialogConfig()
+        result = dialog.exec_()
+
+        if result:
+            # Refresh to show projects
+            self.refresh()
+
+    def select_project(self):
+        """Select a project to display"""
+        try:
+            # Check if user is logged in
+            settings = SettingsManager()
+            id_token = settings.get_setting("id_token")
+
+            if not id_token:
+                QMessageBox.warning(
+                    None,
+                    "Not Logged In",
+                    "You must be logged in to select a project. Please login first.",
+                )
+                return
+
+            # Show project selection dialog
+            dialog = ProjectSelectDialog()
+            result = dialog.exec_()
+
+            if result:
+                # Get selected project
+                project = dialog.get_selected_project()
+                if project:
+                    QgsMessageLog.logMessage(
+                        f"Selected project: {project.name}", "QGISHub", Qgis.Info
+                    )
+                    # Update browser name with project name
+                    self.setName(f"QGISHub: {project.name}")
+                    # Refresh to show the selected project
+                    self.refresh()
+
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error selecting project: {str(e)}", "QGISHub", Qgis.Critical
+            )
+
+    def logout(self):
+        """Logout from QGISHub"""
+        try:
+            # Clear tokens and selected project
+            settings_manager = SettingsManager()
+            settings_manager.store_setting("id_token", "")
+            settings_manager.store_setting("refresh_token", "")
+            settings_manager.store_setting("user_info", "")
+            settings_manager.store_setting("selected_project_id", "")
+            settings_manager.store_setting("selected_organization_id", "")
+
+            # Refresh to update UI
+            self.refresh()
+
+            QgsMessageLog.logMessage("Logged out successfully", "QGISHub", Qgis.Info)
+
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error logging out: {str(e)}", "QGISHub", Qgis.Critical
+            )
+
+    def update_name_with_project(self):
+        """Update the browser name to include the project name"""
+        try:
+            # Check if user is logged in
+            settings = SettingsManager()
+            id_token = settings.get_setting("id_token")
+            if not id_token:
+                self.setName("QGISHub")
+                return
+
+            # Get selected project ID
+            project_id = settings.get_setting("selected_project_id")
+            if not project_id:
+                self.setName("QGISHub")
+                return
+
+            # Get project details
+            project_data = api.project.get_project(project_id)
+            if project_data:
+                self.setName(f"QGISHub: {project_data.name}")
+            else:
+                self.setName("QGISHub")
+
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error updating name with project: {str(e)}", "QGISHub", Qgis.Warning
+            )
+            self.setName("QGISHub")
+
+    def createChildren(self):
+        """Create child items for the root collection"""
+        try:
+            # Check if user is logged in
+            settings = SettingsManager()
+            id_token = settings.get_setting("id_token")
+
+            if not id_token:
+                return [ErrorItem(self, "Not logged in. Please login to view vectors.")]
+
+            # Get selected project ID
+            project_id = settings.get_setting("selected_project_id")
+
+            if not project_id:
+                return [
+                    ErrorItem(self, "No project selected. Please select a project.")
+                ]
+
+            # Get project details
+            project_data = api.project.get_project(project_id)
+
+            if not project_data:
+                return [
+                    ErrorItem(self, "Project not found. Please select another project.")
+                ]
+
+            # Update the browser name with project name
+            self.setName(f"QGISHub: {project_data.name}")
+
+            # Create vector root directly
+            children = []
+            vector_path = f"{self.path()}/vectors"
+            vector_root = DbRoot(
+                self, "Vectors", vector_path, project_id=project_data.id
+            )
+            children.append(vector_root)
+
+            # Create styled map root
+            styled_map_path = f"{self.path()}/styledmaps"
+            styled_map_root = StyledMapRoot(
+                self, "Maps", styled_map_path, project_id=project_data.id
+            )
+            children.append(styled_map_root)
+
+            return children
+
+        except Exception as e:
+            return [ErrorItem(self, f"Error: {str(e)}")]
