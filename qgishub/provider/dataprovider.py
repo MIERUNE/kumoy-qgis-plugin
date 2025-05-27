@@ -17,7 +17,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 
 from .. import api
-from ..constants import DATA_PROVIDER_KEY, DATA_PROVIDER_DESCRIPTION
+from ..constants import DATA_PROVIDER_DESCRIPTION, DATA_PROVIDER_KEY
 from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
 
@@ -25,7 +25,9 @@ from .feature_source import QgishubFeatureSource
 def parse_uri(
     uri: str,
 ) -> tuple[str, str, str]:
-    qgishubProviderMetadata = QgsProviderRegistry.instance().providerMetadata(DATA_PROVIDER_KEY)
+    qgishubProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
+        DATA_PROVIDER_KEY
+    )
     parsed_uri = qgishubProviderMetadata.decodeUri(uri)
 
     endpoint = parsed_uri.get("endpoint", "")
