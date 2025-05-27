@@ -1,9 +1,10 @@
 import os
 
 from PyQt5.QtGui import QIcon
-from qgis.core import QgsDataItem, QgsMessageLog, Qgis
+from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 
 from ..imgs import IMGS_PATH
+from ..qgishub.constants import LOG_CATEGORY
 
 
 class ErrorItem(QgsDataItem):
@@ -16,5 +17,5 @@ class ErrorItem(QgsDataItem):
 
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "mIconWarning.svg")))
         QgsMessageLog.logMessage(
-            f"Error item created: {message}", "QGISHub", Qgis.Warning
+            f"Error item created: {message}", LOG_CATEGORY, Qgis.Warning
         )

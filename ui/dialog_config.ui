@@ -86,7 +86,7 @@
       <string notr="true"/>
      </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;QGIS HUB&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="scaledContents">
       <bool>false</bool>

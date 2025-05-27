@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 from qgis.core import (
-    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
@@ -10,7 +9,6 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsMessageLog,
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,
@@ -19,6 +17,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 
 from .. import api
+from ..constants import DATA_PROVIDER_DESCRIPTION, DATA_PROVIDER_KEY
 from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
 
@@ -26,7 +25,9 @@ from .feature_source import QgishubFeatureSource
 def parse_uri(
     uri: str,
 ) -> tuple[str, str, str]:
-    qgishubProviderMetadata = QgsProviderRegistry.instance().providerMetadata("qgishub")
+    qgishubProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
+        DATA_PROVIDER_KEY
+    )
     parsed_uri = qgishubProviderMetadata.decodeUri(uri)
 
     endpoint = parsed_uri.get("endpoint", "")
@@ -111,7 +112,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                     subType=QVariant.String,
                     typeName="VARCHAR",
                     minLen=255,
-                    maxLen=255,  # PostgreSQL allows up to 10485760 characters but allow up to 255 in QGISHUB
+                    maxLen=255,  # PostgreSQL allows up to 10485760 characters but allow up to 255 in our system
                     minPrec=0,  # Not applicable for varchar
                     maxPrec=0,  # Not applicable for varchar
                 ),
@@ -120,11 +121,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     @classmethod
     def providerKey(cls) -> str:
-        return "qgishub"
+        return DATA_PROVIDER_KEY
 
     @classmethod
     def description(cls) -> str:
-        return "QGIS HUB Data Provider"
+        return DATA_PROVIDER_DESCRIPTION
 
     @classmethod
     def createProvider(cls, uri, providerOptions, flags=QgsDataProvider.ReadFlags()):

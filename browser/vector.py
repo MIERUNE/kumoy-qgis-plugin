@@ -25,6 +25,7 @@ from ..qgishub.api.project_vector import (
     add_vector,
 )
 from ..qgishub.config import config as qgishub_config
+from ..qgishub.constants import LOG_CATEGORY
 from .utils import ErrorItem
 
 
@@ -94,12 +95,12 @@ class VectorItem(QgsDataItem):
                 QgsProject.instance().addMapLayer(layer)
             else:
                 QgsMessageLog.logMessage(
-                    f"Layer is invalid: {uri}", "QGISHub", Qgis.Critical
+                    f"Layer is invalid: {uri}", LOG_CATEGORY, Qgis.Critical
                 )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding vector to map: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error adding vector to map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def handleDoubleClick(self):
@@ -164,12 +165,12 @@ class VectorItem(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Failed to update vector", "QGISHub", Qgis.Critical
+                            "Failed to update vector", LOG_CATEGORY, Qgis.Critical
                         )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error editing vector: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error editing vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def delete_vector(self):
@@ -195,12 +196,12 @@ class VectorItem(QgsDataItem):
                     self.parent().refresh()
                 else:
                     QgsMessageLog.logMessage(
-                        "Failed to delete vector", "QGISHub", Qgis.Critical
+                        "Failed to delete vector", LOG_CATEGORY, Qgis.Critical
                     )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error deleting vector: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error deleting vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
 
@@ -249,7 +250,7 @@ class DbRoot(QgsDataItem):
 
             if not project_id:
                 QgsMessageLog.logMessage(
-                    "No project selected", "QGISHub", Qgis.Critical
+                    "No project selected", LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -310,7 +311,7 @@ class DbRoot(QgsDataItem):
 
             if not name:
                 QgsMessageLog.logMessage(
-                    "Vector name cannot be empty", "QGISHub", Qgis.Critical
+                    "Vector name cannot be empty", LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -320,7 +321,7 @@ class DbRoot(QgsDataItem):
             if new_vector:
                 QgsMessageLog.logMessage(
                     f"Created new vector layer '{name}' in project {project_id}",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Info,
                 )
                 # Refresh to show new vector
@@ -328,13 +329,13 @@ class DbRoot(QgsDataItem):
             else:
                 QgsMessageLog.logMessage(
                     f"Failed to create vector layer '{name}'",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Critical,
                 )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error creating vector: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error creating vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def upload_vector(self):
@@ -356,7 +357,7 @@ class DbRoot(QgsDataItem):
             ]
             if not layers:
                 QgsMessageLog.logMessage(
-                    "ベクターレイヤーがありません", "QGISHub", Qgis.Critical
+                    "ベクターレイヤーがありません", LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -404,14 +405,14 @@ class DbRoot(QgsDataItem):
                 project_id = self.parent().project.id
             if not project_id:
                 QgsMessageLog.logMessage(
-                    "No project selected", "QGISHub", Qgis.Critical
+                    "No project selected", LOG_CATEGORY, Qgis.Critical
                 )
                 return
             options = AddVectorOptions(name=vector_name, type=geom_type)
             new_vector = add_vector(project_id, options)
             if not new_vector:
                 QgsMessageLog.logMessage(
-                    "サーバー側のベクター作成に失敗", "QGISHub", Qgis.Critical
+                    "サーバー側のベクター作成に失敗", LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -431,7 +432,9 @@ class DbRoot(QgsDataItem):
                     attr_dict[field.name()] = "string"
                 else:
                     QgsMessageLog.logMessage(
-                        f"未対応の属性タイプ: {field.type()}", "QGISHub", Qgis.Critical
+                        f"未対応の属性タイプ: {field.type()}",
+                        LOG_CATEGORY,
+                        Qgis.Critical,
                     )
                     continue
 
@@ -474,7 +477,7 @@ class DbRoot(QgsDataItem):
                     if not ok:
                         QgsMessageLog.logMessage(
                             "地物アップロード失敗",
-                            "QGISHub",
+                            LOG_CATEGORY,
                             Qgis.Critical,
                         )
                         return
@@ -485,20 +488,20 @@ class DbRoot(QgsDataItem):
                 if not ok:
                     QgsMessageLog.logMessage(
                         "地物アップロード失敗",
-                        "QGISHub",
+                        LOG_CATEGORY,
                         Qgis.Critical,
                     )
                     return
 
             QgsMessageLog.logMessage(
                 f"レイヤー '{vector_name}' のアップロードが完了しました",
-                "QGISHub",
+                LOG_CATEGORY,
                 Qgis.Info,
             )
             self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"アップロードエラー: {str(e)}", "QGISHub", Qgis.Critical
+                f"アップロードエラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def createChildren(self):

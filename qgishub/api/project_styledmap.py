@@ -7,7 +7,7 @@ from .client import ApiClient
 @dataclass
 class QgishubStyledMap:
     """
-    QGISHubのStyledMapを表すデータクラス
+    STRATOのStyledMapを表すデータクラス
     """
 
     id: str

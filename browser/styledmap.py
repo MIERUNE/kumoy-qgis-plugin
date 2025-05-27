@@ -22,6 +22,7 @@ from ..qgishub.api.project_styledmap import (
     QgishubStyledMap,
     UpdateStyledMapOptions,
 )
+from ..qgishub.constants import LOG_CATEGORY
 from .utils import ErrorItem
 
 
@@ -76,7 +77,7 @@ class StyledMapItem(QgsDataItem):
             load_project_from_xml(self.styled_map.qgisproject)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"スタイル適用エラー: {str(e)}", "QGISHub", Qgis.Critical
+                f"スタイル適用エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def handleDoubleClick(self):
@@ -138,14 +139,12 @@ class StyledMapItem(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Mapの上書き保存に失敗しました",
-                            "QGISHub",
-                            Qgis.Critical,
+                            "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
                         )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"スタイルマップ編集エラー: {str(e)}", "QGISHub", Qgis.Critical
+                f"スタイルマップ編集エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def apply_qgisproject_to_styledmap(self):
@@ -166,9 +165,7 @@ class StyledMapItem(QgsDataItem):
             self.refresh()
         else:
             QgsMessageLog.logMessage(
-                "Mapの上書き保存に失敗しました",
-                "QGISHub",
-                Qgis.Critical,
+                "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
             )
 
     def delete_styled_map(self):
@@ -192,12 +189,12 @@ class StyledMapItem(QgsDataItem):
                     self.parent().refresh()
                 else:
                     QgsMessageLog.logMessage(
-                        "Mapの削除に失敗しました", "QGISHub", Qgis.Critical
+                        "Mapの削除に失敗しました", LOG_CATEGORY, Qgis.Critical
                     )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Map削除エラー: {str(e)}", "QGISHub", Qgis.Critical
+                f"Map削除エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
 
@@ -284,14 +281,12 @@ class StyledMapRoot(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Mapの作成に失敗しました",
-                            "QGISHub",
-                            Qgis.Critical,
+                            "Mapの作成に失敗しました", LOG_CATEGORY, Qgis.Critical
                         )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Map追加エラー: {str(e)}", "QGISHub", Qgis.Critical
+                f"Map追加エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def createChildren(self):
