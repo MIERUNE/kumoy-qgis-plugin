@@ -321,7 +321,7 @@ class DbRoot(QgsDataItem):
             if new_vector:
                 QgsMessageLog.logMessage(
                     f"Created new vector layer '{name}' in project {project_id}",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Info,
                 )
                 # Refresh to show new vector
@@ -329,7 +329,7 @@ class DbRoot(QgsDataItem):
             else:
                 QgsMessageLog.logMessage(
                     f"Failed to create vector layer '{name}'",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Critical,
                 )
 
@@ -475,7 +475,7 @@ class DbRoot(QgsDataItem):
                     if not ok:
                         QgsMessageLog.logMessage(
                             "地物アップロード失敗",
-                            "QGISHub",
+                            LOG_CATEGORY,
                             Qgis.Critical,
                         )
                         return
@@ -486,14 +486,14 @@ class DbRoot(QgsDataItem):
                 if not ok:
                     QgsMessageLog.logMessage(
                         "地物アップロード失敗",
-                        "QGISHub",
+                        LOG_CATEGORY,
                         Qgis.Critical,
                     )
                     return
 
             QgsMessageLog.logMessage(
                 f"レイヤー '{vector_name}' のアップロードが完了しました",
-                "QGISHub",
+                LOG_CATEGORY,
                 Qgis.Info,
             )
             self.refresh()

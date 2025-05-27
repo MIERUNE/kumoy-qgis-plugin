@@ -20,6 +20,7 @@ from ..imgs import IMGS_PATH
 from ..qgishub.api import organization, project
 from ..qgishub.api.organization import Organization
 from ..qgishub.api.project import Project
+from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
 
 
@@ -100,7 +101,7 @@ class ProjectSelectDialog(QDialog):
 
             if not organizations:
                 QgsMessageLog.logMessage(
-                    "No organizations available", "QGISHub", Qgis.Warning
+                    "No organizations available", LOG_CATEGORY, Qgis.Warning
                 )
                 return
 
@@ -110,7 +111,7 @@ class ProjectSelectDialog(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading organizations: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error loading organizations: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def on_organization_changed(self, index):
@@ -138,7 +139,7 @@ class ProjectSelectDialog(QDialog):
             if not projects:
                 QgsMessageLog.logMessage(
                     f"No projects available for organization {org.name}",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Warning,
                 )
                 return
@@ -155,7 +156,7 @@ class ProjectSelectDialog(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading projects: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error loading projects: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def on_project_selected(self):
@@ -235,5 +236,5 @@ class ProjectSelectDialog(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading saved selection: {str(e)}", "QGISHub", Qgis.Warning
+                f"Error loading saved selection: {str(e)}", LOG_CATEGORY, Qgis.Warning
             )

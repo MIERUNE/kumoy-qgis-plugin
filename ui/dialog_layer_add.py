@@ -16,6 +16,7 @@ from qgis.core import Qgis, QgsMessageLog, QgsProject, QgsRasterLayer, QgsVector
 from ..imgs import IMGS_PATH
 from ..qgishub.api import layer
 from ..qgishub.api.layer import Layer
+from ..qgishub.constants import LOG_CATEGORY
 
 
 class LayerAddDialog(QDialog):
@@ -71,7 +72,7 @@ class LayerAddDialog(QDialog):
 
             if not layers:
                 QgsMessageLog.logMessage(
-                    "No layers available for project", "QGISHub", Qgis.Warning
+                    "No layers available for project", LOG_CATEGORY, Qgis.Warning
                 )
                 return
 
@@ -84,7 +85,7 @@ class LayerAddDialog(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading layers: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error loading layers: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def accept(self):
@@ -114,12 +115,12 @@ class LayerAddDialog(QDialog):
                 if vector_layer.isValid():
                     QgsProject.instance().addMapLayer(vector_layer)
                     QgsMessageLog.logMessage(
-                        f"Added vector layer {layer_item.name}", "QGISHub", Qgis.Success
+                        f"Added vector layer {layer_item.name}", LOG_CATEGORY, Qgis.Success
                     )
                 else:
                     QgsMessageLog.logMessage(
                         f"Failed to add vector layer {layer_item.name}",
-                        "QGISHub",
+                        LOG_CATEGORY,
                         Qgis.Warning,
                     )
             elif layer_item.type.lower() == "raster":
@@ -128,17 +129,17 @@ class LayerAddDialog(QDialog):
                 if raster_layer.isValid():
                     QgsProject.instance().addMapLayer(raster_layer)
                     QgsMessageLog.logMessage(
-                        f"Added raster layer {layer_item.name}", "QGISHub", Qgis.Success
+                        f"Added raster layer {layer_item.name}", LOG_CATEGORY, Qgis.Success
                     )
                 else:
                     QgsMessageLog.logMessage(
                         f"Failed to add raster layer {layer_item.name}",
-                        "QGISHub",
+                        LOG_CATEGORY,
                         Qgis.Warning,
                     )
             else:
                 QgsMessageLog.logMessage(
                     f"Unsupported layer type: {layer_item.type}",
-                    "QGISHub",
+                    LOG_CATEGORY,
                     Qgis.Warning,
                 )

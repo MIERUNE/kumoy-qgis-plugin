@@ -7,6 +7,7 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 
 from ..qgishub.auth_manager import AuthManager
+from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
 
 
@@ -78,13 +79,13 @@ class DialogConfig(QDialog):
             # Open the authorization URL in the default browser
             auth_url = result
             QgsMessageLog.logMessage(
-                f"Opening browser to: {auth_url}", "QGISHub", Qgis.Info
+                f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
             )
             webbrowser.open(auth_url)
 
             # Wait for the callback (this will block until authentication completes or times out)
             QgsMessageLog.logMessage(
-                "Waiting for authentication to complete...", "QGISHub", Qgis.Info
+                "Waiting for authentication to complete...", LOG_CATEGORY, Qgis.Info
             )
             success, error = self.auth_manager.wait_for_callback(timeout=300)
 
@@ -108,7 +109,7 @@ class DialogConfig(QDialog):
                 settings_manager.store_setting("user_info", json.dumps(user_info))
 
             QgsMessageLog.logMessage(
-                "Authentication successful!", "QGISHub", Qgis.Success
+                "Authentication successful!", LOG_CATEGORY, Qgis.Success
             )
             QMessageBox.information(
                 self, "Login Success", "You have successfully logged in!"
@@ -119,7 +120,7 @@ class DialogConfig(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error during login: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 self, "Login Error", f"An error occurred during login: {str(e)}"
@@ -133,7 +134,7 @@ class DialogConfig(QDialog):
             settings_manager.store_setting("refresh_token", "")
             settings_manager.store_setting("user_info", "")
 
-            QgsMessageLog.logMessage("Logged out successfully", "QGISHub", Qgis.Info)
+            QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
                 self, "Logout", "You have been logged out successfully."
             )
@@ -143,7 +144,7 @@ class DialogConfig(QDialog):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error during logout: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error during logout: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 self, "Logout Error", f"An error occurred during logout: {str(e)}"
