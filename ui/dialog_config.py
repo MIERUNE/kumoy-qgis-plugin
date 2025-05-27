@@ -2,7 +2,14 @@ import json
 import os
 import webbrowser
 
-from PyQt5.QtWidgets import QDialog, QMessageBox
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+)
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 
@@ -18,11 +25,20 @@ class DialogConfig(QDialog):
             os.path.join(os.path.dirname(__file__), "dialog_config.ui"), self
         )
 
-        self.ui.buttonClose.clicked.connect(self.reject)
+        # Set type hints for UI
+        self.buttonClose: QPushButton = self.ui.buttonClose
+        self.buttonLogin: QPushButton = self.ui.buttonLogin
+        self.buttonLogout: QPushButton = self.ui.buttonLogout
+        self.labelSupabaseStatus: QLabel = self.ui.labelSupabaseStatus
+        self.labelUserInfo: QLabel = self.ui.labelUserInfo
+        self.checkBoxCustomServer: QCheckBox = self.ui.checkBoxCustomServer
+        self.stratoURL: QLineEdit = self.ui.stratoURL
+
+        self.buttonClose.clicked.connect(self.reject)
 
         # Set up Supabase login tab connections
-        self.ui.buttonLogin.clicked.connect(self.login)
-        self.ui.buttonLogout.clicked.connect(self.logout)
+        self.buttonLogin.clicked.connect(self.login)
+        self.buttonLogout.clicked.connect(self.logout)
 
         # Initialize auth manager
         self.auth_manager = AuthManager(port=9248)
@@ -39,11 +55,9 @@ class DialogConfig(QDialog):
         user_info_str = settings_manager.get_setting("user_info")
 
         if id_token:
-            self.ui.labelSupabaseStatus.setText("Logged in")
-            self.ui.labelSupabaseStatus.setStyleSheet(
-                "color: green; font-weight: bold;"
-            )
-            self.ui.buttonLogout.setEnabled(True)
+            self.labelSupabaseStatus.setText("Logged in")
+            self.labelSupabaseStatus.setStyleSheet("color: green; font-weight: bold;")
+            self.buttonLogout.setEnabled(True)
 
             # Display user info if available
             if user_info_str:
@@ -53,16 +67,16 @@ class DialogConfig(QDialog):
                     name = user_info.get("user_metadata", {}).get("full_name", "")
 
                     if name and email:
-                        self.ui.labelUserInfo.setText(f"Logged in as: {name}\n{email}")
+                        self.labelUserInfo.setText(f"Logged in as: {name}\n{email}")
                     elif email:
-                        self.ui.labelUserInfo.setText(f"Logged in as: {email}")
+                        self.labelUserInfo.setText(f"Logged in as: {email}")
                 except json.JSONDecodeError:
-                    self.ui.labelUserInfo.setText("")
+                    self.labelUserInfo.setText("")
         else:
-            self.ui.labelSupabaseStatus.setText("Not logged in")
-            self.ui.labelSupabaseStatus.setStyleSheet("")
-            self.ui.labelUserInfo.setText("")
-            self.ui.buttonLogout.setEnabled(False)
+            self.labelSupabaseStatus.setText("Not logged in")
+            self.labelSupabaseStatus.setStyleSheet("")
+            self.labelUserInfo.setText("")
+            self.buttonLogout.setEnabled(False)
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
