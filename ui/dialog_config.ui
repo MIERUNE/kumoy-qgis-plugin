@@ -123,6 +123,33 @@
     </widget>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QCheckBox" name="checkBoxCustomServer">
+       <property name="text">
+        <string>Custom Strato server</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="stratoURL">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>https://app.strato.com/</string>
+       </property>
+       <property name="placeholderText">
+        <string>URL</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QPushButton" name="buttonLogin">
@@ -176,5 +203,22 @@
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>checkBoxCustomServer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>stratoURL</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>80</x>
+     <y>297</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>207</x>
+     <y>301</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
