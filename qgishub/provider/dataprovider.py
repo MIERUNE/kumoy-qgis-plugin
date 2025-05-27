@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 from qgis.core import (
-    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
@@ -10,7 +9,6 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsMessageLog,
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,

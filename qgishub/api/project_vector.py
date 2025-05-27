@@ -21,7 +21,7 @@ class QgishubVectorReturnValue(QgishubVector):
     columns: Dict[str, str]
     userId: str = ""
     organizationId: str = ""
-    role: Literal["ADMIN", "OWNER", "MEMBER", "NONE"] = "NONE"
+    role: Literal["ADMIN", "OWNER", "MEMBER"] = "MEMBER"
 
 
 def get_vectors(project_id: str) -> List[QgishubVector]:
@@ -83,7 +83,7 @@ def get_vector(project_id: str, vector_id: str) -> Optional[QgishubVectorReturnV
             columns=response.get("columns", []),
             userId=response.get("userId", ""),
             organizationId=response.get("organizationId", ""),
-            role=response.get("role", ""),
+            role=response.get("role", "MEMBER"),
         )
 
     except Exception as e:
