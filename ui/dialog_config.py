@@ -36,6 +36,9 @@ class DialogConfig(QDialog):
 
         self.buttonClose.clicked.connect(self.reject)
 
+        # load saved server settings
+        self.load_server_settings()
+
         # Set up Supabase login tab connections
         self.buttonLogin.clicked.connect(self.login)
         self.buttonLogout.clicked.connect(self.logout)
@@ -46,6 +49,7 @@ class DialogConfig(QDialog):
         self.update_login_status()
 
     def closeEvent(self, event):
+        self.save_server_settings()
         super().closeEvent(event)
 
     def update_login_status(self):
@@ -81,6 +85,8 @@ class DialogConfig(QDialog):
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
+            self.save_server_settings()
+
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
 
@@ -163,3 +169,34 @@ class DialogConfig(QDialog):
             QMessageBox.critical(
                 self, "Logout Error", f"An error occurred during logout: {str(e)}"
             )
+
+    def save_server_settings(self):
+        """サーバー設定を保存する"""
+        settings_manager = SettingsManager()
+
+        # カスタムサーバーの設定を保存
+        use_custom_server = self.checkBoxCustomServer.isChecked()
+        custom_server_url = self.stratoURL.text().strip()
+
+        settings_manager.store_setting(
+            "use_custom_server", "true" if use_custom_server else "false"
+        )
+        settings_manager.store_setting("custom_server_url", custom_server_url)
+
+        # configを再読み込みして設定を反映させる
+        from ..qgishub.config import config
+
+        config.load_settings()
+
+    def load_server_settings(self):
+        """保存されたサーバー設定を読み込む"""
+        settings_manager = SettingsManager()
+
+        # 保存された設定を読み込む
+        use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
+        custom_server_url = settings_manager.get_setting("custom_server_url") or ""
+
+        # UIに設定を反映
+        self.checkBoxCustomServer.setChecked(use_custom_server)
+        self.stratoURL.setText(custom_server_url)
+        self.stratoURL.setEnabled(use_custom_server)
