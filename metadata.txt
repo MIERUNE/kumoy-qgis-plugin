@@ -1,7 +1,7 @@
 [general]
 name=QGIS HUB
 qgisMinimumVersion=3.0
-about=QGIS Sample Plugin
+about=QGIS HUB Plugin
 description=QGIS Sample Plugin
 version=1.0
 
