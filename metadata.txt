@@ -1,8 +1,8 @@
 [general]
-name=QGIS HUB
+name=STRATO
 qgisMinimumVersion=3.0
-about=QGIS HUB Plugin
-description=QGIS Sample Plugin
+about=STRATO Plugin
+description=QGIS plugin for managing Strato projects
 version=1.0
 
 #Plugin main icon
@@ -12,6 +12,6 @@ author=MIERUNE Inc.
 email=info@mierune.co.jp
 homepage=
 tracker=
-repository=
+repository=https://github.com/strato-gis
 tags=
 category=
