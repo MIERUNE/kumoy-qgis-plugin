@@ -12,6 +12,7 @@ from qgis.core import (
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
+from ..qgishub.constants import PLUGIN_NAME, LOG_CATEGORY, BROWSER_ROOT_PATH
 from ..settings_manager import SettingsManager
 from ..ui.dialog_config import DialogConfig
 from ..ui.dialog_project_select import ProjectSelectDialog
@@ -21,13 +22,13 @@ from .vector import DbRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
-    """Provider for QGISHub browser items"""
+    """Provider for STRATO browser items"""
 
     def __init__(self):
         QgsDataItemProvider.__init__(self)
 
     def name(self):
-        return "QGISHub"
+        return PLUGIN_NAME
 
     def capabilities(self):
         return QgsDataProvider.Net
@@ -37,11 +38,11 @@ class DataItemProvider(QgsDataItemProvider):
 
 
 class RootCollection(QgsDataCollectionItem):
-    """Root collection for QGISHub browser"""
+    """Root collection for STRATO browser"""
 
     def __init__(self):
         # Initialize with default name, will update with project name later
-        QgsDataCollectionItem.__init__(self, None, "QGISHub", "qgishub:/")
+        QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
 
         # Update name with project if available
@@ -73,7 +74,7 @@ class RootCollection(QgsDataCollectionItem):
         return actions
 
     def login(self):
-        """Login to QGISHub"""
+        """Login to STRATO"""
 
         # Show config dialog with Supabase login tab
         dialog = DialogConfig()
@@ -107,20 +108,20 @@ class RootCollection(QgsDataCollectionItem):
                 project = dialog.get_selected_project()
                 if project:
                     QgsMessageLog.logMessage(
-                        f"Selected project: {project.name}", "QGISHub", Qgis.Info
+                        f"Selected project: {project.name}", LOG_CATEGORY, Qgis.Info
                     )
                     # Update browser name with project name
-                    self.setName(f"QGISHub: {project.name}")
+                    self.setName(f"{PLUGIN_NAME}: {project.name}")
                     # Refresh to show the selected project
                     self.refresh()
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error selecting project: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error selecting project: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def logout(self):
-        """Logout from QGISHub"""
+        """Logout from STRATO"""
         try:
             # Clear tokens and selected project
             settings_manager = SettingsManager()
@@ -133,11 +134,11 @@ class RootCollection(QgsDataCollectionItem):
             # Refresh to update UI
             self.refresh()
 
-            QgsMessageLog.logMessage("Logged out successfully", "QGISHub", Qgis.Info)
+            QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error logging out: {str(e)}", "QGISHub", Qgis.Critical
+                f"Error logging out: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def update_name_with_project(self):
@@ -147,27 +148,27 @@ class RootCollection(QgsDataCollectionItem):
             settings = SettingsManager()
             id_token = settings.get_setting("id_token")
             if not id_token:
-                self.setName("QGISHub")
+                self.setName(PLUGIN_NAME)
                 return
 
             # Get selected project ID
             project_id = settings.get_setting("selected_project_id")
             if not project_id:
-                self.setName("QGISHub")
+                self.setName(PLUGIN_NAME)
                 return
 
             # Get project details
             project_data = api.project.get_project(project_id)
             if project_data:
-                self.setName(f"QGISHub: {project_data.name}")
+                self.setName(f"{PLUGIN_NAME}: {project_data.name}")
             else:
-                self.setName("QGISHub")
+                self.setName(PLUGIN_NAME)
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating name with project: {str(e)}", "QGISHub", Qgis.Warning
+                f"Error updating name with project: {str(e)}", LOG_CATEGORY, Qgis.Warning
             )
-            self.setName("QGISHub")
+            self.setName(PLUGIN_NAME)
 
     def createChildren(self):
         """Create child items for the root collection"""
@@ -196,7 +197,7 @@ class RootCollection(QgsDataCollectionItem):
                 ]
 
             # Update the browser name with project name
-            self.setName(f"QGISHub: {project_data.name}")
+            self.setName(f"{PLUGIN_NAME}: {project_data.name}")
 
             # Create vector root directly
             children = []

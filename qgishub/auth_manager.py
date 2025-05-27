@@ -12,44 +12,45 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, Literal, Optional, Tuple
 
 from qgishub.config import config as qgishub_config
+from qgishub.constants import PLUGIN_NAME
 
 # OAuth2 Configuration Constants
 REDIRECT_URL = "http://localhost:9248/callback"
 
 # HTML Response Templates
-AUTH_HANDLER_RESPONSE = """
+AUTH_HANDLER_RESPONSE = f"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>認証成功</title>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             text-align: center;
             margin-top: 50px;
             background-color: #f5f5f5;
-        }
-        .container {
+        }}
+        .container {{
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             padding: 30px;
             max-width: 500px;
             margin: 0 auto;
-        }
-        h1.success {
+        }}
+        h1.success {{
             color: #4CAF50;
-        }
-        p {
+        }}
+        p {{
             font-size: 16px;
             line-height: 1.5;
-        }
+        }}
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="success">認証成功</h1>
-        <p id="status">認証が完了しました。このウィンドウを閉じて、QGISHubプラグインに戻ってください。</p>
+        <p id="status">認証が完了しました。このウィンドウを閉じて、{PLUGIN_NAME} QGISプラグインに戻ってください。</p>
     </div>
 </body>
 </html>

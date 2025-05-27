@@ -10,7 +10,7 @@ from ..get_token import get_token
 
 
 class ApiClient:
-    """Base API client for QGISHub backend"""
+    """Base API client for STRATO backend"""
 
     @staticmethod
     def handle_reply(reply: QNetworkReply) -> dict:
