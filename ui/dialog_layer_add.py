@@ -115,7 +115,9 @@ class LayerAddDialog(QDialog):
                 if vector_layer.isValid():
                     QgsProject.instance().addMapLayer(vector_layer)
                     QgsMessageLog.logMessage(
-                        f"Added vector layer {layer_item.name}", LOG_CATEGORY, Qgis.Success
+                        f"Added vector layer {layer_item.name}",
+                        LOG_CATEGORY,
+                        Qgis.Success,
                     )
                 else:
                     QgsMessageLog.logMessage(
@@ -129,7 +131,9 @@ class LayerAddDialog(QDialog):
                 if raster_layer.isValid():
                     QgsProject.instance().addMapLayer(raster_layer)
                     QgsMessageLog.logMessage(
-                        f"Added raster layer {layer_item.name}", LOG_CATEGORY, Qgis.Success
+                        f"Added raster layer {layer_item.name}",
+                        LOG_CATEGORY,
+                        Qgis.Success,
                     )
                 else:
                     QgsMessageLog.logMessage(

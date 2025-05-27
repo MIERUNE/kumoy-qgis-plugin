@@ -432,7 +432,9 @@ class DbRoot(QgsDataItem):
                     attr_dict[field.name()] = "string"
                 else:
                     QgsMessageLog.logMessage(
-                        f"未対応の属性タイプ: {field.type()}", LOG_CATEGORY, Qgis.Critical
+                        f"未対応の属性タイプ: {field.type()}",
+                        LOG_CATEGORY,
+                        Qgis.Critical,
                     )
                     continue
 

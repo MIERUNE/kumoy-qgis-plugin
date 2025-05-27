@@ -139,9 +139,7 @@ class StyledMapItem(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Mapの上書き保存に失敗しました",
-                            LOG_CATEGORY, 
-                            Qgis.Critical
+                            "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
                         )
 
         except Exception as e:
@@ -167,9 +165,7 @@ class StyledMapItem(QgsDataItem):
             self.refresh()
         else:
             QgsMessageLog.logMessage(
-                "Mapの上書き保存に失敗しました",
-                LOG_CATEGORY, 
-                Qgis.Critical
+                "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
             )
 
     def delete_styled_map(self):
@@ -285,9 +281,7 @@ class StyledMapRoot(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Mapの作成に失敗しました",
-                            LOG_CATEGORY, 
-                            Qgis.Critical
+                            "Mapの作成に失敗しました", LOG_CATEGORY, Qgis.Critical
                         )
 
         except Exception as e:

@@ -12,7 +12,7 @@ from qgis.core import (
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
-from ..qgishub.constants import PLUGIN_NAME, LOG_CATEGORY, BROWSER_ROOT_PATH
+from ..qgishub.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..settings_manager import SettingsManager
 from ..ui.dialog_config import DialogConfig
 from ..ui.dialog_project_select import ProjectSelectDialog
@@ -166,7 +166,9 @@ class RootCollection(QgsDataCollectionItem):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating name with project: {str(e)}", LOG_CATEGORY, Qgis.Warning
+                f"Error updating name with project: {str(e)}",
+                LOG_CATEGORY,
+                Qgis.Warning,
             )
             self.setName(PLUGIN_NAME)
 
