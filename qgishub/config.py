@@ -19,9 +19,6 @@ class Config:
         """設定マネージャーから設定を読み込む"""
         # プラグインがロードされている場合のみ設定を読み込む
         try:
-            # 相対インポートを避けるために動的インポートを使用(循環参照を避けるため)
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
             settings_manager = SettingsManager()
 
             # カスタムサーバー設定を読み込む
