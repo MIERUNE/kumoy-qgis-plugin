@@ -90,8 +90,9 @@ class DialogConfig(QDialog):
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
-            is_success = self.save_server_settings()
-            if not is_success:
+            self.save_server_settings()
+
+            if not self.validate_custom_server_settings():
                 return
 
             # Start the authentication process
@@ -177,12 +178,8 @@ class DialogConfig(QDialog):
                 self, "Logout Error", f"An error occurred during logout: {str(e)}"
             )
 
-    def save_server_settings(self) -> bool:
-        """サーバー設定を保存する
-
-        Returns:
-            bool: 設定の保存とバリデーションが成功したかどうか
-        """
+    def save_server_settings(self):
+        """サーバー設定を保存する"""
         settings_manager = SettingsManager()
 
         # カスタムサーバーの設定を保存
@@ -200,8 +197,8 @@ class DialogConfig(QDialog):
         )
         settings_manager.store_setting("custom_server_url", custom_server_url)
 
-        # 設定を保存した後、configを更新（バリデーション結果を返す）
-        return config.load_settings()
+        # 設定を保存した後、configを更新
+        config.load_settings()
 
     def load_server_settings(self):
         """保存されたサーバー設定を読み込む"""
@@ -220,3 +217,29 @@ class DialogConfig(QDialog):
         self.cognitoURL.setText(custom_cognito_url)
         self.cognitoClientID.setText(custom_cognito_client_id)
         self.stratoURL.setText(custom_server_url)
+
+    def validate_custom_server_settings(self) -> bool:
+        """カスタムサーバー設定のバリデーション"""
+        if not self.mGroupBoxStratoServerConfig.isChecked():
+            return True
+
+        # 必要な設定項目をチェック
+        missing_settings = []
+        if not self.stratoURL.text().strip():
+            missing_settings.append("Server URL")
+        if not self.cognitoURL.text().strip():
+            missing_settings.append("Cognito URL")
+        if not self.cognitoClientID.text().strip():
+            missing_settings.append("Cognito Client ID")
+
+        # 未入力項目がある場合はメッセージボックスを表示
+        if missing_settings:
+            missing_text = ", ".join(missing_settings)
+            QMessageBox.warning(
+                self,
+                "Custom Server Configuration Error",
+                f"The following settings are missing:\n{missing_text}\n\nPlease configure them before logging in.",
+            )
+            return False
+
+        return True

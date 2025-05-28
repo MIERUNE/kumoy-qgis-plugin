@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from PyQt5.QtWidgets import QMessageBox
-
 from settings_manager import SettingsManager
 
 
@@ -15,7 +13,7 @@ class Config:
         """初期化時に設定を読み込む"""
         self.load_settings()
 
-    def load_settings(self) -> bool:
+    def load_settings(self):
         """設定マネージャーから設定を読み込む"""
         # プラグインがロードされている場合のみ設定を読み込む
         try:
@@ -32,34 +30,18 @@ class Config:
             custom_server_url = settings_manager.get_setting("custom_server_url")
 
             # カスタムサーバーが有効で各設定が存在すれば使用する
-            if use_custom_server:
-                # 必要な設定項目をチェック
-                missing_settings = []
-                if not custom_server_url:
-                    missing_settings.append("Server URL")
-                if not custom_cognito_url:
-                    missing_settings.append("Cognito URL")
-                if not custom_cognito_client_id:
-                    missing_settings.append("Cognito Client ID")
-
-                # 未入力項目がある場合はメッセージボックスを表示して処理を終了
-                if missing_settings:
-                    missing_text = ", ".join(missing_settings)
-                    QMessageBox.warning(
-                        None,
-                        "Custom Server Configuration Error",
-                        f"The following settings are missing:\n{missing_text}\n\nPlease configure them in the settings dialog.",
-                    )
-                    return False
-
+            if (
+                use_custom_server
+                and custom_server_url
+                and custom_cognito_url
+                and custom_cognito_client_id
+            ):
                 self.API_URL = custom_server_url
                 self.COGNITO_URL = custom_cognito_url
                 self.COGNITO_CLIENT_ID = custom_cognito_client_id
-
-            return True
         except Exception:
             # 設定の読み込みに失敗した場合はデフォルト値を使用
-            return True
+            pass
 
 
 config = Config()
