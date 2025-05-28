@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from qgis.core import Qgis, QgsMessageLog
+
+from qgishub.constants import LOG_CATEGORY
 from settings_manager import SettingsManager
 
 
@@ -39,8 +42,13 @@ class Config:
                 self.API_URL = custom_server_url
                 self.COGNITO_URL = custom_cognito_url
                 self.COGNITO_CLIENT_ID = custom_cognito_client_id
-        except Exception:
+        except Exception as e:
             # 設定の読み込みに失敗した場合はデフォルト値を使用
+            QgsMessageLog.logMessage(
+                f"Failed to load settings, using default values. Error: {str(e)}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )
             pass
 
 

@@ -90,10 +90,9 @@ class DialogConfig(QDialog):
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
-            self.save_server_settings()
-
             if not self.validate_custom_server_settings():
                 return
+            self.save_server_settings()
 
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
