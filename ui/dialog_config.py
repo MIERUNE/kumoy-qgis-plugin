@@ -35,8 +35,8 @@ class DialogConfig(QDialog):
         self.mGroupBoxStratoServerConfig: QGroupBox = (
             self.ui.mGroupBoxStratoServerConfig
         )
-        self.cognitURL: QLineEdit = self.ui.cognitURL
-        self.cognitClientID: QLineEdit = self.ui.cognitClientID
+        self.cognitoURL: QLineEdit = self.ui.cognitoURL
+        self.cognitoClientID: QLineEdit = self.ui.cognitoClientID
         self.stratoURL: QLineEdit = self.ui.stratoURL
 
         self.buttonClose.clicked.connect(self.reject)
@@ -181,8 +181,8 @@ class DialogConfig(QDialog):
 
         # カスタムサーバーの設定を保存
         use_custom_server = self.mGroupBoxStratoServerConfig.isChecked()
-        custom_cognito_url = self.cognitURL.text().strip()
-        custom_cognito_client_id = self.cognitClientID.text().strip()
+        custom_cognito_url = self.cognitoURL.text().strip()
+        custom_cognito_client_id = self.cognitoClientID.text().strip()
         custom_server_url = self.stratoURL.text().strip()
 
         settings_manager.store_setting(
@@ -211,6 +211,6 @@ class DialogConfig(QDialog):
 
         # UIに設定を反映
         self.mGroupBoxStratoServerConfig.setChecked(use_custom_server)
-        self.cognitURL.setText(custom_cognito_url)
-        self.cognitClientID.setText(custom_cognito_client_id)
+        self.cognitoURL.setText(custom_cognito_url)
+        self.cognitoClientID.setText(custom_cognito_client_id)
         self.stratoURL.setText(custom_server_url)

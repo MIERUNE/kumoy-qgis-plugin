@@ -165,14 +165,14 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QLineEdit" name="cognitClientID">
+       <widget class="QLineEdit" name="cognitoClientID">
         <property name="text">
          <string>1233456789abcdefghijklnmop</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QLineEdit" name="cognitURL">
+       <widget class="QLineEdit" name="cognitoURL">
         <property name="text">
          <string>https://strato.auth.ap-northeast-1.amazoncognito.com</string>
         </property>
