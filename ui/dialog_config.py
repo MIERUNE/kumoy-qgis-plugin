@@ -90,7 +90,9 @@ class DialogConfig(QDialog):
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
-            self.save_server_settings()
+            is_success = self.save_server_settings()
+            if not is_success:
+                return
 
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
@@ -175,8 +177,12 @@ class DialogConfig(QDialog):
                 self, "Logout Error", f"An error occurred during logout: {str(e)}"
             )
 
-    def save_server_settings(self):
-        """サーバー設定を保存する"""
+    def save_server_settings(self) -> bool:
+        """サーバー設定を保存する
+
+        Returns:
+            bool: 設定の保存とバリデーションが成功したかどうか
+        """
         settings_manager = SettingsManager()
 
         # カスタムサーバーの設定を保存
@@ -194,8 +200,8 @@ class DialogConfig(QDialog):
         )
         settings_manager.store_setting("custom_server_url", custom_server_url)
 
-        # 設定を保存した後、configを更新
-        config.load_settings()
+        # 設定を保存した後、configを更新（バリデーション結果を返す）
+        return config.load_settings()
 
     def load_server_settings(self):
         """保存されたサーバー設定を読み込む"""
