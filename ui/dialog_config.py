@@ -3,8 +3,8 @@ import os
 import webbrowser
 
 from PyQt5.QtWidgets import (
-    QCheckBox,
     QDialog,
+    QGroupBox,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -14,6 +14,7 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 
 from ..qgishub.auth_manager import AuthManager
+from ..qgishub.config import config
 from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
 
@@ -31,7 +32,11 @@ class DialogConfig(QDialog):
         self.buttonLogout: QPushButton = self.ui.buttonLogout
         self.labelSupabaseStatus: QLabel = self.ui.labelSupabaseStatus
         self.labelUserInfo: QLabel = self.ui.labelUserInfo
-        self.checkBoxCustomServer: QCheckBox = self.ui.checkBoxCustomServer
+        self.mGroupBoxStratoServerConfig: QGroupBox = (
+            self.ui.mGroupBoxStratoServerConfig
+        )
+        self.cognitURL: QLineEdit = self.ui.cognitURL
+        self.cognitClientID: QLineEdit = self.ui.cognitClientID
         self.stratoURL: QLineEdit = self.ui.stratoURL
 
         self.buttonClose.clicked.connect(self.reject)
@@ -175,17 +180,21 @@ class DialogConfig(QDialog):
         settings_manager = SettingsManager()
 
         # カスタムサーバーの設定を保存
-        use_custom_server = self.checkBoxCustomServer.isChecked()
+        use_custom_server = self.mGroupBoxStratoServerConfig.isChecked()
+        custom_cognito_url = self.cognitURL.text().strip()
+        custom_cognito_client_id = self.cognitClientID.text().strip()
         custom_server_url = self.stratoURL.text().strip()
 
         settings_manager.store_setting(
             "use_custom_server", "true" if use_custom_server else "false"
         )
+        settings_manager.store_setting("custom_cognito_url", custom_cognito_url)
+        settings_manager.store_setting(
+            "custom_cognito_client_id", custom_cognito_client_id
+        )
         settings_manager.store_setting("custom_server_url", custom_server_url)
 
-        # configを再読み込みして設定を反映させる
-        from ..qgishub.config import config
-
+        # 設定を保存した後、configを更新
         config.load_settings()
 
     def load_server_settings(self):
@@ -194,9 +203,14 @@ class DialogConfig(QDialog):
 
         # 保存された設定を読み込む
         use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
+        custom_cognito_url = settings_manager.get_setting("custom_cognito_url") or ""
+        custom_cognito_client_id = (
+            settings_manager.get_setting("custom_cognito_client_id") or ""
+        )
         custom_server_url = settings_manager.get_setting("custom_server_url") or ""
 
         # UIに設定を反映
-        self.checkBoxCustomServer.setChecked(use_custom_server)
+        self.mGroupBoxStratoServerConfig.setChecked(use_custom_server)
+        self.cognitURL.setText(custom_cognito_url)
+        self.cognitClientID.setText(custom_cognito_client_id)
         self.stratoURL.setText(custom_server_url)
-        self.stratoURL.setEnabled(use_custom_server)

@@ -13,6 +13,8 @@ def DEFAULT_SETTINGS():
         "selected_project_id": "",
         "use_custom_server": "false",
         "custom_server_url": "",
+        "custom_cognito_url": "",
+        "custom_cognito_client_id": "",
     }
 
 

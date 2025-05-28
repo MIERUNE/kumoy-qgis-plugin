@@ -28,11 +28,20 @@ class Config:
             use_custom_server = (
                 settings_manager.get_setting("use_custom_server") == "true"
             )
+            custom_cognito_url = settings_manager.get_setting("custom_cognito_url")
+            custom_cognito_client_id = settings_manager.get_setting(
+                "custom_cognito_client_id"
+            )
             custom_server_url = settings_manager.get_setting("custom_server_url")
 
-            # カスタムサーバーが有効でURLが設定されていれば使用する
-            if use_custom_server and custom_server_url:
-                self.API_URL = custom_server_url
+            # カスタムサーバーが有効で各設定が存在すれば使用する
+            if use_custom_server:
+                if custom_server_url:
+                    self.API_URL = custom_server_url
+                if custom_cognito_url:
+                    self.COGNITO_URL = custom_cognito_url
+                if custom_cognito_client_id:
+                    self.COGNITO_CLIENT_ID = custom_cognito_client_id
         except Exception:
             # 設定の読み込みに失敗した場合はデフォルト値を使用
             pass
