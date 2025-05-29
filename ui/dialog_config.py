@@ -2,11 +2,19 @@ import json
 import os
 import webbrowser
 
-from PyQt5.QtWidgets import QDialog, QMessageBox
+from PyQt5.QtWidgets import (
+    QDialog,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+)
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 
 from ..qgishub.auth_manager import AuthManager
+from ..qgishub.config import config
 from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
 
@@ -18,11 +26,27 @@ class DialogConfig(QDialog):
             os.path.join(os.path.dirname(__file__), "dialog_config.ui"), self
         )
 
-        self.ui.buttonClose.clicked.connect(self.reject)
+        # Set type hints for UI
+        self.buttonClose: QPushButton = self.ui.buttonClose
+        self.buttonLogin: QPushButton = self.ui.buttonLogin
+        self.buttonLogout: QPushButton = self.ui.buttonLogout
+        self.labelSupabaseStatus: QLabel = self.ui.labelSupabaseStatus
+        self.labelUserInfo: QLabel = self.ui.labelUserInfo
+        self.mGroupBoxStratoServerConfig: QGroupBox = (
+            self.ui.mGroupBoxStratoServerConfig
+        )
+        self.cognitoURL: QLineEdit = self.ui.cognitoURL
+        self.cognitoClientID: QLineEdit = self.ui.cognitoClientID
+        self.stratoURL: QLineEdit = self.ui.stratoURL
+
+        self.buttonClose.clicked.connect(self.reject)
+
+        # load saved server settings
+        self.load_server_settings()
 
         # Set up Supabase login tab connections
-        self.ui.buttonLogin.clicked.connect(self.login)
-        self.ui.buttonLogout.clicked.connect(self.logout)
+        self.buttonLogin.clicked.connect(self.login)
+        self.buttonLogout.clicked.connect(self.logout)
 
         # Initialize auth manager
         self.auth_manager = AuthManager(port=9248)
@@ -30,6 +54,7 @@ class DialogConfig(QDialog):
         self.update_login_status()
 
     def closeEvent(self, event):
+        self.save_server_settings()
         super().closeEvent(event)
 
     def update_login_status(self):
@@ -39,11 +64,9 @@ class DialogConfig(QDialog):
         user_info_str = settings_manager.get_setting("user_info")
 
         if id_token:
-            self.ui.labelSupabaseStatus.setText("Logged in")
-            self.ui.labelSupabaseStatus.setStyleSheet(
-                "color: green; font-weight: bold;"
-            )
-            self.ui.buttonLogout.setEnabled(True)
+            self.labelSupabaseStatus.setText("Logged in")
+            self.labelSupabaseStatus.setStyleSheet("color: green; font-weight: bold;")
+            self.buttonLogout.setEnabled(True)
 
             # Display user info if available
             if user_info_str:
@@ -53,20 +76,24 @@ class DialogConfig(QDialog):
                     name = user_info.get("user_metadata", {}).get("full_name", "")
 
                     if name and email:
-                        self.ui.labelUserInfo.setText(f"Logged in as: {name}\n{email}")
+                        self.labelUserInfo.setText(f"Logged in as: {name}\n{email}")
                     elif email:
-                        self.ui.labelUserInfo.setText(f"Logged in as: {email}")
+                        self.labelUserInfo.setText(f"Logged in as: {email}")
                 except json.JSONDecodeError:
-                    self.ui.labelUserInfo.setText("")
+                    self.labelUserInfo.setText("")
         else:
-            self.ui.labelSupabaseStatus.setText("Not logged in")
-            self.ui.labelSupabaseStatus.setStyleSheet("")
-            self.ui.labelUserInfo.setText("")
-            self.ui.buttonLogout.setEnabled(False)
+            self.labelSupabaseStatus.setText("Not logged in")
+            self.labelSupabaseStatus.setStyleSheet("")
+            self.labelUserInfo.setText("")
+            self.buttonLogout.setEnabled(False)
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
+            if not self.validate_custom_server_settings():
+                return
+            self.save_server_settings()
+
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
 
@@ -149,3 +176,69 @@ class DialogConfig(QDialog):
             QMessageBox.critical(
                 self, "Logout Error", f"An error occurred during logout: {str(e)}"
             )
+
+    def save_server_settings(self):
+        """サーバー設定を保存する"""
+        settings_manager = SettingsManager()
+
+        # カスタムサーバーの設定を保存
+        use_custom_server = self.mGroupBoxStratoServerConfig.isChecked()
+        custom_cognito_url = self.cognitoURL.text().strip()
+        custom_cognito_client_id = self.cognitoClientID.text().strip()
+        custom_server_url = self.stratoURL.text().strip()
+
+        settings_manager.store_setting(
+            "use_custom_server", "true" if use_custom_server else "false"
+        )
+        settings_manager.store_setting("custom_cognito_url", custom_cognito_url)
+        settings_manager.store_setting(
+            "custom_cognito_client_id", custom_cognito_client_id
+        )
+        settings_manager.store_setting("custom_server_url", custom_server_url)
+
+        # 設定を保存した後、configを更新
+        config.load_settings()
+
+    def load_server_settings(self):
+        """保存されたサーバー設定を読み込む"""
+        settings_manager = SettingsManager()
+
+        # 保存された設定を読み込む
+        use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
+        custom_cognito_url = settings_manager.get_setting("custom_cognito_url") or ""
+        custom_cognito_client_id = (
+            settings_manager.get_setting("custom_cognito_client_id") or ""
+        )
+        custom_server_url = settings_manager.get_setting("custom_server_url") or ""
+
+        # UIに設定を反映
+        self.mGroupBoxStratoServerConfig.setChecked(use_custom_server)
+        self.cognitoURL.setText(custom_cognito_url)
+        self.cognitoClientID.setText(custom_cognito_client_id)
+        self.stratoURL.setText(custom_server_url)
+
+    def validate_custom_server_settings(self) -> bool:
+        """カスタムサーバー設定のバリデーション"""
+        if not self.mGroupBoxStratoServerConfig.isChecked():
+            return True
+
+        # 必要な設定項目をチェック
+        missing_settings = []
+        if not self.stratoURL.text().strip():
+            missing_settings.append("Server URL")
+        if not self.cognitoURL.text().strip():
+            missing_settings.append("Cognito URL")
+        if not self.cognitoClientID.text().strip():
+            missing_settings.append("Cognito Client ID")
+
+        # 未入力項目がある場合はメッセージボックスを表示
+        if missing_settings:
+            missing_text = ", ".join(missing_settings)
+            QMessageBox.warning(
+                self,
+                "Custom Server Configuration Error",
+                f"The following settings are missing:\n{missing_text}\n\nPlease configure them before logging in.",
+            )
+            return False
+
+        return True
