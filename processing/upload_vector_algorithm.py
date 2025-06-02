@@ -6,9 +6,13 @@ from typing import Dict
 
 from PyQt5.QtCore import QCoreApplication, QMetaType
 from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsFeature,
+    QgsFeatureSink,
     QgsField,
     QgsFields,
+    QgsMemoryProviderUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
@@ -70,6 +74,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
             "- Automatically convert multipart geometries (MultiPoint, MultiLineString, MultiPolygon) to single parts\n"
+            "- Automatically reproject the layer to EPSG:4326 using QgsFeatureSink if needed\n"
             "- Create a new vector layer in the selected project\n"
             "- Configure the attribute schema based on your layer's fields\n"
             "- Upload all features in batches (1000 features per batch)\n"
@@ -211,6 +216,54 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             processing_layer = result["OUTPUT"]
             feedback.pushInfo(self.tr("Conversion to single parts completed."))
 
+        # Create a temporary layer with EPSG:4326 if reprojection is needed
+        crs = processing_layer.crs()
+        target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
+
+        if crs.authid() != "EPSG:4326":
+            feedback.pushInfo(
+                self.tr(f"Reprojecting from {crs.authid()} to EPSG:4326...")
+            )
+
+            # Get the single-part geometry type for the memory layer
+            single_wkb_type = QgsWkbTypes.singleType(processing_layer.wkbType())
+
+            # Create a temporary memory layer with EPSG:4326
+            memory_layer_uri = QgsMemoryProviderUtils.createMemoryLayer(
+                "temp_4326", processing_layer.fields(), single_wkb_type, target_crs
+            )
+
+            # Get coordinate transform
+            transform = QgsCoordinateTransform(crs, target_crs, context.project())
+            
+            # Use data provider as sink
+            sink = memory_layer_uri.dataProvider()
+
+            # Copy features with coordinate transformation
+            features = list(processing_layer.getFeatures())
+            total_features = len(features)
+
+            for i, feature in enumerate(features):
+                if feedback.isCanceled():
+                    break
+
+                # Create a new feature and transform geometry
+                new_feature = QgsFeature(feature)
+                if new_feature.hasGeometry():
+                    geom = new_feature.geometry()
+                    geom.transform(transform)
+                    new_feature.setGeometry(geom)
+                
+                # Add transformed feature
+                sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+
+                # Update progress
+                progress = int((i + 1) / total_features * 50)  # 0-50% for reprojection
+                feedback.setProgress(progress)
+
+            processing_layer = memory_layer_uri
+            feedback.pushInfo(self.tr("Reprojection completed."))
+
         feedback.pushInfo(
             self.tr(f"Creating {vector_type} layer in project {project_id}...")
         )
@@ -262,6 +315,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         features_uploaded = 0
         batch = []
 
+        # Track if reprojection was done for progress calculation
+        reprojection_done = crs.authid() != "EPSG:4326"
+
         try:
             for feature in processing_layer.getFeatures():
                 if feedback.isCanceled():
@@ -292,7 +348,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         )
 
                     features_uploaded += len(batch)
-                    progress = int((features_uploaded / total_features) * 100)
+                    # Adjust progress to account for reprojection if it was done
+                    if reprojection_done:
+                        progress = 50 + int((features_uploaded / total_features) * 50)
+                    else:
+                        progress = int((features_uploaded / total_features) * 100)
                     feedback.setProgress(progress)
                     feedback.pushInfo(
                         self.tr(
