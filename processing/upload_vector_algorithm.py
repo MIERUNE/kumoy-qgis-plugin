@@ -158,26 +158,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         if wkb_type in [
             QgsWkbTypes.Point,
-            QgsWkbTypes.Point25D,
-            QgsWkbTypes.PointZ,
-            QgsWkbTypes.PointM,
-            QgsWkbTypes.PointZM,
         ]:
             vector_type = "POINT"
         elif wkb_type in [
             QgsWkbTypes.LineString,
-            QgsWkbTypes.LineString25D,
-            QgsWkbTypes.LineStringZ,
-            QgsWkbTypes.LineStringM,
-            QgsWkbTypes.LineStringZM,
         ]:
             vector_type = "LINESTRING"
         elif wkb_type in [
             QgsWkbTypes.Polygon,
-            QgsWkbTypes.Polygon25D,
-            QgsWkbTypes.PolygonZ,
-            QgsWkbTypes.PolygonM,
-            QgsWkbTypes.PolygonZM,
         ]:
             vector_type = "POLYGON"
         else:
