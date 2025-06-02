@@ -2,7 +2,7 @@
 Upload vector layer to STRATO backend
 """
 
-from typing import Dict, List
+from typing import Dict
 
 from PyQt5.QtCore import QCoreApplication, QMetaType
 from qgis.core import (
@@ -55,16 +55,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def groupId(self):
         """Algorithm group ID"""
-        return "vector"
+        return "Tools"
 
     def shortHelpString(self):
         """Short help string"""
         return self.tr(
-            "Upload a vector layer to the STRATO backend.\n\n"
-            "This algorithm performs the following steps:\n"
-            "1. Create a new vector layer in the selected project\n"
-            "2. Set up the layer's attribute schema\n"
-            "3. Upload all features"
+            "Upload a vector layer to the STRATO.\n\n"
+            "User operation steps:\n"
+            "1. Select the vector layer you want to upload from the dropdown\n"
+            "2. Choose the destination project from Organization/Project list\n"
+            "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
+            "4. Click 'Run' to start the upload process\n\n"
         )
 
     def initAlgorithm(self, config=None):
