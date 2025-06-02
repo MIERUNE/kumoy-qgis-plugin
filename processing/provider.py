@@ -7,6 +7,8 @@ import os
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
+from qgishub.constants import PLUGIN_NAME
+
 from ..imgs import IMGS_PATH
 from .upload_vector_algorithm import UploadVectorAlgorithm
 
@@ -19,11 +21,11 @@ class StratoProcessingProvider(QgsProcessingProvider):
 
     def id(self):
         """Unique ID for this provider"""
-        return "strato"
+        return PLUGIN_NAME.lower()
 
     def name(self):
         """Human-readable name for this provider"""
-        return "STRATO"
+        return PLUGIN_NAME
 
     def icon(self):
         """Icon for this provider"""
