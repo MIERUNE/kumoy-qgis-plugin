@@ -2,9 +2,12 @@
 STRATO Processing provider
 """
 
+import os
+
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
+from ..imgs import IMGS_PATH
 from .upload_vector_algorithm import UploadVectorAlgorithm
 
 
@@ -24,7 +27,7 @@ class StratoProcessingProvider(QgsProcessingProvider):
 
     def icon(self):
         """Icon for this provider"""
-        return QIcon(":/plugins/qgis-hub/imgs/icon.png")
+        return QIcon(os.path.join(IMGS_PATH, "icon.svg"))
 
     def loadAlgorithms(self):
         """Load algorithms"""
