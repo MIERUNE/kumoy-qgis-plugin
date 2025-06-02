@@ -154,17 +154,33 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Determine geometry type
         wkb_type = layer.wkbType()
-        
-        if wkb_type in [QgsWkbTypes.Point, QgsWkbTypes.Point25D, QgsWkbTypes.PointZ, QgsWkbTypes.PointM, QgsWkbTypes.PointZM]:
+
+        if wkb_type in [
+            QgsWkbTypes.Point,
+            QgsWkbTypes.Point25D,
+            QgsWkbTypes.PointZ,
+            QgsWkbTypes.PointM,
+            QgsWkbTypes.PointZM,
+        ]:
             vector_type = "POINT"
-        elif wkb_type in [QgsWkbTypes.LineString, QgsWkbTypes.LineString25D, QgsWkbTypes.LineStringZ, QgsWkbTypes.LineStringM, QgsWkbTypes.LineStringZM]:
+        elif wkb_type in [
+            QgsWkbTypes.LineString,
+            QgsWkbTypes.LineString25D,
+            QgsWkbTypes.LineStringZ,
+            QgsWkbTypes.LineStringM,
+            QgsWkbTypes.LineStringZM,
+        ]:
             vector_type = "LINESTRING"
-        elif wkb_type in [QgsWkbTypes.Polygon, QgsWkbTypes.Polygon25D, QgsWkbTypes.PolygonZ, QgsWkbTypes.PolygonM, QgsWkbTypes.PolygonZM]:
+        elif wkb_type in [
+            QgsWkbTypes.Polygon,
+            QgsWkbTypes.Polygon25D,
+            QgsWkbTypes.PolygonZ,
+            QgsWkbTypes.PolygonM,
+            QgsWkbTypes.PolygonZM,
+        ]:
             vector_type = "POLYGON"
         else:
-            raise QgsProcessingException(
-                self.tr("Unsupported geometry type")
-            )
+            raise QgsProcessingException(self.tr("Unsupported geometry type"))
 
         feedback.pushInfo(
             self.tr(f"Creating {vector_type} layer in project {project_id}...")
@@ -176,9 +192,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             new_vector = add_vector(project_id, add_options)
 
             if not new_vector:
-                raise QgsProcessingException(
-                    self.tr("Failed to create vector layer")
-                )
+                raise QgsProcessingException(self.tr("Failed to create vector layer"))
 
             vector_id = new_vector.id
             feedback.pushInfo(self.tr(f"Vector layer created: {vector_id}"))
@@ -223,11 +237,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             for feature in layer.getFeatures():
                 if feedback.isCanceled():
                     break
-                    
+
                 # Skip features without geometry
                 if not feature.hasGeometry():
                     continue
-                    
+
                 # Skip features with different geometry type
                 if feature.geometry().wkbType() != wkb_type:
                     continue
@@ -236,12 +250,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 new_feature = QgsFeature()
                 new_feature.setGeometry(feature.geometry())
                 new_feature.setFields(upload_fields)
-                
+
                 for field in upload_fields:
-                    new_feature.setAttribute(field.name(), feature.attribute(field.name()))
-                
+                    new_feature.setAttribute(
+                        field.name(), feature.attribute(field.name())
+                    )
+
                 batch.append(new_feature)
-                
+
                 # Upload batch when it reaches the size limit
                 if len(batch) >= batch_size:
                     success = add_features(vector_id, batch)
@@ -249,32 +265,28 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         raise QgsProcessingException(
                             self.tr("Failed to upload features")
                         )
-                    
+
                     features_uploaded += len(batch)
                     progress = int((features_uploaded / total_features) * 100)
                     feedback.setProgress(progress)
                     feedback.pushInfo(
-                        self.tr(f"Progress: {features_uploaded}/{total_features} features")
+                        self.tr(
+                            f"Progress: {features_uploaded}/{total_features} features"
+                        )
                     )
                     batch = []
-            
+
             # Upload remaining features
             if batch:
                 success = add_features(vector_id, batch)
                 if not success:
-                    raise QgsProcessingException(
-                        self.tr("Failed to upload features")
-                    )
+                    raise QgsProcessingException(self.tr("Failed to upload features"))
                 features_uploaded += len(batch)
 
         except Exception as e:
-            raise QgsProcessingException(
-                self.tr(f"Error uploading features: {str(e)}")
-            )
+            raise QgsProcessingException(self.tr(f"Error uploading features: {str(e)}"))
 
-        feedback.pushInfo(
-            self.tr(f"Upload complete: {features_uploaded} features")
-        )
+        feedback.pushInfo(self.tr(f"Upload complete: {features_uploaded} features"))
 
         return {"VECTOR_ID": vector_id}
 
