@@ -101,6 +101,7 @@ class FieldNameNormalizer:
         self._normalized_columns: Dict[str, str] = {}
         self._field_name_mapping: Dict[str, str] = {}
         self._normalized_to_original: Dict[str, str] = {}
+        self._empty_field_counter = 1  # Counter for empty field names
         self._process_fields()
 
     @property
@@ -207,9 +208,16 @@ class FieldNameNormalizer:
         # Example: "123_field" → "_field", "456" → ""
         normalized = re.sub(r"^[0-9]+", "", normalized)
 
-        # If the name is empty or starts with a digit after cleaning, prepend 'field_'
-        # Example: "" → "field_", "_field" → "field__field"
-        if not normalized or (normalized and normalized[0].isdigit()):
+        # Handle empty name and names starting with digits differently
+        if not normalized:
+            # If the name is empty, assign a sequential number starting from 1
+            # Example: "" → "field_1", "" → "field_2", etc.
+            normalized = "field_" + str(self._empty_field_counter)
+            self._empty_field_counter += 1
+
+        if normalized and normalized[0].isdigit():
+            # If the name starts with a digit after cleaning, prepend 'field_'
+            # Example: "_field" → "field__field", "123abc" → "field_abc"
             normalized = "field_" + normalized
 
         # Limit length to PostgreSQL identifier limit
