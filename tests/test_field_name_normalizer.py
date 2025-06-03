@@ -1,3 +1,5 @@
+# Direct import to avoid loading provider
+import importlib.util
 import os
 import sys
 import unittest
@@ -17,8 +19,6 @@ if package_name not in sys.modules:
     package_module.__path__ = [project_root]
     sys.modules[package_name] = package_module
 
-# Direct import to avoid loading provider
-import importlib.util
 
 spec = importlib.util.spec_from_file_location(
     "field_name_normalizer",
