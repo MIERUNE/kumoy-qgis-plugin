@@ -8,6 +8,9 @@ from qgis.core import QgsField, QgsFields, QgsProcessingFeedback, QgsVectorLayer
 class FieldNameNormalizer:
     """Normalizes field names for PostgreSQL/PostGIS compatibility and manages mappings"""
 
+    # PostgreSQL identifier length limit
+    MAX_FIELD_LENGTH = 63
+
     # PostgreSQL reserved keywords (common ones)
     RESERVED_KEYWORDS = {
         "all",
@@ -189,38 +192,38 @@ class FieldNameNormalizer:
     def _normalize_field_name(self, name: str) -> str:
         """Normalize field name for PostgreSQL/PostGIS compatibility"""
         # Convert to lowercase
-        # "Field Name" → "field name", "SELECT" → "select"
+        # Example: "Field Name" → "field name", "SELECT" → "select"
         normalized = name.lower()
 
         # Replace spaces, hyphens, and other common separators with underscores
-        # "field name" → "field_name", "my-field!" → "my_field_", "field.with.dots" → "field_with_dots"
+        # Example: "field name" → "field_name", "my-field!" → "my_field_", "field.with.dots" → "field_with_dots"
         normalized = re.sub(r"[\s\-\.\,\;\:\!\?\(\)\[\]\{\}]+", "_", normalized)
 
         # Remove all characters that are not alphanumeric or underscore
-        # "my_field_" → "my_field", "データ項目" → "", "field@#$" → "field"
+        # Example: "my_field_" → "my_field", "データ項目" → "", "field@#$" → "field"
         normalized = re.sub(r"[^a-z0-9_]", "", normalized)
 
         # Remove leading digits
-        # "123_field" → "_field", "456" → ""
+        # Example: "123_field" → "_field", "456" → ""
         normalized = re.sub(r"^[0-9]+", "", normalized)
 
         # If the name is empty or starts with a digit after cleaning, prepend 'field_'
-        # "" → "field_", "_field" → "field__field"
+        # Example: "" → "field_", "_field" → "field__field"
         if not normalized or (normalized and normalized[0].isdigit()):
             normalized = "field_" + normalized
 
-        # Limit length to 63 characters (PostgreSQL limit)
-        # "very_long_field_name_that_exceeds_postgresql_limit_of_63_chars" → "very_long_field_name_that_exceeds_postgresql_limit_of_63_ch"
-        if len(normalized) > 63:
-            normalized = normalized[:63]
+        # Limit length to PostgreSQL identifier limit
+        # Example: "very_long_field_name_that_exceeds_postgresql_limit_of_63_chars" → "very_long_field_name_that_exceeds_postgresql_limit_of_63_ch"
+        if len(normalized) > self.MAX_FIELD_LENGTH:
+            normalized = normalized[: self.MAX_FIELD_LENGTH]
 
         # Handle reserved keywords by appending '_'
-        # "select" → "select_", "where" → "where_"
+        # Example: "select" → "select_", "where" → "where_"
         if normalized in self.RESERVED_KEYWORDS:
             normalized = normalized + "_"
             # Recheck length
-            if len(normalized) > 63:
-                normalized = normalized[:62] + "_"
+            if len(normalized) > self.MAX_FIELD_LENGTH:
+                normalized = normalized[: self.MAX_FIELD_LENGTH - 1] + "_"
 
         # Final validation - if still invalid, use a generic name
         if not normalized or not re.match(r"^[a-z_][a-z0-9_]*$", normalized):
@@ -235,9 +238,10 @@ class FieldNameNormalizer:
 
         while normalized_name in self._normalized_columns:
             normalized_name = f"{base_name}_{counter}"
-            if len(normalized_name) > 63:
+            if len(normalized_name) > self.MAX_FIELD_LENGTH:
                 # Truncate base name to fit with suffix
-                truncated_base = base_name[: 63 - len(str(counter)) - 1]
+                suffix_length = len(str(counter)) + 1  # +1 for underscore
+                truncated_base = base_name[: self.MAX_FIELD_LENGTH - suffix_length]
                 normalized_name = f"{truncated_base}_{counter}"
             counter += 1
 
