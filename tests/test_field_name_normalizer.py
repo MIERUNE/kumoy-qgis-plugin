@@ -1,69 +1,120 @@
-# Direct import to avoid loading provider
-import importlib.util
-import os
-import sys
 import unittest
 from typing import List
 from unittest.mock import Mock
 
-# Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
+import pytest
 
-# Register package name in sys.modules to recognize it as a package
-package_name = os.path.basename(project_root)
-if package_name not in sys.modules:
-    import types
-
-    package_module = types.ModuleType(package_name)
-    package_module.__path__ = [project_root]
-    sys.modules[package_name] = package_module
+# FieldNameNormalizer will be available due to conftest.py's sys.path setup
+from processing.field_name_normalizer import FieldNameNormalizer
 
 
-spec = importlib.util.spec_from_file_location(
-    "field_name_normalizer",
-    os.path.join(project_root, "processing", "field_name_normalizer.py"),
-)
-field_name_normalizer_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(field_name_normalizer_module)
-FieldNameNormalizer = field_name_normalizer_module.FieldNameNormalizer
+class MockField:
+    """Mock QgsField for testing"""
+
+    def __init__(self, name: str, type_name: str = "String", field_type: int = 10):
+        self._name = name
+        self._type_name = type_name
+        self._type = field_type
+
+    def name(self) -> str:
+        return self._name
+
+    def typeName(self) -> str:
+        return self._type_name
+
+    def type(self) -> int:
+        return self._type
+
+
+class MockFields:
+    """Mock QgsFields for testing"""
+
+    def __init__(self, fields: List[MockField]):
+        self._fields = fields
+
+    def __iter__(self):
+        return iter(self._fields)
+
+
+@pytest.fixture
+def create_mock_layer():
+    """Fixture to create a mock layer with fields"""
+
+    def _create_layer(field_names: List[str], field_types: List[str] = None) -> Mock:
+        if field_types is None:
+            field_types = ["String"] * len(field_names)
+
+        mock_layer = Mock()
+
+        # Map type names to QMetaType values
+        type_map = {
+            "String": 10,  # QString
+            "Integer": 2,  # Int
+            "Integer64": 4,  # LongLong
+            "Double": 6,  # Double
+            "Boolean": 1,  # Bool
+        }
+
+        fields = []
+        for name, type_name in zip(field_names, field_types):
+            field_type = type_map.get(type_name, 10)  # Default to String
+            fields.append(MockField(name, type_name, field_type))
+
+        mock_fields = MockFields(fields)
+        mock_layer.fields.return_value = mock_fields
+
+        return mock_layer
+
+    return _create_layer
+
+
+@pytest.fixture
+def mock_feedback():
+    """Fixture to create a mock feedback object"""
+    feedback = Mock()
+    feedback.pushInfo = Mock()
+    feedback.pushWarning = Mock()
+    return feedback
 
 
 class TestFieldNameNormalizer(unittest.TestCase):
     """Unit tests for FieldNameNormalizer class"""
 
-    def create_mock_field(
-        self, name: str, type_name="String", field_type=10
-    ) -> Mock:  # 10 = String
-        """Create a mock field"""
-        field = Mock()
-        field.name.return_value = name
-        field.typeName.return_value = type_name
-        field.type.return_value = field_type
-        return field
+    def setUp(self):
+        """Set up test fixtures"""
+        # Create helper function for creating mock layers
+        self.create_mock_layer = self._create_mock_layer_helper
 
-    def create_mock_layer(self, field_names: List[str], field_types=None) -> Mock:
-        """Create a mock layer"""
+        # Create mock feedback
+        feedback = Mock()
+        feedback.pushInfo = Mock()
+        feedback.pushWarning = Mock()
+        self.mock_feedback = feedback
+
+    def _create_mock_layer_helper(
+        self, field_names: List[str], field_types: List[str] = None
+    ) -> Mock:
+        """Helper method to create a mock layer with fields"""
         if field_types is None:
             field_types = ["String"] * len(field_names)
 
         mock_layer = Mock()
-        mock_fields = Mock()
 
-        # Mock fields() method
+        # Map type names to QMetaType values
+        type_map = {
+            "String": 10,  # QString
+            "Integer": 2,  # Int
+            "Integer64": 4,  # LongLong
+            "Double": 6,  # Double
+            "Boolean": 1,  # Bool
+        }
+
         fields = []
         for name, type_name in zip(field_names, field_types):
-            if type_name == "String":
-                field_type = 10
-            elif type_name == "Integer":
-                field_type = 2
-            elif type_name == "Integer64":
-                field_type = 4  # LongLong
-            else:
-                field_type = 10  # Default to String
-            fields.append(self.create_mock_field(name, type_name, field_type))
+            field_type = type_map.get(type_name, 10)  # Default to String
+            fields.append(MockField(name, type_name, field_type))
 
-        mock_fields.__iter__ = Mock(return_value=iter(fields))
+        mock_fields = MockFields(fields)
         mock_layer.fields.return_value = mock_fields
 
         return mock_layer
@@ -263,10 +314,8 @@ class TestFieldNameNormalizer(unittest.TestCase):
             ["防火準防火", "select", "id"], ["String", "String", "Integer64"]
         )
 
-        # Mock feedback object
-        feedback = Mock()
-        feedback.pushInfo = Mock()
-        feedback.pushWarning = Mock()
+        # Use the mock feedback from setUp
+        feedback = self.mock_feedback
 
         FieldNameNormalizer(layer, feedback)
 
@@ -294,6 +343,52 @@ class TestFieldNameNormalizer(unittest.TestCase):
                 "skipped due to unsupported data types" in msg
                 for msg in warning_messages
             )
+        )
+
+
+# Additional pytest-style tests using fixtures
+@pytest.mark.parametrize(
+    "field_name,expected",
+    [
+        ("simple_name", "simple_name"),
+        ("UPPERCASE", "uppercase"),
+        ("with-dash", "with_dash"),
+        ("with space", "with_space"),
+        ("123start", "start"),
+        ("select", "select_"),
+        ("日本語", "field_1"),
+    ],
+)
+def test_field_normalization_parametrized(create_mock_layer, field_name, expected):
+    """Parametrized test for various field name normalizations"""
+    layer = create_mock_layer([field_name])
+    normalizer = FieldNameNormalizer(layer)
+
+    if field_name != expected:
+        assert normalizer.field_name_mapping[field_name] == expected
+    else:
+        # If no change expected, it shouldn't be in the mapping
+        assert (
+            field_name not in normalizer.field_name_mapping
+            or normalizer.field_name_mapping[field_name] == expected
+        )
+
+
+@pytest.mark.parametrize("length", [60, 63, 64, 70, 100])
+def test_length_limits_parametrized(create_mock_layer, length):
+    """Parametrized test for length limits"""
+    field_name = "x" * length
+    layer = create_mock_layer([field_name])
+    normalizer = FieldNameNormalizer(layer)
+
+    if length > 63:
+        assert len(normalizer.field_name_mapping[field_name]) == 63
+        assert normalizer.field_name_mapping[field_name] == field_name[:63]
+    else:
+        # Should not be truncated
+        assert (
+            field_name not in normalizer.field_name_mapping
+            or normalizer.field_name_mapping[field_name] == field_name
         )
 
 
