@@ -189,26 +189,33 @@ class FieldNameNormalizer:
     def _normalize_field_name(self, name: str) -> str:
         """Normalize field name for PostgreSQL/PostGIS compatibility"""
         # Convert to lowercase
+        # "Field Name" → "field name", "SELECT" → "select"
         normalized = name.lower()
 
         # Replace spaces, hyphens, and other common separators with underscores
+        # "field name" → "field_name", "my-field!" → "my_field_", "field.with.dots" → "field_with_dots"
         normalized = re.sub(r"[\s\-\.\,\;\:\!\?\(\)\[\]\{\}]+", "_", normalized)
 
         # Remove all characters that are not alphanumeric or underscore
+        # "my_field_" → "my_field", "データ項目" → "", "field@#$" → "field"
         normalized = re.sub(r"[^a-z0-9_]", "", normalized)
 
         # Remove leading digits
+        # "123_field" → "_field", "456" → ""
         normalized = re.sub(r"^[0-9]+", "", normalized)
 
         # If the name is empty or starts with a digit after cleaning, prepend 'field_'
+        # "" → "field_", "_field" → "field__field"
         if not normalized or (normalized and normalized[0].isdigit()):
             normalized = "field_" + normalized
 
         # Limit length to 63 characters (PostgreSQL limit)
+        # "very_long_field_name_that_exceeds_postgresql_limit_of_63_chars" → "very_long_field_name_that_exceeds_postgresql_limit_of_63_ch"
         if len(normalized) > 63:
             normalized = normalized[:63]
 
         # Handle reserved keywords by appending '_'
+        # "select" → "select_", "where" → "where_"
         if normalized in self.RESERVED_KEYWORDS:
             normalized = normalized + "_"
             # Recheck length
