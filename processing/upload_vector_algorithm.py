@@ -297,6 +297,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Process layer geometry: convert to singlepart and reproject to EPSG:4326 in one step"""
         source_crs = layer.crs()
         target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
+        
+        # Check if CRS is valid
+        if not source_crs.isValid():
+            raise QgsProcessingException(
+                self.tr("The input layer has an undefined or invalid coordinate reference system. "
+                       "Please assign a valid CRS to the layer before uploading.")
+            )
 
         # If no processing needed, return original layer
         if not is_multipart and source_crs.authid() == "EPSG:4326":
