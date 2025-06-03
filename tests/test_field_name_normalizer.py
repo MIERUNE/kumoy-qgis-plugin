@@ -268,7 +268,7 @@ class TestFieldNameNormalizer(unittest.TestCase):
         feedback.pushInfo = Mock()
         feedback.pushWarning = Mock()
 
-        normalizer = FieldNameNormalizer(layer, feedback)
+        FieldNameNormalizer(layer, feedback)
 
         # Verify pushInfo was called
         feedback.pushInfo.assert_called()
