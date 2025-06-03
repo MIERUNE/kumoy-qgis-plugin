@@ -1,8 +1,15 @@
+# Setup path for imports in CI environment
+import sys
 import unittest
+from pathlib import Path
 from typing import List
 from unittest.mock import Mock
 
-# FieldNameNormalizer will be available due to conftest.py's sys.path setup
+# Add the project root to Python path for CI compatibility
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from processing.field_name_normalizer import FieldNameNormalizer
 
 
