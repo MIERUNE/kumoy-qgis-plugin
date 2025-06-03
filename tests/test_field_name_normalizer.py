@@ -1,9 +1,32 @@
+# Direct import to avoid loading provider
+import importlib.util
+import os
+import sys
 import unittest
 from typing import List
 from unittest.mock import Mock
 
-# FieldNameNormalizer will be available due to conftest.py's sys.path setup
-from processing.field_name_normalizer import FieldNameNormalizer
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+# Register package name in sys.modules to recognize it as a package
+package_name = os.path.basename(project_root)
+if package_name not in sys.modules:
+    import types
+
+    package_module = types.ModuleType(package_name)
+    package_module.__path__ = [project_root]
+    sys.modules[package_name] = package_module
+
+
+spec = importlib.util.spec_from_file_location(
+    "field_name_normalizer",
+    os.path.join(project_root, "processing", "field_name_normalizer.py"),
+)
+field_name_normalizer_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(field_name_normalizer_module)
+FieldNameNormalizer = field_name_normalizer_module.FieldNameNormalizer
 
 
 class MockField:
