@@ -96,12 +96,12 @@ class ApiClient:
 
         # Execute request
         eventLoop = QEventLoop()
-        
+
         # Use json.dumps to preserve dictionary order instead of QJsonDocument
         # which might reorder keys alphabetically
         json_data = json.dumps(data, ensure_ascii=False)
-        byte_array = QByteArray(json_data.encode('utf-8'))
-        
+        byte_array = QByteArray(json_data.encode("utf-8"))
+
         reply = nwa_manager.post(req, byte_array)
         reply.finished.connect(eventLoop.quit)
         eventLoop.exec_()
@@ -129,14 +129,12 @@ class ApiClient:
 
         # Execute request
         eventLoop = QEventLoop()
-        
+
         # Use json.dumps to preserve dictionary order
         json_data = json.dumps(data, ensure_ascii=False)
-        byte_array = QByteArray(json_data.encode('utf-8'))
-        
-        reply = nwa_manager.sendCustomRequest(
-            req, "PATCH".encode("utf-8"), byte_array
-        )
+        byte_array = QByteArray(json_data.encode("utf-8"))
+
+        reply = nwa_manager.sendCustomRequest(req, "PATCH".encode("utf-8"), byte_array)
         reply.finished.connect(eventLoop.quit)
         eventLoop.exec_()
 
