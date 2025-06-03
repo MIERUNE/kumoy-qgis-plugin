@@ -2,7 +2,7 @@
 Upload vector layer to STRATO backend
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication, QMetaType
 from qgis.core import (
@@ -12,6 +12,7 @@ from qgis.core import (
     QgsFeatureSink,
     QgsField,
     QgsFields,
+    QgsGeometry,
     QgsMemoryProviderUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
@@ -19,8 +20,10 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingParameterEnum,
+    QgsProcessingParameterFeatureSink,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
+    QgsProcessingUtils,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -40,6 +43,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     INPUT_LAYER: str = "INPUT"
     STRATO_PROJECT: str = "PROJECT"
     VECTOR_NAME: str = "VECTOR_NAME"
+    OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     project_map: Dict[str, str]
 
@@ -77,8 +81,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
-            "- Automatically convert multipart geometries (MultiPoint, MultiLineString, MultiPolygon) to single parts\n"
-            "- Automatically reproject the layer to EPSG:4326 using QgsFeatureSink if needed\n"
+            "- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step\n"
             "- Create a new vector layer in the selected project\n"
             "- Configure the attribute schema based on your layer's fields\n"
             "- Upload all features in chunkes (1000 features per chunk)\n"
@@ -143,6 +146,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+        # Hidden output parameter for internal processing
+        param = QgsProcessingParameterFeatureSink(
+            self.OUTPUT,
+            self.tr("Temporary output"),
+            type=QgsProcessing.TypeVectorAnyGeometry,
+            createByDefault=True,
+            defaultValue="TEMPORARY_OUTPUT",
+            optional=True,
+        )
+        param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
+        self.addParameter(param)
+
     def processAlgorithm(
         self,
         parameters: Dict[str, Any],
@@ -161,14 +176,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Determine geometry type
         vector_type, is_multipart = self._get_geometry_type(layer)
 
-        # Convert multipart to singlepart if needed
-        singlepart_layer = self._convert_to_singlepart(
-            layer, is_multipart, context, feedback
-        )
-
-        # Reproject to EPSG:4326 if needed
-        reprojected_layer, crs = self._reproject_to_wgs84(
-            singlepart_layer, context, feedback
+        # Process layer: convert to singlepart and reproject in one step
+        processed_layer, original_crs = self._process_layer_geometry(
+            layer, is_multipart, parameters, context, feedback
         )
 
         # Create vector in STRATO
@@ -177,11 +187,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Setup attribute schema
-        columns = self._setup_attribute_schema(reprojected_layer, vector_id, feedback)
+        columns = self._setup_attribute_schema(processed_layer, vector_id, feedback)
 
         # Upload features to STRATO
         features_uploaded = self._upload_features(
-            reprojected_layer, vector_id, columns, crs, feedback
+            processed_layer, vector_id, columns, original_crs, feedback
         )
 
         feedback.pushInfo(self.tr(f"Upload complete: {features_uploaded} features"))
@@ -282,82 +292,122 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         return vector_type, is_multipart
 
-    def _convert_to_singlepart(
+    def _process_layer_geometry(
         self,
         layer: QgsVectorLayer,
         is_multipart: bool,
-        context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
-    ) -> QgsVectorLayer:
-        """Convert multipart geometries to single parts if needed"""
-        if not is_multipart:
-            return layer
-
-        feedback.pushInfo(
-            self.tr("Detected multipart geometry. Converting to single parts...")
-        )
-        result = processing.run(
-            "native:multiparttosingleparts",
-            {"INPUT": layer, "OUTPUT": "TEMPORARY_OUTPUT"},
-            context=context,
-            feedback=feedback,
-        )
-        feedback.pushInfo(self.tr("Conversion to single parts completed."))
-        return result["OUTPUT"]
-
-    def _reproject_to_wgs84(
-        self,
-        layer: QgsVectorLayer,
+        parameters: Dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> Tuple[QgsVectorLayer, QgsCoordinateReferenceSystem]:
-        """Reproject layer to EPSG:4326 if needed"""
-        crs = layer.crs()
+        """Process layer geometry: convert to singlepart and reproject to EPSG:4326 in one step"""
+        source_crs = layer.crs()
         target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        if crs.authid() == "EPSG:4326":
-            return layer, crs
+        # If no processing needed, return original layer
+        if not is_multipart and source_crs.authid() == "EPSG:4326":
+            return layer, source_crs
 
-        feedback.pushInfo(self.tr(f"Reprojecting from {crs.authid()} to EPSG:4326..."))
+        # Log processing steps
+        processing_steps = []
+        if is_multipart:
+            processing_steps.append(self.tr("Converting multipart to singlepart"))
+        if source_crs.authid() != "EPSG:4326":
+            processing_steps.append(
+                self.tr(f"Reprojecting from {source_crs.authid()} to EPSG:4326")
+            )
 
-        # Get the single-part geometry type for the memory layer
-        single_wkb_type = QgsWkbTypes.singleType(layer.wkbType())
+        feedback.pushInfo(self.tr("Processing layer: ") + ", ".join(processing_steps))
 
-        # Create a temporary memory layer with EPSG:4326
-        memory_layer_uri = QgsMemoryProviderUtils.createMemoryLayer(
-            "temp_4326", layer.fields(), single_wkb_type, target_crs
+        # Get the target geometry type (always single part)
+        target_wkb_type = QgsWkbTypes.singleType(layer.wkbType())
+
+        # Create sink with target CRS and geometry type
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            layer.fields(),
+            target_wkb_type,
+            target_crs,
         )
 
-        # Get coordinate transform
-        transform = QgsCoordinateTransform(crs, target_crs, context.project())
+        if sink is None:
+            raise QgsProcessingException(
+                self.tr("Could not create temporary sink for processing")
+            )
 
-        # Use data provider as sink
-        sink = memory_layer_uri.dataProvider()
+        # Create coordinate transform if needed
+        transform = None
+        if source_crs.authid() != "EPSG:4326":
+            transform = QgsCoordinateTransform(
+                source_crs, target_crs, context.transformContext()
+            )
 
-        # Copy features with coordinate transformation
-        features = list(layer.getFeatures())
-        total_features = len(features)
+        # Process features
+        total_features = layer.featureCount()
+        features_processed = 0
 
-        for i, feature in enumerate(features):
+        for current, feature in enumerate(layer.getFeatures()):
+            feature = cast(QgsFeature, feature)
             if feedback.isCanceled():
                 break
 
-            # Create a new feature and transform geometry
-            new_feature = QgsFeature(feature)
-            if new_feature.hasGeometry():
-                geom = new_feature.geometry()
-                geom.transform(transform)
-                new_feature.setGeometry(geom)
+            if not feature.hasGeometry():
+                continue
 
-            # Add transformed feature
-            sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+            geom = feature.geometry()
 
-            # Update progress
-            progress = int((i + 1) / total_features * 50)  # 0-50% for reprojection
-            feedback.setProgress(progress)
+            # Handle multipart geometries
+            if is_multipart and geom.isMultipart():
+                # Convert multipart to singlepart
+                single_geometry_parts = geom.asGeometryCollection()
+                for single_geometry_part in single_geometry_parts:
+                    # Create new feature for each part
+                    new_feature = QgsFeature(feature)
 
-        feedback.pushInfo(self.tr("Reprojection completed."))
-        return memory_layer_uri, crs
+                    # Transform if needed
+                    if transform:
+                        single_geometry_part.transform(transform)
+
+                    new_feature.setGeometry(single_geometry_part)
+
+                    # Add to sink
+                    if not sink.addFeature(new_feature, QgsFeatureSink.FastInsert):
+                        raise QgsProcessingException(
+                            self.tr("Error processing feature")
+                        )
+                    features_processed += 1
+            else:
+                # Single part geometry
+                new_feature = QgsFeature(feature)
+
+                # Transform if needed
+                if transform:
+                    geom = QgsGeometry(geom)  # Make a copy
+                    geom.transform(transform)
+                    new_feature.setGeometry(geom)
+
+                # Add to sink
+                if not sink.addFeature(new_feature, QgsFeatureSink.FastInsert):
+                    raise QgsProcessingException(self.tr("Error processing feature"))
+                features_processed += 1
+
+            # Update progress (0-50% for geometry processing)
+            if total_features > 0:
+                progress = int((current + 1) / total_features * 50)
+                feedback.setProgress(progress)
+
+        feedback.pushInfo(
+            self.tr(f"Geometry processing completed: {features_processed} features")
+        )
+
+        # Get the processed layer
+        processed_layer = context.getMapLayer(dest_id)
+        if not processed_layer:
+            raise QgsProcessingException(self.tr("Could not retrieve processed layer"))
+
+        return processed_layer, source_crs
 
     def _create_vector_in_strato(
         self,
