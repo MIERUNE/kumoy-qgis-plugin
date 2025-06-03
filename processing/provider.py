@@ -1,7 +1,3 @@
-"""
-STRATO Processing provider
-"""
-
 import os
 
 from qgis.core import QgsProcessingProvider

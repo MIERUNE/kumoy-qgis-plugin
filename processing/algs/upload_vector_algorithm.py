@@ -1,7 +1,3 @@
-"""
-Upload vector layer to STRATO backend
-"""
-
 from typing import Any, Dict, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication
@@ -188,9 +184,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         uploader.setup_attribute_schema()
 
         # Upload features to STRATO
-        features_uploaded = uploader.upload_layer(processed_layer)
+        uploaded_feature_count = uploader.upload_layer(processed_layer)
 
-        feedback.pushInfo(self.tr(f"Upload complete: {features_uploaded} features"))
+        feedback.pushInfo(
+            self.tr(f"Upload complete: {uploaded_feature_count} features")
+        )
 
         return {"VECTOR_ID": vector_id}
 

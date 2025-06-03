@@ -1,9 +1,5 @@
-"""
-Field name normalization for PostgreSQL/PostGIS compatibility
-"""
-
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Literal, Optional, cast
 
 from PyQt5.QtCore import QMetaType
 from qgis.core import QgsField, QgsFields, QgsProcessingFeedback, QgsVectorLayer
@@ -99,7 +95,7 @@ class FieldNameNormalizer:
         """Initialize with a layer and optional feedback"""
         self.layer = layer
         self.feedback = feedback
-        self._columns: Dict[str, str] = {}
+        self._normalized_columns: Dict[str, str] = {}
         self._field_name_mapping: Dict[str, str] = {}
         self._normalized_to_original: Dict[str, str] = {}
         self._process_fields()
@@ -107,7 +103,7 @@ class FieldNameNormalizer:
     @property
     def columns(self) -> Dict[str, str]:
         """Get normalized columns with their data types"""
-        return self._columns
+        return self._normalized_columns
 
     @property
     def field_name_mapping(self) -> Dict[str, str]:
@@ -126,7 +122,7 @@ class FieldNameNormalizer:
         for field in self.layer.fields():
             if field.name() in self._field_name_mapping:
                 normalized_name = self._field_name_mapping[field.name()]
-                if normalized_name in self._columns:
+                if normalized_name in self._normalized_columns:
                     # Create new field with normalized name
                     new_field = QgsField(field)
                     new_field.setName(normalized_name)
@@ -136,21 +132,21 @@ class FieldNameNormalizer:
 
     def _process_fields(self) -> None:
         """Process all fields and create mappings"""
-        skipped_fields = []
-        renamed_fields = []
+        tracked_skipped_fields = []
+        tracked_renamed_fields = []
 
         for field in self.layer.fields():
-            field = field  # type: QgsField
+            field = cast(QgsField, field)
             original_name = field.name()
             normalized_name = self._normalize_field_name(original_name)
 
             # Check for duplicates after normalization
-            if normalized_name in self._columns:
+            if normalized_name in self._normalized_columns:
                 normalized_name = self._make_unique(normalized_name)
 
             # Track if name was changed
             if original_name != normalized_name:
-                renamed_fields.append(f"{original_name} → {normalized_name}")
+                tracked_renamed_fields.append(f"{original_name} → {normalized_name}")
 
             self._field_name_mapping[original_name] = normalized_name
             self._normalized_to_original[normalized_name] = original_name
@@ -158,35 +154,36 @@ class FieldNameNormalizer:
             # Map field type
             field_type = self._get_field_type(field)
             if field_type:
-                self._columns[normalized_name] = field_type
+                self._normalized_columns[normalized_name] = field_type
             else:
                 # Skip unsupported field types
+                # https://doc.qt.io/qt-6/qmetatype.html#Type-enum
                 type_name = (
                     QMetaType.typeName(field.type()) if field.type() > 0 else "Unknown"
                 )
-                skipped_fields.append(f"{original_name} (Type: {type_name})")
+                tracked_skipped_fields.append(f"{original_name} (Type: {type_name})")
                 # Remove from mappings if skipped
                 del self._field_name_mapping[original_name]
                 del self._normalized_to_original[normalized_name]
 
         # Report renamed fields
-        if renamed_fields and self.feedback:
+        if tracked_renamed_fields and self.feedback:
             self.feedback.pushInfo(
                 self.tr(
                     "The following field names were normalized for PostgreSQL compatibility:"
                 )
             )
-            for renamed in renamed_fields:
+            for renamed in tracked_renamed_fields:
                 self.feedback.pushInfo(f"  - {renamed}")
 
         # Report skipped fields
-        if skipped_fields and self.feedback:
+        if tracked_skipped_fields and self.feedback:
             self.feedback.pushWarning(
                 self.tr(
                     "The following fields were skipped due to unsupported data types:"
                 )
             )
-            for skipped in skipped_fields:
+            for skipped in tracked_skipped_fields:
                 self.feedback.pushWarning(f"  - {skipped}")
 
     def _normalize_field_name(self, name: str) -> str:
@@ -229,7 +226,7 @@ class FieldNameNormalizer:
         counter = 1
         normalized_name = base_name
 
-        while normalized_name in self._columns:
+        while normalized_name in self._normalized_columns:
             normalized_name = f"{base_name}_{counter}"
             if len(normalized_name) > 63:
                 # Truncate base name to fit with suffix
@@ -239,7 +236,9 @@ class FieldNameNormalizer:
 
         return normalized_name
 
-    def _get_field_type(self, field: QgsField) -> Optional[str]:
+    def _get_field_type(
+        self, field: QgsField
+    ) -> Optional[Literal["integer", "float", "boolean", "string"]]:
         """Get the field type as a string compatible with STRATO"""
         if field.type() == QMetaType.Int:
             return "integer"

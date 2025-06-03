@@ -1,7 +1,3 @@
-"""
-Vector creator for STRATO backend
-"""
-
 from typing import Optional
 
 from qgis.core import QgsProcessingFeedback

@@ -1,8 +1,4 @@
-"""
-Feature uploader for STRATO backend
-"""
-
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -40,8 +36,8 @@ class FeatureUploader:
         self.original_crs = original_crs
         self.feedback = feedback
         self.page_size = page_size
-        self.features_uploaded = 0
-        self.upload_fields = normalizer.get_normalized_fields()
+        self.uploaded_feature_count = 0
+        self.normalized_upload_fields = normalizer.get_normalized_fields()
 
     def upload_layer(self, layer: QgsVectorLayer) -> int:
         """Upload all features from a layer
@@ -92,7 +88,7 @@ class FeatureUploader:
 
             raise QgsProcessingException(self.tr(f"Error uploading features: {str(e)}"))
 
-        return self.features_uploaded
+        return self.uploaded_feature_count
 
     def setup_attribute_schema(self) -> bool:
         """Setup attribute schema on STRATO
@@ -131,14 +127,16 @@ class FeatureUploader:
         """
         new_feature = QgsFeature()
         new_feature.setGeometry(original_feature.geometry())
-        new_feature.setFields(self.upload_fields)
+        new_feature.setFields(self.normalized_upload_fields)
 
         # Map attributes from original to normalized names
-        for field in self.upload_fields:
-            normalized_name = field.name()
-            original_name = self.normalizer.normalized_to_original[normalized_name]
+        for normalized_field in self.normalized_upload_fields:
+            normalized_field_name = normalized_field.name()
+            original_field_name = self.normalizer.normalized_to_original[
+                normalized_field_name
+            ]
             new_feature.setAttribute(
-                normalized_name, original_feature.attribute(original_name)
+                normalized_field_name, original_feature.attribute(original_field_name)
             )
 
         return new_feature
@@ -156,14 +154,18 @@ class FeatureUploader:
 
             raise QgsProcessingException(self.tr("Failed to upload features"))
 
-        self.features_uploaded += len(chunk)
+        self.uploaded_feature_count += len(chunk)
 
         if self.feedback:
             # Calculate progress
-            progress = self._calculate_progress(self.features_uploaded, total_features)
+            progress = self._calculate_progress(
+                self.uploaded_feature_count, total_features
+            )
             self.feedback.setProgress(progress)
             self.feedback.pushInfo(
-                self.tr(f"Progress: {self.features_uploaded}/{total_features} features")
+                self.tr(
+                    f"Progress: {self.uploaded_feature_count}/{total_features} features"
+                )
             )
 
     def _calculate_progress(self, current: int, total: int) -> int:
