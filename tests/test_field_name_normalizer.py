@@ -1,17 +1,9 @@
-# Setup path for imports in CI environment
-import sys
-from pathlib import Path
+import unittest
+from typing import List
+from unittest.mock import Mock
 
-# Add the project root to Python path for CI compatibility - MUST be before other imports
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-import unittest  # noqa: E402
-from typing import List  # noqa: E402
-from unittest.mock import Mock  # noqa: E402
-
-from processing.field_name_normalizer import FieldNameNormalizer  # noqa: E402
+# FieldNameNormalizer will be available due to conftest.py's sys.path setup
+from processing.field_name_normalizer import FieldNameNormalizer
 
 
 class MockField:
