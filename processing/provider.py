@@ -1,7 +1,3 @@
-"""
-STRATO Processing provider
-"""
-
 import os
 
 from qgis.core import QgsProcessingProvider
@@ -10,7 +6,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgishub.constants import PLUGIN_NAME
 
 from ..imgs import IMGS_PATH
-from .upload_vector_algorithm import UploadVectorAlgorithm
+from .algs import UploadVectorAlgorithm
 
 
 class StratoProcessingProvider(QgsProcessingProvider):

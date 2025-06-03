@@ -1,17 +1,11 @@
-"""
-Upload vector layer to STRATO backend
-"""
+from typing import Any, Dict, Optional, Tuple, cast
 
-from typing import Any, Dict, List, Optional, Tuple, cast
-
-from PyQt5.QtCore import QCoreApplication, QMetaType
+from PyQt5.QtCore import QCoreApplication
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsFeature,
     QgsFeatureSink,
-    QgsField,
-    QgsFields,
     QgsGeometry,
     QgsProcessing,
     QgsProcessingAlgorithm,
@@ -26,9 +20,11 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from ..qgishub import api
-from ..qgishub.api.project_vector import AddVectorOptions
-from ..qgishub.get_token import get_token
+from ...qgishub import api
+from ...qgishub.get_token import get_token
+from ..feature_uploader import FeatureUploader
+from ..field_name_normalizer import FieldNameNormalizer
+from ..vector_creator import VectorCreator
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
@@ -75,6 +71,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
+            "- Automatically normalize field names for PostgreSQL/PostGIS compatibility (lowercase, remove special characters)\n"
             "- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step\n"
             "- Create a new vector layer in the selected project\n"
             "- Configure the attribute schema based on your layer's fields\n"
@@ -176,58 +173,24 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Create vector in STRATO
-        vector_id = self._create_vector_in_strato(
-            project_id, vector_name, vector_type, feedback
-        )
+        creator = VectorCreator(feedback)
+        vector_id = creator.create_vector(project_id, vector_name, vector_type)
 
-        # Setup attribute schema
-        columns = self._setup_attribute_schema(processed_layer, vector_id, feedback)
+        # Setup field name normalization
+        normalizer = FieldNameNormalizer(processed_layer, feedback)
+
+        # Create uploader and setup attribute schema
+        uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
+        uploader.setup_attribute_schema()
 
         # Upload features to STRATO
-        features_uploaded = self._upload_features(
-            processed_layer, vector_id, columns, original_crs, feedback
+        uploaded_feature_count = uploader.upload_layer(processed_layer)
+
+        feedback.pushInfo(
+            self.tr(f"Upload complete: {uploaded_feature_count} features")
         )
 
-        feedback.pushInfo(self.tr(f"Upload complete: {features_uploaded} features"))
-
         return {"VECTOR_ID": vector_id}
-
-    def _get_column_schema(
-        self, layer: QgsVectorLayer, feedback: Optional[QgsProcessingFeedback] = None
-    ) -> Dict[str, str]:
-        """Get column schema from layer fields"""
-        columns = {}
-        skipped_fields = []
-
-        # Type mapping using QMetaType (same as browser/vector.py)
-        for field in layer.fields():
-            if field.type() == QMetaType.Int:
-                columns[field.name()] = "integer"
-            elif field.type() == QMetaType.Double or field.type() == QMetaType.Float:
-                columns[field.name()] = "float"
-            elif field.type() == QMetaType.Bool:
-                columns[field.name()] = "boolean"
-            elif field.type() == QMetaType.QString:
-                columns[field.name()] = "string"
-            else:
-                # Skip unsupported field types
-                type_name = (
-                    QMetaType.typeName(field.type()) if field.type() > 0 else "Unknown"
-                )
-                skipped_fields.append(f"{field.name()} (Type: {type_name})")
-                continue
-
-        # Report skipped fields
-        if skipped_fields and feedback:
-            feedback.pushWarning(
-                self.tr(
-                    "The following fields were skipped due to unsupported data types:"
-                )
-            )
-            for skipped in skipped_fields:
-                feedback.pushWarning(f"  - {skipped}")
-
-        return columns
 
     def _validate_and_get_parameters(
         self, parameters: Dict[str, Any], context: QgsProcessingContext
@@ -411,159 +374,3 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.tr("Could not retrieve processed layer"))
 
         return processed_layer, source_crs
-
-    def _create_vector_in_strato(
-        self,
-        project_id: str,
-        vector_name: str,
-        vector_type: str,
-        feedback: QgsProcessingFeedback,
-    ) -> str:
-        """Create a new vector layer in STRATO"""
-        feedback.pushInfo(
-            self.tr(f"Creating {vector_type} layer in project {project_id}...")
-        )
-
-        try:
-            add_options = AddVectorOptions(name=vector_name, type=vector_type)
-            new_vector = api.project_vector.add_vector(project_id, add_options)
-
-            if not new_vector:
-                raise QgsProcessingException(self.tr("Failed to create vector layer"))
-
-            vector_id = new_vector.id
-            feedback.pushInfo(self.tr(f"Vector layer created: {vector_id}"))
-            return vector_id
-
-        except Exception as e:
-            raise QgsProcessingException(
-                self.tr(f"Error creating vector layer: {str(e)}")
-            )
-
-    def _setup_attribute_schema(
-        self, layer: QgsVectorLayer, vector_id: str, feedback: QgsProcessingFeedback
-    ) -> Dict[str, str]:
-        """Setup attribute schema for the vector layer"""
-        feedback.pushInfo(self.tr("Setting up attribute schema..."))
-        columns = self._get_column_schema(layer, feedback)
-
-        if columns:
-            try:
-                success = api.qgis_vector.add_attributes(vector_id, columns)
-                if not success:
-                    feedback.reportError(self.tr("Failed to set attribute schema"))
-            except Exception as e:
-                feedback.reportError(self.tr(f"Attribute schema error: {str(e)}"))
-
-        return columns
-
-    def _upload_features(
-        self,
-        layer: QgsVectorLayer,
-        vector_id: str,
-        columns: Dict[str, str],
-        original_crs: QgsCoordinateReferenceSystem,
-        feedback: QgsProcessingFeedback,
-    ) -> int:
-        """Upload features to STRATO in chunkes"""
-        feedback.pushInfo(self.tr("Uploading features..."))
-        total_features = layer.featureCount()
-
-        if total_features == 0:
-            feedback.pushInfo(self.tr("No features to upload"))
-            return 0
-
-        # Create supported fields for upload
-        upload_fields = QgsFields()
-        for field in layer.fields():
-            if field.name() in columns:
-                upload_fields.append(QgsField(field))
-
-        # Process features in chunkes
-        # Note: 1000 is a reasonable default for most use cases
-        # Smaller chunkes = more API calls but less memory usage
-        # Larger chunkes = fewer API calls but more memory usage
-        PAGE_SIZE = 1000
-        features_uploaded = 0
-        chunk = []
-
-        # Track if reprojection was done for progress calculation
-        reprojection_done = original_crs.authid() != "EPSG:4326"
-
-        try:
-            for feature in layer.getFeatures():
-                if feedback.isCanceled():
-                    break
-
-                # Skip features without geometry
-                if not feature.hasGeometry():
-                    continue
-
-                # Create new feature with only supported fields
-                new_feature = QgsFeature()
-                new_feature.setGeometry(feature.geometry())
-                new_feature.setFields(upload_fields)
-
-                for field in upload_fields:
-                    new_feature.setAttribute(
-                        field.name(), feature.attribute(field.name())
-                    )
-
-                chunk.append(new_feature)
-
-                # Upload chunk when it reaches the size limit
-                if len(chunk) >= PAGE_SIZE:
-                    self._upload_chunk(
-                        vector_id,
-                        chunk,
-                        features_uploaded,
-                        total_features,
-                        reprojection_done,
-                        feedback,
-                    )
-                    features_uploaded += len(chunk)
-                    chunk = []
-
-            # Upload remaining features
-            if chunk:
-                self._upload_chunk(
-                    vector_id,
-                    chunk,
-                    features_uploaded,
-                    total_features,
-                    reprojection_done,
-                    feedback,
-                )
-                features_uploaded += len(chunk)
-
-        except Exception as e:
-            raise QgsProcessingException(self.tr(f"Error uploading features: {str(e)}"))
-
-        return features_uploaded
-
-    def _upload_chunk(
-        self,
-        vector_id: str,
-        chunk: List[QgsFeature],
-        features_uploaded: int,
-        total_features: int,
-        reprojection_done: bool,
-        feedback: QgsProcessingFeedback,
-    ) -> None:
-        """Upload a chunk of features to STRATO"""
-        success = api.qgis_vector.add_features(vector_id, chunk)
-        if not success:
-            raise QgsProcessingException(self.tr("Failed to upload features"))
-
-        current_count = features_uploaded + len(chunk)
-
-        # Adjust progress to account for reprojection if it was done
-        if reprojection_done:
-            progress = 50 + int((current_count / total_features) * 50)
-        else:
-            progress = int((current_count / total_features) * 100)
-
-        feedback.setProgress(progress)
-        feedback.pushInfo(
-            self.tr(f"Progress: {current_count}/{total_features} features")
-        )
