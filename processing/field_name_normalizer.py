@@ -121,7 +121,7 @@ class FieldNameNormalizer:
 
     def get_normalized_fields(self) -> QgsFields:
         """Get QgsFields with normalized names for upload"""
-        upload_fields = QgsFields()
+        normalized_fields = QgsFields()
 
         for field in self.layer.fields():
             if field.name() in self._field_name_mapping:
@@ -130,9 +130,9 @@ class FieldNameNormalizer:
                     # Create new field with normalized name
                     new_field = QgsField(field)
                     new_field.setName(normalized_name)
-                    upload_fields.append(new_field)
+                    normalized_fields.append(new_field)
 
-        return upload_fields
+        return normalized_fields
 
     def _process_fields(self) -> None:
         """Process all fields and create mappings"""

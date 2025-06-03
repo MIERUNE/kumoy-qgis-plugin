@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QEventLoop, QJsonDocument, QTextStream, QUrl
+from PyQt5.QtCore import QByteArray, QEventLoop, QJsonDocument, QTextStream, QUrl
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsNetworkAccessManager
 
@@ -96,7 +96,13 @@ class ApiClient:
 
         # Execute request
         eventLoop = QEventLoop()
-        reply = nwa_manager.post(req, QJsonDocument(data).toJson())
+        
+        # Use json.dumps to preserve dictionary order instead of QJsonDocument
+        # which might reorder keys alphabetically
+        json_data = json.dumps(data, ensure_ascii=False)
+        byte_array = QByteArray(json_data.encode('utf-8'))
+        
+        reply = nwa_manager.post(req, byte_array)
         reply.finished.connect(eventLoop.quit)
         eventLoop.exec_()
 
@@ -123,8 +129,13 @@ class ApiClient:
 
         # Execute request
         eventLoop = QEventLoop()
+        
+        # Use json.dumps to preserve dictionary order
+        json_data = json.dumps(data, ensure_ascii=False)
+        byte_array = QByteArray(json_data.encode('utf-8'))
+        
         reply = nwa_manager.sendCustomRequest(
-            req, "PATCH".encode("utf-8"), QJsonDocument(data).toJson()
+            req, "PATCH".encode("utf-8"), byte_array
         )
         reply.finished.connect(eventLoop.quit)
         eventLoop.exec_()
