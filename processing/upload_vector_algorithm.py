@@ -13,7 +13,6 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsMemoryProviderUtils,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
@@ -23,16 +22,11 @@ from qgis.core import (
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
-    QgsProcessingUtils,
     QgsVectorLayer,
     QgsWkbTypes,
 )
 
-import processing
-
 from ..qgishub import api
-from ..qgishub.api.organization import get_organizations
-from ..qgishub.api.project import get_projects_by_organization
 from ..qgishub.api.project_vector import AddVectorOptions
 from ..qgishub.get_token import get_token
 
@@ -105,13 +99,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             token = get_token()
             if token:
                 # Get all organizations first
-                organizations = get_organizations()
+                organizations = api.organization.get_organizations()
                 project_options = []
                 project_ids = []
 
                 # Get projects for each organization
                 for org in organizations:
-                    projects = get_projects_by_organization(org.id)
+                    projects = api.project.get_projects_by_organization(org.id)
                     for project in projects:
                         project_options.append(f"{org.name} / {project.name}")
                         project_ids.append(project.id)
