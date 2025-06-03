@@ -2,6 +2,7 @@
 Upload vector layer to STRATO backend
 """
 
+import re
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication, QMetaType
@@ -75,6 +76,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
+            "- Automatically normalize field names for PostgreSQL/PostGIS compatibility (lowercase, remove special characters)\n"
             "- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step\n"
             "- Create a new vector layer in the selected project\n"
             "- Configure the attribute schema based on your layer's fields\n"
@@ -181,11 +183,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Setup attribute schema
-        columns = self._setup_attribute_schema(processed_layer, vector_id, feedback)
+        columns, field_name_mapping = self._setup_attribute_schema(
+            processed_layer, vector_id, feedback
+        )
 
         # Upload features to STRATO
         features_uploaded = self._upload_features(
-            processed_layer, vector_id, columns, original_crs, feedback
+            processed_layer,
+            vector_id,
+            columns,
+            field_name_mapping,
+            original_crs,
+            feedback,
         )
 
         feedback.pushInfo(self.tr(f"Upload complete: {features_uploaded} features"))
@@ -194,28 +203,71 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def _get_column_schema(
         self, layer: QgsVectorLayer, feedback: Optional[QgsProcessingFeedback] = None
-    ) -> Dict[str, str]:
-        """Get column schema from layer fields"""
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
+        """Get column schema from layer fields with normalized names
+
+        Returns:
+            Tuple of (normalized_columns, field_name_mapping)
+            - normalized_columns: Dict mapping normalized field names to data types
+            - field_name_mapping: Dict mapping original field names to normalized names
+        """
         columns = {}
+        field_name_mapping = {}
         skipped_fields = []
+        renamed_fields = []
 
         # Type mapping using QMetaType (same as browser/vector.py)
         for field in layer.fields():
+            field = cast(QgsField, field)
+            original_name = field.name()
+            normalized_name = self._normalize_field_name(original_name)
+
+            # Check for duplicates after normalization
+            if normalized_name in columns:
+                # Add suffix to make it unique
+                base_name = normalized_name
+                counter = 1
+                while normalized_name in columns:
+                    normalized_name = f"{base_name}_{counter}"
+                    if len(normalized_name) > 63:
+                        # Truncate base name to fit with suffix
+                        truncated_base = base_name[: 63 - len(str(counter)) - 1]
+                        normalized_name = f"{truncated_base}_{counter}"
+                    counter += 1
+
+            # Track if name was changed
+            if original_name != normalized_name:
+                renamed_fields.append(f"{original_name} → {normalized_name}")
+
+            field_name_mapping[original_name] = normalized_name
+
             if field.type() == QMetaType.Int:
-                columns[field.name()] = "integer"
+                columns[normalized_name] = "integer"
             elif field.type() == QMetaType.Double or field.type() == QMetaType.Float:
-                columns[field.name()] = "float"
+                columns[normalized_name] = "float"
             elif field.type() == QMetaType.Bool:
-                columns[field.name()] = "boolean"
+                columns[normalized_name] = "boolean"
             elif field.type() == QMetaType.QString:
-                columns[field.name()] = "string"
+                columns[normalized_name] = "string"
             else:
                 # Skip unsupported field types
                 type_name = (
                     QMetaType.typeName(field.type()) if field.type() > 0 else "Unknown"
                 )
-                skipped_fields.append(f"{field.name()} (Type: {type_name})")
+                skipped_fields.append(f"{original_name} (Type: {type_name})")
+                # Remove from mapping if skipped
+                del field_name_mapping[original_name]
                 continue
+
+        # Report renamed fields
+        if renamed_fields and feedback:
+            feedback.pushInfo(
+                self.tr(
+                    "The following field names were normalized for PostgreSQL compatibility:"
+                )
+            )
+            for renamed in renamed_fields:
+                feedback.pushInfo(f"  - {renamed}")
 
         # Report skipped fields
         if skipped_fields and feedback:
@@ -227,7 +279,147 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             for skipped in skipped_fields:
                 feedback.pushWarning(f"  - {skipped}")
 
-        return columns
+        return columns, field_name_mapping
+
+    def _normalize_field_name(self, name: str) -> str:
+        """Normalize field name for PostgreSQL/PostGIS compatibility
+
+        Rules:
+        - Convert to lowercase
+        - Replace spaces and hyphens with underscores
+        - Remove invalid characters
+        - Ensure it starts with a letter or underscore
+        - Limit length to 63 characters (PostgreSQL limit)
+        - Handle reserved keywords
+
+        Examples:
+            "Field Name" → "field_name"
+            "建物-名称" → "建物_名称" → "_" (after removing non-alphanumeric)
+            "123ABC" → "abc" → "field_abc" (digits removed, then prepended)
+            "user" → "user_" (reserved keyword)
+            "A-Very-Long-Field-Name-That-Exceeds-PostgreSQL-Maximum-Length-Limit" → "a_very_long_field_name_that_exceeds_postgresql_maximum_length_l"
+        """
+        # PostgreSQL reserved keywords (common ones)
+        reserved_keywords = {
+            "all",
+            "analyse",
+            "analyze",
+            "and",
+            "any",
+            "array",
+            "as",
+            "asc",
+            "asymmetric",
+            "both",
+            "case",
+            "cast",
+            "check",
+            "collate",
+            "column",
+            "constraint",
+            "create",
+            "current_catalog",
+            "current_date",
+            "current_role",
+            "current_time",
+            "current_timestamp",
+            "current_user",
+            "default",
+            "deferrable",
+            "desc",
+            "distinct",
+            "do",
+            "else",
+            "end",
+            "except",
+            "false",
+            "fetch",
+            "for",
+            "foreign",
+            "from",
+            "grant",
+            "group",
+            "having",
+            "in",
+            "initially",
+            "intersect",
+            "into",
+            "lateral",
+            "leading",
+            "limit",
+            "localtime",
+            "localtimestamp",
+            "not",
+            "null",
+            "offset",
+            "on",
+            "only",
+            "or",
+            "order",
+            "placing",
+            "primary",
+            "references",
+            "returning",
+            "select",
+            "session_user",
+            "some",
+            "symmetric",
+            "table",
+            "then",
+            "to",
+            "trailing",
+            "true",
+            "union",
+            "unique",
+            "user",
+            "using",
+            "variadic",
+            "when",
+            "where",
+            "window",
+            "with",
+        }
+
+        # Convert to lowercase
+        # Example: "Field Name" → "field name"
+        normalized = name.lower()
+
+        # Replace spaces, hyphens, and other common separators with underscores
+        # Example: "field name" → "field_name", "建物-名称" → "建物_名称", "A.B.C" → "A_B_C"
+        normalized = re.sub(r"[\s\-\.\,\;\:\!\?\(\)\[\]\{\}]+", "_", normalized)
+
+        # Remove all characters that are not alphanumeric or underscore
+        # Example: "建物_名称" → "_", "field@name" → "fieldname", "price$" → "price"
+        normalized = re.sub(r"[^a-z0-9_]", "", normalized)
+
+        # Remove leading digits
+        # Example: "123field" → "field", "456" → ""
+        normalized = re.sub(r"^[0-9]+", "", normalized)
+
+        # If the name is empty or starts with a digit after cleaning, prepend 'field_'
+        # Example: "" → "field_", "789abc" → "field_789abc" (if starts with digit)
+        if not normalized or (normalized and normalized[0].isdigit()):
+            normalized = "field_" + normalized
+
+        # Limit length to 63 characters (PostgreSQL limit)
+        # Example: "a_very_long_field_name_that_exceeds_postgresql_maximum_length_limit_of_63" → "a_very_long_field_name_that_exceeds_postgresql_maximum_length_l"
+        if len(normalized) > 63:
+            normalized = normalized[:63]
+
+        # Handle reserved keywords by appending '_'
+        # Example: "user" → "user_", "select" → "select_", "table" → "table_"
+        if normalized in reserved_keywords:
+            normalized = normalized + "_"
+            # Recheck length
+            if len(normalized) > 63:
+                normalized = normalized[:62] + "_"
+
+        # Final validation - if still invalid, use a generic name
+        # Example: if somehow still invalid → "field"
+        if not normalized or not re.match(r"^[a-z_][a-z0-9_]*$", normalized):
+            normalized = "field"
+
+        return normalized
 
     def _validate_and_get_parameters(
         self, parameters: Dict[str, Any], context: QgsProcessingContext
@@ -442,10 +634,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def _setup_attribute_schema(
         self, layer: QgsVectorLayer, vector_id: str, feedback: QgsProcessingFeedback
-    ) -> Dict[str, str]:
-        """Setup attribute schema for the vector layer"""
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
+        """Setup attribute schema for the vector layer
+
+        Returns:
+            Tuple of (normalized_columns, field_name_mapping)
+        """
         feedback.pushInfo(self.tr("Setting up attribute schema..."))
-        columns = self._get_column_schema(layer, feedback)
+        columns, field_name_mapping = self._get_column_schema(layer, feedback)
 
         if columns:
             try:
@@ -455,13 +651,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             except Exception as e:
                 feedback.reportError(self.tr(f"Attribute schema error: {str(e)}"))
 
-        return columns
+        return columns, field_name_mapping
 
     def _upload_features(
         self,
         layer: QgsVectorLayer,
         vector_id: str,
         columns: Dict[str, str],
+        field_name_mapping: Dict[str, str],
         original_crs: QgsCoordinateReferenceSystem,
         feedback: QgsProcessingFeedback,
     ) -> int:
@@ -473,11 +670,19 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             feedback.pushInfo(self.tr("No features to upload"))
             return 0
 
-        # Create supported fields for upload
+        # Create supported fields for upload with normalized names
         upload_fields = QgsFields()
+        normalized_to_original = {}  # Map normalized names back to original for attribute access
+
         for field in layer.fields():
-            if field.name() in columns:
-                upload_fields.append(QgsField(field))
+            if field.name() in field_name_mapping:
+                normalized_name = field_name_mapping[field.name()]
+                if normalized_name in columns:
+                    # Create new field with normalized name
+                    new_field = QgsField(field)
+                    new_field.setName(normalized_name)
+                    upload_fields.append(new_field)
+                    normalized_to_original[normalized_name] = field.name()
 
         # Process features in chunkes
         # Note: 1000 is a reasonable default for most use cases
@@ -505,8 +710,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 new_feature.setFields(upload_fields)
 
                 for field in upload_fields:
+                    normalized_name = field.name()
+                    original_name = normalized_to_original[normalized_name]
                     new_feature.setAttribute(
-                        field.name(), feature.attribute(field.name())
+                        normalized_name, feature.attribute(original_name)
                     )
 
                 chunk.append(new_feature)
