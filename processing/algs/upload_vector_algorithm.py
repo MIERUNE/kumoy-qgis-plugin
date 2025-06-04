@@ -203,6 +203,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         if not layer:
             raise QgsProcessingException(self.tr("Invalid input layer"))
 
+        # Check field count limit
+        field_count = layer.fields().count()
+        if field_count > 10:
+            raise QgsProcessingException(
+                self.tr(f"The layer has {field_count} fields, but only up to 10 fields are supported.")
+            )
+
         # Get project ID
         project_options = list(self.project_map.keys())
         if project_index >= len(project_options):
