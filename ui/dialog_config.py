@@ -65,7 +65,9 @@ class DialogConfig(QDialog):
 
         if id_token:
             self.labelSupabaseStatus.setText("Logged in")
-            self.labelSupabaseStatus.setStyleSheet("color: green; font-weight: bold;")
+            self.labelSupabaseStatus.setStyleSheet(
+                "color: green; font-weight: bold; font-size: 24px;"
+            )
             self.buttonLogout.setEnabled(True)
 
             # Display user info if available
@@ -95,8 +97,11 @@ class DialogConfig(QDialog):
         except TypeError:
             pass  # Already disconnected
 
+        self.buttonLogin.setEnabled(True)
+
         if not success:
             QMessageBox.warning(self, "Login Error", f"Authentication failed: {error}")
+            self.update_login_status()
             return
 
         # Authentication successful, get the tokens and user info
@@ -129,6 +134,11 @@ class DialogConfig(QDialog):
                 return
             self.save_server_settings()
 
+            # Update status to show login is in progress
+            self.labelSupabaseStatus.setText("Logging in...")
+            self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
+            self.buttonLogin.setEnabled(False)
+
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
 
@@ -136,6 +146,9 @@ class DialogConfig(QDialog):
                 QMessageBox.warning(
                     self, "Login Error", f"Failed to start authentication: {result}"
                 )
+                # Reset status on failure
+                self.update_login_status()
+                self.buttonLogin.setEnabled(True)
                 return
 
             # Connect to auth_completed signal
@@ -147,6 +160,10 @@ class DialogConfig(QDialog):
                 f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
             )
             webbrowser.open(auth_url)
+
+            # Update status to indicate waiting for browser authentication
+            self.labelSupabaseStatus.setText("Waiting for browser authentication...")
+            self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
 
             # Start async authentication
             QgsMessageLog.logMessage(
@@ -161,6 +178,9 @@ class DialogConfig(QDialog):
             QMessageBox.critical(
                 self, "Login Error", f"An error occurred during login: {str(e)}"
             )
+            # Reset status and re-enable login button on error
+            self.update_login_status()
+            self.buttonLogin.setEnabled(True)
 
     def logout(self):
         """Log out by clearing stored tokens"""
