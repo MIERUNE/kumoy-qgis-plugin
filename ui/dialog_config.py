@@ -94,11 +94,9 @@ class DialogConfig(QDialog):
             self.auth_manager.auth_completed.disconnect(self._on_auth_completed)
         except TypeError:
             pass  # Already disconnected
-        
+
         if not success:
-            QMessageBox.warning(
-                self, "Login Error", f"Authentication failed: {error}"
-            )
+            QMessageBox.warning(self, "Login Error", f"Authentication failed: {error}")
             return
 
         # Authentication successful, get the tokens and user info
@@ -142,7 +140,7 @@ class DialogConfig(QDialog):
 
             # Connect to auth_completed signal
             self.auth_manager.auth_completed.connect(self._on_auth_completed)
-            
+
             # Open the authorization URL in the default browser
             auth_url = result
             QgsMessageLog.logMessage(
