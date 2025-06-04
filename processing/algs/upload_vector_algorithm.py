@@ -34,16 +34,13 @@ class GeometryAnalysisResult:
 
     vector_type: Literal["POINT", "LINESTRING", "POLYGON"]
     is_multipart: bool
-    has_invalid_geometries: bool
     total_features: int
-    invalid_count: int = 0
 
 
 @dataclass
 class ProcessingRequirements:
     """Requirements for geometry processing"""
 
-    needs_fixing: bool
     needs_singlepart: bool
     needs_reprojection: bool
     source_crs: QgsCoordinateReferenceSystem
@@ -60,6 +57,10 @@ class GeometryProcessor:
             self.transform = QgsCoordinateTransform(
                 requirements.source_crs, requirements.target_crs, transform_context
             )
+        
+        # Statistics
+        self.fixed_geometries = 0
+        self.unfixable_geometries = 0
 
     def process_feature_geometry(self, feature: QgsFeature) -> List[QgsFeature]:
         """Process a single feature and return list of resulting features"""
@@ -69,11 +70,13 @@ class GeometryProcessor:
         geom = feature.geometry()
 
         # Fix invalid geometry if needed
-        if self.requirements.needs_fixing and not geom.isGeosValid():
+        if not geom.isGeosValid():
             fixed_geom = geom.makeValid()
             if not fixed_geom.isGeosValid():
+                self.unfixable_geometries += 1
                 return []  # Skip unfixable geometries
             geom = fixed_geom
+            self.fixed_geometries += 1
 
         # Handle multipart to singlepart conversion
         if self.requirements.needs_singlepart and geom.isMultipart():
@@ -90,14 +93,13 @@ class GeometryProcessor:
 
         for single_geometry_part in single_geometry_parts:
             # Fix geometry part if needed
-            if (
-                self.requirements.needs_fixing
-                and not single_geometry_part.isGeosValid()
-            ):
+            if not single_geometry_part.isGeosValid():
                 fixed_part = single_geometry_part.makeValid()
                 if not fixed_part.isGeosValid():
+                    self.unfixable_geometries += 1
                     continue  # Skip unfixable parts
                 single_geometry_part = fixed_part
+                self.fixed_geometries += 1
 
             new_feature = QgsFeature(feature)
             processed_geom = self._transform_geometry(single_geometry_part)
@@ -356,33 +358,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         else:
             raise QgsProcessingException(self.tr("Unsupported geometry type"))
 
-        # Quick scan for invalid geometries
         total_features = layer.featureCount()
-        has_invalid_geometries = False
-        invalid_count = 0
-
+        
         feedback.pushInfo(self.tr("Analyzing layer geometry..."))
-
-        # Sample check for invalid geometries (check up to 100 features for performance)
-        features_to_check = min(100, total_features)
-        for i, feature in enumerate(layer.getFeatures()):
-            if i >= features_to_check:
-                break
-            if feedback.isCanceled():
-                break
-
-            geom = feature.geometry()
-            if geom and not geom.isGeosValid():
-                has_invalid_geometries = True
-                invalid_count += 1
-
-        # If we found invalid geometries in sample, we assume the layer needs fixing
         return GeometryAnalysisResult(
             vector_type=vector_type,
             is_multipart=is_multipart,
-            has_invalid_geometries=has_invalid_geometries,
             total_features=total_features,
-            invalid_count=invalid_count,
         )
 
     def _determine_processing_requirements(
@@ -402,7 +384,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         return ProcessingRequirements(
-            needs_fixing=analysis.has_invalid_geometries,
             needs_singlepart=analysis.is_multipart,
             needs_reprojection=source_crs.authid() != "EPSG:4326",
             source_crs=source_crs,
@@ -446,27 +427,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Process layer geometry using modular approach"""
         requirements = self._determine_processing_requirements(layer, analysis)
 
-        # If no processing needed, return original layer
-        if not any(
-            [
-                requirements.needs_fixing,
-                requirements.needs_singlepart,
-                requirements.needs_reprojection,
-            ]
-        ):
-            return layer, requirements.source_crs
-
+        # Always process through GeometryProcessor to handle invalid geometries
+        # Even if no coordinate transformation or multipart conversion is needed
+        
         # Log processing steps
-        processing_steps = []
-        if requirements.needs_fixing:
-            processing_steps.append(self.tr("Fixing invalid geometries"))
+        processing_steps = [self.tr("Validating and fixing geometries")]
         if requirements.needs_singlepart:
             processing_steps.append(self.tr("Converting multipart to singlepart"))
         if requirements.needs_reprojection:
             processing_steps.append(
-                self.tr(
-                    f"Reprojecting from {requirements.source_crs.authid()} to EPSG:4326"
-                )
+                self.tr(f"Reprojecting from {requirements.source_crs.authid()} to EPSG:4326")
             )
 
         feedback.pushInfo(self.tr("Processing layer: ") + ", ".join(processing_steps))
@@ -512,20 +482,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     raise QgsProcessingException(self.tr("Error processing feature"))
                 features_processed += 1
 
-            # Update progress (0-50% for geometry processing)
+            # Update progress (0-100% for geometry processing)
             if total_features > 0:
-                progress = int((current + 1) / total_features * 50)
+                progress = int((current + 1) / total_features * 100)
                 feedback.setProgress(progress)
 
         # Log processing results
         feedback.pushInfo(
-            self.tr(
-                f"Geometry processing completed: {features_processed} features processed"
-            )
+            self.tr(f"Geometry processing completed: {features_processed} features processed")
         )
-        if requirements.needs_fixing and invalid_count > 0:
+        if processor.fixed_geometries > 0:
+            feedback.pushInfo(
+                self.tr(f"Fixed {processor.fixed_geometries} invalid geometries")
+            )
+        if processor.unfixable_geometries > 0:
             feedback.reportError(
-                self.tr(f"Skipped {invalid_count} features with unfixable geometries")
+                self.tr(f"Skipped {processor.unfixable_geometries} features with unfixable geometries")
             )
 
         # Get the processed layer
