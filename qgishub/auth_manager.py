@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import json
-import os
 import random
 import string
 import threading
@@ -9,7 +8,9 @@ import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Literal, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+
+from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
 from qgishub.config import config as qgishub_config
 from qgishub.constants import PLUGIN_NAME
@@ -100,13 +101,16 @@ AUTH_HANDLER_REDIRECT = None  # URL to redirect on success
 AUTH_HANDLER_REDIRECT_CANCELLED = None  # URL to redirect on error
 
 
-class AuthManager:
+class AuthManager(QObject):
+    auth_completed = pyqtSignal(bool, str)  # success, error_message
+
     def __init__(self, port: int = 5000):
         """Initialize the Cognito authentication manager.
 
         Args:
             port: Port to use for the local callback server
         """
+        super().__init__()
         self.port = port
         self.server = None
         self.server_thread = None
@@ -117,6 +121,8 @@ class AuthManager:
         self.error = None
         self.code_verifier = None
         self.state = None
+        self.auth_timer = None
+        self.auth_start_time = None
 
     def _generate_code_verifier(self) -> str:
         """Generate a code verifier for PKCE.
@@ -195,45 +201,51 @@ class AuthManager:
             if self.server_thread:
                 self.server_thread.join()
 
-    def wait_for_callback(self, timeout: int = 300) -> Tuple[bool, Optional[str]]:
-        """Wait for the Cognito OAuth2 callback to complete.
+    def _check_auth_status(self):
+        """Check authentication status periodically using QTimer."""
+        # Check if timeout has been reached
+        if time.time() - self.auth_start_time > 300:  # 5 minutes timeout
+            self._cleanup_auth()
+            self.auth_completed.emit(False, "Timeout waiting for authentication")
+            return
 
-        Args:
-            timeout: Maximum time to wait in seconds
+        # Check if server is not ready yet
+        if not self.server:
+            return
 
-        Returns:
-            Tuple of (success, error_message)
-        """
-        start_time = time.time()
-        check_interval = 0.2  # より短いチェック間隔に変更（1秒→0.2秒）
-        while time.time() - start_time < timeout:
-            # サーバーがセットアップされているか確認
-            if not self.server:
-                time.sleep(check_interval)
-                continue
+        # Check if token has been received
+        if hasattr(self.server, "id_token") and self.server.id_token:
+            # Transfer token information from server to instance variables
+            self.id_token = self.server.id_token
+            self.refresh_token = self.server.refresh_token
+            if hasattr(self.server, "expires_in") and self.server.expires_in:
+                self.token_expiry = time.time() + self.server.expires_in
+            self.user_info = (
+                self.server.user_info if hasattr(self.server, "user_info") else None
+            )
+            self._cleanup_auth()
+            self.auth_completed.emit(True, "")
+        # Check if error occurred
+        elif hasattr(self.server, "error") and self.server.error:
+            error = self.server.error
+            self._cleanup_auth()
+            self.auth_completed.emit(False, error)
 
-            # トークンが取得できたかを確認
-            if hasattr(self.server, "id_token") and self.server.id_token:
-                # サーバーからトークン情報をインスタンス変数に転送
-                self.id_token = self.server.id_token
-                self.refresh_token = self.server.refresh_token
-                if hasattr(self.server, "expires_in") and self.server.expires_in:
-                    self.token_expiry = time.time() + self.server.expires_in
-                self.user_info = (
-                    self.server.user_info if hasattr(self.server, "user_info") else None
-                )
-                self.stop_local_server()
-                return True, None
-            # エラーが発生したかを確認
-            elif hasattr(self.server, "error") and self.server.error:
-                error = self.server.error
-                self.stop_local_server()
-                return False, error
-
-            time.sleep(check_interval)
-
+    def _cleanup_auth(self):
+        """Clean up authentication resources."""
+        if self.auth_timer:
+            self.auth_timer.stop()
+            self.auth_timer = None
         self.stop_local_server()
-        return False, "Timeout waiting for authentication"
+
+    def start_async_auth(self):
+        """Start asynchronous authentication process."""
+        self.auth_start_time = time.time()
+
+        # Create and start timer
+        self.auth_timer = QTimer()
+        self.auth_timer.timeout.connect(self._check_auth_status)
+        self.auth_timer.start(200)  # Check every 200ms
 
     def authenticate(self, timeout: int = 300) -> Tuple[bool, Optional[str]]:
         """Complete Cognito OAuth2 authentication flow.

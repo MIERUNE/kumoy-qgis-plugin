@@ -65,7 +65,9 @@ class DialogConfig(QDialog):
 
         if id_token:
             self.labelSupabaseStatus.setText("Logged in")
-            self.labelSupabaseStatus.setStyleSheet("color: green; font-weight: bold;")
+            self.labelSupabaseStatus.setStyleSheet(
+                "color: green; font-weight: bold; font-size: 24px;"
+            )
             self.buttonLogout.setEnabled(True)
 
             # Display user info if available
@@ -87,12 +89,55 @@ class DialogConfig(QDialog):
             self.labelUserInfo.setText("")
             self.buttonLogout.setEnabled(False)
 
+    def on_auth_completed(self, success: bool, error: str):
+        """Handle authentication completion."""
+        # Disconnect the signal to avoid multiple connections
+        try:
+            self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
+        except TypeError:
+            pass  # Already disconnected
+
+        self.buttonLogin.setEnabled(True)
+
+        if not success:
+            QMessageBox.warning(self, "Login Error", f"Authentication failed: {error}")
+            self.update_login_status()
+            return
+
+        # Authentication successful, get the tokens and user info
+        id_token = self.auth_manager.get_id_token()
+        refresh_token = self.auth_manager.get_refresh_token()
+        user_info = self.auth_manager.get_user_info()
+
+        # Store the tokens in settings
+        settings_manager = SettingsManager()
+        settings_manager.store_setting("id_token", id_token)
+        settings_manager.store_setting("refresh_token", refresh_token)
+
+        if user_info:
+            settings_manager.store_setting("user_info", json.dumps(user_info))
+
+        QgsMessageLog.logMessage(
+            "Authentication successful!", LOG_CATEGORY, Qgis.Success
+        )
+        QMessageBox.information(
+            self, "Login Success", "You have successfully logged in!"
+        )
+
+        # Update the UI
+        self.update_login_status()
+
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
             if not self.validate_custom_server_settings():
                 return
             self.save_server_settings()
+
+            # Update status to show login is in progress
+            self.labelSupabaseStatus.setText("Logging in...")
+            self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
+            self.buttonLogin.setEnabled(False)
 
             # Start the authentication process
             success, result = self.auth_manager.authenticate()
@@ -101,7 +146,13 @@ class DialogConfig(QDialog):
                 QMessageBox.warning(
                     self, "Login Error", f"Failed to start authentication: {result}"
                 )
+                # Reset status on failure
+                self.update_login_status()
+                self.buttonLogin.setEnabled(True)
                 return
+
+            # Connect to auth_completed signal
+            self.auth_manager.auth_completed.connect(self.on_auth_completed)
 
             # Open the authorization URL in the default browser
             auth_url = result
@@ -110,40 +161,15 @@ class DialogConfig(QDialog):
             )
             webbrowser.open(auth_url)
 
-            # Wait for the callback (this will block until authentication completes or times out)
+            # Update status to indicate waiting for browser authentication
+            self.labelSupabaseStatus.setText("Waiting for browser authentication...")
+            self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
+
+            # Start async authentication
             QgsMessageLog.logMessage(
                 "Waiting for authentication to complete...", LOG_CATEGORY, Qgis.Info
             )
-            success, error = self.auth_manager.wait_for_callback(timeout=300)
-
-            if not success:
-                QMessageBox.warning(
-                    self, "Login Error", f"Authentication failed: {error}"
-                )
-                return
-
-            # Authentication successful, get the tokens and user info
-            id_token = self.auth_manager.get_id_token()
-            refresh_token = self.auth_manager.get_refresh_token()
-            user_info = self.auth_manager.get_user_info()
-
-            # Store the tokens in settings
-            settings_manager = SettingsManager()
-            settings_manager.store_setting("id_token", id_token)
-            settings_manager.store_setting("refresh_token", refresh_token)
-
-            if user_info:
-                settings_manager.store_setting("user_info", json.dumps(user_info))
-
-            QgsMessageLog.logMessage(
-                "Authentication successful!", LOG_CATEGORY, Qgis.Success
-            )
-            QMessageBox.information(
-                self, "Login Success", "You have successfully logged in!"
-            )
-
-            # Update the UI
-            self.update_login_status()
+            self.auth_manager.start_async_auth()
 
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -152,6 +178,9 @@ class DialogConfig(QDialog):
             QMessageBox.critical(
                 self, "Login Error", f"An error occurred during login: {str(e)}"
             )
+            # Reset status and re-enable login button on error
+            self.update_login_status()
+            self.buttonLogin.setEnabled(True)
 
     def logout(self):
         """Log out by clearing stored tokens"""
