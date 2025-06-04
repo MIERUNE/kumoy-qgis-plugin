@@ -35,6 +35,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     VECTOR_NAME: str = "VECTOR_NAME"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
+    MAX_FIELD_COUNT: int = 10
+
     project_map: Dict[str, str]
 
     def tr(self, string: str) -> str:
@@ -205,9 +207,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Check field count limit
         field_count = layer.fields().count()
-        if field_count > 10:
+        if field_count > self.MAX_FIELD_COUNT:
             raise QgsProcessingException(
-                self.tr(f"The layer has {field_count} fields, but only up to 10 fields are supported.")
+                self.tr(
+                    f"The layer has {field_count} fields, but only up to {self.MAX_FIELD_COUNT} fields are supported."
+                )
             )
 
         # Get project ID
