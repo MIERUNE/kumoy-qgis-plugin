@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication
 from qgis.core import (
@@ -29,10 +29,10 @@ from ..vector_creator import VectorCreator
 
 
 @dataclass
-class GeometryAnalysis:
+class GeometryAnalysisResult:
     """Analysis results for layer geometry characteristics"""
 
-    vector_type: str
+    vector_type: Literal["POINT", "LINESTRING", "POLYGON"]
     is_multipart: bool
     has_invalid_geometries: bool
     total_features: int
@@ -264,11 +264,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self._check_authentication()
 
         # Analyze layer geometry characteristics
-        geometry_analysis = self._analyze_layer_geometry(layer, feedback)
+        geometry_analysis_result = self._analyze_layer_geometry(layer, feedback)
 
         # Process layer: fix geometries, convert to singlepart and reproject in one step
         processed_layer, original_crs = self._process_layer_geometry(
-            layer, geometry_analysis, parameters, context, feedback
+            layer, geometry_analysis_result, parameters, context, feedback
         )
 
         # Setup field name normalization
@@ -287,7 +287,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Create vector in STRATO
         creator = VectorCreator(feedback)
         vector_id = creator.create_vector(
-            project_id, vector_name, geometry_analysis.vector_type
+            project_id, vector_name, geometry_analysis_result.vector_type
         )
 
         # Create uploader and setup attribute schema
@@ -337,7 +337,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def _analyze_layer_geometry(
         self, layer: QgsVectorLayer, feedback: QgsProcessingFeedback
-    ) -> GeometryAnalysis:
+    ) -> GeometryAnalysisResult:
         """Analyze layer geometry characteristics by examining actual features"""
         wkb_type = layer.wkbType()
         is_multipart = False
@@ -377,7 +377,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 invalid_count += 1
 
         # If we found invalid geometries in sample, we assume the layer needs fixing
-        return GeometryAnalysis(
+        return GeometryAnalysisResult(
             vector_type=vector_type,
             is_multipart=is_multipart,
             has_invalid_geometries=has_invalid_geometries,
@@ -386,7 +386,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
     def _determine_processing_requirements(
-        self, layer: QgsVectorLayer, analysis: GeometryAnalysis
+        self, layer: QgsVectorLayer, analysis: GeometryAnalysisResult
     ) -> ProcessingRequirements:
         """Determine what processing steps are needed"""
         source_crs = layer.crs()
@@ -438,7 +438,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def _process_layer_geometry(
         self,
         layer: QgsVectorLayer,
-        analysis: GeometryAnalysis,
+        analysis: GeometryAnalysisResult,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
