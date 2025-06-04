@@ -89,11 +89,11 @@ class DialogConfig(QDialog):
             self.labelUserInfo.setText("")
             self.buttonLogout.setEnabled(False)
 
-    def _on_auth_completed(self, success: bool, error: str):
+    def on_auth_completed(self, success: bool, error: str):
         """Handle authentication completion."""
         # Disconnect the signal to avoid multiple connections
         try:
-            self.auth_manager.auth_completed.disconnect(self._on_auth_completed)
+            self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
         except TypeError:
             pass  # Already disconnected
 
@@ -152,7 +152,7 @@ class DialogConfig(QDialog):
                 return
 
             # Connect to auth_completed signal
-            self.auth_manager.auth_completed.connect(self._on_auth_completed)
+            self.auth_manager.auth_completed.connect(self.on_auth_completed)
 
             # Open the authorization URL in the default browser
             auth_url = result

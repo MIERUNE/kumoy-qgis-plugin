@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import json
-import os
 import random
 import string
 import threading
@@ -9,7 +8,7 @@ import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Literal, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
