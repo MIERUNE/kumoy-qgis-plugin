@@ -35,6 +35,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     VECTOR_NAME: str = "VECTOR_NAME"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
+    MAX_FIELD_COUNT: int = 10
+
     project_map: Dict[str, str]
 
     def tr(self, string: str) -> str:
@@ -172,12 +174,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             layer, is_multipart, parameters, context, feedback
         )
 
+        # Setup field name normalization
+        normalizer = FieldNameNormalizer(processed_layer, feedback)
+
+        # Check normalized field count limit
+        normalized_field_count = len(normalizer.columns)
+        if normalized_field_count > self.MAX_FIELD_COUNT:
+            raise QgsProcessingException(
+                self.tr(
+                    f"After field normalization, the layer has {normalized_field_count} valid fields, "
+                    f"but only up to {self.MAX_FIELD_COUNT} fields are supported."
+                )
+            )
+
         # Create vector in STRATO
         creator = VectorCreator(feedback)
         vector_id = creator.create_vector(project_id, vector_name, vector_type)
-
-        # Setup field name normalization
-        normalizer = FieldNameNormalizer(processed_layer, feedback)
 
         # Create uploader and setup attribute schema
         uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
