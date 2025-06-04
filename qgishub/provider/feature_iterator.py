@@ -41,11 +41,22 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         self._current_offset = 0
         self._last_fetch = False  # Flag to indicate if the last page has been fetched
         self._fetched_count = 0  # Total number of features fetched
+        
+        # Apply 10k limit only for attribute table requests (not for map rendering)
+        self._max_features = None
+        if hasattr(request, 'flags') and request.flags() & QgsFeatureRequest.NoGeometry:
+            # Attribute table requests typically use NoGeometry flag for performance
+            self._max_features = 10000
 
     def _load_features_page(self):
         """Load a page of features using pagination"""
         # Return immediately if we've already fetched all features
         if self._last_fetch:
+            return
+        
+        # Stop fetching if we've reached the maximum feature limit (only if limit is set)
+        if self._max_features is not None and self._fetched_count >= self._max_features:
+            self._last_fetch = True
             return
 
         # Prepare filter parameters
@@ -65,12 +76,18 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
                 self._filter_rect.yMaximum(),
             ]
 
+        # Adjust page size if we have a feature limit
+        actual_page_size = self._page_size
+        if self._max_features is not None:
+            remaining_features = self._max_features - self._fetched_count
+            actual_page_size = min(self._page_size, remaining_features)
+        
         # Fetch features with pagination parameters
         features = api.qgis_vector.get_features(
             vector_id=self._provider._qgishub_vector.id,
             qgishub_ids=qgishub_ids,
             bbox=bbox,
-            limit=self._page_size,
+            limit=actual_page_size,
             offset=self._current_offset,
         )
 
@@ -80,7 +97,10 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         self._current_offset += len(features)
 
         # If we received fewer features than requested, we've reached the end
-        if len(features) < self._page_size:
+        # Or if we have a max limit and we've reached it
+        if len(features) < actual_page_size:
+            self._last_fetch = True
+        elif self._max_features is not None and self._fetched_count + len(features) >= self._max_features:
             self._last_fetch = True
 
     def fetchFeature(self, f: QgsFeature) -> bool:
@@ -154,6 +174,10 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         self._current_offset = 0
         self._last_fetch = False
         self._fetched_count = 0
+        # Reset max features limit based on request
+        self._max_features = None
+        if hasattr(self._request, 'flags') and self._request.flags() & QgsFeatureRequest.NoGeometry:
+            self._max_features = 10000
         return True
 
     def close(self) -> bool:
