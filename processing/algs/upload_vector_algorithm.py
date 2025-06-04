@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication
+from qgis import processing
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -74,6 +75,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
             "- Automatically normalize field names for PostgreSQL/PostGIS compatibility (lowercase, remove special characters)\n"
+            "- Automatically fix invalid geometries before processing\n"
             "- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step\n"
             "- Create a new vector layer in the selected project\n"
             "- Configure the attribute schema based on your layer's fields\n"
@@ -169,7 +171,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Determine geometry type
         vector_type, is_multipart = self._get_geometry_type(layer)
 
-        # Process layer: convert to singlepart and reproject in one step
+        # Process layer: fix geometries, convert to singlepart and reproject in one step
         processed_layer, original_crs = self._process_layer_geometry(
             layer, is_multipart, parameters, context, feedback
         )
@@ -269,7 +271,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> Tuple[QgsVectorLayer, QgsCoordinateReferenceSystem]:
-        """Process layer geometry: convert to singlepart and reproject to EPSG:4326 in one step"""
+        """Process layer geometry: fix geometries, convert to singlepart and reproject to EPSG:4326 in one step"""
         source_crs = layer.crs()
         target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
@@ -282,9 +284,32 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
-        # If no processing needed, return original layer
+        # First, fix invalid geometries using processing algorithm
+        feedback.pushInfo(self.tr("Fixing invalid geometries..."))
+        fixed_result = processing.run(
+            "native:fixgeometries",
+            {"INPUT": layer, "METHOD": 0, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )
+
+        # Handle both string ID and QgsVectorLayer object
+        fixed_output = fixed_result["OUTPUT"]
+        if isinstance(fixed_output, QgsVectorLayer):
+            fixed_layer = fixed_output
+        else:
+            fixed_layer = context.getMapLayer(fixed_output)
+            if not fixed_layer:
+                raise QgsProcessingException(
+                    self.tr("Could not retrieve geometry-fixed layer")
+                )
+
+        # Update geometry type detection after fixing geometries
+        vector_type, is_multipart = self._get_geometry_type(fixed_layer)
+
+        # If no additional processing needed, return fixed layer
         if not is_multipart and source_crs.authid() == "EPSG:4326":
-            return layer, source_crs
+            return fixed_layer, source_crs
 
         # Log processing steps
         processing_steps = []
@@ -298,14 +323,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(self.tr("Processing layer: ") + ", ".join(processing_steps))
 
         # Get the target geometry type (always single part)
-        target_wkb_type = QgsWkbTypes.singleType(layer.wkbType())
+        target_wkb_type = QgsWkbTypes.singleType(fixed_layer.wkbType())
 
         # Create sink with target CRS and geometry type
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
             context,
-            layer.fields(),
+            fixed_layer.fields(),
             target_wkb_type,
             target_crs,
         )
@@ -323,10 +348,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         # Process features
-        total_features = layer.featureCount()
+        total_features = fixed_layer.featureCount()
         features_processed = 0
 
-        for current, feature in enumerate(layer.getFeatures()):
+        for current, feature in enumerate(fixed_layer.getFeatures()):
             feature = cast(QgsFeature, feature)
             if feedback.isCanceled():
                 break
