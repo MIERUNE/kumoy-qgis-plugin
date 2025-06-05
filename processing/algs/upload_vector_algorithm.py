@@ -223,7 +223,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         if feature_count > self.MAX_FEATURE_COUNT:
             raise QgsProcessingException(
                 self.tr(
-                    f"The input layer has too many features ({feature_count:,}).\n "
+                    f"The input layer has too many features ({feature_count:,}).\n"
                     f"Maximum allowed is {self.MAX_FEATURE_COUNT:,} features."
                 )
             )
