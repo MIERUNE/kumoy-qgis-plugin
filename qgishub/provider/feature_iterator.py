@@ -56,7 +56,9 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
                 QMessageBox.information(
                     None,
                     "Feature Limit",
-                    "The maximum number of features to display is limited to 10,000.",
+                    "The maximum number of features to display is limited to 10,000.\n\n"
+                    "Note: When using Field Calculator or other operations, "
+                    "they will only be applied to the displayed 10,000 features.",
                 )
                 QgishubFeatureIterator._warning_shown = True
 
