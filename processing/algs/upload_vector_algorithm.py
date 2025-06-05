@@ -212,9 +212,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # If vector was created but upload failed, delete it
             if vector_id:
                 try:
-                    from ...qgishub.api import project_vector
-
-                    if project_vector.delete_vector(project_id, vector_id):
+                    if api.project_vector.delete_vector(project_id, vector_id):
                         feedback.pushInfo(
                             self.tr(
                                 "Cleaned up incomplete vector layer due to upload failure"
