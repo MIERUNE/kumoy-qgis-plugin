@@ -9,10 +9,13 @@ from qgis.PyQt.QtWidgets import QMessageBox
 
 from .. import api
 
+MAX_ATTRIBUTE_TABLE_FEATURES = 10000
+
 
 class QgishubFeatureIterator(QgsAbstractFeatureIterator):
     # Class variable to track if warning has been shown
     _warning_shown = False
+
     def __init__(self, source, request: QgsFeatureRequest):
         """Constructor"""
 
@@ -49,16 +52,19 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         self._max_features = None
         if hasattr(request, "flags") and request.flags() & QgsFeatureRequest.NoGeometry:
             # Attribute table requests typically use NoGeometry flag for performance
-            self._max_features = 10000
-            
+            self._max_features = MAX_ATTRIBUTE_TABLE_FEATURES
+
             # Show warning only once per QGIS session
-            if not QgishubFeatureIterator._warning_shown and self._provider._qgishub_vector.count > 10000:
-                QMessageBox.information(
+            if (
+                not QgishubFeatureIterator._warning_shown
+                and self._provider._qgishub_vector.count > MAX_ATTRIBUTE_TABLE_FEATURES
+            ):
+                QMessageBox.warning(
                     None,
                     "Feature Limit",
-                    "The maximum number of features to display is limited to 10,000.\n\n"
-                    "Note: When using Field Calculator or other operations, "
-                    "they will only be applied to the displayed 10,000 features.",
+                    f"The maximum number of features to display is limited to {MAX_ATTRIBUTE_TABLE_FEATURES:,}.\n\n"
+                    f"Note: When using Field Calculator or other operations, "
+                    f"they will only be applied to the displayed {MAX_ATTRIBUTE_TABLE_FEATURES:,} features.",
                 )
                 QgishubFeatureIterator._warning_shown = True
 
