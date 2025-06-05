@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, Optional, Tuple, cast
 
 from PyQt5.QtCore import QCoreApplication
@@ -37,6 +36,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     MAX_FIELD_COUNT: int = 10
+    MAX_FEATURE_COUNT: int = 100000
 
     project_map: Dict[str, str]
 
@@ -217,25 +217,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         if not layer:
             raise QgsProcessingException(self.tr("Invalid input layer"))
 
-        # Check file size if layer has a data source (file-based layer)
-        if layer.dataProvider() and layer.dataProvider().dataSourceUri():
-            data_source = layer.dataProvider().dataSourceUri()
-            # Remove any query parameters from the URI
-            file_path = data_source.split("|")[0] if "|" in data_source else data_source
+        # Check feature count limit
+        feature_count = layer.featureCount()
 
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                file_size = os.path.getsize(file_path)
-                max_size = 1 * 1024 * 1024 * 1024  # 1GB in bytes
-                # max_size = 1 * 1024
-
-                if file_size > max_size:
-                    file_size_gb = file_size / (1024 * 1024 * 1024)
-                    raise QgsProcessingException(
-                        self.tr(
-                            f"The input file is too large ({file_size_gb:.2f} GB). "
-                            f"Maximum allowed file size is 1 GB."
-                        )
-                    )
+        if feature_count > self.MAX_FEATURE_COUNT:
+            raise QgsProcessingException(
+                self.tr(
+                    f"The input layer has too many features ({feature_count:,}).\n "
+                    f"Maximum allowed is {self.MAX_FEATURE_COUNT:,} features."
+                )
+            )
 
         # Get project ID
         project_options = list(self.project_map.keys())
