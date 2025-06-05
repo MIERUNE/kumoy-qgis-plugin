@@ -11,6 +11,8 @@ from .. import api
 
 
 class QgishubFeatureIterator(QgsAbstractFeatureIterator):
+    # Class variable to track if warning has been shown
+    _warning_shown = False
     def __init__(self, source, request: QgsFeatureRequest):
         """Constructor"""
 
@@ -18,7 +20,6 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         self._provider = source.get_provider()
         self._request = request if request is not None else QgsFeatureRequest()
         self._transform = QgsCoordinateTransform()
-        self._already_warned = False
 
         if (
             self._request.destinationCrs().isValid()
@@ -49,13 +50,15 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         if hasattr(request, "flags") and request.flags() & QgsFeatureRequest.NoGeometry:
             # Attribute table requests typically use NoGeometry flag for performance
             self._max_features = 10000
-            if not self._already_warned:
+            
+            # Show warning only once per QGIS session
+            if not QgishubFeatureIterator._warning_shown and self._provider._qgishub_vector.count > 10000:
                 QMessageBox.information(
                     None,
                     "Feature Limit",
                     "The maximum number of features to display is limited to 10,000.",
                 )
-            self._already_warned = True
+                QgishubFeatureIterator._warning_shown = True
 
     def _load_features_page(self):
         """Load a page of features using pagination"""
