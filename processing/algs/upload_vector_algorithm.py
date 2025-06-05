@@ -36,7 +36,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     MAX_FIELD_COUNT: int = 10
-    MAX_FEATURE_COUNT: int = 100000
+    MAX_FEATURE_COUNT: int = 1000000
 
     project_map: Dict[str, str]
 
@@ -160,51 +160,75 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         """Process the algorithm"""
-        # Validate parameters and get basic info
-        layer, project_id, vector_name = self._validate_and_get_parameters(
-            parameters, context
-        )
-
-        # Check authentication
-        self._check_authentication()
-
-        # Determine geometry type
-        vector_type, is_multipart = self._get_geometry_type(layer)
-
-        # Process layer: convert to singlepart and reproject in one step
-        processed_layer, original_crs = self._process_layer_geometry(
-            layer, is_multipart, parameters, context, feedback
-        )
-
-        # Setup field name normalization
-        normalizer = FieldNameNormalizer(processed_layer, feedback)
-
-        # Check normalized field count limit
-        normalized_field_count = len(normalizer.columns)
-        if normalized_field_count > self.MAX_FIELD_COUNT:
-            raise QgsProcessingException(
-                self.tr(
-                    f"After field normalization, the layer has {normalized_field_count} valid fields, "
-                    f"but only up to {self.MAX_FIELD_COUNT} fields are supported."
-                )
+        vector_id = None
+        try:
+            # Validate parameters and get basic info
+            layer, project_id, vector_name = self._validate_and_get_parameters(
+                parameters, context
             )
 
-        # Create vector in STRATO
-        creator = VectorCreator(feedback)
-        vector_id = creator.create_vector(project_id, vector_name, vector_type)
+            # Check authentication
+            self._check_authentication()
 
-        # Create uploader and setup attribute schema
-        uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
-        uploader.setup_attribute_schema()
+            # Determine geometry type
+            vector_type, is_multipart = self._get_geometry_type(layer)
 
-        # Upload features to STRATO
-        uploaded_feature_count = uploader.upload_layer(processed_layer)
+            # Process layer: convert to singlepart and reproject in one step
+            processed_layer, original_crs = self._process_layer_geometry(
+                layer, is_multipart, parameters, context, feedback
+            )
 
-        feedback.pushInfo(
-            self.tr(f"Upload complete: {uploaded_feature_count} features")
-        )
+            # Setup field name normalization
+            normalizer = FieldNameNormalizer(processed_layer, feedback)
 
-        return {"VECTOR_ID": vector_id}
+            # Check normalized field count limit
+            normalized_field_count = len(normalizer.columns)
+            if normalized_field_count > self.MAX_FIELD_COUNT:
+                raise QgsProcessingException(
+                    self.tr(
+                        f"After field normalization, the layer has {normalized_field_count} valid fields, "
+                        f"but only up to {self.MAX_FIELD_COUNT} fields are supported."
+                    )
+                )
+
+            # Create vector in STRATO
+            creator = VectorCreator(feedback)
+            vector_id = creator.create_vector(project_id, vector_name, vector_type)
+
+            # Create uploader and setup attribute schema
+            uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
+            uploader.setup_attribute_schema()
+
+            # Upload features to STRATO
+            uploaded_feature_count = uploader.upload_layer(processed_layer)
+
+            feedback.pushInfo(
+                self.tr(f"Upload complete: {uploaded_feature_count} features")
+            )
+
+            return {"VECTOR_ID": vector_id}
+
+        except Exception:
+            # If vector was created but upload failed, delete it
+            if vector_id:
+                try:
+                    from ...qgishub.api import project_vector
+
+                    if project_vector.delete_vector(project_id, vector_id):
+                        feedback.pushInfo(
+                            self.tr(
+                                "Cleaned up incomplete vector layer due to upload failure"
+                            )
+                        )
+                except Exception as delete_error:
+                    feedback.reportError(
+                        self.tr(
+                            f"Failed to clean up incomplete vector: {str(delete_error)}"
+                        )
+                    )
+
+            # Re-raise the original exception
+            raise
 
     def _validate_and_get_parameters(
         self, parameters: Dict[str, Any], context: QgsProcessingContext
