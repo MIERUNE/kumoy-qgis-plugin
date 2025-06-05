@@ -36,6 +36,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     MAX_FIELD_COUNT: int = 10
+    MAX_FEATURE_COUNT: int = 100000
 
     project_map: Dict[str, str]
 
@@ -215,6 +216,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         if not layer:
             raise QgsProcessingException(self.tr("Invalid input layer"))
+
+        # Check feature count limit
+        feature_count = layer.featureCount()
+
+        if feature_count > self.MAX_FEATURE_COUNT:
+            raise QgsProcessingException(
+                self.tr(
+                    f"The input layer has too many features ({feature_count:,}).\n"
+                    f"Maximum allowed is {self.MAX_FEATURE_COUNT:,} features."
+                )
+            )
 
         # Get project ID
         project_options = list(self.project_map.keys())
