@@ -36,7 +36,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     MAX_FIELD_COUNT: int = 10
-    MAX_FEATURE_COUNT: int = 100000
+    MAX_FEATURE_COUNT: int = 1000000
 
     project_map: Dict[str, str]
 
@@ -274,6 +274,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         return vector_type, is_multipart
 
+    def _is_geometry_type_consistent(self, geometry, expected_type):
+        """check if geometry type matches expected type"""
+        if not geometry:
+            return False
+
+        actual_type = QgsWkbTypes.geometryType(geometry.wkbType())
+        return actual_type == expected_type
+
     def _process_layer_geometry(
         self,
         layer: QgsVectorLayer,
@@ -312,6 +320,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Get the target geometry type (always single part)
         target_wkb_type = QgsWkbTypes.singleType(layer.wkbType())
+        expected_geom_type = QgsWkbTypes.geometryType(target_wkb_type)
 
         # Create sink with target CRS and geometry type
         (sink, dest_id) = self.parameterAsSink(
@@ -340,6 +349,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         features_processed = 0
         fixed_geometries = 0
         invalid_geometries = 0
+        wrong_geometry_type = 0
 
         for current, feature in enumerate(layer.getFeatures()):
             feature = cast(QgsFeature, feature)
@@ -376,6 +386,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                             invalid_geometries += 1
                             continue  # Skip unfixable parts
 
+                    # Check geometry type consistency
+                    if not self._is_geometry_type_consistent(
+                        single_geometry_part, expected_geom_type
+                    ):
+                        wrong_geometry_type += 1
+                        continue  # Skip parts with wrong geometry type
+
                     # Create new feature for each part
                     new_feature = QgsFeature(feature)
 
@@ -392,6 +409,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         )
                     features_processed += 1
             else:
+                # Check geometry type consistency
+                if not self._is_geometry_type_consistent(geom, expected_geom_type):
+                    wrong_geometry_type += 1
+                    continue  # Skip features with wrong geometry type
+
                 # Single part geometry
                 new_feature = QgsFeature(feature)
 
@@ -422,6 +444,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(
                 self.tr(
                     f"Skipped {invalid_geometries} features with unfixable geometries"
+                )
+            )
+        if wrong_geometry_type > 0:
+            feedback.reportError(
+                self.tr(
+                    f"Skipped {wrong_geometry_type} features with wrong geometry type"
                 )
             )
 
