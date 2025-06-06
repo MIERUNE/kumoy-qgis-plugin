@@ -274,6 +274,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         return vector_type, is_multipart
 
+    def _is_geometry_type_consistent(self, geometry, expected_type):
+        """check if geometry type matches expected type"""
+        if not geometry:
+            return False
+
+        actual_type = QgsWkbTypes.geometryType(geometry.wkbType())
+        return actual_type == expected_type
+
     def _process_layer_geometry(
         self,
         layer: QgsVectorLayer,
@@ -379,10 +387,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                             continue  # Skip unfixable parts
 
                     # Check geometry type consistency
-                    part_geom_type = QgsWkbTypes.geometryType(
-                        single_geometry_part.wkbType()
-                    )
-                    if part_geom_type != expected_geom_type:
+                    if not self._is_geometry_type_consistent(
+                        single_geometry_part, expected_geom_type
+                    ):
                         wrong_geometry_type += 1
                         continue  # Skip parts with wrong geometry type
 
@@ -403,8 +410,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     features_processed += 1
             else:
                 # Check geometry type consistency
-                geom_type = QgsWkbTypes.geometryType(geom.wkbType())
-                if geom_type != expected_geom_type:
+                if not self._is_geometry_type_consistent(geom, expected_geom_type):
                     wrong_geometry_type += 1
                     continue  # Skip features with wrong geometry type
 
