@@ -283,41 +283,38 @@ class DialogConfig(QDialog):
 
     def check_and_show_project_selection(self):
         """Check if organization and project are selected and show project selection dialog if needed"""
-        try:
-            settings = SettingsManager()
-            organization_id = settings.get_setting("selected_organization_id")
-            project_id = settings.get_setting("selected_project_id")
+        settings = SettingsManager()
+        organization_id = settings.get_setting("selected_organization_id")
+        project_id = settings.get_setting("selected_project_id")
 
-            # If organization or project is not selected
-            if not organization_id or not project_id:
-                QgsMessageLog.logMessage(
-                    "Organization or project not selected, showing project selection dialog",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
+        if organization_id and project_id:
+            return
 
-                # Close the config dialog first
-                self.accept()
+        QgsMessageLog.logMessage(
+            "Organization or project not selected, showing project selection dialog",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
 
-                # Import only when needed to avoid circular imports
-                from .dialog_project_select import ProjectSelectDialog
+        # Close the config dialog first
+        self.accept()
 
-                # Show project selection dialog
-                dialog = ProjectSelectDialog()
-                result = dialog.exec_()
+        # Import only when needed to avoid circular imports
+        from .dialog_project_select import ProjectSelectDialog
 
-                if result:
-                    selected_project = dialog.get_selected_project()
-                    if selected_project:
-                        QgsMessageLog.logMessage(
-                            f"Project selected: {selected_project.name}",
-                            LOG_CATEGORY,
-                            Qgis.Info,
-                        )
+        # Show project selection dialog
+        dialog = ProjectSelectDialog()
+        result = dialog.exec_()
 
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error checking project selection: {str(e)}",
-                LOG_CATEGORY,
-                Qgis.Warning,
-            )
+        if not result:
+            return
+
+        selected_project = dialog.get_selected_project()
+        if not selected_project:
+            return
+
+        QgsMessageLog.logMessage(
+            f"Project selected: {selected_project.name}",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
