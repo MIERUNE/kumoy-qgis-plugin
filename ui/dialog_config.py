@@ -290,6 +290,9 @@ class DialogConfig(QDialog):
                     Qgis.Info,
                 )
 
+                # Close the config dialog first
+                self.accept()
+                
                 # Import only when needed to avoid circular imports
                 from .dialog_project_select import ProjectSelectDialog
 
