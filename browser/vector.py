@@ -1,18 +1,13 @@
 import os
 
-from PyQt5.QtCore import QMetaType
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
     Qgis,
     QgsDataItem,
-    QgsFeature,
-    QgsField,
-    QgsFields,
     QgsMessageLog,
     QgsProject,
     QgsVectorLayer,
-    QgsWkbTypes,
 )
 from qgis.utils import iface
 
@@ -341,167 +336,18 @@ class DbRoot(QgsDataItem):
     def upload_vector(self):
         """QGISアクティブレイヤーの地物をサーバーへアップロード"""
         try:
-            from PyQt5.QtWidgets import (
-                QDialog,
-                QDialogButtonBox,
-                QLabel,
-                QListWidget,
-                QVBoxLayout,
-            )
+            from qgis import processing
 
-            # プロジェクト内の全ベクターレイヤー取得
-            layers = [
-                layer
-                for layer in QgsProject.instance().mapLayers().values()
-                if layer.type() == Qgis.LayerType.Vector
-            ]
-            if not layers:
-                QgsMessageLog.logMessage(
-                    "ベクターレイヤーがありません", LOG_CATEGORY, Qgis.Critical
-                )
-                return
+            # Execute with dialog
+            result = processing.execAlgorithmDialog("strato:uploadvector")
 
-            # ダイアログでレイヤー選択
-            dialog = QDialog()
-            dialog.setWindowTitle("アップロードするレイヤーを選択")
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel("アップロードするレイヤーを選択してください："))
-            list_widget = QListWidget()
-            for lyr in layers:
-                list_widget.addItem(lyr.name())
-            layout.addWidget(list_widget)
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-            if dialog.exec_() != QDialog.Accepted or list_widget.currentRow() < 0:
-                return
+            # After dialog closes, refresh if needed
+            if result:
+                self.refresh()
 
-            # 選択されたレイヤー取得
-            layer = layers[list_widget.currentRow()]
-
-            # ジオメトリタイプ判定
-            wkb_type = layer.wkbType()
-            if wkb_type in [QgsWkbTypes.Point]:  # Point
-                geom_type = "POINT"
-            elif wkb_type in [QgsWkbTypes.LineString]:  # LineString
-                geom_type = "LINESTRING"
-            elif wkb_type in [QgsWkbTypes.Polygon]:  # Polygon
-                geom_type = "POLYGON"
-            else:
-                QMessageBox.critical(
-                    None,
-                    "Unsupported Geometry Type",
-                    "This geometry type is not supported for upload.",
-                    QMessageBox.Ok,
-                )
-                return
-
-            # 新規Vector作成
-            vector_name = layer.name()
-            project_id = self.project_id
-            if not project_id and hasattr(self.parent(), "project"):
-                project_id = self.parent().project.id
-            if not project_id:
-                QgsMessageLog.logMessage(
-                    "No project selected", LOG_CATEGORY, Qgis.Critical
-                )
-                return
-            options = AddVectorOptions(name=vector_name, type=geom_type)
-            new_vector = add_vector(project_id, options)
-            if not new_vector:
-                QgsMessageLog.logMessage(
-                    "サーバー側のベクター作成に失敗", LOG_CATEGORY, Qgis.Critical
-                )
-                return
-
-            # 属性追加
-            fields = layer.fields()
-            attr_dict = {}
-            for field in fields:
-                if field.type() == QMetaType.Int:
-                    attr_dict[field.name()] = "integer"
-                elif (
-                    field.type() == QMetaType.Double or field.type() == QMetaType.Float
-                ):
-                    attr_dict[field.name()] = "float"
-                elif field.type() == QMetaType.Bool:
-                    attr_dict[field.name()] = "boolean"
-                elif field.type() == QMetaType.QString:
-                    attr_dict[field.name()] = "string"
-                else:
-                    QgsMessageLog.logMessage(
-                        f"未対応の属性タイプ: {field.type()}",
-                        LOG_CATEGORY,
-                        Qgis.Critical,
-                    )
-                    continue
-
-            if attr_dict:
-                api.qgis_vector.add_attributes(new_vector.id, attr_dict)
-
-            # QgsFeatureで使うために、サポートしているカラムだけのQgsFieldsを作成
-            upload_fields = QgsFields()
-            for field in fields:
-                if field.name() not in attr_dict:
-                    # サポートされていないデータ型はスキップ
-                    continue
-                upload_fields.append(QgsField(field))
-
-            # 地物アップロード
-            PAGE_SIZE = 1000
-            chunk = []
-            for feature in layer.getFeatures():
-                if not feature.hasGeometry():
-                    # geometryがない地物は無視
-                    continue
-
-                # geometryのwkbTypeが異なる場合は無視
-                if feature.geometry().wkbType() != wkb_type:
-                    continue
-
-                # サポートしているカラムのみを保存するために
-                # 新たにQgsFeatureを作成して、事前に作成しておいたQgsFieldsをセット
-                fields = QgsFields()
-                _f = QgsFeature()
-                _f.setGeometry(feature.geometry())
-                _f.setFields(upload_fields)
-                for field in upload_fields:
-                    _f.setAttribute(field.name(), feature.attribute(field.name()))
-
-                chunk.append(_f)
-
-                if len(chunk) == PAGE_SIZE:
-                    ok = api.qgis_vector.add_features(new_vector.id, chunk)
-                    if not ok:
-                        QgsMessageLog.logMessage(
-                            "地物アップロード失敗",
-                            LOG_CATEGORY,
-                            Qgis.Critical,
-                        )
-                        return
-                    chunk = []
-
-            if chunk:
-                ok = api.qgis_vector.add_features(new_vector.id, chunk)
-                if not ok:
-                    QgsMessageLog.logMessage(
-                        "地物アップロード失敗",
-                        LOG_CATEGORY,
-                        Qgis.Critical,
-                    )
-                    return
-
-            QgsMessageLog.logMessage(
-                f"レイヤー '{vector_name}' のアップロードが完了しました",
-                LOG_CATEGORY,
-                Qgis.Info,
-            )
-            self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"アップロードエラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error uploading vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def createChildren(self):
