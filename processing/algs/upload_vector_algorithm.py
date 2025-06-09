@@ -22,6 +22,7 @@ from qgis.core import (
 
 from ...qgishub import api
 from ...qgishub.get_token import get_token
+from ...settings_manager import SettingsManager
 from ..feature_uploader import FeatureUploader
 from ..field_name_normalizer import FieldNameNormalizer
 from ..vector_creator import VectorCreator
@@ -120,6 +121,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             project_options = []
             self.project_map = {}
 
+        default_project_index = 0
+        settings = SettingsManager()
+        selected_project_id = settings.get_setting("selected_project_id")
+        if selected_project_id and self.project_map:
+            # Find the index for the selected project ID
+            for idx, (_, pid) in enumerate(self.project_map.items()):
+                if pid == selected_project_id:
+                    default_project_index = idx
+                    break
+
         # Project selection
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -128,6 +139,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 options=project_options,
                 allowMultiple=False,
                 optional=False,
+                defaultValue=default_project_index,
             )
         )
 
