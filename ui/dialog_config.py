@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 )
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
+from qgis.utils import iface
 
 from ..qgishub.auth_manager import AuthManager
 from ..qgishub.config import config
@@ -192,6 +193,8 @@ class DialogConfig(QDialog):
             settings_manager.store_setting("id_token", "")
             settings_manager.store_setting("refresh_token", "")
             settings_manager.store_setting("user_info", "")
+            settings_manager.store_setting("selected_project_id", "")
+            settings_manager.store_setting("selected_organization_id", "")
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
@@ -200,6 +203,9 @@ class DialogConfig(QDialog):
 
             # Update the UI
             self.update_login_status()
+
+            # Refresh browser panel to update the name
+            iface.browserModel().reload()
 
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -292,7 +298,7 @@ class DialogConfig(QDialog):
 
                 # Close the config dialog first
                 self.accept()
-                
+
                 # Import only when needed to avoid circular imports
                 from .dialog_project_select import ProjectSelectDialog
 
