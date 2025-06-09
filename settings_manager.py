@@ -11,6 +11,7 @@ def DEFAULT_SETTINGS():
         "token_expires_at": "",
         "user_info": {},
         "selected_project_id": "",
+        "selected_organization_id": "",
         "use_custom_server": "false",
         "custom_server_url": "",
         "custom_cognito_url": "",

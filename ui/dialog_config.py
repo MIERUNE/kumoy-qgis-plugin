@@ -127,6 +127,9 @@ class DialogConfig(QDialog):
         # Update the UI
         self.update_login_status()
 
+        # ログイン成功後、組織とプロジェクトが選択されていない場合はプロジェクト選択ダイアログを表示
+        self.check_and_show_project_selection()
+
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
@@ -271,3 +274,41 @@ class DialogConfig(QDialog):
             return False
 
         return True
+
+    def check_and_show_project_selection(self):
+        """組織とプロジェクトが選択されているかチェックし、必要に応じてプロジェクト選択ダイアログを表示"""
+        try:
+            settings = SettingsManager()
+            organization_id = settings.get_setting("selected_organization_id")
+            project_id = settings.get_setting("selected_project_id")
+
+            # 組織またはプロジェクトが選択されていない場合
+            if not organization_id or not project_id:
+                QgsMessageLog.logMessage(
+                    "Organization or project not selected, showing project selection dialog",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # 循環インポートを避けるため、必要な時のみインポート
+                from .dialog_project_select import ProjectSelectDialog
+
+                # プロジェクト選択ダイアログを表示
+                dialog = ProjectSelectDialog()
+                result = dialog.exec_()
+
+                if result:
+                    selected_project = dialog.get_selected_project()
+                    if selected_project:
+                        QgsMessageLog.logMessage(
+                            f"Project selected: {selected_project.name}",
+                            LOG_CATEGORY,
+                            Qgis.Info,
+                        )
+
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error checking project selection: {str(e)}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )
