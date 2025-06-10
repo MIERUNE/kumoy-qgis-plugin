@@ -279,10 +279,14 @@ class StyledMapRoot(QgsDataItem):
                     if new_styled_map:
                         # 上書き保存して新しいスタイルマップを表示
                         self.refresh()
-                    else:
-                        QgsMessageLog.logMessage(
-                            "Mapの作成に失敗しました", LOG_CATEGORY, Qgis.Critical
+                        QMessageBox.information(
+                            None,
+                            "Success",
+                            f"Map '{name}' has been created successfully.",
                         )
+                    else:
+                        # エラーメッセージを表示
+                        QMessageBox.critical(None, "Error", "Failed to create the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
