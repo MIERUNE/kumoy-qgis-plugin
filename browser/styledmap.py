@@ -1,7 +1,7 @@
 import os
-import tempfile
 
 from PyQt5.QtGui import QIcon
+from PyQt5.QtXml import QDomDocument
 from PyQt5.QtWidgets import (
     QAction,
     QCheckBox,
@@ -332,18 +332,108 @@ class StyledMapRoot(QgsDataItem):
 
 
 def get_qgisproject_str() -> str:
+    """Get QGIS project as XML string avoiding tempfile permission issues"""
+    import tempfile
+    import uuid
+    
     project = QgsProject.instance()
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
-        project.write(tmp.name)
-        with open(tmp.name, "r", encoding="utf-8") as f:
-            return f.read()
+    
+    # Try multiple temporary directory locations to avoid permission issues
+    temp_dirs = [
+        '/tmp',  # Unix standard temp dir
+        os.path.expanduser('~/tmp'),  # User's home tmp dir
+        os.path.expanduser('~'),  # User's home dir
+        os.getcwd(),  # Current working directory
+    ]
+    
+    for temp_dir in temp_dirs:
+        try:
+            # Create temp directory if it doesn't exist
+            if not os.path.exists(temp_dir):
+                continue
+                
+            # Generate unique filename
+            temp_filename = os.path.join(temp_dir, f'qgis_project_{uuid.uuid4().hex}.qgs')
+            
+            # Write project to file
+            success = project.write(temp_filename)
+            if success:
+                # Read the content
+                with open(temp_filename, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Clean up the temporary file
+                try:
+                    os.unlink(temp_filename)
+                except OSError:
+                    pass  # Ignore cleanup errors
+                
+                return content
+            
+        except (OSError, PermissionError) as e:
+            # Try next directory
+            QgsMessageLog.logMessage(
+                f"Failed to use temp dir {temp_dir}: {str(e)}", 
+                LOG_CATEGORY, 
+                Qgis.Warning
+            )
+            continue
+    
+    # If all methods fail, raise an exception
+    raise Exception("Unable to create temporary file in any available directory")
 
 
 def load_project_from_xml(xml_string: str) -> bool:
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
-        tmp.write(xml_string)
-        tmp_path = tmp.name
-        # QGISプロジェクトを読み込む
-        project = QgsProject.instance()
-        res = project.read(tmp_path)
-        return res
+    """Load QGIS project from XML string avoiding tempfile permission issues"""
+    import uuid
+    
+    project = QgsProject.instance()
+    
+    # Try multiple temporary directory locations to avoid permission issues
+    temp_dirs = [
+        '/tmp',  # Unix standard temp dir
+        os.path.expanduser('~/tmp'),  # User's home tmp dir
+        os.path.expanduser('~'),  # User's home dir
+        os.getcwd(),  # Current working directory
+    ]
+    
+    for temp_dir in temp_dirs:
+        try:
+            # Create temp directory if it doesn't exist
+            if not os.path.exists(temp_dir):
+                continue
+            
+            # Generate unique filename
+            temp_filename = os.path.join(temp_dir, f'qgis_project_{uuid.uuid4().hex}.qgs')
+            
+            # Write XML string to file
+            with open(temp_filename, 'w', encoding='utf-8') as f:
+                f.write(xml_string)
+            
+            # Read project from file
+            success = project.read(temp_filename)
+            
+            # Clean up the temporary file
+            try:
+                os.unlink(temp_filename)
+            except OSError:
+                pass  # Ignore cleanup errors
+            
+            return success
+            
+        except (OSError, PermissionError) as e:
+            # Try next directory
+            QgsMessageLog.logMessage(
+                f"Failed to use temp dir {temp_dir}: {str(e)}", 
+                LOG_CATEGORY, 
+                Qgis.Warning
+            )
+            continue
+    
+    # If all methods fail, log error and return False
+    QgsMessageLog.logMessage(
+        "Unable to create temporary file in any available directory", 
+        LOG_CATEGORY, 
+        Qgis.Critical
+    )
+    return False
