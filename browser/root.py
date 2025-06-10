@@ -131,6 +131,9 @@ class RootCollection(QgsDataCollectionItem):
             settings_manager.store_setting("selected_project_id", "")
             settings_manager.store_setting("selected_organization_id", "")
 
+            # Reset browser name
+            self.setName(PLUGIN_NAME)
+
             # Refresh to update UI
             self.refresh()
 

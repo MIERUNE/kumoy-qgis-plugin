@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 )
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
+from qgis.utils import iface
 
 from ..qgishub.auth_manager import AuthManager
 from ..qgishub.config import config
@@ -127,6 +128,9 @@ class DialogConfig(QDialog):
         # Update the UI
         self.update_login_status()
 
+        # Show project selection dialog if project is not selected after successful login
+        self.check_and_show_project_selection()
+
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
         try:
@@ -189,6 +193,7 @@ class DialogConfig(QDialog):
             settings_manager.store_setting("id_token", "")
             settings_manager.store_setting("refresh_token", "")
             settings_manager.store_setting("user_info", "")
+            settings_manager.store_setting("selected_project_id", "")
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
@@ -197,6 +202,9 @@ class DialogConfig(QDialog):
 
             # Update the UI
             self.update_login_status()
+
+            # Refresh browser panel to update the name
+            iface.browserModel().reload()
 
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -271,3 +279,40 @@ class DialogConfig(QDialog):
             return False
 
         return True
+
+    def check_and_show_project_selection(self):
+        """Check if project is selected and show project selection dialog if needed"""
+        settings = SettingsManager()
+        project_id = settings.get_setting("selected_project_id")
+
+        if project_id:
+            return
+
+        QgsMessageLog.logMessage(
+            "Project not selected, showing project selection dialog",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+
+        # Close the config dialog first
+        self.accept()
+
+        # Import only when needed to avoid circular imports
+        from .dialog_project_select import ProjectSelectDialog
+
+        # Show project selection dialog
+        dialog = ProjectSelectDialog()
+        result = dialog.exec_()
+
+        if not result:
+            return
+
+        selected_project = dialog.get_selected_project()
+        if not selected_project:
+            return
+
+        QgsMessageLog.logMessage(
+            f"Project selected: {selected_project.name}",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
