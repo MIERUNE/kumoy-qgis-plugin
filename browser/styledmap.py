@@ -86,9 +86,6 @@ class StyledMapItem(QgsDataItem):
                     None, "Error", f"Failed to load map '{self.styled_map.name}'."
                 )
         except Exception as e:
-            QgsMessageLog.logMessage(
-                f"スタイル適用エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
             QMessageBox.critical(None, "Error", f"Error loading map: {str(e)}")
 
     def handleDoubleClick(self):
@@ -153,14 +150,11 @@ class StyledMapItem(QgsDataItem):
                             f"Map '{new_name}' has been updated successfully.",
                         )
                     else:
-                        QgsMessageLog.logMessage(
-                            "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
-                        )
                         QMessageBox.critical(None, "Error", "Failed to update the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"スタイルマップ編集エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error updating map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(None, "Error", f"Error updating map: {str(e)}")
 
@@ -186,9 +180,6 @@ class StyledMapItem(QgsDataItem):
                 f"Map '{self.styled_map.name}' has been saved successfully.",
             )
         else:
-            QgsMessageLog.logMessage(
-                "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
-            )
             QMessageBox.critical(None, "Error", "Failed to save the map.")
 
     def delete_styled_map(self):
@@ -215,14 +206,11 @@ class StyledMapItem(QgsDataItem):
                         f"Map '{self.styled_map.name}' has been deleted successfully.",
                     )
                 else:
-                    QgsMessageLog.logMessage(
-                        "Mapの削除に失敗しました", LOG_CATEGORY, Qgis.Critical
-                    )
                     QMessageBox.critical(None, "Error", "Failed to delete the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Map削除エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(None, "Error", f"Error deleting map: {str(e)}")
 
