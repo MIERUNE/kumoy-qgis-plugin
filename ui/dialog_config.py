@@ -128,7 +128,7 @@ class DialogConfig(QDialog):
         # Update the UI
         self.update_login_status()
 
-        # Show project selection dialog if organization and project are not selected after successful login
+        # Show project selection dialog if project is not selected after successful login
         self.check_and_show_project_selection()
 
     def login(self):
@@ -281,7 +281,7 @@ class DialogConfig(QDialog):
         return True
 
     def check_and_show_project_selection(self):
-        """Check if organization and project are selected and show project selection dialog if needed"""
+        """Check if project is selected and show project selection dialog if needed"""
         settings = SettingsManager()
         project_id = settings.get_setting("selected_project_id")
 
@@ -289,7 +289,7 @@ class DialogConfig(QDialog):
             return
 
         QgsMessageLog.logMessage(
-            "Organization or project not selected, showing project selection dialog",
+            "Project not selected, showing project selection dialog",
             LOG_CATEGORY,
             Qgis.Info,
         )
