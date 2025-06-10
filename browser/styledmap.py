@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
+from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
@@ -74,11 +75,18 @@ class StyledMapItem(QgsDataItem):
         """スタイルをQGISレイヤーに適用する"""
         try:
             # XML文字列をQGISプロジェクトにロード
-            load_project_from_xml(self.styled_map.qgisproject)
+            success = load_project_from_xml(self.styled_map.qgisproject)
+            if success:
+                iface.messageBar().pushSuccess(
+                    "Success",
+                    f"Map '{self.styled_map.name}' has been loaded successfully.",
+                )
+            else:
+                QMessageBox.critical(
+                    None, "Error", f"Failed to load map '{self.styled_map.name}'."
+                )
         except Exception as e:
-            QgsMessageLog.logMessage(
-                f"スタイル適用エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
+            QMessageBox.critical(None, "Error", f"Error loading map: {str(e)}")
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -137,15 +145,18 @@ class StyledMapItem(QgsDataItem):
                         self.styled_map = updated_styled_map
                         self.setName(updated_styled_map.name)
                         self.refresh()
-                    else:
-                        QgsMessageLog.logMessage(
-                            "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
+                        iface.messageBar().pushSuccess(
+                            "Success",
+                            f"Map '{new_name}' has been updated successfully.",
                         )
+                    else:
+                        QMessageBox.critical(None, "Error", "Failed to update the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"スタイルマップ編集エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error updating map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
+            QMessageBox.critical(None, "Error", f"Error updating map: {str(e)}")
 
     def apply_qgisproject_to_styledmap(self):
         # QGISプロジェクト情報はバックグラウンドで取得
@@ -163,10 +174,13 @@ class StyledMapItem(QgsDataItem):
             self.styled_map = updated_styled_map
             self.setName(updated_styled_map.name)
             self.refresh()
-        else:
-            QgsMessageLog.logMessage(
-                "Mapの上書き保存に失敗しました", LOG_CATEGORY, Qgis.Critical
+            QMessageBox.information(
+                None,
+                "Success",
+                f"Map '{self.styled_map.name}' has been saved successfully.",
             )
+        else:
+            QMessageBox.critical(None, "Error", "Failed to save the map.")
 
     def delete_styled_map(self):
         """スタイルマップを削除する"""
@@ -187,15 +201,18 @@ class StyledMapItem(QgsDataItem):
                 if success:
                     # 親アイテムを上書き保存して最新のリストを表示
                     self.parent().refresh()
-                else:
-                    QgsMessageLog.logMessage(
-                        "Mapの削除に失敗しました", LOG_CATEGORY, Qgis.Critical
+                    iface.messageBar().pushSuccess(
+                        "Success",
+                        f"Map '{self.styled_map.name}' has been deleted successfully.",
                     )
+                else:
+                    QMessageBox.critical(None, "Error", "Failed to delete the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Map削除エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
+            QMessageBox.critical(None, "Error", f"Error deleting map: {str(e)}")
 
 
 class StyledMapRoot(QgsDataItem):
@@ -279,10 +296,14 @@ class StyledMapRoot(QgsDataItem):
                     if new_styled_map:
                         # 上書き保存して新しいスタイルマップを表示
                         self.refresh()
-                    else:
-                        QgsMessageLog.logMessage(
-                            "Mapの作成に失敗しました", LOG_CATEGORY, Qgis.Critical
+                        QMessageBox.information(
+                            None,
+                            "Success",
+                            f"Map '{name}' has been created successfully.",
                         )
+                    else:
+                        # エラーメッセージを表示
+                        QMessageBox.critical(None, "Error", "Failed to create the map.")
 
         except Exception as e:
             QgsMessageLog.logMessage(
