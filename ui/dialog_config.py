@@ -194,7 +194,6 @@ class DialogConfig(QDialog):
             settings_manager.store_setting("refresh_token", "")
             settings_manager.store_setting("user_info", "")
             settings_manager.store_setting("selected_project_id", "")
-            settings_manager.store_setting("selected_organization_id", "")
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
@@ -284,10 +283,9 @@ class DialogConfig(QDialog):
     def check_and_show_project_selection(self):
         """Check if organization and project are selected and show project selection dialog if needed"""
         settings = SettingsManager()
-        organization_id = settings.get_setting("selected_organization_id")
         project_id = settings.get_setting("selected_project_id")
 
-        if organization_id and project_id:
+        if project_id:
             return
 
         QgsMessageLog.logMessage(
