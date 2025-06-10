@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
@@ -430,23 +429,103 @@ def load_project_from_xml(xml_string: str) -> bool:
         )
 
         if reply == QMessageBox.Yes:
-            # Use temporary file to load the project
-            with tempfile.NamedTemporaryFile(
-                suffix=".qgs", mode="w", encoding="utf-8"
-            ) as tmp:
-                tmp.write(xml_string)
-                tmp.flush()
-                # Load project from temporary file
-                success = project.read(tmp.name)
-                if success:
-                    QMessageBox.information(
-                        None, "成功", "プロジェクトを読み込みました。"
+            # Check if current project has a file path
+            current_path = project.fileName()
+
+            if current_path:
+                try:
+                    # Backup current project content
+                    backup_content = None
+                    try:
+                        with open(current_path, "r", encoding="utf-8") as f:
+                            backup_content = f.read()
+                    except:
+                        pass
+
+                    # Write XML to current project file
+                    with open(current_path, "w", encoding="utf-8") as f:
+                        f.write(xml_string)
+
+                    # Reload project from the updated file
+                    success = project.read(current_path)
+
+                    if success:
+                        QMessageBox.information(
+                            None, "成功", "プロジェクトを読み込みました。"
+                        )
+                    else:
+                        # Restore backup if failed
+                        if backup_content:
+                            try:
+                                with open(current_path, "w", encoding="utf-8") as f:
+                                    f.write(backup_content)
+                            except:
+                                pass
+                        QMessageBox.critical(
+                            None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                        )
+                    return success
+                except Exception as e:
+                    QgsMessageLog.logMessage(
+                        f"Error overwriting project: {str(e)}",
+                        LOG_CATEGORY,
+                        Qgis.Critical,
                     )
-                else:
                     QMessageBox.critical(
-                        None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                        None, "エラー", f"プロジェクトの上書きに失敗しました: {str(e)}"
                     )
-                return success
+                    return False
+            else:
+                # No current project file, prompt to save as new file
+                reply = QMessageBox.question(
+                    None,
+                    "プロジェクトの保存",
+                    "現在のプロジェクトは保存されていません。\n新しいファイルとして保存しますか？",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes,
+                )
+
+                if reply == QMessageBox.Yes:
+                    # Save as new file
+                    file_path, _ = QFileDialog.getSaveFileName(
+                        None, "プロジェクトを保存", "", "QGIS Project Files (*.qgs)"
+                    )
+
+                    if file_path:
+                        try:
+                            # Write XML string to the chosen file
+                            with open(file_path, "w", encoding="utf-8") as f:
+                                f.write(xml_string)
+
+                            # Load the project from the saved file
+                            success = project.read(file_path)
+                            if success:
+                                QMessageBox.information(
+                                    None, "成功", "プロジェクトを読み込みました。"
+                                )
+                            else:
+                                QMessageBox.critical(
+                                    None,
+                                    "エラー",
+                                    "プロジェクトの読み込みに失敗しました。",
+                                )
+                            return success
+                        except Exception as e:
+                            QgsMessageLog.logMessage(
+                                f"Error saving project: {str(e)}",
+                                LOG_CATEGORY,
+                                Qgis.Critical,
+                            )
+                            QMessageBox.critical(
+                                None,
+                                "エラー",
+                                f"プロジェクトの保存に失敗しました: {str(e)}",
+                            )
+                            return False
+                    else:
+                        return False
+                else:
+                    return False
         else:
             return False
 
