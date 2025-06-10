@@ -7,10 +7,10 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
     QLineEdit,
     QMessageBox,
-    QTextEdit,
     QVBoxLayout,
 )
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
@@ -332,18 +332,159 @@ class StyledMapRoot(QgsDataItem):
 
 
 def get_qgisproject_str() -> str:
+    """Get QGIS project as XML string after saving"""
     project = QgsProject.instance()
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
-        project.write(tmp.name)
-        with open(tmp.name, "r", encoding="utf-8") as f:
+
+    # Check if project has a file path
+    current_path = project.fileName()
+
+    if not current_path:
+        # Project is untitled, ask user to save it first
+        reply = QMessageBox.question(
+            None,
+            "プロジェクトの保存",
+            "現在のプロジェクトは保存されていません。新規保存しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+
+        if reply == QMessageBox.Yes:
+            # Ask user where to save
+            file_path, _ = QFileDialog.getSaveFileName(
+                None, "プロジェクトを保存", "", "QGIS Project Files (*.qgs *.qgz)"
+            )
+
+            if file_path:
+                # Save project
+                if project.write(file_path):
+                    current_path = file_path
+                else:
+                    QMessageBox.critical(
+                        None, "エラー", "プロジェクトの保存に失敗しました。"
+                    )
+                    return ""
+            else:
+                return ""
+        else:
+            return ""
+    else:
+        # Project already has a path, ask if user wants to overwrite
+        reply = QMessageBox.question(
+            None,
+            "プロジェクトの上書き保存",
+            f"{LOG_CATEGORY}と同期するため、現在のプロジェクト '{os.path.basename(current_path)}' を上書き保存して良いですか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+
+        if reply == QMessageBox.Yes:
+            # Save project
+            if not project.write():
+                QMessageBox.critical(
+                    None, "エラー", "プロジェクトの保存に失敗しました。"
+                )
+                return ""
+        else:
+            return ""
+
+    # Read the saved project file and return its content
+    try:
+        with open(current_path, "r", encoding="utf-8") as f:
             return f.read()
+    except Exception as e:
+        QgsMessageLog.logMessage(
+            f"Error reading project file: {str(e)}", LOG_CATEGORY, Qgis.Critical
+        )
+        return ""
 
 
 def load_project_from_xml(xml_string: str) -> bool:
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
-        tmp.write(xml_string)
-        tmp_path = tmp.name
-        # QGISプロジェクトを読み込む
-        project = QgsProject.instance()
-        res = project.read(tmp_path)
-        return res
+    """Load QGIS project from XML string with user confirmation"""
+    project = QgsProject.instance()
+
+    # Ask user what they want to do
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("プロジェクトの読み込み")
+    msgBox.setText("スタイルマップを読み込みます。どのように処理しますか？")
+
+    # Add buttons
+    overwrite_btn = msgBox.addButton(
+        "現在のプロジェクトを上書き", QMessageBox.AcceptRole
+    )
+    save_as_btn = msgBox.addButton("名前を付けて保存", QMessageBox.AcceptRole)
+    cancel_btn = msgBox.addButton("キャンセル", QMessageBox.RejectRole)
+
+    msgBox.exec_()
+
+    if msgBox.clickedButton() == cancel_btn:
+        return False
+
+    elif msgBox.clickedButton() == overwrite_btn:
+        # Confirm overwrite
+        reply = QMessageBox.question(
+            None,
+            "確認",
+            "現在のプロジェクトを上書きしてもよろしいですか？\n未保存の変更は失われます。",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            # Use temporary file to load the project
+            with tempfile.NamedTemporaryFile(
+                suffix=".qgs", mode="w", encoding="utf-8"
+            ) as tmp:
+                tmp.write(xml_string)
+                tmp.flush()
+                # Load project from temporary file
+                success = project.read(tmp.name)
+                if success:
+                    QMessageBox.information(
+                        None, "成功", "プロジェクトを読み込みました。"
+                    )
+                else:
+                    QMessageBox.critical(
+                        None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                    )
+                return success
+        else:
+            return False
+
+    elif msgBox.clickedButton() == save_as_btn:
+        # Ask user where to save
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "プロジェクトを保存", "", "QGIS Project Files (*.qgs)"
+        )
+
+        if file_path:
+            try:
+                # Write XML string to the chosen file
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(xml_string)
+
+                # Load the project from the saved file
+                success = project.read(file_path)
+                if success:
+                    QMessageBox.information(
+                        None,
+                        "成功",
+                        f"プロジェクトを '{os.path.basename(file_path)}' として保存し、読み込みました。",
+                    )
+                else:
+                    QMessageBox.critical(
+                        None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                    )
+                return success
+
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Error saving project file: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    None, "エラー", f"ファイルの保存に失敗しました: {str(e)}"
+                )
+                return False
+        else:
+            return False
+
+    return False
