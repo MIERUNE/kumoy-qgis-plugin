@@ -180,7 +180,8 @@ class StyledMapItem(QgsDataItem):
             self.styled_map = updated_styled_map
             self.setName(updated_styled_map.name)
             self.refresh()
-            iface.messageBar().pushSuccess(
+            QMessageBox.information(
+                None,
                 "Success",
                 f"Map '{self.styled_map.name}' has been saved successfully.",
             )
