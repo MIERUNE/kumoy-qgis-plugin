@@ -341,7 +341,7 @@ def get_qgisproject_str() -> str:
         # Project is untitled, ask user to save it first
         reply = QMessageBox.question(
             None,
-            "プロジェクトの保存",
+            "Save Project",
             "現在のプロジェクトは保存されていません。新規保存しますか？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
@@ -379,9 +379,7 @@ def get_qgisproject_str() -> str:
         if reply == QMessageBox.Yes:
             # Save project
             if not project.write():
-                QMessageBox.critical(
-                    None, "エラー", "プロジェクトの保存に失敗しました。"
-                )
+                QMessageBox.critical(None, "Error", "Failed to save project.")
                 return ""
         else:
             # User declined overwriting, offer to save as new file
@@ -394,7 +392,7 @@ def get_qgisproject_str() -> str:
                 current_path = new_path
             else:
                 QMessageBox.critical(
-                    None, "エラー", "プロジェクトの保存に失敗しました。"
+                    None, "Error", "プロジェクトの保存に失敗しました。"
                 )
                 return ""
 
@@ -427,7 +425,7 @@ def load_project_from_xml(xml_string: str) -> bool:
 def _ask_user_load_choice() -> str:
     """Ask user how to handle project loading"""
     msgBox = QMessageBox()
-    msgBox.setWindowTitle("プロジェクトの読み込み")
+    msgBox.setWindowTitle("Load Project")
     msgBox.setText("スタイルマップを読み込みます。どのように処理しますか？")
 
     # Add buttons
@@ -454,7 +452,7 @@ def _overwrite_current_project(xml_string: str) -> bool:
     # Confirm overwrite
     reply = QMessageBox.question(
         None,
-        "確認",
+        "Confirmation",
         "現在のプロジェクトを上書きしてもよろしいですか？\n未保存の変更は失われます。",
         QMessageBox.Yes | QMessageBox.No,
         QMessageBox.No,
@@ -476,7 +474,7 @@ def _handle_no_project_file(xml_string: str) -> bool:
     """Handle case when current project has no file path"""
     reply = QMessageBox.question(
         None,
-        "プロジェクトの保存",
+        "Save Project",
         "現在のプロジェクトは保存されていません。\n新しいファイルとして保存しますか？",
         QMessageBox.Yes | QMessageBox.No,
         QMessageBox.Yes,
@@ -504,14 +502,14 @@ def _overwrite_existing_project_file(current_path: str, xml_string: str) -> bool
         success = project.read(current_path)
 
         if success:
-            QMessageBox.information(None, "成功", "プロジェクトを読み込みました。")
+            QMessageBox.information(None, "Success", "プロジェクトを読み込みました。")
             return True
         else:
             # Restore backup if failed
             if backup_content:
                 _write_file_safe(current_path, backup_content)
             QMessageBox.critical(
-                None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                None, "Error", "プロジェクトの読み込みに失敗しました。"
             )
             return False
 
@@ -520,7 +518,7 @@ def _overwrite_existing_project_file(current_path: str, xml_string: str) -> bool
             f"Error overwriting project: {str(e)}", LOG_CATEGORY, Qgis.Critical
         )
         QMessageBox.critical(
-            None, "エラー", f"プロジェクトの上書きに失敗しました: {str(e)}"
+            None, "Error", f"プロジェクトの上書きに失敗しました: {str(e)}"
         )
         return False
 
@@ -564,7 +562,7 @@ def _offer_save_as_new_file(file_filter: str) -> str:
     """
     reply = QMessageBox.question(
         None,
-        "名前を付けて保存",
+        "Save As",
         "既存のプロジェクトを保護するため、新しいファイル名で保存しますか？",
         QMessageBox.Yes | QMessageBox.No,
         QMessageBox.Yes,
@@ -603,12 +601,12 @@ def _save_and_load_project(xml_string: str, file_path: str) -> bool:
         if success:
             QMessageBox.information(
                 None,
-                "成功",
+                "Success",
                 f"プロジェクトを '{os.path.basename(file_path)}' として保存し、読み込みました。",
             )
         else:
             QMessageBox.critical(
-                None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                None, "Error", "プロジェクトの読み込みに失敗しました。"
             )
 
         return success
@@ -618,7 +616,7 @@ def _save_and_load_project(xml_string: str, file_path: str) -> bool:
             f"Error saving project: {str(e)}", LOG_CATEGORY, Qgis.Critical
         )
         QMessageBox.critical(
-            None, "エラー", f"プロジェクトの保存に失敗しました: {str(e)}"
+            None, "Error", f"プロジェクトの保存に失敗しました: {str(e)}"
         )
         return False
 
@@ -694,7 +692,7 @@ def load_project_direct(xml_string: str) -> bool:
         # No current project file, ask user to save first
         reply = QMessageBox.question(
             None,
-            "プロジェクトの保存",
+            "Save Project",
             "現在のプロジェクトは保存されていません。\n新しいファイルとして保存してからマップを読み込みますか？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
@@ -715,7 +713,7 @@ def load_project_direct(xml_string: str) -> bool:
         # Project file exists, ask for confirmation before overwriting
         reply = QMessageBox.question(
             None,
-            "プロジェクトの上書き確認",
+            "Overwrite Confirmation",
             f"現在のプロジェクト '{os.path.basename(current_path)}' をスタイルマップで上書きしますか？\n\n警告: 現在のプロジェクトの内容は失われます。",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,  # Default to No for safety
@@ -751,7 +749,7 @@ def load_project_direct(xml_string: str) -> bool:
                 Qgis.Critical,
             )
             QMessageBox.critical(
-                None, "エラー", "有効なQGISプロジェクトファイルではありません。"
+                None, "Error", "有効なQGISプロジェクトファイルではありません。"
             )
             return False
 
@@ -763,7 +761,7 @@ def load_project_direct(xml_string: str) -> bool:
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
-            QMessageBox.critical(None, "エラー", "ファイルの書き込みに失敗しました。")
+            QMessageBox.critical(None, "Error", "ファイルの書き込みに失敗しました。")
             return False
 
         # Clear current project first
@@ -809,7 +807,7 @@ def load_project_direct(xml_string: str) -> bool:
             if backup_content and os.path.exists(current_path):
                 _write_file_safe(current_path, backup_content)
             QMessageBox.critical(
-                None, "エラー", "プロジェクトの読み込みに失敗しました。"
+                None, "Error", "プロジェクトの読み込みに失敗しました。"
             )
             return False
 
@@ -821,6 +819,6 @@ def load_project_direct(xml_string: str) -> bool:
         if backup_content and os.path.exists(current_path):
             _write_file_safe(current_path, backup_content)
         QMessageBox.critical(
-            None, "エラー", f"プロジェクトの読み込みに失敗しました: {str(e)}"
+            None, "Error", f"プロジェクトの読み込みに失敗しました: {str(e)}"
         )
         return False
