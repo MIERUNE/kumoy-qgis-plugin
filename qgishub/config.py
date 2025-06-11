@@ -8,9 +8,11 @@ from settings_manager import SettingsManager
 
 @dataclass
 class Config:
-    COGNITO_URL: str = "https://qgishubv3.auth.ap-northeast-1.amazoncognito.com"
-    COGNITO_CLIENT_ID: str = "49fnn61i1bh3jongq62i290461"
-    API_URL: str = "https://d3eqzgssnrhp33.cloudfront.net/api"
+    COGNITO_URL: str = (
+        "https://strato-development.auth.ap-northeast-1.amazoncognito.com"
+    )
+    COGNITO_CLIENT_ID: str = "3tti9ahi6hblmnjr67977c1uaa"
+    API_URL: str = "https://d2570m9xwzmcva.cloudfront.net/api"
 
     def __post_init__(self):
         """初期化時に設定を読み込む"""
@@ -53,11 +55,3 @@ class Config:
 
 
 config = Config()
-
-"""
-config = Config(
-    COGNITO_URL="https://qgishubv3.auth.ap-northeast-1.amazoncognito.com",
-    COGNITO_CLIENT_ID="49fnn61i1bh3jongq62i290461",
-    API_URL="http://localhost:3000/api",
-)
-"""
