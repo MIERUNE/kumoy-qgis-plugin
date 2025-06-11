@@ -332,18 +332,32 @@ class StyledMapRoot(QgsDataItem):
 
 
 def get_qgisproject_str() -> str:
-    project = QgsProject.instance()
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
-        project.write(tmp.name)
-        with open(tmp.name, "r", encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        suffix=".qgs", mode="w", encoding="utf-8", delete=False
+    ) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        project = QgsProject.instance()
+        project.write(tmp_path)
+        with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 def load_project_from_xml(xml_string: str) -> bool:
-    with tempfile.NamedTemporaryFile(suffix=".qgs", mode="w", encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        suffix=".qgs", mode="w", encoding="utf-8", delete=False
+    ) as tmp:
         tmp.write(xml_string)
         tmp_path = tmp.name
-        # QGISプロジェクトを読み込む
+
+    try:
         project = QgsProject.instance()
         res = project.read(tmp_path)
         return res
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
