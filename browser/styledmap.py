@@ -343,11 +343,7 @@ def get_qgisproject_str() -> str:
         with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-            QgsMessageLog.logMessage(
-                f"Temporary file {tmp_path} removed.", LOG_CATEGORY, Qgis.Info
-            )
+        _delete_tempfile(tmp_path)
 
 
 def load_project_from_xml(xml_string: str) -> bool:
@@ -362,8 +358,16 @@ def load_project_from_xml(xml_string: str) -> bool:
         res = project.read(tmp_path)
         return res
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-            QgsMessageLog.logMessage(
-                f"Temporary file {tmp_path} removed.", LOG_CATEGORY, Qgis.Info
-            )
+        _delete_tempfile(tmp_path)
+
+
+def _delete_tempfile(tmp_path: str):
+    if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+        QgsMessageLog.logMessage(
+            f"Temporary file {tmp_path} removed.", LOG_CATEGORY, Qgis.Info
+        )
+    else:
+        QgsMessageLog.logMessage(
+            f"Temporary file {tmp_path} does not exist.", LOG_CATEGORY, Qgis.Warning
+        )
