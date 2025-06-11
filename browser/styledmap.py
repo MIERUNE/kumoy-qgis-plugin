@@ -337,14 +337,10 @@ def get_qgisproject_str() -> str:
     ) as tmp:
         tmp_path = tmp.name
 
-    try:
-        project = QgsProject.instance()
-        project.write(tmp_path)
-        with open(tmp_path, "r", encoding="utf-8") as f:
-            return f.read()
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    project = QgsProject.instance()
+    project.write(tmp_path)
+    with open(tmp_path, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def load_project_from_xml(xml_string: str) -> bool:
@@ -354,10 +350,6 @@ def load_project_from_xml(xml_string: str) -> bool:
         tmp.write(xml_string)
         tmp_path = tmp.name
 
-    try:
-        project = QgsProject.instance()
-        res = project.read(tmp_path)
-        return res
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    project = QgsProject.instance()
+    res = project.read(tmp_path)
+    return res
