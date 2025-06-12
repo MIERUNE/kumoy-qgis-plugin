@@ -24,6 +24,7 @@ from ..qgishub.api.project_styledmap import (
     UpdateStyledMapOptions,
 )
 from ..qgishub.constants import LOG_CATEGORY
+from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
 
@@ -218,7 +219,7 @@ class StyledMapItem(QgsDataItem):
 class StyledMapRoot(QgsDataItem):
     """スタイルマップルートアイテム（ブラウザ用）"""
 
-    def __init__(self, parent, name, path, project_id):
+    def __init__(self, parent, name, path):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -226,7 +227,6 @@ class StyledMapRoot(QgsDataItem):
             name,
             path,
         )
-        self.project_id = project_id
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
         self.populate()
 
@@ -285,14 +285,14 @@ class StyledMapRoot(QgsDataItem):
 
                 if name:
                     # Get the latest selected project ID from settings
-                    from ..settings_manager import SettingsManager
+
                     settings = SettingsManager()
                     project_id = settings.get_setting("selected_project_id")
-                    
+
                     if not project_id:
                         QMessageBox.critical(None, "Error", "No project selected.")
                         return
-                    
+
                     # スタイルマップ作成
                     new_styled_map = api.project_styledmap.add_styled_map(
                         project_id,
@@ -324,12 +324,13 @@ class StyledMapRoot(QgsDataItem):
         try:
             # Always get the latest selected project ID from settings
             from ..settings_manager import SettingsManager
+
             settings = SettingsManager()
             project_id = settings.get_setting("selected_project_id")
-            
+
             if not project_id:
                 return [ErrorItem(self, "No project selected")]
-            
+
             # プロジェクトのスタイルマップを取得
             styled_maps = api.project_styledmap.get_styled_maps(project_id)
 

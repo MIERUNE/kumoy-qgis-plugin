@@ -20,6 +20,7 @@ from ..qgishub.api.project_vector import (
 )
 from ..qgishub.config import config as qgishub_config
 from ..qgishub.constants import LOG_CATEGORY
+from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
 
@@ -202,7 +203,7 @@ class VectorItem(QgsDataItem):
 class DbRoot(QgsDataItem):
     """Root item for vectors in a project"""
 
-    def __init__(self, parent, name: str, path: str, project_id: str = None):
+    def __init__(self, parent, name: str, path: str):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -211,7 +212,6 @@ class DbRoot(QgsDataItem):
             path=path,
         )
 
-        self.project_id = project_id
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
 
     def actions(self, parent):
@@ -237,8 +237,6 @@ class DbRoot(QgsDataItem):
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            # Get the latest selected project ID from settings
-            from ..settings_manager import SettingsManager
             settings = SettingsManager()
             project_id = settings.get_setting("selected_project_id")
 
@@ -352,8 +350,6 @@ class DbRoot(QgsDataItem):
     def createChildren(self):
         """Create child items for vectors in project"""
         try:
-            # Always get the latest selected project ID from settings
-            from ..settings_manager import SettingsManager
             settings = SettingsManager()
             project_id = settings.get_setting("selected_project_id")
 

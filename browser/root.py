@@ -207,16 +207,12 @@ class RootCollection(QgsDataCollectionItem):
             # Create vector root directly
             children = []
             vector_path = f"{self.path()}/vectors"
-            vector_root = DbRoot(
-                self, "Vectors", vector_path
-            )
+            vector_root = DbRoot(self, "Vectors", vector_path)
             children.append(vector_root)
 
             # Create styled map root
             styled_map_path = f"{self.path()}/styledmaps"
-            styled_map_root = StyledMapRoot(
-                self, "Maps", styled_map_path, project_id=None
-            )
+            styled_map_root = StyledMapRoot(self, "Maps", styled_map_path)
             children.append(styled_map_root)
 
             return children
