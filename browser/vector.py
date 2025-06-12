@@ -9,7 +9,6 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
@@ -21,6 +20,7 @@ from ..qgishub.api.project_vector import (
 )
 from ..qgishub.config import config as qgishub_config
 from ..qgishub.constants import LOG_CATEGORY
+from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
 
@@ -203,7 +203,7 @@ class VectorItem(QgsDataItem):
 class DbRoot(QgsDataItem):
     """Root item for vectors in a project"""
 
-    def __init__(self, parent, name: str, path: str, project_id: str = None):
+    def __init__(self, parent, name: str, path: str):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -212,7 +212,6 @@ class DbRoot(QgsDataItem):
             path=path,
         )
 
-        self.project_id = project_id
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
 
     def actions(self, parent):
@@ -238,10 +237,8 @@ class DbRoot(QgsDataItem):
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            # Get project ID
-            project_id = self.project_id
-            if not project_id and hasattr(self.parent(), "project"):
-                project_id = self.parent().project.id
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 QgsMessageLog.logMessage(
@@ -353,10 +350,8 @@ class DbRoot(QgsDataItem):
     def createChildren(self):
         """Create child items for vectors in project"""
         try:
-            # Get project ID from parent or use the one provided in constructor
-            project_id = self.project_id
-            if not project_id and hasattr(self.parent(), "project"):
-                project_id = self.parent().project.id
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 return [ErrorItem(self, "No project selected")]

@@ -10,6 +10,7 @@ def DEFAULT_SETTINGS():
         "refresh_token": "",
         "token_expires_at": "",
         "user_info": {},
+        "selected_organization_id": "",
         "selected_project_id": "",
         "use_custom_server": "false",
         "custom_server_url": "",

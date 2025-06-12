@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
     Qgis,
     QgsDataCollectionItem,
+    QgsDataItem,
     QgsDataItemProvider,
     QgsDataProvider,
     QgsMessageLog,
@@ -113,6 +114,7 @@ class RootCollection(QgsDataCollectionItem):
                     # Update browser name with project name
                     self.setName(f"{PLUGIN_NAME}: {project.name}")
                     # Refresh to show the selected project
+                    self.depopulate()
                     self.refresh()
 
         except Exception as e:
@@ -207,16 +209,12 @@ class RootCollection(QgsDataCollectionItem):
             # Create vector root directly
             children = []
             vector_path = f"{self.path()}/vectors"
-            vector_root = DbRoot(
-                self, "Vectors", vector_path, project_id=project_data.id
-            )
+            vector_root = DbRoot(self, "Vectors", vector_path)
             children.append(vector_root)
 
             # Create styled map root
             styled_map_path = f"{self.path()}/styledmaps"
-            styled_map_root = StyledMapRoot(
-                self, "Maps", styled_map_path, project_id=project_data.id
-            )
+            styled_map_root = StyledMapRoot(self, "Maps", styled_map_path)
             children.append(styled_map_root)
 
             return children
