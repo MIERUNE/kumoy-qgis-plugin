@@ -228,10 +228,6 @@ class StyledMapRoot(QgsDataItem):
             path,
         )
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
-        
-        # Set capabilities to indicate this can have children
-        self.setCapabilities(QgsDataItem.Fertile)
-        
         self.populate()
 
     def actions(self, parent):

@@ -46,9 +46,6 @@ class RootCollection(QgsDataCollectionItem):
         QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
 
-        # Set capabilities to indicate this can have children
-        self.setCapabilities(QgsDataItem.Fertile)
-
         # Update name with project if available
         self.update_name_with_project()
 

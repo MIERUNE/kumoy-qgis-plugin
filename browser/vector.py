@@ -213,9 +213,6 @@ class DbRoot(QgsDataItem):
         )
 
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
-        
-        # Set capabilities to indicate this can have children
-        self.setCapabilities(QgsDataItem.Fertile)
 
     def actions(self, parent):
         actions = []
