@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
     Qgis,
     QgsDataCollectionItem,
+    QgsDataItem,
     QgsDataItemProvider,
     QgsDataProvider,
     QgsMessageLog,
@@ -44,6 +45,9 @@ class RootCollection(QgsDataCollectionItem):
         # Initialize with default name, will update with project name later
         QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
+
+        # Set capabilities to indicate this can have children
+        self.setCapabilities(QgsDataItem.Fertile)
 
         # Update name with project if available
         self.update_name_with_project()
@@ -113,6 +117,7 @@ class RootCollection(QgsDataCollectionItem):
                     # Update browser name with project name
                     self.setName(f"{PLUGIN_NAME}: {project.name}")
                     # Refresh to show the selected project
+                    self.depopulate()
                     self.refresh()
 
         except Exception as e:
