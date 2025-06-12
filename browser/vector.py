@@ -9,7 +9,6 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
@@ -238,10 +237,10 @@ class DbRoot(QgsDataItem):
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            # Get project ID
-            project_id = self.project_id
-            if not project_id and hasattr(self.parent(), "project"):
-                project_id = self.parent().project.id
+            # Get the latest selected project ID from settings
+            from ..settings_manager import SettingsManager
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 QgsMessageLog.logMessage(
@@ -353,10 +352,10 @@ class DbRoot(QgsDataItem):
     def createChildren(self):
         """Create child items for vectors in project"""
         try:
-            # Get project ID from parent or use the one provided in constructor
-            project_id = self.project_id
-            if not project_id and hasattr(self.parent(), "project"):
-                project_id = self.parent().project.id
+            # Always get the latest selected project ID from settings
+            from ..settings_manager import SettingsManager
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 return [ErrorItem(self, "No project selected")]

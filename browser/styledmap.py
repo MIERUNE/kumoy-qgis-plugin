@@ -284,9 +284,18 @@ class StyledMapRoot(QgsDataItem):
                 qgisproject = get_qgisproject_str()
 
                 if name:
+                    # Get the latest selected project ID from settings
+                    from ..settings_manager import SettingsManager
+                    settings = SettingsManager()
+                    project_id = settings.get_setting("selected_project_id")
+                    
+                    if not project_id:
+                        QMessageBox.critical(None, "Error", "No project selected.")
+                        return
+                    
                     # スタイルマップ作成
                     new_styled_map = api.project_styledmap.add_styled_map(
-                        self.project_id,
+                        project_id,
                         AddStyledMapOptions(
                             name=name,
                             qgisproject=qgisproject,
@@ -313,8 +322,16 @@ class StyledMapRoot(QgsDataItem):
     def createChildren(self):
         """子アイテムを作成する"""
         try:
+            # Always get the latest selected project ID from settings
+            from ..settings_manager import SettingsManager
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
+            
+            if not project_id:
+                return [ErrorItem(self, "No project selected")]
+            
             # プロジェクトのスタイルマップを取得
-            styled_maps = api.project_styledmap.get_styled_maps(self.project_id)
+            styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
             if not styled_maps:
                 return [ErrorItem(self, "Mapsがありません。")]
