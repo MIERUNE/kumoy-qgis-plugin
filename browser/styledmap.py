@@ -284,8 +284,6 @@ class StyledMapRoot(QgsDataItem):
                 qgisproject = get_qgisproject_str()
 
                 if name:
-                    # Get the latest selected project ID from settings
-
                     settings = SettingsManager()
                     project_id = settings.get_setting("selected_project_id")
 
@@ -322,9 +320,6 @@ class StyledMapRoot(QgsDataItem):
     def createChildren(self):
         """子アイテムを作成する"""
         try:
-            # Always get the latest selected project ID from settings
-            from ..settings_manager import SettingsManager
-
             settings = SettingsManager()
             project_id = settings.get_setting("selected_project_id")
 
