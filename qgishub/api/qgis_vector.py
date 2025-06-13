@@ -5,7 +5,6 @@ from PyQt5.QtCore import QVariant
 from qgis.core import QgsFeature
 
 from .client import ApiClient
-from .blocking_client import BlockingApiClient
 
 
 def get_features(
@@ -31,8 +30,8 @@ def get_features(
         qgishub_ids = []
 
     try:
-        # Choose the appropriate client based on context
-        client = BlockingApiClient if use_blocking else ApiClient
+        # Use ApiClient (now uses blocking requests)
+        client = ApiClient
         
         response = client.post(
             f"/_qgis/vector/{vector_id}/get-features",
