@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QByteArray, QEventLoop, QUrl
+from PyQt5.QtCore import QByteArray, QEventLoop, QJsonDocument, QTextStream, QUrl
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
 
@@ -13,8 +13,8 @@ class ApiClient:
     """Base API client for STRATO backend"""
 
     @staticmethod
-    def handle_reply(reply_content: QByteArray, reply_error: str) -> dict:
-        """Handle network reply and convert to Python dict"""
+    def handle_blocking_reply(reply_content: QByteArray, reply_error: str) -> dict:
+        """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
         if not reply_error:
             if not reply_content or reply_content.isEmpty():
                 return {}
@@ -29,6 +29,35 @@ class ApiClient:
                 raise Exception("Network Error")
             else:
                 raise Exception(f"API Error: {reply_error}")
+
+    @staticmethod
+    def handle_network_reply(reply: QNetworkReply) -> dict:
+        """Handle QNetworkReply and convert to Python dict"""
+        if reply.error() == QNetworkReply.NoError:
+            status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+            if status_code == 204:
+                # No Content
+                return {}
+            text_stream = QTextStream(reply)
+            text_stream.setCodec("UTF-8")
+            text = text_stream.readAll()
+            if not text.strip():
+                return {}
+            return json.loads(text)
+        else:
+            error_msg = reply.errorString()
+            if reply.error() in [
+                QNetworkReply.ContentAccessDenied,
+                QNetworkReply.AuthenticationRequiredError,
+            ]:
+                raise Exception("Authentication Error")
+            elif reply.error() in [
+                QNetworkReply.HostNotFoundError,
+                QNetworkReply.UnknownNetworkError,
+            ]:
+                raise Exception("Network Error")
+            else:
+                raise Exception(f"API Error: {error_msg}")
 
     @staticmethod
     def get(endpoint: str, params: Optional[Dict] = None) -> dict:
@@ -59,10 +88,10 @@ class ApiClient:
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_reply(QByteArray(), error_msg)
+            return ApiClient.handle_blocking_reply(QByteArray(), error_msg)
 
         reply = blocking_request.reply()
-        return ApiClient.handle_reply(reply.content(), "")
+        return ApiClient.handle_blocking_reply(reply.content(), "")
 
     @staticmethod
     def post(endpoint: str, data: Any) -> dict:
@@ -92,10 +121,10 @@ class ApiClient:
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_reply(QByteArray(), error_msg)
+            return ApiClient.handle_blocking_reply(QByteArray(), error_msg)
 
         reply = blocking_request.reply()
-        return ApiClient.handle_reply(reply.content(), "")
+        return ApiClient.handle_blocking_reply(reply.content(), "")
 
     @staticmethod
     def patch(endpoint: str, data: Any) -> dict:
@@ -129,35 +158,9 @@ class ApiClient:
         eventLoop.exec_()
 
         # Handle the reply
-        if reply.error() == QNetworkReply.NoError:
-            status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-            if status_code == 204:
-                # No Content
-                result = {}
-            else:
-                reply_data = reply.readAll()
-                text = str(reply_data.data(), "utf-8")
-                if not text.strip():
-                    result = {}
-                else:
-                    result = json.loads(text)
-            reply.deleteLater()
-            return result
-        else:
-            error_msg = reply.errorString()
-            reply.deleteLater()
-            if reply.error() in [
-                QNetworkReply.ContentAccessDenied,
-                QNetworkReply.AuthenticationRequiredError,
-            ]:
-                raise Exception("Authentication Error")
-            elif reply.error() in [
-                QNetworkReply.HostNotFoundError,
-                QNetworkReply.UnknownNetworkError,
-            ]:
-                raise Exception("Network Error")
-            else:
-                raise Exception(f"API Error: {error_msg}")
+        result = ApiClient.handle_network_reply(reply)
+        reply.deleteLater()
+        return result
 
     @staticmethod
     def delete(endpoint: str) -> dict:
@@ -182,7 +185,7 @@ class ApiClient:
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_reply(QByteArray(), error_msg)
+            return ApiClient.handle_blocking_reply(QByteArray(), error_msg)
 
         reply = blocking_request.reply()
-        return ApiClient.handle_reply(reply.content(), "")
+        return ApiClient.handle_blocking_reply(reply.content(), "")
