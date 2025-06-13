@@ -159,9 +159,20 @@ def update_vector(
     project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
 ):
     try:
-        ApiClient.patch(
+        response = ApiClient.patch(
             f"/vector/{vector_id}",
             {"name": update_vector_options.name},
+        )
+
+        if not response:
+            return None
+
+        return QgishubVector(
+            id=response.get("id", ""),
+            name=response.get("name", ""),
+            uri=response.get("uri", ""),
+            type=response.get("type", "POINT"),
+            projectId=project_id,
         )
     except Exception as e:
         print(f"Error updating vector to project {project_id}: {str(e)}")
