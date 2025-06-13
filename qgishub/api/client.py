@@ -1,9 +1,9 @@
 import json
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QByteArray, QUrl
-from PyQt5.QtNetwork import QNetworkRequest
-from qgis.core import QgsBlockingNetworkRequest
+from PyQt5.QtCore import QByteArray, QEventLoop, QUrl
+from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
 
 from ..config import config as qgishub_config
 from ..get_token import get_token
@@ -119,18 +119,45 @@ class ApiClient:
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Execute request
-        blocking_request = QgsBlockingNetworkRequest()
-        # Note: QgsBlockingNetworkRequest doesn't have direct PATCH support,
-        # so we need to use the lower-level approach
-        err = blocking_request.post(req, byte_array, forceRefresh=True)
+        # Use QgsNetworkAccessManager for PATCH support
+        nwa_manager = QgsNetworkAccessManager.instance()
+        reply = nwa_manager.sendCustomRequest(req, "PATCH".encode("utf-8"), byte_array)
 
-        if err != QgsBlockingNetworkRequest.NoError:
-            error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_reply(QByteArray(), error_msg)
+        # Wait for completion synchronously
+        eventLoop = QEventLoop()
+        reply.finished.connect(eventLoop.quit)
+        eventLoop.exec_()
 
-        reply = blocking_request.reply()
-        return ApiClient.handle_reply(reply.content(), "")
+        # Handle the reply
+        if reply.error() == QNetworkReply.NoError:
+            status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+            if status_code == 204:
+                # No Content
+                result = {}
+            else:
+                reply_data = reply.readAll()
+                text = str(reply_data.data(), "utf-8")
+                if not text.strip():
+                    result = {}
+                else:
+                    result = json.loads(text)
+            reply.deleteLater()
+            return result
+        else:
+            error_msg = reply.errorString()
+            reply.deleteLater()
+            if reply.error() in [
+                QNetworkReply.ContentAccessDenied,
+                QNetworkReply.AuthenticationRequiredError,
+            ]:
+                raise Exception("Authentication Error")
+            elif reply.error() in [
+                QNetworkReply.HostNotFoundError,
+                QNetworkReply.UnknownNetworkError,
+            ]:
+                raise Exception("Network Error")
+            else:
+                raise Exception(f"API Error: {error_msg}")
 
     @staticmethod
     def delete(endpoint: str) -> dict:
