@@ -5,6 +5,7 @@ from PyQt5.QtCore import QVariant
 from qgis.core import QgsFeature
 
 from .client import ApiClient
+from .blocking_client import BlockingApiClient
 
 
 def get_features(
@@ -13,15 +14,27 @@ def get_features(
     bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    use_blocking: bool = False,
 ) -> list:
     """
     Get features from a vector layer
+    
+    Args:
+        vector_id: The ID of the vector layer
+        qgishub_ids: Optional list of specific feature IDs to fetch
+        bbox: Optional bounding box filter
+        limit: Optional limit on number of features
+        offset: Optional offset for pagination
+        use_blocking: If True, use blocking API client (for use in feature iterators)
     """
     if qgishub_ids is None:
         qgishub_ids = []
 
     try:
-        response = ApiClient.post(
+        # Choose the appropriate client based on context
+        client = BlockingApiClient if use_blocking else ApiClient
+        
+        response = client.post(
             f"/_qgis/vector/{vector_id}/get-features",
             {
                 "qgishub_ids": qgishub_ids,

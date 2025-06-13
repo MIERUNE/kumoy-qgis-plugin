@@ -66,12 +66,14 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             ]
 
         # Fetch features with pagination parameters
+        # Use blocking client to avoid event loop conflicts in attribute table
         features = api.qgis_vector.get_features(
             vector_id=self._provider._qgishub_vector.id,
             qgishub_ids=qgishub_ids,
             bbox=bbox,
             limit=self._page_size,
             offset=self._current_offset,
+            use_blocking=True,
         )
 
         # Update pagination state
