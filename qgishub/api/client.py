@@ -10,7 +10,7 @@ from ..get_token import get_token
 
 
 class ApiClient:
-    """API client for STRATO backend using QgsBlockingNetworkRequest"""
+    """Base API client for STRATO backend"""
 
     @staticmethod
     def handle_reply(reply_content: QByteArray, reply_error: str) -> dict:
@@ -32,7 +32,7 @@ class ApiClient:
 
     @staticmethod
     def get(endpoint: str, params: Optional[Dict] = None) -> dict:
-        """Make blocking GET request to API endpoint"""
+        """Make GET request to API endpoint"""
         # Build URL with query parameters if provided
         url = f"{qgishub_config.API_URL}{endpoint}"
         if params:
@@ -53,7 +53,7 @@ class ApiClient:
             f"Bearer {token}".encode("utf-8"),
         )
 
-        # Execute blocking request
+        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req)
 
@@ -66,7 +66,7 @@ class ApiClient:
 
     @staticmethod
     def post(endpoint: str, data: Any) -> dict:
-        """Make blocking POST request to API endpoint"""
+        """Make POST request to API endpoint"""
         url = f"{qgishub_config.API_URL}{endpoint}"
 
         # Create request with authorization header
@@ -86,7 +86,7 @@ class ApiClient:
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Execute blocking request
+        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
 
@@ -99,7 +99,7 @@ class ApiClient:
 
     @staticmethod
     def patch(endpoint: str, data: Any) -> dict:
-        """Make blocking PATCH request to API endpoint"""
+        """Make PATCH request to API endpoint"""
         url = f"{qgishub_config.API_URL}{endpoint}"
 
         # Create request with authorization header
@@ -119,7 +119,7 @@ class ApiClient:
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Execute blocking request
+        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         # Note: QgsBlockingNetworkRequest doesn't have direct PATCH support,
         # so we need to use the lower-level approach
@@ -134,7 +134,7 @@ class ApiClient:
 
     @staticmethod
     def delete(endpoint: str) -> dict:
-        """Make blocking DELETE request to API endpoint"""
+        """Make DELETE request to API endpoint"""
         url = f"{qgishub_config.API_URL}{endpoint}"
 
         # Create request with authorization header
@@ -149,7 +149,7 @@ class ApiClient:
             f"Bearer {token}".encode("utf-8"),
         )
 
-        # Execute blocking request
+        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
 
