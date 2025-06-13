@@ -17,7 +17,7 @@ def get_features(
 ) -> list:
     """
     Get features from a vector layer
-    
+
     Args:
         vector_id: The ID of the vector layer
         qgishub_ids: Optional list of specific feature IDs to fetch
@@ -32,7 +32,7 @@ def get_features(
     try:
         # Use ApiClient (now uses blocking requests)
         client = ApiClient
-        
+
         response = client.post(
             f"/_qgis/vector/{vector_id}/get-features",
             {
