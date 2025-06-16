@@ -33,7 +33,7 @@ qgis-plugin/
 # qgis_hub.pro のSOURCESセクションに新しいファイルを追加
 
 # 翻訳ファイルを更新
-/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main i18n/qgis_hub_ja.t
+/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main i18n/qgis_hub_ja.ts
 
 # または手動で i18n/qgis_hub_ja.ts を編集
 ```
@@ -101,6 +101,8 @@ self.tr("File {} saved").format(filename)
 ## 現在翻訳されているコンポーネント
 
 - `browser/styledmap.py` - スタイルマップ関連の全 UI
+- `browser/root.py` - ルートコレクション、ログイン/ログアウト機能
+- `browser/vector.py` - ベクターアイテム、ベクター管理機能  
 - `ui/dialog_config.py` - 設定ダイアログの全 UI
 - `qgishub/auth_manager.py` - 認証 HTML 画面
 

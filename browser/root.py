@@ -1,5 +1,6 @@
 import os
 
+from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
@@ -49,26 +50,30 @@ class RootCollection(QgsDataCollectionItem):
         # Update name with project if available
         self.update_name_with_project()
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("RootCollection", message)
+
     def actions(self, parent):
         actions = []
 
         # Login action
-        login_action = QAction("Login", parent)
+        login_action = QAction(self.tr("Login"), parent)
         login_action.triggered.connect(self.login)
         actions.append(login_action)
 
         # Logout action
-        logout_action = QAction("Logout", parent)
+        logout_action = QAction(self.tr("Logout"), parent)
         logout_action.triggered.connect(self.logout)
         actions.append(logout_action)
 
         # Select Project action
-        select_project_action = QAction("Select Project", parent)
+        select_project_action = QAction(self.tr("Select Project"), parent)
         select_project_action.triggered.connect(self.select_project)
         actions.append(select_project_action)
 
         # Refresh action
-        refresh_action = QAction("Refresh", parent)
+        refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -95,8 +100,10 @@ class RootCollection(QgsDataCollectionItem):
             if not id_token:
                 QMessageBox.warning(
                     None,
-                    "Not Logged In",
-                    "You must be logged in to select a project. Please login first.",
+                    self.tr("Not Logged In"),
+                    self.tr(
+                        "You must be logged in to select a project. Please login first."
+                    ),
                 )
                 return
 
@@ -185,14 +192,20 @@ class RootCollection(QgsDataCollectionItem):
             id_token = settings.get_setting("id_token")
 
             if not id_token:
-                return [ErrorItem(self, "Not logged in. Please login to view vectors.")]
+                return [
+                    ErrorItem(
+                        self, self.tr("Not logged in. Please login to view vectors.")
+                    )
+                ]
 
             # Get selected project ID
             project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 return [
-                    ErrorItem(self, "No project selected. Please select a project.")
+                    ErrorItem(
+                        self, self.tr("No project selected. Please select a project.")
+                    )
                 ]
 
             # Get project details
@@ -200,7 +213,10 @@ class RootCollection(QgsDataCollectionItem):
 
             if not project_data:
                 return [
-                    ErrorItem(self, "Project not found. Please select another project.")
+                    ErrorItem(
+                        self,
+                        self.tr("Project not found. Please select another project."),
+                    )
                 ]
 
             # Update the browser name with project name
@@ -209,15 +225,15 @@ class RootCollection(QgsDataCollectionItem):
             # Create vector root directly
             children = []
             vector_path = f"{self.path()}/vectors"
-            vector_root = DbRoot(self, "Vectors", vector_path)
+            vector_root = DbRoot(self, self.tr("Vectors"), vector_path)
             children.append(vector_root)
 
             # Create styled map root
             styled_map_path = f"{self.path()}/styledmaps"
-            styled_map_root = StyledMapRoot(self, "Maps", styled_map_path)
+            styled_map_root = StyledMapRoot(self, self.tr("Maps"), styled_map_path)
             children.append(styled_map_root)
 
             return children
 
         except Exception as e:
-            return [ErrorItem(self, f"Error: {str(e)}")]
+            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
