@@ -84,7 +84,7 @@ class ApiClient:
 
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.get(req)
+        err = blocking_request.get(req, forceRefresh=True)
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
@@ -121,7 +121,9 @@ class ApiClient:
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_blocking_reply(QByteArray(), error_msg)
+            return ApiClient.handle_blocking_reply(
+                QByteArray(), error_msg, forceRefresh=True
+            )
 
         reply = blocking_request.reply()
         return ApiClient.handle_blocking_reply(reply.content(), "")
@@ -181,7 +183,7 @@ class ApiClient:
 
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.deleteResource(req)
+        err = blocking_request.deleteResource(req, forceRefresh=True)
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
