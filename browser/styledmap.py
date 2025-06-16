@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
     QAction,
@@ -10,7 +11,6 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QMessageBox,
-    QTextEdit,
     QVBoxLayout,
 )
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
@@ -47,26 +47,30 @@ class StyledMapItem(QgsDataItem):
 
         self.populate()
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("StyledMapItem", message)
+
     def actions(self, parent):
         actions = []
 
         # スタイルマップ適用アクション
-        apply_action = QAction("Load to QGIS", parent)
+        apply_action = QAction(self.tr("Load to QGIS"), parent)
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
         # スタイルマップ上書き保存アクション
-        save_action = QAction("Save", parent)
+        save_action = QAction(self.tr("Save"), parent)
         save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
         actions.append(save_action)
 
         # スタイルマップ編集アクション
-        edit_action = QAction("Edit Metadata", parent)
+        edit_action = QAction(self.tr("Edit Metadata"), parent)
         edit_action.triggered.connect(self.update_metadata_styled_map)
         actions.append(edit_action)
 
         # スタイルマップ削除アクション
-        delete_action = QAction("Delete", parent)
+        delete_action = QAction(self.tr("Delete"), parent)
         delete_action.triggered.connect(self.delete_styled_map)
         actions.append(delete_action)
 
@@ -79,15 +83,21 @@ class StyledMapItem(QgsDataItem):
             success = load_project_from_xml(self.styled_map.qgisproject)
             if success:
                 iface.messageBar().pushSuccess(
-                    "Success",
-                    f"Map '{self.styled_map.name}' has been loaded successfully.",
+                    self.tr("Success"),
+                    self.tr("Map '{}' has been loaded successfully.").format(
+                        self.styled_map.name
+                    ),
                 )
             else:
                 QMessageBox.critical(
-                    None, "Error", f"Failed to load map '{self.styled_map.name}'."
+                    None,
+                    self.tr("Error"),
+                    self.tr("Failed to load map '{}'.").format(self.styled_map.name),
                 )
         except Exception as e:
-            QMessageBox.critical(None, "Error", f"Error loading map: {str(e)}")
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Error loading map: {}").format(str(e))
+            )
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -99,7 +109,7 @@ class StyledMapItem(QgsDataItem):
         try:
             # ダイアログ作成
             dialog = QDialog()
-            dialog.setWindowTitle("Edit Map")
+            dialog.setWindowTitle(self.tr("Edit Map"))
 
             # レイアウト作成
             layout = QVBoxLayout()
@@ -107,12 +117,12 @@ class StyledMapItem(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit(self.styled_map.name)
-            is_public_field = QCheckBox("Make Public")
+            is_public_field = QCheckBox(self.tr("Make Public"))
             is_public_field.setChecked(self.styled_map.isPublic)
 
             # フォームにフィールドを追加
-            form_layout.addRow("Name:", name_field)
-            form_layout.addRow("Public:", is_public_field)
+            form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(self.tr("Public:"), is_public_field)
 
             # ボタン作成
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -147,17 +157,23 @@ class StyledMapItem(QgsDataItem):
                         self.setName(updated_styled_map.name)
                         self.refresh()
                         iface.messageBar().pushSuccess(
-                            "Success",
-                            f"Map '{new_name}' has been updated successfully.",
+                            self.tr("Success"),
+                            self.tr("Map '{}' has been updated successfully.").format(
+                                new_name
+                            ),
                         )
                     else:
-                        QMessageBox.critical(None, "Error", "Failed to update the map.")
+                        QMessageBox.critical(
+                            None, self.tr("Error"), self.tr("Failed to update the map.")
+                        )
 
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error updating map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
-            QMessageBox.critical(None, "Error", f"Error updating map: {str(e)}")
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Error updating map: {}").format(str(e))
+            )
 
     def apply_qgisproject_to_styledmap(self):
         # QGISプロジェクト情報はバックグラウンドで取得
@@ -177,11 +193,15 @@ class StyledMapItem(QgsDataItem):
             self.refresh()
             QMessageBox.information(
                 None,
-                "Success",
-                f"Map '{self.styled_map.name}' has been saved successfully.",
+                self.tr("Success"),
+                self.tr("Map '{}' has been saved successfully.").format(
+                    self.styled_map.name
+                ),
             )
         else:
-            QMessageBox.critical(None, "Error", "Failed to save the map.")
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Failed to save the map.")
+            )
 
     def delete_styled_map(self):
         """スタイルマップを削除する"""
@@ -189,8 +209,10 @@ class StyledMapItem(QgsDataItem):
             # 削除確認
             confirm = QMessageBox.question(
                 None,
-                "Delete Map",
-                f"Are you sure you want to delete map '{self.styled_map.name}'?",
+                self.tr("Delete Map"),
+                self.tr("Are you sure you want to delete map '{}'?").format(
+                    self.styled_map.name
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -203,17 +225,23 @@ class StyledMapItem(QgsDataItem):
                     # 親アイテムを上書き保存して最新のリストを表示
                     self.parent().refresh()
                     iface.messageBar().pushSuccess(
-                        "Success",
-                        f"Map '{self.styled_map.name}' has been deleted successfully.",
+                        self.tr("Success"),
+                        self.tr("Map '{}' has been deleted successfully.").format(
+                            self.styled_map.name
+                        ),
                     )
                 else:
-                    QMessageBox.critical(None, "Error", "Failed to delete the map.")
+                    QMessageBox.critical(
+                        None, self.tr("Error"), self.tr("Failed to delete the map.")
+                    )
 
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
-            QMessageBox.critical(None, "Error", f"Error deleting map: {str(e)}")
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Error deleting map: {}").format(str(e))
+            )
 
 
 class StyledMapRoot(QgsDataItem):
@@ -230,16 +258,20 @@ class StyledMapRoot(QgsDataItem):
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
         self.populate()
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("StyledMapRoot", message)
+
     def actions(self, parent):
         actions = []
 
         # スタイルマップ追加アクション
-        add_action = QAction("Save QGIS Map as New Map", parent)
+        add_action = QAction(self.tr("Save QGIS Map as New Map"), parent)
         add_action.triggered.connect(self.add_styled_map)
         actions.append(add_action)
 
         # 再読み込みアクション
-        refresh_action = QAction("Refresh", parent)
+        refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -250,7 +282,7 @@ class StyledMapRoot(QgsDataItem):
         try:
             # ダイアログ作成
             dialog = QDialog()
-            dialog.setWindowTitle("Add Map")
+            dialog.setWindowTitle(self.tr("Add Map"))
 
             # レイアウト作成
             layout = QVBoxLayout()
@@ -258,11 +290,11 @@ class StyledMapRoot(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit()
-            is_public_field = QCheckBox("Make Public")
+            is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
-            form_layout.addRow("Name:", name_field)
-            form_layout.addRow("Public:", is_public_field)
+            form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(self.tr("Public:"), is_public_field)
 
             # ボタン作成
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -288,7 +320,9 @@ class StyledMapRoot(QgsDataItem):
                     project_id = settings.get_setting("selected_project_id")
 
                     if not project_id:
-                        QMessageBox.critical(None, "Error", "No project selected.")
+                        QMessageBox.critical(
+                            None, self.tr("Error"), self.tr("No project selected.")
+                        )
                         return
 
                     # スタイルマップ作成
@@ -305,12 +339,16 @@ class StyledMapRoot(QgsDataItem):
                         self.refresh()
                         QMessageBox.information(
                             None,
-                            "Success",
-                            f"Map '{name}' has been created successfully.",
+                            self.tr("Success"),
+                            self.tr("Map '{}' has been created successfully.").format(
+                                name
+                            ),
                         )
                     else:
                         # エラーメッセージを表示
-                        QMessageBox.critical(None, "Error", "Failed to create the map.")
+                        QMessageBox.critical(
+                            None, self.tr("Error"), self.tr("Failed to create the map.")
+                        )
 
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -324,13 +362,13 @@ class StyledMapRoot(QgsDataItem):
             project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
-                return [ErrorItem(self, "No project selected")]
+                return [ErrorItem(self, self.tr("No project selected"))]
 
             # プロジェクトのスタイルマップを取得
             styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
             if not styled_maps:
-                return [ErrorItem(self, "No maps available.")]
+                return [ErrorItem(self, self.tr("No maps available."))]
 
             children = []
             for styled_map in styled_maps:
@@ -341,7 +379,7 @@ class StyledMapRoot(QgsDataItem):
             return children
 
         except Exception as e:
-            return [ErrorItem(self, f"Error: {str(e)}")]
+            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
 
 
 def get_qgisproject_str() -> str:

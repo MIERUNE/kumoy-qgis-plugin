@@ -2,6 +2,7 @@ import json
 import os
 import webbrowser
 
+from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -53,6 +54,10 @@ class DialogConfig(QDialog):
         self.auth_manager = AuthManager(port=9248)
 
         self.update_login_status()
+    
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate('DialogConfig', message)
 
     def closeEvent(self, event):
         self.save_server_settings()
@@ -65,7 +70,7 @@ class DialogConfig(QDialog):
         user_info_str = settings_manager.get_setting("user_info")
 
         if id_token:
-            self.labelSupabaseStatus.setText("Logged in")
+            self.labelSupabaseStatus.setText(self.tr("Logged in"))
             self.labelSupabaseStatus.setStyleSheet(
                 "color: green; font-weight: bold; font-size: 24px;"
             )
@@ -79,13 +84,13 @@ class DialogConfig(QDialog):
                     name = user_info.get("user_metadata", {}).get("full_name", "")
 
                     if name and email:
-                        self.labelUserInfo.setText(f"Logged in as: {name}\n{email}")
+                        self.labelUserInfo.setText(self.tr("Logged in as: {}\n{}").format(name, email))
                     elif email:
-                        self.labelUserInfo.setText(f"Logged in as: {email}")
+                        self.labelUserInfo.setText(self.tr("Logged in as: {}").format(email))
                 except json.JSONDecodeError:
                     self.labelUserInfo.setText("")
         else:
-            self.labelSupabaseStatus.setText("Not logged in")
+            self.labelSupabaseStatus.setText(self.tr("Not logged in"))
             self.labelSupabaseStatus.setStyleSheet("")
             self.labelUserInfo.setText("")
             self.buttonLogout.setEnabled(False)
@@ -101,7 +106,7 @@ class DialogConfig(QDialog):
         self.buttonLogin.setEnabled(True)
 
         if not success:
-            QMessageBox.warning(self, "Login Error", f"Authentication failed: {error}")
+            QMessageBox.warning(self, self.tr("Login Error"), self.tr("Authentication failed: {}").format(error))
             self.update_login_status()
             return
 
@@ -122,7 +127,7 @@ class DialogConfig(QDialog):
             "Authentication successful!", LOG_CATEGORY, Qgis.Success
         )
         QMessageBox.information(
-            self, "Login Success", "You have successfully logged in!"
+            self, self.tr("Login Success"), self.tr("You have successfully logged in!")
         )
 
         # Update the UI
@@ -139,7 +144,7 @@ class DialogConfig(QDialog):
             self.save_server_settings()
 
             # Update status to show login is in progress
-            self.labelSupabaseStatus.setText("Logging in...")
+            self.labelSupabaseStatus.setText(self.tr("Logging in..."))
             self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
             self.buttonLogin.setEnabled(False)
 
@@ -148,7 +153,7 @@ class DialogConfig(QDialog):
 
             if not success:
                 QMessageBox.warning(
-                    self, "Login Error", f"Failed to start authentication: {result}"
+                    self, self.tr("Login Error"), self.tr("Failed to start authentication: {}").format(result)
                 )
                 # Reset status on failure
                 self.update_login_status()
@@ -166,7 +171,7 @@ class DialogConfig(QDialog):
             webbrowser.open(auth_url)
 
             # Update status to indicate waiting for browser authentication
-            self.labelSupabaseStatus.setText("Waiting for browser authentication...")
+            self.labelSupabaseStatus.setText(self.tr("Waiting for browser authentication..."))
             self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
 
             # Start async authentication
@@ -180,7 +185,7 @@ class DialogConfig(QDialog):
                 f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
-                self, "Login Error", f"An error occurred during login: {str(e)}"
+                self, self.tr("Login Error"), self.tr("An error occurred during login: {}").format(str(e))
             )
             # Reset status and re-enable login button on error
             self.update_login_status()
@@ -197,7 +202,7 @@ class DialogConfig(QDialog):
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
-                self, "Logout", "You have been logged out successfully."
+                self, self.tr("Logout"), self.tr("You have been logged out successfully.")
             )
 
             # Update the UI
@@ -211,7 +216,7 @@ class DialogConfig(QDialog):
                 f"Error during logout: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
-                self, "Logout Error", f"An error occurred during logout: {str(e)}"
+                self, self.tr("Logout Error"), self.tr("An error occurred during logout: {}").format(str(e))
             )
 
     def save_server_settings(self):
@@ -262,19 +267,19 @@ class DialogConfig(QDialog):
         # 必要な設定項目をチェック
         missing_settings = []
         if not self.stratoURL.text().strip():
-            missing_settings.append("Server URL")
+            missing_settings.append(self.tr("Server URL"))
         if not self.cognitoURL.text().strip():
-            missing_settings.append("Cognito URL")
+            missing_settings.append(self.tr("Cognito URL"))
         if not self.cognitoClientID.text().strip():
-            missing_settings.append("Cognito Client ID")
+            missing_settings.append(self.tr("Cognito Client ID"))
 
         # 未入力項目がある場合はメッセージボックスを表示
         if missing_settings:
             missing_text = ", ".join(missing_settings)
             QMessageBox.warning(
                 self,
-                "Custom Server Configuration Error",
-                f"The following settings are missing:\n{missing_text}\n\nPlease configure them before logging in.",
+                self.tr("Custom Server Configuration Error"),
+                self.tr("The following settings are missing:\n{}\n\nPlease configure them before logging in.").format(missing_text),
             )
             return False
 

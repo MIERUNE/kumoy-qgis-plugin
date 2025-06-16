@@ -1,10 +1,12 @@
 import os
 
-from qgis.core import QgsApplication, QgsProcessingRegistry, QgsProviderRegistry
+from PyQt5.QtCore import QCoreApplication, QTranslator
+from qgis.core import QgsApplication, QgsProviderRegistry
 from qgis.gui import QgisInterface
 
 from .browser.root import DataItemProvider
 from .processing.provider import StratoProcessingProvider
+from .qgishub.constants import PLUGIN_NAME
 from .qgishub.provider.dataprovider_metadata import QgishubProviderMetadata
 
 
@@ -13,6 +15,10 @@ class QgishubPlugin:
         self.iface = iface
         self.win = self.iface.mainWindow()
         self.plugin_dir = os.path.dirname(__file__)
+
+        # Initialize translation
+        self.translator = None
+        self.init_translation()
 
         registry = QgsProviderRegistry.instance()
         metadata = QgishubProviderMetadata()
@@ -24,6 +30,20 @@ class QgishubPlugin:
         # Initialize processing provider
         self.processing_provider = None
 
+    def init_translation(self):
+        """Initialize translation for the plugin"""
+        locale = QgsApplication.instance().locale()
+        locale_path = os.path.join(self.plugin_dir, "i18n", f"qgis_hub_{locale}.qm")
+
+        if os.path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(locale_path)
+            QCoreApplication.installTranslator(self.translator)
+
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate(PLUGIN_NAME, message)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -33,6 +53,10 @@ class QgishubPlugin:
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
     def unload(self):
+        # Remove translator
+        if self.translator:
+            QCoreApplication.removeTranslator(self.translator)
+
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 
         # Unregister processing provider
