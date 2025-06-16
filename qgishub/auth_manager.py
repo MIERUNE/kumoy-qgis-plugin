@@ -23,7 +23,7 @@ AUTH_HANDLER_RESPONSE = f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>認証成功</title>
+    <title>Authentication Successful</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -50,8 +50,8 @@ AUTH_HANDLER_RESPONSE = f"""
 </head>
 <body>
     <div class="container">
-        <h1 class="success">認証成功</h1>
-        <p id="status">認証が完了しました。このウィンドウを閉じて、{PLUGIN_NAME} QGISプラグインに戻ってください。</p>
+        <h1 class="success">Authentication Successful</h1>
+        <p id="status">Authentication completed. Please close this window and return to the {PLUGIN_NAME} QGIS plugin.</p>
     </div>
 </body>
 </html>
@@ -61,7 +61,7 @@ AUTH_HANDLER_RESPONSE_ERROR = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>認証エラー</title>
+    <title>Authentication Error</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -88,9 +88,9 @@ AUTH_HANDLER_RESPONSE_ERROR = """
 </head>
 <body>
     <div class="container">
-        <h1 class="error">認証エラー</h1>
-        <p>エラー: {}</p>
-        <p>もう一度お試しいただくか、サポートにお問い合わせください。</p>
+        <h1 class="error">Authentication Error</h1>
+        <p>Error: {}</p>
+        <p>Please try again or contact support.</p>
     </div>
 </body>
 </html>

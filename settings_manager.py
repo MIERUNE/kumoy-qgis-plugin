@@ -56,10 +56,10 @@ class SettingsManager:
         """
         if isinstance(value, list):
             if not isinstance(DEFAULT_SETTINGS().get(key), list):
-                return "値の型が定義と一致しません"
+                return "Value type does not match definition"
 
             if len(value) != len(DEFAULT_SETTINGS().get(key, [])):
-                return "値の数が定義と一致しません"
+                return "Number of values does not match definition"
 
         return None
 

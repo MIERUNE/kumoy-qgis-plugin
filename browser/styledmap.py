@@ -51,22 +51,22 @@ class StyledMapItem(QgsDataItem):
         actions = []
 
         # スタイルマップ適用アクション
-        apply_action = QAction("QGISに読み込む", parent)
+        apply_action = QAction("Load to QGIS", parent)
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
         # スタイルマップ上書き保存アクション
-        save_action = QAction("上書き保存", parent)
+        save_action = QAction("Save", parent)
         save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
         actions.append(save_action)
 
         # スタイルマップ編集アクション
-        edit_action = QAction("メタデータ編集", parent)
+        edit_action = QAction("Edit Metadata", parent)
         edit_action.triggered.connect(self.update_metadata_styled_map)
         actions.append(edit_action)
 
         # スタイルマップ削除アクション
-        delete_action = QAction("削除", parent)
+        delete_action = QAction("Delete", parent)
         delete_action.triggered.connect(self.delete_styled_map)
         actions.append(delete_action)
 
@@ -99,7 +99,7 @@ class StyledMapItem(QgsDataItem):
         try:
             # ダイアログ作成
             dialog = QDialog()
-            dialog.setWindowTitle("Map編集")
+            dialog.setWindowTitle("Edit Map")
 
             # レイアウト作成
             layout = QVBoxLayout()
@@ -107,12 +107,12 @@ class StyledMapItem(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit(self.styled_map.name)
-            is_public_field = QCheckBox("公開する")
+            is_public_field = QCheckBox("Make Public")
             is_public_field.setChecked(self.styled_map.isPublic)
 
             # フォームにフィールドを追加
-            form_layout.addRow("名前:", name_field)
-            form_layout.addRow("公開:", is_public_field)
+            form_layout.addRow("Name:", name_field)
+            form_layout.addRow("Public:", is_public_field)
 
             # ボタン作成
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -189,8 +189,8 @@ class StyledMapItem(QgsDataItem):
             # 削除確認
             confirm = QMessageBox.question(
                 None,
-                "Map削除",
-                f"Map '{self.styled_map.name}' を削除してもよろしいですか？",
+                "Delete Map",
+                f"Are you sure you want to delete map '{self.styled_map.name}'?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -234,12 +234,12 @@ class StyledMapRoot(QgsDataItem):
         actions = []
 
         # スタイルマップ追加アクション
-        add_action = QAction("QGISの地図を新規Mapに保存", parent)
+        add_action = QAction("Save QGIS Map as New Map", parent)
         add_action.triggered.connect(self.add_styled_map)
         actions.append(add_action)
 
         # 再読み込みアクション
-        refresh_action = QAction("再読み込み", parent)
+        refresh_action = QAction("Refresh", parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -250,7 +250,7 @@ class StyledMapRoot(QgsDataItem):
         try:
             # ダイアログ作成
             dialog = QDialog()
-            dialog.setWindowTitle("Map追加")
+            dialog.setWindowTitle("Add Map")
 
             # レイアウト作成
             layout = QVBoxLayout()
@@ -258,11 +258,11 @@ class StyledMapRoot(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit()
-            is_public_field = QCheckBox("公開する")
+            is_public_field = QCheckBox("Make Public")
 
             # フォームにフィールドを追加
-            form_layout.addRow("名前:", name_field)
-            form_layout.addRow("公開:", is_public_field)
+            form_layout.addRow("Name:", name_field)
+            form_layout.addRow("Public:", is_public_field)
 
             # ボタン作成
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -314,7 +314,7 @@ class StyledMapRoot(QgsDataItem):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Map追加エラー: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error adding map: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
     def createChildren(self):
@@ -330,7 +330,7 @@ class StyledMapRoot(QgsDataItem):
             styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
             if not styled_maps:
-                return [ErrorItem(self, "Mapsがありません。")]
+                return [ErrorItem(self, "No maps available.")]
 
             children = []
             for styled_map in styled_maps:
@@ -341,7 +341,7 @@ class StyledMapRoot(QgsDataItem):
             return children
 
         except Exception as e:
-            return [ErrorItem(self, f"エラー: {str(e)}")]
+            return [ErrorItem(self, f"Error: {str(e)}")]
 
 
 def get_qgisproject_str() -> str:
