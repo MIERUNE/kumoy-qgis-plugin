@@ -11,6 +11,7 @@ from qgis.core import (
     QgsDataProvider,
     QgsMessageLog,
 )
+from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
@@ -146,7 +147,7 @@ class RootCollection(QgsDataCollectionItem):
             self.setName(PLUGIN_NAME)
 
             # Refresh to update UI
-            self.refresh()
+            iface.browserModel().reload()
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
 
