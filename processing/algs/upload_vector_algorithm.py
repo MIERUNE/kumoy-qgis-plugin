@@ -276,8 +276,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     self.tr("Could not retrieve project information")
                 )
 
+            # Get organization details to find plan information
+            organization = api.organization.get_organization(project.organizationId)
+
             # Get plan limits for the plan
-            plan_limits = api.plan.get_plan_limits(project.planName)
+            plan_limits = api.plan.get_plan_limits(organization.plan)
 
             # Get current vectors count in the project
             current_vectors = api.project_vector.get_vectors(project_id)

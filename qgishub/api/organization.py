@@ -8,6 +8,8 @@ from .client import ApiClient
 class Organization:
     id: str
     name: str
+    plan: str = ""
+    stripeCustomerId: str = ""
     createdAt: str = ""
     updatedAt: str = ""
 
@@ -28,6 +30,8 @@ def get_organizations() -> List[Organization]:
                 Organization(
                     id=org.get("id", ""),
                     name=org.get("name", ""),
+                    plan=org.get("subscriptionPlan", ""),
+                    stripeCustomerId=org.get("stripeCustomerId", ""),
                     createdAt=org.get("createdAt", ""),
                     updatedAt=org.get("updatedAt", ""),
                 )
@@ -57,6 +61,8 @@ def get_organization(organization_id: str) -> Optional[Organization]:
         return Organization(
             id=response.get("id", ""),
             name=response.get("name", ""),
+            plan=response.get("subscriptionPlan", ""),
+            stripeCustomerId=response.get("stripeCustomerId", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
@@ -86,6 +92,8 @@ def create_organization(name: str) -> Optional[Organization]:
         return Organization(
             id=response.get("id", ""),
             name=response.get("name", ""),
+            plan=response.get("subscriptionPlan", ""),
+            stripeCustomerId=response.get("stripeCustomerId", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
@@ -116,6 +124,8 @@ def update_organization(organization_id: str, name: str) -> Optional[Organizatio
         return Organization(
             id=response.get("id", ""),
             name=response.get("name", ""),
+            plan=response.get("subscriptionPlan", ""),
+            stripeCustomerId=response.get("stripeCustomerId", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
