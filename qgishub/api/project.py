@@ -60,10 +60,14 @@ def get_project(project_id: str) -> Optional[Project]:
         if not response:
             return None
 
+        # Extract organization ID from nested organization object
+        organization = response.get("organization", {})
+        organization_id = organization.get("id", "") if organization else ""
+
         return Project(
             id=response.get("id", ""),
             name=response.get("name", ""),
-            organizationId=response.get("organizationId", ""),
+            organizationId=organization_id,
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
