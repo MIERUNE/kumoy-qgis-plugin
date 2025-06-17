@@ -58,12 +58,12 @@ class RootCollection(QgsDataCollectionItem):
         actions = []
 
         # Login action
-        login_action = QAction(self.tr("Login"), parent)
+        login_action = QAction("Login", parent)
         login_action.triggered.connect(self.login)
         actions.append(login_action)
 
         # Logout action
-        logout_action = QAction(self.tr("Logout"), parent)
+        logout_action = QAction("Logout", parent)
         logout_action.triggered.connect(self.logout)
         actions.append(logout_action)
 
