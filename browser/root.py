@@ -192,11 +192,7 @@ class RootCollection(QgsDataCollectionItem):
             id_token = settings.get_setting("id_token")
 
             if not id_token:
-                return [
-                    ErrorItem(
-                        self, self.tr("Not logged in. Please login to view vectors.")
-                    )
-                ]
+                return [ErrorItem(self, self.tr("Not Logged In"))]
 
             # Get selected project ID
             project_id = settings.get_setting("selected_project_id")

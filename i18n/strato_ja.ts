@@ -277,10 +277,6 @@ Please configure them before logging in.</source>
         <translation>プロジェクトを選択するにはログインが必要です。まずログインしてください。</translation>
     </message>
     <message>
-        <source>Not logged in. Please login to view vectors.</source>
-        <translation>ログインしていません。ベクタを表示するにはログインしてください。</translation>
-    </message>
-    <message>
         <source>No project selected. Please select a project.</source>
         <translation>プロジェクトが選択されていません。プロジェクトを選択してください。</translation>
     </message>
