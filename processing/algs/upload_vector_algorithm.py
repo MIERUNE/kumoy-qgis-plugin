@@ -191,8 +191,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             normalizer = FieldNameNormalizer(processed_layer, feedback)
 
             # Check plan limits early in the process
-            normalized_field_count = len(normalizer.columns)
-            self._check_plan_limits(project_id, layer, normalized_field_count)
+            self._check_plan_limits(
+                project_id, processed_layer, len(normalizer.columns)
+            )
 
             # Create vector in STRATO
             creator = VectorCreator(feedback)
@@ -264,7 +265,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
     def _check_plan_limits(
-        self, project_id: str, layer: QgsVectorLayer, normalized_field_count: int
+        self, project_id: str, layer: QgsVectorLayer, layer_field_count: int
     ) -> None:
         """Check if upload would exceed plan limits"""
         try:
@@ -275,19 +276,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     self.tr("Could not retrieve project information")
                 )
 
-            print(f"Checking plan limits for project: {project}")
-
-            if not project.planName:
-                # If plan name is not available, allow the upload (graceful degradation)
-                return
-
             # Get plan limits for the plan
             plan_limits = api.plan.get_plan_limits(project.planName)
-            if not plan_limits:
-                # If we can't get plan limits, allow the upload (graceful degradation)
-                return
-
-            print(f"plan_limits: {plan_limits}")
 
             # Get current vectors count in the project
             current_vectors = api.project_vector.get_vectors(project_id)
@@ -313,21 +303,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             # Check attribute count limit
-            if normalized_field_count > plan_limits.maxVectorAttributes:
+            if layer_field_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
-                        f"Cannot upload vector. After field normalization, the layer has {normalized_field_count} attributes, "
+                        f"Cannot upload vector. After field normalization, the layer has {layer_field_count} attributes, "
                         f"but your plan allows up to {plan_limits.maxVectorAttributes} attributes per vector."
                     )
                 )
 
-        except QgsProcessingException:
-            # Re-raise processing exceptions
-            raise
         except Exception as e:
             # Log error but don't block upload for other errors
-            print(f"Warning: Could not check plan limits: {str(e)}")
-            return
+            raise QgsProcessingException(
+                self.tr(
+                    f"Error checking plan limits:\n {str(e)} "
+                    "\nPlease check your plan limits in the STRATO dashboard."
+                )
+            ) from e
 
     def _get_geometry_type(self, layer: QgsVectorLayer) -> Tuple[str, bool]:
         """Determine geometry type and check for multipart"""
