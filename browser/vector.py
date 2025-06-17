@@ -12,12 +12,11 @@ from qgis.core import (
 )
 
 from ..imgs import IMGS_PATH
-from ..qgishub import api
+from ..qgishub import api, check_plan
 from ..qgishub.api.project_vector import (
     AddVectorOptions,
     QgishubVector,
     UpdateVectorOptions,
-    add_vector,
 )
 from ..qgishub.config import config as qgishub_config
 from ..qgishub.constants import LOG_CATEGORY
@@ -314,18 +313,35 @@ class DbRoot(QgsDataItem):
             if not result:
                 return  # User canceled
 
+            # check plan limits before creating vector
+            plan_limit = check_plan.get_plan_limits(project_id)
+            if not check_plan.check_vector_count_limit(
+                project_id, plan_max_vectors=plan_limit.maxVectors
+            ):
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
+                        "but you have reached the limit.".format(plan_limit.maxVectors)
+                    ),
+                )
+                return
+
             # Get values
             name = name_field.text()
             vector_type = type_field.currentText()
 
             if not name:
-                QgsMessageLog.logMessage(
-                    self.tr("Vector name cannot be empty"), LOG_CATEGORY, Qgis.Critical
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Vector name cannot be empty."),
                 )
                 return
 
             options = AddVectorOptions(name=name, type=vector_type)
-            new_vector = add_vector(project_id, options)
+            new_vector = api.project_vector.add_vector(project_id, options)
 
             if new_vector:
                 QgsMessageLog.logMessage(
@@ -338,17 +354,17 @@ class DbRoot(QgsDataItem):
                 # Refresh to show new vector
                 self.refresh()
             else:
-                QgsMessageLog.logMessage(
-                    self.tr("Failed to create vector layer '{}'").format(name),
-                    LOG_CATEGORY,
-                    Qgis.Critical,
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Failed to create the vector layer '{}'.").format(name),
                 )
 
         except Exception as e:
-            QgsMessageLog.logMessage(
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
                 self.tr("Error creating vector: {}").format(str(e)),
-                LOG_CATEGORY,
-                Qgis.Critical,
             )
 
     def upload_vector(self):
