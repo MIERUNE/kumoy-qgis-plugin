@@ -24,6 +24,6 @@ SOURCES = __init__.py \
           qgishub/provider/feature_iterator.py \
           qgishub/provider/feature_source.py \
           processing/provider.py \
-          processing/algorithms/upload_vector_algorithm.py
+          processing/algs/upload_vector_algorithm.py
 
 TRANSLATIONS = i18n/strato_ja.ts
