@@ -1,11 +1,8 @@
-"""Plan limit checking utilities for QGIS Hub"""
-
-import re
-from typing import Optional, Tuple
+from typing import Optional
 
 from qgis.PyQt.QtCore import QCoreApplication
 
-from . import api, get_token
+from . import api
 
 
 def tr(message: str) -> str:
