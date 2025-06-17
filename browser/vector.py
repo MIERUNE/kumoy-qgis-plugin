@@ -323,8 +323,8 @@ class DbRoot(QgsDataItem):
                     self.tr("Error"),
                     self.tr(
                         "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                        "but you have reached the limit.".format(plan_limit.maxVectors)
-                    ),
+                        "but you have reached the limit."
+                    ).format(plan_limit.maxVectors),
                 )
                 return
 
@@ -345,9 +345,8 @@ class DbRoot(QgsDataItem):
 
             if new_vector:
                 QgsMessageLog.logMessage(
-                    self.tr("Created new vector layer '{}' in project {}").format(
-                        name, project_id
-                    ),
+                    self.tr("Created new vector layer '{}' in project {}"
+                    ).format(name, project_id),
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
@@ -357,7 +356,8 @@ class DbRoot(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to create the vector layer '{}'.").format(name),
+                    self.tr("Failed to create the vector layer '{}'."
+                    ).format(name),
                 )
 
         except Exception as e:

@@ -40,7 +40,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def tr(self, string: str) -> str:
         """Translate string"""
-        return QCoreApplication.translate("Processing", string)
+        return QCoreApplication.translate("UploadVectorAlgorithm", string)
 
     def createInstance(self) -> "UploadVectorAlgorithm":
         """Create new instance of algorithm"""

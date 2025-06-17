@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
 <context>
     <name>DbRoot</name>
     <message>
@@ -80,22 +81,23 @@
     <message>
         <location filename="../browser/vector.py" line="364"/>
         <source>Error</source>
-        <translation type="unfinished">エラー</translation>
+        <translation>エラー</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="321"/>
         <source>Cannot create new vector layer. Your plan allows up to {} vectors, but you have reached the limit.</source>
-        <translation type="unfinished"></translation>
+        <translation>新しいベクタレイヤを作成できません。現在のプランでは最大{}個のベクタが許可されていますが、制限に達しています。</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="336"/>
         <source>Vector name cannot be empty.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタ
+名は空にできません。</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="357"/>
         <source>Failed to create the vector layer &apos;{}&apos;.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタレイヤ「{}」の作成に失敗しました。</translation>
     </message>
 </context>
 <context>
@@ -103,67 +105,67 @@
     <message>
         <location filename="../ui/dialog_config.ui" line="20"/>
         <source>Config</source>
-        <translation type="unfinished"></translation>
+        <translation>設定</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="89"/>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="105"/>
         <source>Not logged in</source>
-        <translation type="unfinished">未ログイン</translation>
+        <translation>未ログイン</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="131"/>
         <source>Custom Strato server config</source>
-        <translation type="unfinished"></translation>
+        <translation>カスタムSTRATOサーバー設定</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="149"/>
         <source>Cognit URL</source>
-        <translation type="unfinished"></translation>
+        <translation>Cognito URL</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="156"/>
         <source>Cognit Client ID</source>
-        <translation type="unfinished"></translation>
+        <translation>Cognito クライアントID</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="163"/>
         <source>Server URL</source>
-        <translation type="unfinished">サーバーURL</translation>
+        <translation>サーバーURL</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="170"/>
         <source>1233456789abcdefghijklnmop</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="177"/>
         <source>https://strato.auth.ap-northeast-1.amazoncognito.com</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="184"/>
         <source>https://app.strato.com/</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="196"/>
         <source>Login</source>
-        <translation type="unfinished">ログイン</translation>
+        <translation>ログイン</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="206"/>
         <source>Logout</source>
-        <translation type="unfinished">ログアウト</translation>
+        <translation>ログアウト</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config.ui" line="236"/>
         <source>Close</source>
-        <translation type="unfinished"></translation>
+        <translation>閉じる</translation>
     </message>
 </context>
 <context>
@@ -536,12 +538,12 @@ Please configure them before logging in.</source>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="55"/>
         <source>Upload Vector Layer to STRATO</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタレイヤをSTRATOにアップロード</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="59"/>
         <source>Tools</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="67"/>
@@ -563,122 +565,139 @@ The algorithm will:
 - Show progress during the upload
 
 Note: You must be logged in to STRATO before using this tool.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクターレイヤーをSTRATOバックエンドにアップロードします。
+
+使用手順:
+1. ドロップダウンからアップロードしたいベクターレイヤーを選択
+2. 組織/プロジェクトリストから宛先プロジェクトを選択
+3. (オプション) ベクターレイヤーのカスタム名を入力、または空のままで元のレイヤー名を使用
+4. &apos;実行&apos;をクリックしてアップロードプロセスを開始
+
+アルゴリズムは以下を実行します:
+- PostgreSQL/PostGIS互換性のためのフィールド名の自動正規化（小文字、特殊文字の削除）
+- 処理前の無効なジオメトリの自動チェックと修正
+- マルチパートジオメトリのシングルパートへの変換とEPSG:4326への投影変換を一度に効率的に実行
+- 選択されたプロジェクトに新しいベクターレイヤーを作成
+- レイヤーのフィールドに基づいた属性スキーマの設定
+- チャンク単位での全フィーチャのアップロード（チャンクあたり1000フィーチャ）
+- アップロード中の進行状況表示
+
+注意: このツールを使用する前にSTRATOにログインする必要があります。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="88"/>
         <source>Input vector layer</source>
-        <translation type="unfinished"></translation>
+        <translation>入力ベクタレイヤ</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="132"/>
         <source>Destination project</source>
-        <translation type="unfinished"></translation>
+        <translation>プロジェクト</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="144"/>
         <source>Vector layer name</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタレイヤ名</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="154"/>
         <source>Temporary output</source>
-        <translation type="unfinished"></translation>
+        <translation>一時出力</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="195"/>
         <source>Cannot upload vector. Your plan allows up to {plan_limits.maxVectors:,} vectors per project, but you already have {len(api.project_vector.get_vectors(project_id)):,} vectors.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタをアップロードできません。現在のプランではプロジェクトあたり最大{plan_limits.maxVectors:,}個のベクターが許可されていますが、すでに{len(api.project_vector.get_vectors(project_id)):,}個のベクターがあります。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="220"/>
         <source>Cannot upload vector. The layer has {proc_feature_count:,} features, but your plan allows up to {plan_limits.maxVectorFeatures:,} features per vector.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタをアップロードできません。レイヤーには{proc_feature_count:,}個のフィーチャがありますが、現在のプランではベクターあたり最大{plan_limits.maxVectorFeatures:,}個のフィーチャが許可されています。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="235"/>
         <source>Cannot upload vector. The layer has {proc_layer_field_count:,} attributes, but your plan allows up to {plan_limits.maxVectorAttributes:,} attributes per vector.</source>
-        <translation type="unfinished"></translation>
+        <translation>ベクタをアップロードできません。レイヤには{proc_layer_field_count:,}個の属性がありますが、現在のプランではベクターあたり最大{plan_limits.maxVectorAttributes:,}個の属性が許可されています。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="253"/>
         <source>Upload complete: {uploaded_feature_count} features</source>
-        <translation type="unfinished"></translation>
+        <translation>アップロード完了: {}個のフィーチャ</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="264"/>
         <source>Cleaned up incomplete vector layer due to upload failure</source>
-        <translation type="unfinished"></translation>
+        <translation>アップロード失敗により不完全なベクタレイヤをクリーンアップしました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="270"/>
         <source>Failed to clean up incomplete vector: {str(delete_error)}</source>
-        <translation type="unfinished"></translation>
+        <translation>不完全なベクタのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="300"/>
         <source>Unsupported geometry type</source>
-        <translation type="unfinished"></translation>
+        <translation>サポートされていないジオメトリタイプ</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="326"/>
         <source>The input layer has an undefined or invalid coordinate reference system. Please assign a valid CRS to the layer before uploading.</source>
-        <translation type="unfinished"></translation>
+        <translation>入力レイヤーの座標参照系が未定義または無効です。アップロード前にレイヤーに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="338"/>
         <source>Checking and fixing invalid geometries</source>
-        <translation type="unfinished"></translation>
+        <translation>無効なジオメトリのチェックと修正</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="340"/>
         <source>Converting multipart to singlepart</source>
-        <translation type="unfinished"></translation>
+        <translation>マルチパートからシングルパートへの変換</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="342"/>
         <source>Reprojecting from {source_crs.authid()} to EPSG:4326</source>
-        <translation type="unfinished"></translation>
+        <translation>{}からEPSG:4326への投影変換</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="346"/>
         <source>Processing layer: </source>
-        <translation type="unfinished"></translation>
+        <translation>レイヤ処理中: </translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="363"/>
         <source>Could not create temporary sink for processing</source>
-        <translation type="unfinished"></translation>
+        <translation>処理用の一時シンクを作成できませんでした</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="455"/>
         <source>Error processing feature</source>
-        <translation type="unfinished"></translation>
+        <translation>フィーチャ処理中にエラーが発生しました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="463"/>
         <source>Geometry processing completed: {features_processed} features processed</source>
-        <translation type="unfinished"></translation>
+        <translation>ジオメトリ処理完了: {features_processed}個のフィーチャを処理しました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="469"/>
         <source>Fixed {fixed_geometries} invalid geometries</source>
-        <translation type="unfinished"></translation>
+        <translation>{fixed_geometries}個の無効なジオメトリを修正しました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="471"/>
         <source>Skipped {invalid_geometries} features with unfixable geometries</source>
-        <translation type="unfinished"></translation>
+        <translation>修正不可能なジオメトリを持つ{invalid_geometries}個のフィーチャをスキップしました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="477"/>
         <source>Skipped {wrong_geometry_type} features with wrong geometry type</source>
-        <translation type="unfinished"></translation>
+        <translation>間違ったジオメトリタイプを持つ{wrong_geometry_type}個のフィーチャをスキップしました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="486"/>
         <source>Could not retrieve processed layer</source>
-        <translation type="unfinished"></translation>
+        <translation>処理済みレイヤを取得できませんでした</translation>
     </message>
 </context>
 <context>
