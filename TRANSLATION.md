@@ -6,10 +6,10 @@
 
 ```
 qgis-plugin/
-├── qgis_hub.pro          # Qt プロジェクトファイル（翻訳対象ファイルを定義）
+├── strato.pro            # Qt プロジェクトファイル（翻訳対象ファイルを定義）
 ├── i18n/                 # 翻訳ファイルディレクトリ
-│   ├── qgis_hub_ja.ts    # 日本語翻訳ソースファイル
-│   └── qgis_hub_ja.qm    # 日本語翻訳バイナリファイル
+│   ├── strato_ja.ts      # 日本語翻訳ソースファイル
+│   └── strato_ja.qm      # 日本語翻訳バイナリファイル
 └── TRANSLATION.md        # このファイル
 ```
 
@@ -33,26 +33,26 @@ qgis-plugin/
 # qgis_hub.pro のSOURCESセクションに新しいファイルを追加
 
 # 翻訳ファイルを更新
-/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main i18n/qgis_hub_ja.ts
+/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main i18n/strato_ja.ts
 
-# または手動で i18n/qgis_hub_ja.ts を編集
+# または手動で i18n/strato_ja.ts を編集
 ```
 
 ### 2. 翻訳の追加・編集
 
 ```bash
 # Qt Linguistを使用（推奨）
-linguist i18n/qgis_hub_ja.ts
+linguist i18n/strato_ja.ts
 
 # またはテキストエディタで直接編集
-# i18n/qgis_hub_ja.ts ファイルを編集
+# i18n/strato_ja.ts ファイルを編集
 ```
 
 ### 3. バイナリファイルのコンパイル
 
 ```bash
 # .ts から .qm ファイルを生成
-lrelease i18n/qgis_hub_ja.ts
+lrelease i18n/strato_ja.ts
 ```
 
 ## 開発者向け情報
@@ -102,7 +102,7 @@ self.tr("File {} saved").format(filename)
 
 - `browser/styledmap.py` - スタイルマップ関連の全 UI
 - `browser/root.py` - ルートコレクション、ログイン/ログアウト機能
-- `browser/vector.py` - ベクターアイテム、ベクター管理機能  
+- `browser/vector.py` - ベクターアイテム、ベクター管理機能
 - `ui/dialog_config.py` - 設定ダイアログの全 UI
 - `qgishub/auth_manager.py` - 認証 HTML 画面
 
@@ -116,11 +116,11 @@ self.tr("File {} saved").format(filename)
 
 ### 新しい言語の追加
 
-1. `qgis_hub.pro`に TRANSLATIONS を追加:
+1. `strato.pro`に TRANSLATIONS を追加:
 
-```
-TRANSLATIONS = i18n/qgis_hub_ja.ts \
-               i18n/qgis_hub_fr.ts
+```pro
+TRANSLATIONS = i18n/strato_ja.ts \
+               i18n/strato_fr.ts
 ```
 
 2. 新しい `.ts`ファイルを作成

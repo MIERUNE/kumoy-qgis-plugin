@@ -54,10 +54,10 @@ class DialogConfig(QDialog):
         self.auth_manager = AuthManager(port=9248)
 
         self.update_login_status()
-    
+
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate('DialogConfig', message)
+        return QCoreApplication.translate("DialogConfig", message)
 
     def closeEvent(self, event):
         self.save_server_settings()
@@ -84,9 +84,13 @@ class DialogConfig(QDialog):
                     name = user_info.get("user_metadata", {}).get("full_name", "")
 
                     if name and email:
-                        self.labelUserInfo.setText(self.tr("Logged in as: {}\n{}").format(name, email))
+                        self.labelUserInfo.setText(
+                            self.tr("Logged in as: {}\n{}").format(name, email)
+                        )
                     elif email:
-                        self.labelUserInfo.setText(self.tr("Logged in as: {}").format(email))
+                        self.labelUserInfo.setText(
+                            self.tr("Logged in as: {}").format(email)
+                        )
                 except json.JSONDecodeError:
                     self.labelUserInfo.setText("")
         else:
@@ -106,7 +110,11 @@ class DialogConfig(QDialog):
         self.buttonLogin.setEnabled(True)
 
         if not success:
-            QMessageBox.warning(self, self.tr("Login Error"), self.tr("Authentication failed: {}").format(error))
+            QMessageBox.warning(
+                self,
+                self.tr("Login Error"),
+                self.tr("Authentication failed: {}").format(error),
+            )
             self.update_login_status()
             return
 
@@ -153,7 +161,9 @@ class DialogConfig(QDialog):
 
             if not success:
                 QMessageBox.warning(
-                    self, self.tr("Login Error"), self.tr("Failed to start authentication: {}").format(result)
+                    self,
+                    self.tr("Login Error"),
+                    self.tr("Failed to start authentication: {}").format(result),
                 )
                 # Reset status on failure
                 self.update_login_status()
@@ -171,7 +181,9 @@ class DialogConfig(QDialog):
             webbrowser.open(auth_url)
 
             # Update status to indicate waiting for browser authentication
-            self.labelSupabaseStatus.setText(self.tr("Waiting for browser authentication..."))
+            self.labelSupabaseStatus.setText(
+                self.tr("Waiting for browser authentication...")
+            )
             self.labelSupabaseStatus.setStyleSheet("color: orange; font-weight: bold;")
 
             # Start async authentication
@@ -185,7 +197,9 @@ class DialogConfig(QDialog):
                 f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
-                self, self.tr("Login Error"), self.tr("An error occurred during login: {}").format(str(e))
+                self,
+                self.tr("Login Error"),
+                self.tr("An error occurred during login: {}").format(str(e)),
             )
             # Reset status and re-enable login button on error
             self.update_login_status()
@@ -202,7 +216,9 @@ class DialogConfig(QDialog):
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
-                self, self.tr("Logout"), self.tr("You have been logged out successfully.")
+                self,
+                self.tr("Logout"),
+                self.tr("You have been logged out successfully."),
             )
 
             # Update the UI
@@ -216,7 +232,9 @@ class DialogConfig(QDialog):
                 f"Error during logout: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
-                self, self.tr("Logout Error"), self.tr("An error occurred during logout: {}").format(str(e))
+                self,
+                self.tr("Logout Error"),
+                self.tr("An error occurred during logout: {}").format(str(e)),
             )
 
     def save_server_settings(self):
@@ -279,7 +297,9 @@ class DialogConfig(QDialog):
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),
-                self.tr("The following settings are missing:\n{}\n\nPlease configure them before logging in.").format(missing_text),
+                self.tr(
+                    "The following settings are missing:\n{}\n\nPlease configure them before logging in."
+                ).format(missing_text),
             )
             return False
 

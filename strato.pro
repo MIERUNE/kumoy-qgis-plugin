@@ -26,4 +26,4 @@ SOURCES = __init__.py \
           processing/provider.py \
           processing/algorithms/upload_vector_algorithm.py
 
-TRANSLATIONS = i18n/qgis_hub_ja.ts
+TRANSLATIONS = i18n/strato_ja.ts

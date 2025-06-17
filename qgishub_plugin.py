@@ -33,7 +33,7 @@ class QgishubPlugin:
     def init_translation(self):
         """Initialize translation for the plugin"""
         locale = QgsApplication.instance().locale()
-        locale_path = os.path.join(self.plugin_dir, "i18n", f"qgis_hub_{locale}.qm")
+        locale_path = os.path.join(self.plugin_dir, "i18n", f"strato_{locale}.qm")
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
