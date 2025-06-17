@@ -91,11 +91,10 @@
     <message>
         <location filename="../browser/vector.py" line="336"/>
         <source>Vector name cannot be empty.</source>
-        <translation>ベクタ
-名は空にできません。</translation>
+        <translation>ベクタ名は空にできません。</translation>
     </message>
     <message>
-        <location filename="../browser/vector.py" line="357"/>
+        <location filename="../browser/vector.py" line="356"/>
         <source>Failed to create the vector layer &apos;{}&apos;.</source>
         <translation>ベクタレイヤ「{}」の作成に失敗しました。</translation>
     </message>
@@ -282,6 +281,62 @@ Please configure them before logging in.</source>
 {}
 
 ログインする前に設定してください。</translation>
+    </message>
+</context>
+<context>
+    <name>FeatureUploader</name>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="52"/>
+        <source>Uploading features...</source>
+        <translation>フィーチャをアップロード中...</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="58"/>
+        <source>No features to upload</source>
+        <translation>アップロードするフィーチャがありません</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="89"/>
+        <source>Error uploading features: {str(e)}</source>
+        <translation>フィーチャのアップロードエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="100"/>
+        <source>Setting up attribute schema...</source>
+        <translation>属性スキーマを設定中...</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="108"/>
+        <source>Failed to set attribute schema</source>
+        <translation>属性スキーマの設定に失敗しました</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="112"/>
+        <source>Attribute schema error: {str(e)}</source>
+        <translation>属性スキーマエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="155"/>
+        <source>Failed to upload features</source>
+        <translation>フィーチャのアップロードに失敗しました</translation>
+    </message>
+    <message>
+        <location filename="../processing/feature_uploader.py" line="165"/>
+        <source>Progress: {self.uploaded_feature_count}/{total_features} features</source>
+        <translation>進行状況: {}/{} フィーチャ</translation>
+    </message>
+</context>
+<context>
+    <name>FieldNameNormalizer</name>
+    <message>
+        <location filename="../processing/field_name_normalizer.py" line="200"/>
+        <source>The following field names were normalized for PostgreSQL compatibility:</source>
+        <translation>以下のフィールド名はPostgreSQL互換性のために正規化されました：</translation>
+    </message>
+    <message>
+        <location filename="../processing/field_name_normalizer.py" line="210"/>
+        <source>The following fields were skipped due to unsupported data types:</source>
+        <translation>以下のフィールドはサポートされていないデータ型のためスキップされました：</translation>
     </message>
 </context>
 <context>
@@ -605,99 +660,122 @@ Note: You must be logged in to STRATO before using this tool.</source>
         <translation>一時出力</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="195"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="197"/>
         <source>Cannot upload vector. Your plan allows up to {} vectors per project, but you already have {} vectors.</source>
         <translation>ベクタをアップロードできません。現在のプランではプロジェクトあたり最大{}個のベクターが許可されていますが、すでに{}個のベクターがあります。</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="220"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="221"/>
         <source>Cannot upload vector. The layer has {} features, but your plan allows up to {} features per vector.</source>
         <translation>ベクタをアップロードできません。レイヤーには{}個のフィーチャがありますが、現在のプランではベクターあたり最大{}個のフィーチャが許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="235"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="236"/>
         <source>Cannot upload vector. The layer has {} attributes, but your plan allows up to {} attributes per vector.</source>
         <translation>ベクタをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="253"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="254"/>
         <source>Upload complete: {} features</source>
         <translation>アップロード完了: {}個のフィーチャ</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="264"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="265"/>
         <source>Cleaned up incomplete vector layer due to upload failure</source>
         <translation>アップロード失敗により不完全なベクタレイヤをクリーンアップしました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="270"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="271"/>
         <source>Failed to clean up incomplete vector: {}</source>
         <translation>不完全なベクタのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="300"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="301"/>
         <source>Unsupported geometry type</source>
         <translation>サポートされていないジオメトリタイプ</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="326"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="327"/>
         <source>The input layer has an undefined or invalid coordinate reference system. Please assign a valid CRS to the layer before uploading.</source>
         <translation>入力レイヤーの座標参照系が未定義または無効です。アップロード前にレイヤーに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="338"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="339"/>
         <source>Checking and fixing invalid geometries</source>
         <translation>無効なジオメトリのチェックと修正</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="340"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="341"/>
         <source>Converting multipart to singlepart</source>
         <translation>マルチパートからシングルパートへの変換</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="342"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="343"/>
         <source>Reprojecting from {} to EPSG:4326</source>
         <translation>{}からEPSG:4326への投影変換</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="346"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="347"/>
         <source>Processing layer: </source>
         <translation>レイヤ処理中: </translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="363"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="364"/>
         <source>Could not create temporary sink for processing</source>
         <translation>処理用の一時シンクを作成できませんでした</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="455"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="456"/>
         <source>Error processing feature</source>
         <translation>フィーチャ処理中にエラーが発生しました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="463"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="464"/>
         <source>Geometry processing completed: {} features processed</source>
         <translation>ジオメトリ処理完了: {}個のフィーチャを処理しました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="469"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="470"/>
         <source>Fixed {} invalid geometries</source>
         <translation>{}個の無効なジオメトリを修正しました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="471"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="474"/>
         <source>Skipped {} features with unfixable geometries</source>
         <translation>修正不可能なジオメトリを持つ{}個のフィーチャをスキップしました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="477"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="480"/>
         <source>Skipped {} features with wrong geometry type</source>
         <translation>間違ったジオメトリタイプを持つ{}個のフィーチャをスキップしました</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="486"/>
+        <location filename="../processing/algs/upload_vector_algorithm.py" line="489"/>
         <source>Could not retrieve processed layer</source>
         <translation>処理済みレイヤを取得できませんでした</translation>
+    </message>
+</context>
+<context>
+    <name>VectorCreator</name>
+    <message>
+        <location filename="../processing/vector_creator.py" line="35"/>
+        <source>Creating {vector_type} layer in project {project_id}...</source>
+        <translation>プロジェクト {} に {} レイヤを作成中...</translation>
+    </message>
+    <message>
+        <location filename="../processing/vector_creator.py" line="46"/>
+        <source>Failed to create vector layer</source>
+        <translation>ベクタレイヤの作成に失敗しました</translation>
+    </message>
+    <message>
+        <location filename="../processing/vector_creator.py" line="50"/>
+        <source>Vector layer created: {vector_id}</source>
+        <translation>ベクタレイヤを作成しました： {}</translation>
+    </message>
+    <message>
+        <location filename="../processing/vector_creator.py" line="56"/>
+        <source>Error creating vector layer: {str(e)}</source>
+        <translation>ベクタレイヤ作成エラー： {}</translation>
     </message>
 </context>
 <context>

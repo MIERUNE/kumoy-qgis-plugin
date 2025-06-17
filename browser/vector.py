@@ -345,8 +345,9 @@ class DbRoot(QgsDataItem):
 
             if new_vector:
                 QgsMessageLog.logMessage(
-                    self.tr("Created new vector layer '{}' in project {}"
-                    ).format(name, project_id),
+                    self.tr("Created new vector layer '{}' in project {}").format(
+                        name, project_id
+                    ),
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
@@ -356,8 +357,7 @@ class DbRoot(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to create the vector layer '{}'."
-                    ).format(name),
+                    self.tr("Failed to create the vector layer '{}'.").format(name),
                 )
 
         except Exception as e:
