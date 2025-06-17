@@ -206,12 +206,19 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 layer, is_multipart, parameters, context, feedback
             )
 
+            # Check feature count limit
+            proc_feature_count = processed_layer.featureCount()
+            self._check_feature_count_limit(
+                proc_feature_count, plan_limits.maxVectorFeatures
+            )
+
             # Setup field name normalization
             normalizer = FieldNameNormalizer(processed_layer, feedback)
 
-            # Check layer limits early in the process
-            self._check_layer_limits(
-                project_id, processed_layer, len(normalizer.columns)
+            # Check attribute count limit after normalization
+            proc_layer_field_count = len(normalizer.columns)
+            self._check_attribute_count_limit(
+                proc_layer_field_count, plan_limits.maxVectorAttributes
             )
 
             # Create vector in STRATO
@@ -283,67 +290,42 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             ) from e
 
-    def _check_layer_limits(
-        self, project_id: str, layer: QgsVectorLayer, layer_field_count: int
+    def _check_feature_count_limit(
+        self, feature_count: int, plan_max_features: int
     ) -> None:
-        """Check if layer features and attributes would exceed plan limits"""
+        """Check if layer feature count would exceed plan limit"""
         try:
-            # Get project details to find organization ID
-            project = api.project.get_project(project_id)
-            if not project:
-                raise QgsProcessingException(
-                    self.tr("Could not retrieve project information")
-                )
-
-            if not project.organizationId:
-                raise QgsProcessingException(
-                    self.tr("Project is not associated with an organization")
-                )
-
-            # Get organization details to find plan information
-            organization = api.organization.get_organization(project.organizationId)
-            if not organization:
-                raise QgsProcessingException(
-                    self.tr("Could not retrieve organization information")
-                )
-
-            if not organization.plan:
-                # If plan is not available, allow the upload (graceful degradation)
-                return
-
-            # Get plan limits for the plan
-            plan_limits = api.plan.get_plan_limits(organization.plan)
-            if not plan_limits:
-                # If we can't get plan limits, allow the upload (graceful degradation)
-                return
-
-            # Check feature count limit
-            feature_count = layer.featureCount()
-            if feature_count > plan_limits.maxVectorFeatures:
+            if feature_count > plan_max_features:
                 raise QgsProcessingException(
                     self.tr(
                         f"Cannot upload vector. The layer has {feature_count:,} features, "
-                        f"but your plan allows up to {plan_limits.maxVectorFeatures:,} features per vector."
+                        f"but your plan allows up to {plan_max_features:,} features per vector."
                     )
                 )
+        except Exception as e:
+            raise QgsProcessingException(
+                self.tr(
+                    f"Error checking feature count limit:\n {str(e)} "
+                    "\nPlease check your plan limits in the STRATO dashboard."
+                )
+            ) from e
 
-            # Check attribute count limit
-            if layer_field_count > plan_limits.maxVectorAttributes:
+    def _check_attribute_count_limit(
+        self, layer_field_count: int, plan_max_attributes: int
+    ) -> None:
+        """Check if layer attribute count would exceed plan limit"""
+        try:
+            if layer_field_count > plan_max_attributes:
                 raise QgsProcessingException(
                     self.tr(
                         f"Cannot upload vector. After field normalization, the layer has {layer_field_count} attributes, "
-                        f"but your plan allows up to {plan_limits.maxVectorAttributes} attributes per vector."
+                        f"but your plan allows up to {plan_max_attributes} attributes per vector."
                     )
                 )
-
-        except QgsProcessingException:
-            # Re-raise processing exceptions
-            raise
         except Exception as e:
-            # Log error but don't block upload for other errors
             raise QgsProcessingException(
                 self.tr(
-                    f"Error checking layer limits:\n {str(e)} "
+                    f"Error checking attribute count limit:\n {str(e)} "
                     "\nPlease check your plan limits in the STRATO dashboard."
                 )
             ) from e
