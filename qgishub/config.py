@@ -18,6 +18,14 @@ class Config:
         """初期化時に設定を読み込む"""
         self.load_settings()
 
+    def refresh(self):
+        """Server設定を初期化"""
+        self.COGNITO_URL = (
+            "https://strato-development.auth.ap-northeast-1.amazoncognito.com"
+        )
+        self.COGNITO_CLIENT_ID = "3tti9ahi6hblmnjr67977c1uaa"
+        self.API_URL = "https://d2570m9xwzmcva.cloudfront.net/api"
+
     def load_settings(self):
         """設定マネージャーから設定を読み込む"""
         # プラグインがロードされている場合のみ設定を読み込む

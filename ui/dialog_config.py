@@ -208,6 +208,7 @@ class DialogConfig(QDialog):
     def logout(self):
         """Log out by clearing stored tokens"""
         try:
+            config.refresh()
             settings_manager = SettingsManager()
             settings_manager.store_setting("id_token", "")
             settings_manager.store_setting("refresh_token", "")
