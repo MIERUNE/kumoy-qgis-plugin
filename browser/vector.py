@@ -315,8 +315,10 @@ class DbRoot(QgsDataItem):
 
             # check plan limits before creating vector
             plan_limit = check_plan.get_plan_limits(project_id)
+            current_vectors = api.project_vector.get_vectors(project_id)
+            current_vector_count = len(current_vectors)
             if not check_plan.check_vector_count_limit(
-                project_id, plan_max_vectors=plan_limit.maxVectors
+                current_vector_count, plan_max_vectors=plan_limit.maxVectors
             ):
                 QMessageBox.critical(
                     None,
