@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QByteArray, QEventLoop, QJsonDocument, QTextStream, QUrl
+from PyQt5.QtCore import QByteArray, QEventLoop, QTextStream, QUrl
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
 
@@ -121,9 +121,7 @@ class ApiClient:
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()
-            return ApiClient.handle_blocking_reply(
-                QByteArray(), error_msg, forceRefresh=True
-            )
+            return ApiClient.handle_blocking_reply(QByteArray(), error_msg)
 
         reply = blocking_request.reply()
         return ApiClient.handle_blocking_reply(reply.content(), "")
@@ -183,7 +181,7 @@ class ApiClient:
 
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.deleteResource(req, forceRefresh=True)
+        err = blocking_request.deleteResource(req)
 
         if err != QgsBlockingNetworkRequest.NoError:
             error_msg = blocking_request.errorMessage()

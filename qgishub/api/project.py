@@ -9,6 +9,8 @@ class Project:
     id: str
     name: str
     organizationId: str = ""
+    organizationName: str = ""
+    planName: str = ""
     createdAt: str = ""
     updatedAt: str = ""
 
@@ -33,6 +35,8 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
                     id=project.get("id", ""),
                     name=project.get("name", ""),
                     organizationId=organization_id,
+                    organizationName="",  # Not available in list response
+                    planName="",  # Not available in list response
                     createdAt=project.get("createdAt", ""),
                     updatedAt=project.get("updatedAt", ""),
                 )
@@ -60,10 +64,20 @@ def get_project(project_id: str) -> Optional[Project]:
         if not response:
             return None
 
+        # Extract organization information from nested organization object
+        organization = response.get("organization", {})
+        organization_id = organization.get("id", "") if organization else ""
+        organization_name = organization.get("name", "") if organization else ""
+        # For now, use organization name as plan name (e.g., "free")
+        # Convert to uppercase to match API plan enum
+        plan_name = organization_name.upper() if organization_name else ""
+
         return Project(
             id=response.get("id", ""),
             name=response.get("name", ""),
-            organizationId=response.get("organizationId", ""),
+            organizationId=organization_id,
+            organizationName=organization_name,
+            planName=plan_name,
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
@@ -102,6 +116,8 @@ def create_project(
             id=response.get("id", ""),
             name=response.get("name", ""),
             organizationId=response.get("organizationId", ""),
+            organizationName="",  # Not available in create response
+            planName="",  # Not available in create response
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
@@ -139,6 +155,8 @@ def update_project(
             id=response.get("id", ""),
             name=response.get("name", ""),
             organizationId=response.get("organizationId", ""),
+            organizationName="",  # Not available in create response
+            planName="",  # Not available in create response
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
         )
