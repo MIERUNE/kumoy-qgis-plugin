@@ -58,5 +58,5 @@ def refresh_token(refresh_token: str) -> Optional[Dict]:
         print(f"Cognito token refresh HTTP error: {e.code} - {error_body}")
         return None
     except Exception as e:
-        print(f"Cognitoトークン更新中にエラーが発生しました: {str(e)}")
+        print(f"Error occurred during Cognito token refresh: {str(e)}")
         return None

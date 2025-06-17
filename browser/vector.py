@@ -1,5 +1,6 @@
 import os
 
+from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
@@ -52,26 +53,30 @@ class VectorItem(QgsDataItem):
 
         self.populate()
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("VectorItem", message)
+
     def actions(self, parent):
         actions = []
 
         # Add to map action
-        add_action = QAction("Add to Map", parent)
+        add_action = QAction(self.tr("Add to Map"), parent)
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
         # Edit vector action
-        edit_action = QAction("Edit Vector", parent)
+        edit_action = QAction(self.tr("Edit Vector"), parent)
         edit_action.triggered.connect(self.edit_vector)
         actions.append(edit_action)
 
         # Delete vector action
-        delete_action = QAction("Delete Vector", parent)
+        delete_action = QAction(self.tr("Delete Vector"), parent)
         delete_action.triggered.connect(self.delete_vector)
         actions.append(delete_action)
 
         # Refresh action
-        refresh_action = QAction("Refresh", parent)
+        refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -116,7 +121,7 @@ class VectorItem(QgsDataItem):
 
             # Create dialog
             dialog = QDialog()
-            dialog.setWindowTitle("Edit Vector")
+            dialog.setWindowTitle(self.tr("Edit Vector"))
             dialog.resize(400, 250)
 
             # Create layout
@@ -127,7 +132,7 @@ class VectorItem(QgsDataItem):
             name_field = QLineEdit(self.vector.name)
 
             # Add fields to form
-            form_layout.addRow("Name:", name_field)
+            form_layout.addRow(self.tr("Name:"), name_field)
 
             # Create buttons
             button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -160,12 +165,16 @@ class VectorItem(QgsDataItem):
                         self.refresh()
                     else:
                         QgsMessageLog.logMessage(
-                            "Failed to update vector", LOG_CATEGORY, Qgis.Critical
+                            self.tr("Failed to update vector"),
+                            LOG_CATEGORY,
+                            Qgis.Critical,
                         )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error editing vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                self.tr("Error editing vector: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def delete_vector(self):
@@ -174,8 +183,10 @@ class VectorItem(QgsDataItem):
             # Confirm deletion
             confirm = QMessageBox.question(
                 None,
-                "Delete Vector",
-                f"Are you sure you want to delete vector '{self.vector.name}'?",
+                self.tr("Delete Vector"),
+                self.tr("Are you sure you want to delete vector '{}'?").format(
+                    self.vector.name
+                ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -191,12 +202,14 @@ class VectorItem(QgsDataItem):
                     self.parent().refresh()
                 else:
                     QgsMessageLog.logMessage(
-                        "Failed to delete vector", LOG_CATEGORY, Qgis.Critical
+                        self.tr("Failed to delete vector"), LOG_CATEGORY, Qgis.Critical
                     )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error deleting vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                self.tr("Error deleting vector: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
             )
 
 
@@ -214,21 +227,25 @@ class DbRoot(QgsDataItem):
 
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("DbRoot", message)
+
     def actions(self, parent):
         actions = []
 
         # New vector action
-        new_vector_action = QAction("New Vector", parent)
+        new_vector_action = QAction(self.tr("New Vector"), parent)
         new_vector_action.triggered.connect(self.new_vector)
         actions.append(new_vector_action)
 
         # Upload vector action
-        upload_vector_action = QAction("Upload Vector", parent)
+        upload_vector_action = QAction(self.tr("Upload Vector"), parent)
         upload_vector_action.triggered.connect(self.upload_vector)
         actions.append(upload_vector_action)
 
         # Refresh action
-        refresh_action = QAction("Refresh", parent)
+        refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -242,7 +259,7 @@ class DbRoot(QgsDataItem):
 
             if not project_id:
                 QgsMessageLog.logMessage(
-                    "No project selected", LOG_CATEGORY, Qgis.Critical
+                    self.tr("No project selected"), LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -258,7 +275,7 @@ class DbRoot(QgsDataItem):
             )
 
             dialog = QDialog()
-            dialog.setWindowTitle("Create New Vector Layer")
+            dialog.setWindowTitle(self.tr("Create New Vector Layer"))
             dialog.resize(400, 200)
 
             # Create layout
@@ -267,16 +284,16 @@ class DbRoot(QgsDataItem):
 
             # Name field
             name_field = QLineEdit()
-            form_layout.addRow("Name:", name_field)
+            form_layout.addRow(self.tr("Name:"), name_field)
 
             # Type field
             type_field = QComboBox()
             type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-            form_layout.addRow("Geometry Type:", type_field)
+            form_layout.addRow(self.tr("Geometry Type:"), type_field)
 
             # Add description
             description = QLabel(
-                "This will create an empty vector layer in the project."
+                self.tr("This will create an empty vector layer in the project.")
             )
             description.setWordWrap(True)
 
@@ -303,7 +320,7 @@ class DbRoot(QgsDataItem):
 
             if not name:
                 QgsMessageLog.logMessage(
-                    "Vector name cannot be empty", LOG_CATEGORY, Qgis.Critical
+                    self.tr("Vector name cannot be empty"), LOG_CATEGORY, Qgis.Critical
                 )
                 return
 
@@ -312,7 +329,9 @@ class DbRoot(QgsDataItem):
 
             if new_vector:
                 QgsMessageLog.logMessage(
-                    f"Created new vector layer '{name}' in project {project_id}",
+                    self.tr("Created new vector layer '{}' in project {}").format(
+                        name, project_id
+                    ),
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
@@ -320,14 +339,16 @@ class DbRoot(QgsDataItem):
                 self.refresh()
             else:
                 QgsMessageLog.logMessage(
-                    f"Failed to create vector layer '{name}'",
+                    self.tr("Failed to create vector layer '{}'").format(name),
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error creating vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                self.tr("Error creating vector: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def upload_vector(self):
@@ -344,7 +365,9 @@ class DbRoot(QgsDataItem):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error uploading vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                self.tr("Error uploading vector: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def createChildren(self):
@@ -354,13 +377,13 @@ class DbRoot(QgsDataItem):
             project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
-                return [ErrorItem(self, "No project selected")]
+                return [ErrorItem(self, self.tr("No project selected"))]
 
             # Get vectors for this project
             vectors = api.project_vector.get_vectors(project_id)
 
             if not vectors:
-                return [ErrorItem(self, "No vectors available")]
+                return [ErrorItem(self, self.tr("No vectors available"))]
 
             children = []
 
@@ -374,4 +397,4 @@ class DbRoot(QgsDataItem):
             return children
 
         except Exception as e:
-            return [ErrorItem(self, f"Error: {str(e)}")]
+            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]

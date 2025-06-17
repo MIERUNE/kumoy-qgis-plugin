@@ -44,7 +44,7 @@ def get_styled_maps(project_id: str) -> List[QgishubStyledMap]:
 
         return styled_maps
     except Exception as e:
-        print(f"プロジェクト {project_id} のMap取得エラー: {str(e)}")
+        print(f"Error getting maps for project {project_id}: {str(e)}")
         return []
 
 
@@ -73,7 +73,7 @@ def get_styled_map(styled_map_id: str) -> Optional[QgishubStyledMap]:
         )
 
     except Exception as e:
-        print(f"スタイルマップ {styled_map_id} の取得エラー: {str(e)}")
+        print(f"Error getting styled map {styled_map_id}: {str(e)}")
         return None
 
 
@@ -119,7 +119,7 @@ def add_styled_map(
             projectId=project_id,
         )
     except Exception as e:
-        print(f"プロジェクト {project_id} へのMap追加エラー: {str(e)}")
+        print(f"Error adding map to project {project_id}: {str(e)}")
         return None
 
 
@@ -137,7 +137,7 @@ def delete_styled_map(styled_map_id: str) -> bool:
         ApiClient.delete(f"/styled-map/{styled_map_id}")
         return True
     except Exception as e:
-        print(f"Map {styled_map_id} の削除エラー: {str(e)}")
+        print(f"Error deleting map {styled_map_id}: {str(e)}")
         return False
 
 
@@ -190,5 +190,5 @@ def update_styled_map(
             projectId=response.get("projectId", ""),
         )
     except Exception as e:
-        print(f"Map {styled_map_id} の更新エラー: {str(e)}")
+        print(f"Error updating map {styled_map_id}: {str(e)}")
         return None

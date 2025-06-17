@@ -1,5 +1,6 @@
 import os
 
+from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
@@ -49,6 +50,10 @@ class RootCollection(QgsDataCollectionItem):
         # Update name with project if available
         self.update_name_with_project()
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("RootCollection", message)
+
     def actions(self, parent):
         actions = []
 
@@ -63,12 +68,12 @@ class RootCollection(QgsDataCollectionItem):
         actions.append(logout_action)
 
         # Select Project action
-        select_project_action = QAction("Select Project", parent)
+        select_project_action = QAction(self.tr("Select Project"), parent)
         select_project_action.triggered.connect(self.select_project)
         actions.append(select_project_action)
 
         # Refresh action
-        refresh_action = QAction("Refresh", parent)
+        refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
         actions.append(refresh_action)
 
@@ -95,8 +100,10 @@ class RootCollection(QgsDataCollectionItem):
             if not id_token:
                 QMessageBox.warning(
                     None,
-                    "Not Logged In",
-                    "You must be logged in to select a project. Please login first.",
+                    self.tr("Not Logged In"),
+                    self.tr(
+                        "You must be logged in to select a project. Please login first."
+                    ),
                 )
                 return
 
@@ -185,14 +192,16 @@ class RootCollection(QgsDataCollectionItem):
             id_token = settings.get_setting("id_token")
 
             if not id_token:
-                return [ErrorItem(self, "Not logged in. Please login to view vectors.")]
+                return [ErrorItem(self, self.tr("Not Logged In"))]
 
             # Get selected project ID
             project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
                 return [
-                    ErrorItem(self, "No project selected. Please select a project.")
+                    ErrorItem(
+                        self, self.tr("No project selected. Please select a project.")
+                    )
                 ]
 
             # Get project details
@@ -200,7 +209,10 @@ class RootCollection(QgsDataCollectionItem):
 
             if not project_data:
                 return [
-                    ErrorItem(self, "Project not found. Please select another project.")
+                    ErrorItem(
+                        self,
+                        self.tr("Project not found. Please select another project."),
+                    )
                 ]
 
             # Update the browser name with project name
@@ -220,4 +232,4 @@ class RootCollection(QgsDataCollectionItem):
             return children
 
         except Exception as e:
-            return [ErrorItem(self, f"Error: {str(e)}")]
+            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
