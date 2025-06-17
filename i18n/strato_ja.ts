@@ -587,7 +587,7 @@ Note: You must be logged in to STRATO before using this tool.</source>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="88"/>
         <source>Input vector layer</source>
-        <translation>入力ベクタレイヤ</translation>
+        <translation>入力レイヤ</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="132"/>
@@ -597,7 +597,7 @@ Note: You must be logged in to STRATO before using this tool.</source>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="144"/>
         <source>Vector layer name</source>
-        <translation>ベクタレイヤ名</translation>
+        <translation>レイヤ名</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="154"/>
@@ -606,22 +606,22 @@ Note: You must be logged in to STRATO before using this tool.</source>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="195"/>
-        <source>Cannot upload vector. Your plan allows up to {plan_limits.maxVectors:,} vectors per project, but you already have {len(api.project_vector.get_vectors(project_id)):,} vectors.</source>
-        <translation>ベクタをアップロードできません。現在のプランではプロジェクトあたり最大{plan_limits.maxVectors:,}個のベクターが許可されていますが、すでに{len(api.project_vector.get_vectors(project_id)):,}個のベクターがあります。</translation>
+        <source>Cannot upload vector. Your plan allows up to {} vectors per project, but you already have {} vectors.</source>
+        <translation>ベクタをアップロードできません。現在のプランではプロジェクトあたり最大{}個のベクターが許可されていますが、すでに{}個のベクターがあります。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="220"/>
-        <source>Cannot upload vector. The layer has {proc_feature_count:,} features, but your plan allows up to {plan_limits.maxVectorFeatures:,} features per vector.</source>
-        <translation>ベクタをアップロードできません。レイヤーには{proc_feature_count:,}個のフィーチャがありますが、現在のプランではベクターあたり最大{plan_limits.maxVectorFeatures:,}個のフィーチャが許可されています。</translation>
+        <source>Cannot upload vector. The layer has {} features, but your plan allows up to {} features per vector.</source>
+        <translation>ベクタをアップロードできません。レイヤーには{}個のフィーチャがありますが、現在のプランではベクターあたり最大{}個のフィーチャが許可されています。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="235"/>
-        <source>Cannot upload vector. The layer has {proc_layer_field_count:,} attributes, but your plan allows up to {plan_limits.maxVectorAttributes:,} attributes per vector.</source>
-        <translation>ベクタをアップロードできません。レイヤには{proc_layer_field_count:,}個の属性がありますが、現在のプランではベクターあたり最大{plan_limits.maxVectorAttributes:,}個の属性が許可されています。</translation>
+        <source>Cannot upload vector. The layer has {} attributes, but your plan allows up to {} attributes per vector.</source>
+        <translation>ベクタをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="253"/>
-        <source>Upload complete: {uploaded_feature_count} features</source>
+        <source>Upload complete: {} features</source>
         <translation>アップロード完了: {}個のフィーチャ</translation>
     </message>
     <message>
@@ -631,7 +631,7 @@ Note: You must be logged in to STRATO before using this tool.</source>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="270"/>
-        <source>Failed to clean up incomplete vector: {str(delete_error)}</source>
+        <source>Failed to clean up incomplete vector: {}</source>
         <translation>不完全なベクタのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
@@ -656,7 +656,7 @@ Note: You must be logged in to STRATO before using this tool.</source>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="342"/>
-        <source>Reprojecting from {source_crs.authid()} to EPSG:4326</source>
+        <source>Reprojecting from {} to EPSG:4326</source>
         <translation>{}からEPSG:4326への投影変換</translation>
     </message>
     <message>
@@ -676,23 +676,23 @@ Note: You must be logged in to STRATO before using this tool.</source>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="463"/>
-        <source>Geometry processing completed: {features_processed} features processed</source>
-        <translation>ジオメトリ処理完了: {features_processed}個のフィーチャを処理しました</translation>
+        <source>Geometry processing completed: {} features processed</source>
+        <translation>ジオメトリ処理完了: {}個のフィーチャを処理しました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="469"/>
-        <source>Fixed {fixed_geometries} invalid geometries</source>
-        <translation>{fixed_geometries}個の無効なジオメトリを修正しました</translation>
+        <source>Fixed {} invalid geometries</source>
+        <translation>{}個の無効なジオメトリを修正しました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="471"/>
-        <source>Skipped {invalid_geometries} features with unfixable geometries</source>
-        <translation>修正不可能なジオメトリを持つ{invalid_geometries}個のフィーチャをスキップしました</translation>
+        <source>Skipped {} features with unfixable geometries</source>
+        <translation>修正不可能なジオメトリを持つ{}個のフィーチャをスキップしました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="477"/>
-        <source>Skipped {wrong_geometry_type} features with wrong geometry type</source>
-        <translation>間違ったジオメトリタイプを持つ{wrong_geometry_type}個のフィーチャをスキップしました</translation>
+        <source>Skipped {} features with wrong geometry type</source>
+        <translation>間違ったジオメトリタイプを持つ{}個のフィーチャをスキップしました</translation>
     </message>
     <message>
         <location filename="../processing/algs/upload_vector_algorithm.py" line="486"/>

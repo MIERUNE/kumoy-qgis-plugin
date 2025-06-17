@@ -41,13 +41,9 @@ def get_plan_limits(project_id: str) -> Optional[api.plan.PlanLimits]:
         return None
 
 
-def check_vector_count_limit(project_id: str, plan_max_vectors: int) -> bool:
+def check_vector_count_limit(current_vector_count: int, plan_max_vectors: int) -> bool:
     """Check if adding one more vector would exceed plan limit"""
     try:
-        # Get current vectors count in the project
-        current_vectors = api.project_vector.get_vectors(project_id)
-        current_vector_count = len(current_vectors)
-
         # Check if adding one more vector would exceed limit
         if current_vector_count >= plan_max_vectors:
             return False
