@@ -90,7 +90,10 @@ class RootCollection(QgsDataCollectionItem):
 
         if result:
             # Refresh to show projects
-            self.refresh()
+            try:
+                self.refresh()
+            except Exception:
+                iface.browserModel().reload()
 
     def select_project(self):
         """Select a project to display"""

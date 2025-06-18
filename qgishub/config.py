@@ -33,6 +33,10 @@ class Config:
         """設定マネージャーから設定を読み込む"""
         # プラグインがロードされている場合のみ設定を読み込む
         try:
+            # Lazy import to avoid circular dependency
+            from .api import auth
+
+            auth.clear_tokens()
             settings_manager = SettingsManager()
 
             # カスタムサーバー設定を読み込む

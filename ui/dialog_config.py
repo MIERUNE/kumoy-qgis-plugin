@@ -175,6 +175,7 @@ class DialogConfig(QDialog):
 
             # Open the authorization URL in the default browser
             auth_url = result
+            print(f"Opening browser to: {auth_url}")  # For debugging
             QgsMessageLog.logMessage(
                 f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
             )
@@ -212,6 +213,7 @@ class DialogConfig(QDialog):
             settings_manager = SettingsManager()
             settings_manager.store_setting("id_token", "")
             settings_manager.store_setting("refresh_token", "")
+            settings_manager.store_setting("token_expires_at", "")
             settings_manager.store_setting("user_info", "")
             settings_manager.store_setting("selected_project_id", "")
 

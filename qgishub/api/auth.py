@@ -10,6 +10,32 @@ from qgis.core import QgsNetworkAccessManager
 from ..config import config as qgishub_config
 
 
+def clear_tokens() -> bool:
+    """
+    すべてのトークンと認証情報を初期化し、何もない状態にする
+
+    Returns:
+        初期化が成功した場合True、失敗した場合False
+    """
+    try:
+        from settings_manager import SettingsManager
+
+        settings_manager = SettingsManager()
+
+        # 認証関連の設定をすべて空にする
+        settings_manager.store_setting("id_token", "")
+        settings_manager.store_setting("refresh_token", "")
+        settings_manager.store_setting("token_expires_at", "")
+        settings_manager.store_setting("user_info", {})
+        settings_manager.store_setting("selected_organization_id", "")
+        settings_manager.store_setting("selected_project_id", "")
+
+        return True
+    except Exception as e:
+        print(f"Error occurred during token initialization: {str(e)}")
+        return False
+
+
 def refresh_token(refresh_token: str) -> Optional[Dict]:
     """
     Cognitoを使用して期限切れのトークンをリフレッシュトークンで更新する

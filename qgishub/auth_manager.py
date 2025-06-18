@@ -177,6 +177,8 @@ class AuthManager(QObject):
             self.server.auth_code = None
             self.server.state = None
             self.server.redirect_url = REDIRECT_URL
+            # Get latest config values dynamically
+            qgishub_config.load_settings()
             self.server.cognito_url = qgishub_config.COGNITO_URL
             self.server.client_id = qgishub_config.COGNITO_CLIENT_ID
             self.server.code_verifier = self.code_verifier
@@ -270,6 +272,9 @@ class AuthManager(QObject):
         # Start local server
         if not self.start_local_server():
             return False, f"Failed to start local server: {self.error}"
+
+        # Get latest config values for authorization URL
+        qgishub_config.load_settings()
 
         # Get authorization URL with the same state parameter
         auth_url = (
