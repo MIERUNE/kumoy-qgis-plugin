@@ -115,13 +115,14 @@ class RootCollection(QgsDataCollectionItem):
 
             if result:
                 # Get selected project
+                organization = dialog.get_selected_organization()
                 project = dialog.get_selected_project()
                 if project:
                     QgsMessageLog.logMessage(
                         f"Selected project: {project.name}", LOG_CATEGORY, Qgis.Info
                     )
                     # Update browser name with project name
-                    self.setName(f"{PLUGIN_NAME}: {project.name}")
+                    self.setName(f"{PLUGIN_NAME}: {project.name}({organization.name})")
                     # Refresh to show the selected project
                     self.depopulate()
                     self.refresh()
@@ -166,16 +167,20 @@ class RootCollection(QgsDataCollectionItem):
                 self.setName(PLUGIN_NAME)
                 return
 
-            # Get selected project ID
+            # Get selected organization and project ID
+            organization_id = settings.get_setting("selected_organization_id")
             project_id = settings.get_setting("selected_project_id")
             if not project_id:
                 self.setName(PLUGIN_NAME)
                 return
 
-            # Get project details
+            # Get organization and project details
+            organization_data = api.organization.get_organization(organization_id)
             project_data = api.project.get_project(project_id)
             if project_data:
-                self.setName(f"{PLUGIN_NAME}: {project_data.name}")
+                self.setName(
+                    f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
+                )
             else:
                 self.setName(PLUGIN_NAME)
 
@@ -197,7 +202,8 @@ class RootCollection(QgsDataCollectionItem):
             if not id_token:
                 return [ErrorItem(self, self.tr("Not Logged In"))]
 
-            # Get selected project ID
+            # Get selected organization and project ID
+            organization_id = settings.get_setting("selected_organization_id")
             project_id = settings.get_setting("selected_project_id")
 
             if not project_id:
@@ -207,7 +213,8 @@ class RootCollection(QgsDataCollectionItem):
                     )
                 ]
 
-            # Get project details
+            # Get organization and project details
+            organization_data = api.organization.get_organization(organization_id)
             project_data = api.project.get_project(project_id)
 
             if not project_data:
@@ -219,7 +226,9 @@ class RootCollection(QgsDataCollectionItem):
                 ]
 
             # Update the browser name with project name
-            self.setName(f"{PLUGIN_NAME}: {project_data.name}")
+            self.setName(
+                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
+            )
 
             # Create vector root directly
             children = []
