@@ -421,9 +421,13 @@ class StyledMapRoot(QgsDataItem):
             message_parts.append("")
 
         message_parts.append(
-            self.tr(
-                "Note: Only qgishub vector layers and XYZ raster layers are supported in {}."
-            ).format(LOG_CATEGORY)
+            self.tr("Note:")
+        )
+        message_parts.append(
+            self.tr("• Web display: Only MapLibre Compatible Layers will be shown")
+        )
+        message_parts.append(
+            self.tr("• Local QGIS: All layers will be fully restored with complete configuration")
         )
 
         # Show dialog
