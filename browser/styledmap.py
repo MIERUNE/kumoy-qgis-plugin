@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Dict, cast
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
@@ -13,7 +14,15 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QVBoxLayout,
 )
-from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsDataItem,
+    QgsMapLayer,
+    QgsMessageLog,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
@@ -312,10 +321,15 @@ class StyledMapRoot(QgsDataItem):
             if result:
                 # 値を取得（タイトルと公開設定のみ）
                 name = name_field.text()
-                # QGISプロジェクト情報はバックグラウンドで取得
-                qgisproject = get_qgisproject_str()
 
                 if name:
+                    # Show MapLibre compatibility dialog before saving
+                    if not show_maplibre_compatibility_dialog():
+                        return  # User cancelled after seeing compatibility info
+
+                    # QGISプロジェクト情報はバックグラウンドで取得
+                    qgisproject = get_qgisproject_str()
+
                     settings = SettingsManager()
                     project_id = settings.get_setting("selected_project_id")
 
@@ -422,3 +436,93 @@ def _delete_tempfile(tmp_path: str):
         QgsMessageLog.logMessage(
             f"Temporary file {tmp_path} does not exist.", LOG_CATEGORY, Qgis.Warning
         )
+
+
+def analyze_layer_maplibre_compatibility():
+    """Analyze current QGIS project layers for MapLibre compatibility"""
+    project = QgsProject.instance()
+    layers: Dict[str, QgsMapLayer] = project.mapLayers()
+
+    compatible_layers = []
+    incompatible_layers = []
+
+    for layer in layers.values():
+        layer_name = layer.name()
+        provider_type = layer.dataProvider().name()
+
+        # Check if layer is compatible with MapLibre based on provider type
+        is_compatible = False
+
+        if isinstance(layer, QgsVectorLayer):
+            if provider_type == "qgishub":
+                is_compatible = True
+        if isinstance(layer, QgsRasterLayer):
+            if provider_type == "wms":
+                source = layer.dataProvider().dataSourceUri()
+                if "type=xyz" in source.lower():
+                    is_compatible = True
+        else:
+            is_compatible = False
+
+        if is_compatible:
+            compatible_layers.append(f"✓ {layer_name} ({provider_type})")
+        else:
+            incompatible_layers.append(f"✗ {layer_name} ({provider_type})")
+
+    return compatible_layers, incompatible_layers
+
+
+def show_maplibre_compatibility_dialog():
+    """Show dialog with MapLibre compatibility information"""
+    compatible_layers, incompatible_layers = analyze_layer_maplibre_compatibility()
+
+    if not compatible_layers and not incompatible_layers:
+        QMessageBox.information(
+            None,
+            QCoreApplication.translate("StyledMapRoot", "Layer Compatibility"),
+            QCoreApplication.translate(
+                "StyledMapRoot", "No layers found in the current project."
+            ),
+        )
+        return True
+
+    # Create message text
+    message_parts = []
+
+    if compatible_layers:
+        message_parts.append(
+            QCoreApplication.translate("StyledMapRoot", "MapLibre Compatible Layers:")
+        )
+        message_parts.extend(compatible_layers)
+        message_parts.append("")
+
+    if incompatible_layers:
+        message_parts.append(
+            QCoreApplication.translate("StyledMapRoot", "MapLibre Incompatible Layers:")
+        )
+        message_parts.extend(incompatible_layers)
+        message_parts.append("")
+
+    message_parts.append(
+        QCoreApplication.translate(
+            "StyledMapRoot",
+            "Note: Only qgishub vector layers and XYZ raster layers are supported in MapLibre.",
+        )
+    )
+
+    # Show dialog
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle(
+        QCoreApplication.translate("StyledMapRoot", "MapLibre Compatibility Check")
+    )
+    msg_box.setText(
+        QCoreApplication.translate(
+            "StyledMapRoot", "Layer compatibility analysis for MapLibre:"
+        )
+    )
+    msg_box.setDetailedText("\n".join(message_parts))
+    msg_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+    msg_box.setDefaultButton(QMessageBox.Ok)
+
+    result = msg_box.exec_()
+    return result == QMessageBox.Ok
