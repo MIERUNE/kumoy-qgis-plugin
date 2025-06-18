@@ -6,7 +6,7 @@ from qgishub.constants import LOG_CATEGORY
 from settings_manager import SettingsManager
 
 
-@dataclass(frozen=True)
+@dataclass(init=False)
 class DefaultConfig:
     COGNITO_URL: str = "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
     COGNITO_CLIENT_ID: str = "4us5qd97e5f471pdq7kk44d63s"
