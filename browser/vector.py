@@ -12,7 +12,7 @@ from qgis.core import (
 )
 
 from ..imgs import IMGS_PATH
-from ..qgishub import api, check_plan
+from ..qgishub import api
 from ..qgishub.api.project_vector import (
     AddVectorOptions,
     QgishubVector,
@@ -20,6 +20,7 @@ from ..qgishub.api.project_vector import (
 )
 from ..qgishub.config import config as qgishub_config
 from ..qgishub.constants import LOG_CATEGORY
+from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 

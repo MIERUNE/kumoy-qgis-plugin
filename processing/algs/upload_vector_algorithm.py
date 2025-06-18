@@ -20,8 +20,9 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from ...qgishub import api, check_plan
+from ...qgishub import api
 from ...qgishub.get_token import get_token
+from ...qgishub.usecase import check_plan
 from ...settings_manager import SettingsManager
 from ..feature_uploader import FeatureUploader
 from ..field_name_normalizer import FieldNameNormalizer

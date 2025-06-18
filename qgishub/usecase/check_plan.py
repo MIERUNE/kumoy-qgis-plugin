@@ -2,7 +2,7 @@ from typing import Optional
 
 from qgis.PyQt.QtCore import QCoreApplication
 
-from . import api
+from .. import api
 
 
 def tr(message: str) -> str:
