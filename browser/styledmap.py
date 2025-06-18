@@ -10,8 +10,10 @@ from PyQt5.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
+    QScrollArea,
     QVBoxLayout,
 )
 from qgis.core import (
@@ -407,46 +409,62 @@ class StyledMapRoot(QgsDataItem):
             )
             return True
 
-        # Create message text
-        message_parts = []
+        # Create HTML message with colored text
+        html_parts = []
+        html_parts.append(
+            f"<b>{self.tr('Layer compatibility analysis for MapLibre:')}</b><br><br>"
+        )
 
         if compatible_layers:
-            message_parts.append(self.tr("MapLibre Compatible Layers:"))
-            message_parts.extend(compatible_layers)
-            message_parts.append("")
+            html_parts.append(f"<b>{self.tr('MapLibre Compatible Layers:')}</b><br>")
+            for layer in compatible_layers:
+                html_parts.append(f"<span style='color: green;'>✓ {layer}</span><br>")
+            html_parts.append("<br>")
 
         if incompatible_layers:
-            message_parts.append(self.tr("MapLibre Incompatible Layers:"))
-            message_parts.extend(incompatible_layers)
-            message_parts.append("")
+            html_parts.append(f"<b>{self.tr('MapLibre Incompatible Layers:')}</b><br>")
+            for layer in incompatible_layers:
+                html_parts.append(f"<span style='color: red;'>✗ {layer}</span><br>")
+            html_parts.append("<br>")
 
-        message_parts.append(
-            self.tr("Note:")
+        html_parts.append(f"<b>{self.tr('Note:')}</b><br>")
+        html_parts.append(
+            f"• {self.tr('Web display: Only MapLibre Compatible Layers will be shown')}<br>"
         )
-        message_parts.append(
-            self.tr("• Web display: Only MapLibre Compatible Layers will be shown")
-        )
-        message_parts.append(
-            self.tr("• Local QGIS: All layers will be fully restored with complete configuration")
+        html_parts.append(
+            f"• {self.tr('Local QGIS: All layers will be fully restored with complete configuration')}"
         )
 
-        # Show dialog
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle(self.tr("MapLibre Compatibility Check"))
+        # Create custom dialog with colored HTML text
+        dialog = QDialog()
+        dialog.setWindowTitle(self.tr("MapLibre Compatibility Check"))
+        dialog.setMinimumSize(500, 200)
 
-        # Create full message with header and details
-        full_message = (
-            self.tr("Layer compatibility analysis for MapLibre:")
-            + "\n\n"
-            + "\n".join(message_parts)
-        )
-        msg_box.setText(full_message)
+        layout = QVBoxLayout()
 
-        msg_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        msg_box.setDefaultButton(QMessageBox.Ok)
+        # Create label with HTML content
+        label = QLabel()
+        label.setTextFormat(1)  # RichText format
+        label.setText("".join(html_parts))
+        label.setWordWrap(True)
 
-        result = msg_box.exec_()
-        return result == QMessageBox.Ok
+        # Add scroll area in case content is long
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(label)
+        scroll_area.setWidgetResizable(True)
+
+        layout.addWidget(scroll_area)
+
+        # Add buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+
+        dialog.setLayout(layout)
+
+        result = dialog.exec_()
+        return result == QDialog.Accepted
 
 
 def get_qgisproject_str() -> str:
@@ -516,8 +534,8 @@ def analyze_layer_maplibre_compatibility():
                     is_compatible = True
 
         if is_compatible:
-            compatible_layers.append(f"✓ {layer_name} ({provider_type})")
+            compatible_layers.append(f"{layer_name} ({provider_type})")
         else:
-            incompatible_layers.append(f"✗ {layer_name} ({provider_type})")
+            incompatible_layers.append(f"{layer_name} ({provider_type})")
 
     return compatible_layers, incompatible_layers
