@@ -24,13 +24,16 @@ class Config:
         self.load_settings()
 
     def refresh(self):
-        """Server設定を初期化"""
-        self.COGNITO_URL = DefaultConfig.COGNITO_URL
-        self.COGNITO_CLIENT_ID = DefaultConfig.COGNITO_CLIENT_ID
-        self.API_URL = DefaultConfig.API_URL
+        """Server設定を再読み込み（デフォルトまたはカスタム設定）"""
+        self.load_settings()
 
     def load_settings(self):
         """設定マネージャーから設定を読み込む"""
+        # まずデフォルト値にリセット
+        self.COGNITO_URL = DefaultConfig.COGNITO_URL
+        self.COGNITO_CLIENT_ID = DefaultConfig.COGNITO_CLIENT_ID
+        self.API_URL = DefaultConfig.API_URL
+        
         # プラグインがロードされている場合のみ設定を読み込む
         try:
             settings_manager = SettingsManager()
@@ -55,6 +58,19 @@ class Config:
                 self.API_URL = custom_server_url
                 self.COGNITO_URL = custom_cognito_url
                 self.COGNITO_CLIENT_ID = custom_cognito_client_id
+                QgsMessageLog.logMessage(
+                    f"Using custom server settings: URL={custom_cognito_url}, Client_ID={custom_cognito_client_id}",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+            else:
+                # カスタムサーバーが無効または設定が不完全な場合は、デフォルト値のまま
+                QgsMessageLog.logMessage(
+                    f"Using default server settings: URL={DefaultConfig.COGNITO_URL}, Client_ID={DefaultConfig.COGNITO_CLIENT_ID}",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+            
         except Exception as e:
             # 設定の読み込みに失敗した場合はデフォルト値を使用
             QgsMessageLog.logMessage(
