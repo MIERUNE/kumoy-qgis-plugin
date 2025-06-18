@@ -178,7 +178,6 @@ class DialogConfig(QDialog):
             QgsMessageLog.logMessage(
                 f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
             )
-            print(f"Opening browser to: {auth_url}")  # For debugging
             webbrowser.open(auth_url)
 
             # Update status to indicate waiting for browser authentication
@@ -309,12 +308,6 @@ class DialogConfig(QDialog):
 
     def check_and_show_project_selection(self):
         """Check if project is selected and show project selection dialog if needed"""
-        settings = SettingsManager()
-        project_id = settings.get_setting("selected_project_id")
-
-        if project_id:
-            return
-
         QgsMessageLog.logMessage(
             "Project not selected, showing project selection dialog",
             LOG_CATEGORY,
