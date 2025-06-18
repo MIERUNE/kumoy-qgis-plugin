@@ -7,12 +7,17 @@ from settings_manager import SettingsManager
 
 
 @dataclass
+class DefaultConfig:
+    COGNITO_URL: str = "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
+    COGNITO_CLIENT_ID: str = "4us5qd97e5f471pdq7kk44d63s"
+    API_URL: str = "https://d28cu1u5by4hv7.cloudfront.net/api"
+
+
+@dataclass
 class Config:
-    COGNITO_URL: str = (
-        "https://strato-development.auth.ap-northeast-1.amazoncognito.com"
-    )
-    COGNITO_CLIENT_ID: str = "3tti9ahi6hblmnjr67977c1uaa"
-    API_URL: str = "https://d2570m9xwzmcva.cloudfront.net/api"
+    COGNITO_URL: str = DefaultConfig.COGNITO_URL
+    COGNITO_CLIENT_ID: str = DefaultConfig.COGNITO_CLIENT_ID
+    API_URL: str = DefaultConfig.API_URL
 
     def __post_init__(self):
         """初期化時に設定を読み込む"""
@@ -20,11 +25,9 @@ class Config:
 
     def refresh(self):
         """Server設定を初期化"""
-        self.COGNITO_URL = (
-            "https://strato-development.auth.ap-northeast-1.amazoncognito.com"
-        )
-        self.COGNITO_CLIENT_ID = "3tti9ahi6hblmnjr67977c1uaa"
-        self.API_URL = "https://d2570m9xwzmcva.cloudfront.net/api"
+        self.COGNITO_URL = DefaultConfig.COGNITO_URL
+        self.COGNITO_CLIENT_ID = DefaultConfig.COGNITO_CLIENT_ID
+        self.API_URL = DefaultConfig.API_URL
 
     def load_settings(self):
         """設定マネージャーから設定を読み込む"""
