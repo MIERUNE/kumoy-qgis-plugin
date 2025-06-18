@@ -90,15 +90,7 @@ class RootCollection(QgsDataCollectionItem):
 
         if result:
             # Refresh to show projects
-            try:
-                self.refresh()
-            except Exception as e:
-                iface.browserModel().reload()
-                QgsMessageLog.logMessage(
-                    f"Error refreshing browser after login: {str(e)}",
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
+            iface.browserModel().reload()
 
     def select_project(self):
         """Select a project to display"""
