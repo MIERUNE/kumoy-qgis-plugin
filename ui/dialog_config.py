@@ -178,6 +178,7 @@ class DialogConfig(QDialog):
             QgsMessageLog.logMessage(
                 f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
             )
+            print(f"Opening browser to: {auth_url}")  # For debugging
             webbrowser.open(auth_url)
 
             # Update status to indicate waiting for browser authentication

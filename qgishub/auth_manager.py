@@ -256,6 +256,9 @@ class AuthManager(QObject):
         Returns:
             Tuple of (success, error_message or auth_url)
         """
+        # Refresh config to ensure we have the latest settings (default or custom)
+        qgishub_config.load_settings()
+
         # Generate authorization parameters first
         # Generate PKCE code verifier and challenge
         code_verifier = self._generate_code_verifier()
