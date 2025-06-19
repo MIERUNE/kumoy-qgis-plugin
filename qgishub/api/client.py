@@ -5,8 +5,8 @@ from PyQt5.QtCore import QByteArray, QEventLoop, QTextStream, QUrl
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
 
-from ..config import config as qgishub_config
 from ..get_token import get_token
+from . import config as api_config
 
 
 class ApiClient:
@@ -62,8 +62,9 @@ class ApiClient:
     @staticmethod
     def get(endpoint: str, params: Optional[Dict] = None) -> dict:
         """Make GET request to API endpoint"""
+        _api_config = api_config.get_api_config()
         # Build URL with query parameters if provided
-        url = f"{qgishub_config.API_URL}{endpoint}"
+        url = f"{_api_config.API_URL}{endpoint}"
         if params:
             query_items = []
             for key, value in params.items():
@@ -96,7 +97,8 @@ class ApiClient:
     @staticmethod
     def post(endpoint: str, data: Any) -> dict:
         """Make POST request to API endpoint"""
-        url = f"{qgishub_config.API_URL}{endpoint}"
+        _api_config = api_config.get_api_config()
+        url = f"{_api_config.API_URL}{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))
@@ -129,7 +131,8 @@ class ApiClient:
     @staticmethod
     def patch(endpoint: str, data: Any) -> dict:
         """Make PATCH request to API endpoint"""
-        url = f"{qgishub_config.API_URL}{endpoint}"
+        _api_config = api_config.get_api_config()
+        url = f"{_api_config.API_URL}{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))
@@ -165,7 +168,8 @@ class ApiClient:
     @staticmethod
     def delete(endpoint: str) -> dict:
         """Make DELETE request to API endpoint"""
-        url = f"{qgishub_config.API_URL}{endpoint}"
+        _api_config = api_config.get_api_config()
+        url = f"{_api_config.API_URL}{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))

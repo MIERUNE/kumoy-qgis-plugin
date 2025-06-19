@@ -15,7 +15,6 @@ from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..qgishub import api
-from ..qgishub.config import config
 from ..qgishub.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..settings_manager import SettingsManager
 from ..ui.dialog_config import DialogConfig
@@ -136,7 +135,6 @@ class RootCollection(QgsDataCollectionItem):
         """Logout from STRATO"""
         try:
             # Clear tokens and selected project
-            config.refresh()
             settings_manager = SettingsManager()
             settings_manager.store_setting("id_token", "")
             settings_manager.store_setting("refresh_token", "")

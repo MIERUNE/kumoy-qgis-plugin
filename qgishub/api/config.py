@@ -1,0 +1,46 @@
+from abc import ABC
+from dataclasses import dataclass
+
+from settings_manager import SettingsManager
+
+DEFAULT_COGNITO_URL: str = (
+    "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
+)
+DEFAULT_COGNITO_CLIENT_ID: str = "4us5qd97e5f471pdq7kk44d63s"
+DEFAULT_API_URL: str = "https://d28cu1u5by4hv7.cloudfront.net/api"
+
+
+@dataclass(frozen=True)
+class ApiConfig(ABC):
+    COGNITO_URL: str
+    COGNITO_CLIENT_ID: str
+    API_URL: str
+
+
+def get_api_config() -> ApiConfig:
+    settings_manager = SettingsManager()
+
+    # カスタムサーバー設定を読み込む
+    use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
+    custom_cognito_url = settings_manager.get_setting("custom_cognito_url")
+    custom_cognito_client_id = settings_manager.get_setting("custom_cognito_client_id")
+    custom_server_url = settings_manager.get_setting("custom_server_url")
+
+    if (
+        use_custom_server
+        and custom_server_url
+        and custom_cognito_url
+        and custom_cognito_client_id
+    ):
+        return ApiConfig(
+            COGNITO_URL=custom_cognito_url,
+            COGNITO_CLIENT_ID=custom_cognito_client_id,
+            API_URL=custom_server_url,
+        )
+    else:
+        # デフォルト値
+        return ApiConfig(
+            COGNITO_URL=DEFAULT_COGNITO_URL,
+            COGNITO_CLIENT_ID=DEFAULT_COGNITO_CLIENT_ID,
+            API_URL=DEFAULT_API_URL,
+        )
