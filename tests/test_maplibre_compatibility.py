@@ -1,5 +1,3 @@
-import os
-import sys
 from unittest.mock import Mock, patch
 
 from qgis.core import (
@@ -7,6 +5,7 @@ from qgis.core import (
     QgsFillSymbol,
     QgsLineSymbol,
     QgsMarkerSymbol,
+    QgsRasterLayer,
     QgsSimpleFillSymbolLayer,
     QgsSimpleLineSymbolLayer,
     QgsSimpleMarkerSymbolLayer,
@@ -21,10 +20,6 @@ from ui.dialog_maplibre_compatibility import (
     RasterLayerChecker,
     VectorLayerChecker,
 )
-
-# Add project root to path
-# project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# sys.path.insert(0, project_root)
 
 
 class TestVectorLayerChecker(QgisTestCase):
@@ -222,56 +217,83 @@ class TestRasterLayerChecker(QgisTestCase):
         super().setUpClass()
         start_app()
 
-    def setUp(self):
-        """Set up test fixtures"""
-        self.mock_layer = Mock()
-        self.mock_data_provider = Mock()
-        self.mock_layer.dataProvider.return_value = self.mock_data_provider
+    def create_gdal_raster_layer(self):
+        """Create a GDAL raster layer for testing"""
+        # Create a minimal raster layer URI for GDAL provider
+        layer = QgsRasterLayer("", "test_raster", "gdal")
+        
+        # Mock the data provider to return 'gdal' as name
+        mock_provider = Mock()
+        mock_provider.name.return_value = "gdal"
+        layer.dataProvider = lambda: mock_provider
+        
+        return layer
+
+    def create_wms_layer(self, uri_params):
+        """Create a WMS raster layer with specified URI parameters"""
+        # Create WMS layer
+        layer = QgsRasterLayer("", "test_wms", "wms")
+        
+        # Mock the data provider to return 'wms' as name and custom URI
+        mock_provider = Mock()
+        mock_provider.name.return_value = "wms"
+        mock_provider.dataSourceUri.return_value = uri_params
+        layer.dataProvider = lambda: mock_provider
+        
+        return layer
 
     def test_non_wms_provider(self):
         """Test that non-WMS providers are not supported"""
-        self.mock_data_provider.name.return_value = "gdal"
+        layer = self.create_gdal_raster_layer()
 
-        is_compatible, reason = RasterLayerChecker.check(self.mock_layer)
+        is_compatible, reason = RasterLayerChecker.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")
 
     def test_wms_xyz_type(self):
         """Test WMS layer with XYZ type"""
-        self.mock_data_provider.name.return_value = "wms"
-        self.mock_data_provider.dataSourceUri.return_value = (
-            "url=http://example.com&type=xyz&param=value"
-        )
+        layer = self.create_wms_layer("url=http://example.com&type=xyz&param=value")
 
-        is_compatible, reason = RasterLayerChecker.check(self.mock_layer)
+        is_compatible, reason = RasterLayerChecker.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
 
     def test_wms_xyz_type_uppercase(self):
         """Test WMS layer with XYZ type in uppercase"""
-        self.mock_data_provider.name.return_value = "wms"
-        self.mock_data_provider.dataSourceUri.return_value = (
-            "url=http://example.com&TYPE=XYZ&param=value"
-        )
+        layer = self.create_wms_layer("url=http://example.com&TYPE=XYZ&param=value")
 
-        is_compatible, reason = RasterLayerChecker.check(self.mock_layer)
+        is_compatible, reason = RasterLayerChecker.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
 
     def test_wms_non_xyz_type(self):
         """Test WMS layer without XYZ type"""
-        self.mock_data_provider.name.return_value = "wms"
-        self.mock_data_provider.dataSourceUri.return_value = (
-            "url=http://example.com&param=value"
-        )
+        layer = self.create_wms_layer("url=http://example.com&param=value")
 
-        is_compatible, reason = RasterLayerChecker.check(self.mock_layer)
+        is_compatible, reason = RasterLayerChecker.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - only XYZ type WMS supported")
+
+    def test_wms_layer_validation_with_qgis_testing(self):
+        """Test WMS layer validation using QgisTestCase methods"""
+        # Create different types of WMS layers
+        xyz_layer = self.create_wms_layer("url=http://example.com&type=xyz")
+        non_xyz_layer = self.create_wms_layer("url=http://example.com&format=image/png")
+        
+        # Use QgisTestCase assertion methods to validate layers
+        self.assertIsNotNone(xyz_layer)
+        self.assertIsNotNone(non_xyz_layer)
+        
+        # Test compatibility
+        xyz_compatible, _ = RasterLayerChecker.check(xyz_layer)
+        non_xyz_compatible, _ = RasterLayerChecker.check(non_xyz_layer)
+        
+        self.assertTrue(xyz_compatible)
+        self.assertFalse(non_xyz_compatible)
 
 
 class TestMapLibreCompatibilityDialog(QgisTestCase):
