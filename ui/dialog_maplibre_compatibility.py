@@ -14,6 +14,7 @@ from qgis.core import (
     QgsMapLayer,
     QgsProject,
     QgsRasterLayer,
+    QgsSymbol,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -43,35 +44,53 @@ class VectorLayerChecker(LayerCompatibilityChecker):
         if provider_type != "qgishub":
             return False, " - generic vector data not supported"
 
-        return self._check_renderer_compatibility(layer)
-
-    def _check_renderer_compatibility(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
-        """Check if the layer's renderer is compatible"""
+        # Get renderer and check type
         renderer = layer.renderer()
-        if not renderer or not hasattr(renderer, "symbol") or not renderer.symbol():
+        if not renderer:
             return False, " - no renderer found"
 
+        # Only single symbol renderers are supported for now
+        renderer_type = renderer.type()
+        if renderer_type != "singleSymbol":
+            return False, f" - {renderer_type} renderer not supported"
+
+        # Get symbol from single symbol renderer
+        symbol: QgsSymbol = renderer.symbol()
+        if not symbol:
+            return False, " - no symbol found"
+
+        # Check symbol layers against geometry type
         geometry_type = layer.geometryType()
-        symbol = renderer.symbol()
-        symbol_layers = symbol.symbolLayers() if hasattr(symbol, "symbolLayers") else []
 
-        # Map geometry types to required symbol layer types
-        compatibility_map = {
-            QgsWkbTypes.PointGeometry: ("SimpleMarker", "unsupported point renderer"),
-            QgsWkbTypes.LineGeometry: ("SimpleLine", "unsupported line renderer"),
-            QgsWkbTypes.PolygonGeometry: ("SimpleFill", "unsupported polygon renderer"),
-        }
+        # Check each symbol layer class
+        for sym_layer in symbol.symbolLayers():
+            layer_type = sym_layer.layerType()
 
-        if geometry_type not in compatibility_map:
-            return False, " - unsupported geometry type"
-
-        required_type, error_msg = compatibility_map[geometry_type]
-
-        for sym_layer in symbol_layers:
-            if sym_layer.layerType() == required_type:
+            # Simple matching like the TS code
+            if (
+                geometry_type == QgsWkbTypes.PointGeometry
+                and layer_type == "SimpleMarker"
+            ):
+                return True, ""
+            elif (
+                geometry_type == QgsWkbTypes.LineGeometry and layer_type == "SimpleLine"
+            ):
+                return True, ""
+            elif (
+                geometry_type == QgsWkbTypes.PolygonGeometry
+                and layer_type == "SimpleFill"
+            ):
                 return True, ""
 
-        return False, f" - {error_msg}"
+        # Return specific error based on geometry type
+        if geometry_type == QgsWkbTypes.PointGeometry:
+            return False, " - unsupported point renderer"
+        elif geometry_type == QgsWkbTypes.LineGeometry:
+            return False, " - unsupported line renderer"
+        elif geometry_type == QgsWkbTypes.PolygonGeometry:
+            return False, " - unsupported polygon renderer"
+        else:
+            return False, " - unsupported geometry type"
 
 
 class RasterLayerChecker(LayerCompatibilityChecker):
