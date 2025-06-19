@@ -221,25 +221,42 @@ class TestRasterLayerChecker(QgisTestCase):
         """Create a GDAL raster layer for testing"""
         # Create a minimal raster layer URI for GDAL provider
         layer = QgsRasterLayer("", "test_raster", "gdal")
-        
+
         # Mock the data provider to return 'gdal' as name
         mock_provider = Mock()
         mock_provider.name.return_value = "gdal"
         layer.dataProvider = lambda: mock_provider
-        
+
         return layer
 
     def create_wms_layer(self, uri_params):
         """Create a WMS raster layer with specified URI parameters"""
         # Create WMS layer
         layer = QgsRasterLayer("", "test_wms", "wms")
-        
+
         # Mock the data provider to return 'wms' as name and custom URI
         mock_provider = Mock()
         mock_provider.name.return_value = "wms"
         mock_provider.dataSourceUri.return_value = uri_params
         layer.dataProvider = lambda: mock_provider
-        
+
+        return layer
+
+    def create_xyzvectortiles_layer(self, uri_params=None):
+        """Create an xyzvectortiles layer for testing vector tiles"""
+        # Use provided URI params or default GSI vector tile URL
+        if uri_params is None:
+            vector_tile_url = "https://cyberjapandata.gsi.go.jp/xyz/experimental_bvmap/{z}/{x}/{y}.pbf"
+            uri_params = f"url={vector_tile_url}"
+
+        layer = QgsRasterLayer("", "test_vector_tiles", "xyzvectortiles")
+
+        # Mock the data provider to return 'xyzvectortiles' as name and custom URI
+        mock_provider = Mock()
+        mock_provider.name.return_value = "xyzvectortiles"
+        mock_provider.dataSourceUri.return_value = uri_params
+        layer.dataProvider = lambda: mock_provider
+
         return layer
 
     def test_non_wms_provider(self):
@@ -278,20 +295,29 @@ class TestRasterLayerChecker(QgisTestCase):
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - only XYZ type WMS supported")
 
+    def test_xyzvectortiles_provider(self):
+        """Test that xyzvectortiles provider is not supported"""
+        layer = self.create_xyzvectortiles_layer()
+
+        is_compatible, reason = RasterLayerChecker.check(layer)
+
+        self.assertFalse(is_compatible)
+        self.assertEqual(reason, " - raster provider not supported")
+
     def test_wms_layer_validation_with_qgis_testing(self):
         """Test WMS layer validation using QgisTestCase methods"""
         # Create different types of WMS layers
         xyz_layer = self.create_wms_layer("url=http://example.com&type=xyz")
         non_xyz_layer = self.create_wms_layer("url=http://example.com&format=image/png")
-        
+
         # Use QgisTestCase assertion methods to validate layers
         self.assertIsNotNone(xyz_layer)
         self.assertIsNotNone(non_xyz_layer)
-        
+
         # Test compatibility
         xyz_compatible, _ = RasterLayerChecker.check(xyz_layer)
         non_xyz_compatible, _ = RasterLayerChecker.check(non_xyz_layer)
-        
+
         self.assertTrue(xyz_compatible)
         self.assertFalse(non_xyz_compatible)
 
