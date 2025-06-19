@@ -119,7 +119,7 @@ class MapLibreCompatibilityDialog(QDialog):
             if isinstance(map_layer, QgsVectorLayer):
                 if provider_type == "qgishub":
                     is_compatible = True
-            if isinstance(map_layer, QgsRasterLayer):
+            elif isinstance(map_layer, QgsRasterLayer):
                 if provider_type == "wms":
                     source = map_layer.dataProvider().dataSourceUri()
                     if "type=xyz" in source.lower():
