@@ -217,8 +217,13 @@ class MapLibreCompatibilityDialog(QDialog):
             provider_type = map_layer.dataProvider().name()
             layer_info = f"{layer_name} ({provider_type})"
 
-            # Use appropriate checker based on layer type
-            is_compatible, reason = self._check_layer_compatibility(map_layer)
+            # Check layer compatibility based on type
+            if isinstance(map_layer, QgsVectorLayer):
+                is_compatible, reason = self.vector_checker.check(map_layer)
+            elif isinstance(map_layer, QgsRasterLayer):
+                is_compatible, reason = self.raster_checker.check(map_layer)
+            else:
+                is_compatible, reason = False, " - unsupported layer type"
 
             if is_compatible:
                 compatible_layers.append(layer_info)
@@ -226,17 +231,3 @@ class MapLibreCompatibilityDialog(QDialog):
                 incompatible_layers.append(layer_info + reason)
 
         return compatible_layers, incompatible_layers
-
-    def _check_layer_compatibility(self, layer: QgsMapLayer) -> Tuple[bool, str]:
-        """
-        Check layer compatibility using the appropriate strategy.
-
-        Returns:
-            Tuple of (is_compatible, reason_if_not_compatible)
-        """
-        if isinstance(layer, QgsVectorLayer):
-            return self.vector_checker.check(layer)
-        elif isinstance(layer, QgsRasterLayer):
-            return self.raster_checker.check(layer)
-        else:
-            return False, " - unsupported layer type"
