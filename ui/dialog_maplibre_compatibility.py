@@ -15,6 +15,7 @@ from qgis.core import (
     QgsProject,
     QgsRasterLayer,
     QgsSymbol,
+    QgsSymbolLayer,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -34,12 +35,79 @@ class LayerCompatibilityChecker(ABC):
         pass
 
 
+class GeometrySymbolChecker(ABC):
+    """Abstract base class for geometry-specific symbol checking"""
+
+    @abstractmethod
+    def is_compatible_symbol_layer(self, symbol_layer) -> bool:
+        """Check if a symbol layer is compatible for this geometry type"""
+        pass
+
+    @abstractmethod
+    def get_error_message(self) -> str:
+        """Get the error message for incompatible symbols of this geometry type"""
+        pass
+
+
+class PointSymbolChecker(GeometrySymbolChecker):
+    """Symbol checker for point geometry"""
+
+    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
+        """Check if symbol layer is compatible with point geometry"""
+        compatible_types = {"SimpleMarker"}
+        return symbol_layer.layerType() in compatible_types
+
+    def get_error_message(self) -> str:
+        """Get error message for incompatible point symbols"""
+        return " - unsupported point renderer"
+
+
+class LineSymbolChecker(GeometrySymbolChecker):
+    """Symbol checker for line geometry"""
+
+    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
+        """Check if symbol layer is compatible with line geometry"""
+        compatible_types = {"SimpleLine"}
+        return symbol_layer.layerType() in compatible_types
+
+    def get_error_message(self) -> str:
+        """Get error message for incompatible line symbols"""
+        return " - unsupported line renderer"
+
+
+class PolygonSymbolChecker(GeometrySymbolChecker):
+    """Symbol checker for polygon geometry"""
+
+    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
+        """Check if symbol layer is compatible with polygon geometry"""
+        compatible_types = {"SimpleFill"}
+        return symbol_layer.layerType() in compatible_types
+
+    def get_error_message(self) -> str:
+        """Get error message for incompatible polygon symbols"""
+        return " - unsupported polygon renderer"
+
+
 class VectorLayerChecker(LayerCompatibilityChecker):
     """Compatibility checker for vector layers"""
+
+    def __init__(self):
+        # Initialize geometry-specific checkers
+        self.geometry_checkers = {
+            QgsWkbTypes.PointGeometry: PointSymbolChecker(),
+            QgsWkbTypes.LineGeometry: LineSymbolChecker(),
+            QgsWkbTypes.PolygonGeometry: PolygonSymbolChecker(),
+        }
 
     @staticmethod
     def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
         """Check vector layer compatibility based on provider and renderer"""
+        # Create instance to use geometry checkers
+        checker = VectorLayerChecker()
+        return checker._check_layer(layer)
+
+    def _check_layer(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+        """Internal method to check layer compatibility"""
         provider_type = layer.dataProvider().name()
 
         if provider_type != "qgishub":
@@ -60,41 +128,27 @@ class VectorLayerChecker(LayerCompatibilityChecker):
         if not symbol:
             return False, " - no symbol found"
 
-        # Check symbol layers against geometry type
+        # Get geometry-specific checker
         geometry_type = layer.geometryType()
-        symbol_layers = symbol.symbolLayers()
-
-        # Determine the required symbol layer type based on geometry
-        required_symbol_type = None
-        if geometry_type == QgsWkbTypes.PointGeometry:
-            required_symbol_type = "SimpleMarker"
-        elif geometry_type == QgsWkbTypes.LineGeometry:
-            required_symbol_type = "SimpleLine"
-        elif geometry_type == QgsWkbTypes.PolygonGeometry:
-            required_symbol_type = "SimpleFill"
-        else:
+        if geometry_type not in self.geometry_checkers:
             return False, " - unsupported geometry type"
 
-        # Check symbol layers - at least one must be a compatible simple type
+        geometry_checker: GeometrySymbolChecker = self.geometry_checkers[geometry_type]
+        symbol_layers = symbol.symbolLayers()
+
+        # Check symbol layers using geometry-specific checker
         if symbol_layers:
             has_compatible_layer = False
 
             for sym_layer in symbol_layers:
-                layer_type = sym_layer.layerType()
-                if layer_type == required_symbol_type:
+                if geometry_checker.is_compatible_symbol_layer(sym_layer):
                     has_compatible_layer = True
                     break
 
             if has_compatible_layer:
                 return True, ""
             else:
-                # No compatible symbol layers found - return specific error
-                if geometry_type == QgsWkbTypes.PointGeometry:
-                    return False, " - unsupported point renderer"
-                elif geometry_type == QgsWkbTypes.LineGeometry:
-                    return False, " - unsupported line renderer"
-                elif geometry_type == QgsWkbTypes.PolygonGeometry:
-                    return False, " - unsupported polygon renderer"
+                return False, geometry_checker.get_error_message()
 
         # No symbol layers found
         return False, " - no symbol layers found"
