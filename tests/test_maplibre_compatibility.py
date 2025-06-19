@@ -181,7 +181,7 @@ class TestVectorLayerChecker(QgisTestCase):
         self.assertEqual(reason, "")
 
     def test_multiple_symbol_layers(self):
-        """Test layer with multiple symbol layers where one is compatible"""
+        """Test layer with multiple symbol layers - should be incompatible"""
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
 
         # Create symbol with multiple layers
@@ -195,8 +195,8 @@ class TestVectorLayerChecker(QgisTestCase):
 
         is_compatible, reason = VectorLayerChecker.check(layer)
 
-        self.assertTrue(is_compatible)
-        self.assertEqual(reason, "")
+        self.assertFalse(is_compatible)
+        self.assertEqual(reason, " - multiple symbol layers not supported")
 
     def test_layer_validation_with_qgis_testing(self):
         """Test layer validation using QgisTestCase methods"""

@@ -62,10 +62,15 @@ class VectorLayerChecker(LayerCompatibilityChecker):
 
         # Check symbol layers against geometry type
         geometry_type = layer.geometryType()
+        symbol_layers = symbol.symbolLayers()
 
-        # Check each symbol layer class
-        for sym_layer in symbol.symbolLayers():
-            layer_type = sym_layer.layerType()
+        # Check if there are multiple symbol layers - not supported
+        if len(symbol_layers) > 1:
+            return False, " - multiple symbol layers not supported"
+
+        # Check single symbol layer class
+        if symbol_layers:
+            layer_type = symbol_layers[0].layerType()
 
             # Simple matching like the TS code
             if (
