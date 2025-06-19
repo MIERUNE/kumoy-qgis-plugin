@@ -2,12 +2,6 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
-# Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
-
-# Import QGIS testing framework
-# Import QGIS classes
 from qgis.core import (
     QgsCategorizedSymbolRenderer,
     QgsFillSymbol,
@@ -23,11 +17,14 @@ from qgis.core import (
 )
 from qgis.testing import QgisTestCase, start_app
 
-# Import the classes to test
 from ui.dialog_maplibre_compatibility import (
     RasterLayerChecker,
     VectorLayerChecker,
 )
+
+# Add project root to path
+# project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# sys.path.insert(0, project_root)
 
 
 class TestVectorLayerChecker(QgisTestCase):
