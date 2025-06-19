@@ -37,7 +37,8 @@ class LayerCompatibilityChecker(ABC):
 class VectorLayerChecker(LayerCompatibilityChecker):
     """Compatibility checker for vector layers"""
 
-    def check(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+    @staticmethod
+    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
         """Check vector layer compatibility based on provider and renderer"""
         provider_type = layer.dataProvider().name()
 
@@ -96,7 +97,8 @@ class VectorLayerChecker(LayerCompatibilityChecker):
 class RasterLayerChecker(LayerCompatibilityChecker):
     """Compatibility checker for raster layers"""
 
-    def check(self, layer: QgsRasterLayer) -> Tuple[bool, str]:
+    @staticmethod
+    def check(layer: QgsRasterLayer) -> Tuple[bool, str]:
         """Check raster layer compatibility based on provider and type"""
         provider_type = layer.dataProvider().name()
 
@@ -117,11 +119,6 @@ class MapLibreCompatibilityDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(self.tr("MapLibre Compatibility Check"))
         self.setMinimumSize(500, 200)
-
-        # Initialize checkers
-        self.vector_checker = VectorLayerChecker()
-        self.raster_checker = RasterLayerChecker()
-
         self._setup_ui()
         self._analyze_and_display()
 
@@ -219,9 +216,9 @@ class MapLibreCompatibilityDialog(QDialog):
 
             # Check layer compatibility based on type
             if isinstance(map_layer, QgsVectorLayer):
-                is_compatible, reason = self.vector_checker.check(map_layer)
+                is_compatible, reason = VectorLayerChecker.check(map_layer)
             elif isinstance(map_layer, QgsRasterLayer):
-                is_compatible, reason = self.raster_checker.check(map_layer)
+                is_compatible, reason = RasterLayerChecker.check(map_layer)
             else:
                 is_compatible, reason = False, " - unsupported layer type"
 
