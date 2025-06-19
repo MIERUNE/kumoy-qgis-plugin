@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
 from PyQt5.QtCore import QCoreApplication
@@ -14,154 +13,13 @@ from qgis.core import (
     QgsMapLayer,
     QgsProject,
     QgsRasterLayer,
-    QgsSymbol,
-    QgsSymbolLayer,
     QgsVectorLayer,
-    QgsWkbTypes,
 )
 
-
-class LayerCompatibilityChecker(ABC):
-    """Abstract base class for layer compatibility checking"""
-
-    @abstractmethod
-    def check(self, layer: QgsMapLayer) -> Tuple[bool, str]:
-        """
-        Check if a layer is compatible with MapLibre.
-
-        Returns:
-            Tuple of (is_compatible, reason_if_not_compatible)
-        """
-        pass
-
-
-class GeometrySymbolChecker(ABC):
-    """Abstract base class for geometry-specific symbol checking"""
-
-    @abstractmethod
-    def is_compatible_symbol_layer(self, symbol_layer) -> bool:
-        """Check if a symbol layer is compatible for this geometry type"""
-        pass
-
-    @abstractmethod
-    def get_error_message(self) -> str:
-        """Get the error message for incompatible symbols of this geometry type"""
-        pass
-
-
-class PointSymbolChecker(GeometrySymbolChecker):
-    """Symbol checker for point geometry"""
-
-    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
-        """Check if symbol layer is compatible with point geometry"""
-        compatible_types = {"SimpleMarker"}
-        return symbol_layer.layerType() in compatible_types
-
-    def get_error_message(self) -> str:
-        """Get error message for incompatible point symbols"""
-        return " - unsupported point renderer"
-
-
-class LineSymbolChecker(GeometrySymbolChecker):
-    """Symbol checker for line geometry"""
-
-    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
-        """Check if symbol layer is compatible with line geometry"""
-        compatible_types = {"SimpleLine"}
-        return symbol_layer.layerType() in compatible_types
-
-    def get_error_message(self) -> str:
-        """Get error message for incompatible line symbols"""
-        return " - unsupported line renderer"
-
-
-class PolygonSymbolChecker(GeometrySymbolChecker):
-    """Symbol checker for polygon geometry"""
-
-    def is_compatible_symbol_layer(self, symbol_layer: QgsSymbolLayer) -> bool:
-        """Check if symbol layer is compatible with polygon geometry"""
-        compatible_types = {"SimpleFill"}
-        return symbol_layer.layerType() in compatible_types
-
-    def get_error_message(self) -> str:
-        """Get error message for incompatible polygon symbols"""
-        return " - unsupported polygon renderer"
-
-
-class VectorLayerChecker(LayerCompatibilityChecker):
-    """Compatibility checker for vector layers"""
-
-    @staticmethod
-    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
-        """Internal method to check layer compatibility"""
-        geometry_checkers = {
-            QgsWkbTypes.PointGeometry: PointSymbolChecker(),
-            QgsWkbTypes.LineGeometry: LineSymbolChecker(),
-            QgsWkbTypes.PolygonGeometry: PolygonSymbolChecker(),
-        }
-
-        provider_type = layer.dataProvider().name()
-
-        if provider_type != "qgishub":
-            return False, " - generic vector data not supported"
-
-        # Get renderer and check type
-        renderer = layer.renderer()
-        if not renderer:
-            return False, " - no renderer found"
-
-        # Only single symbol renderers are supported for now
-        renderer_type = renderer.type()
-        if renderer_type != "singleSymbol":
-            return False, f" - {renderer_type} renderer not supported"
-
-        # Get symbol from single symbol renderer
-        symbol: QgsSymbol = renderer.symbol()
-        if not symbol:
-            return False, " - no symbol found"
-
-        # Get geometry-specific checker
-        geometry_type = layer.geometryType()
-        if geometry_type not in geometry_checkers:
-            return False, " - unsupported geometry type"
-
-        geometry_checker: GeometrySymbolChecker = geometry_checkers[geometry_type]
-        symbol_layers = symbol.symbolLayers()
-
-        # Check symbol layers using geometry-specific checker
-        if symbol_layers:
-            has_compatible_layer = False
-
-            for sym_layer in symbol_layers:
-                if geometry_checker.is_compatible_symbol_layer(sym_layer):
-                    has_compatible_layer = True
-                    break
-
-            if has_compatible_layer:
-                return True, ""
-            else:
-                return False, geometry_checker.get_error_message()
-
-        # No symbol layers found
-        return False, " - no symbol layers found"
-
-
-class RasterLayerChecker(LayerCompatibilityChecker):
-    """Compatibility checker for raster layers"""
-
-    @staticmethod
-    def check(layer: QgsRasterLayer) -> Tuple[bool, str]:
-        """Check raster layer compatibility based on provider and type"""
-        provider_type = layer.dataProvider().name()
-
-        if provider_type != "wms":
-            return False, " - raster provider not supported"
-
-        source = layer.dataProvider().dataSourceUri()
-        if "type=xyz" in source.lower():
-            return True, ""
-
-        return False, " - only XYZ type WMS supported"
+from qgishub.qgisproject.check.layer import (
+    RasterLayerChecker,
+    VectorLayerChecker,
+)
 
 
 class MapLibreCompatibilityDialog(QDialog):

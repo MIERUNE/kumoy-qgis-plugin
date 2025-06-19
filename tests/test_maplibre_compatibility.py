@@ -16,7 +16,7 @@ from qgis.core import (
 )
 from qgis.testing import QgisTestCase, start_app
 
-from ui.dialog_maplibre_compatibility import (
+from qgishub.qgisproject.check.layer import (
     RasterLayerChecker,
     VectorLayerChecker,
 )
