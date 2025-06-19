@@ -173,22 +173,58 @@ class TestVectorLayerChecker(QgisTestCase):
         self.assertEqual(reason, "")
 
     def test_multiple_symbol_layers(self):
-        """Test layer with multiple symbol layers - should be incompatible"""
+        """Test layer with multiple simple symbol layers - should be compatible"""
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
 
-        # Create symbol with multiple layers
+        # Create symbol with multiple compatible layers
         symbol = QgsMarkerSymbol()
         symbol.deleteSymbolLayer(0)  # Remove default layer
-        svg_layer = QgsSvgMarkerSymbolLayer("circle.svg")  # Incompatible first
-        symbol.appendSymbolLayer(svg_layer)
+        symbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayer())  # Compatible first
         symbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayer())  # Compatible second
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
         is_compatible, reason = VectorLayerChecker.check(layer)
 
+        self.assertTrue(is_compatible)
+        self.assertEqual(reason, "")
+
+    def test_mixed_symbol_layers(self):
+        """Test layer with mixed symbol layers - should be compatible if one simple exists"""
+        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+
+        # Create symbol with mixed layers (simple + non-simple)
+        symbol = QgsMarkerSymbol()
+        symbol.deleteSymbolLayer(0)  # Remove default layer
+        symbol.appendSymbolLayer(QgsSimpleMarkerSymbolLayer())  # Compatible first
+        svg_layer = QgsSvgMarkerSymbolLayer("circle.svg")  # Incompatible second
+        symbol.appendSymbolLayer(svg_layer)
+        renderer = QgsSingleSymbolRenderer(symbol)
+        layer.setRenderer(renderer)
+
+        is_compatible, reason = VectorLayerChecker.check(layer)
+
+        self.assertTrue(is_compatible)
+        self.assertEqual(reason, "")
+
+    def test_all_non_simple_symbol_layers(self):
+        """Test layer with all non-simple symbol layers - should be incompatible"""
+        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+
+        # Create symbol with only non-simple layers
+        symbol = QgsMarkerSymbol()
+        symbol.deleteSymbolLayer(0)  # Remove default layer
+        svg_layer1 = QgsSvgMarkerSymbolLayer("circle.svg")  # Incompatible first
+        svg_layer2 = QgsSvgMarkerSymbolLayer("square.svg")  # Incompatible second
+        symbol.appendSymbolLayer(svg_layer1)
+        symbol.appendSymbolLayer(svg_layer2)
+        renderer = QgsSingleSymbolRenderer(symbol)
+        layer.setRenderer(renderer)
+
+        is_compatible, reason = VectorLayerChecker.check(layer)
+
         self.assertFalse(is_compatible)
-        self.assertEqual(reason, " - multiple symbol layers not supported")
+        self.assertEqual(reason, " - unsupported point renderer")
 
     def test_layer_validation_with_qgis_testing(self):
         """Test layer validation using QgisTestCase methods"""

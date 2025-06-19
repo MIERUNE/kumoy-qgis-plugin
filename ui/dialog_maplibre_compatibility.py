@@ -64,39 +64,40 @@ class VectorLayerChecker(LayerCompatibilityChecker):
         geometry_type = layer.geometryType()
         symbol_layers = symbol.symbolLayers()
 
-        # Check if there are multiple symbol layers - not supported
-        if len(symbol_layers) > 1:
-            return False, " - multiple symbol layers not supported"
-
-        # Check single symbol layer class
-        if symbol_layers:
-            layer_type = symbol_layers[0].layerType()
-
-            # Simple matching like the TS code
-            if (
-                geometry_type == QgsWkbTypes.PointGeometry
-                and layer_type == "SimpleMarker"
-            ):
-                return True, ""
-            elif (
-                geometry_type == QgsWkbTypes.LineGeometry and layer_type == "SimpleLine"
-            ):
-                return True, ""
-            elif (
-                geometry_type == QgsWkbTypes.PolygonGeometry
-                and layer_type == "SimpleFill"
-            ):
-                return True, ""
-
-        # Return specific error based on geometry type
+        # Determine the required symbol layer type based on geometry
+        required_symbol_type = None
         if geometry_type == QgsWkbTypes.PointGeometry:
-            return False, " - unsupported point renderer"
+            required_symbol_type = "SimpleMarker"
         elif geometry_type == QgsWkbTypes.LineGeometry:
-            return False, " - unsupported line renderer"
+            required_symbol_type = "SimpleLine"
         elif geometry_type == QgsWkbTypes.PolygonGeometry:
-            return False, " - unsupported polygon renderer"
+            required_symbol_type = "SimpleFill"
         else:
             return False, " - unsupported geometry type"
+
+        # Check symbol layers - at least one must be a compatible simple type
+        if symbol_layers:
+            has_compatible_layer = False
+
+            for sym_layer in symbol_layers:
+                layer_type = sym_layer.layerType()
+                if layer_type == required_symbol_type:
+                    has_compatible_layer = True
+                    break
+
+            if has_compatible_layer:
+                return True, ""
+            else:
+                # No compatible symbol layers found - return specific error
+                if geometry_type == QgsWkbTypes.PointGeometry:
+                    return False, " - unsupported point renderer"
+                elif geometry_type == QgsWkbTypes.LineGeometry:
+                    return False, " - unsupported line renderer"
+                elif geometry_type == QgsWkbTypes.PolygonGeometry:
+                    return False, " - unsupported polygon renderer"
+
+        # No symbol layers found
+        return False, " - no symbol layers found"
 
 
 class RasterLayerChecker(LayerCompatibilityChecker):
