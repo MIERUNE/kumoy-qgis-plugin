@@ -246,7 +246,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Create an xyzvectortiles layer for testing vector tiles"""
         # Use provided URI params or default GSI vector tile URL
         if uri_params is None:
-            vector_tile_url = "https://cyberjapandata.gsi.go.jp/xyz/experimental_bvmap/{z}/{x}/{y}.pbf"
+            vector_tile_url = "type=xyz&amp;url=https://cyberjapandata.gsi.go.jp/xyz/experimental_bvmap/%7Bz%7D/%7Bx%7D/%7By%7D.pbf&amp;zmax=16&amp;zmin=0&amp;http-header:referer="
             uri_params = f"url={vector_tile_url}"
 
         layer = QgsRasterLayer("", "test_vector_tiles", "xyzvectortiles")
@@ -270,7 +270,9 @@ class TestRasterLayerChecker(QgisTestCase):
 
     def test_wms_xyz_type(self):
         """Test WMS layer with XYZ type"""
-        layer = self.create_wms_layer("url=http://example.com&type=xyz&param=value")
+        layer = self.create_wms_layer(
+            "tilePixelRatio=1&amp;type=xyz&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
+        )
 
         is_compatible, reason = RasterLayerChecker.check(layer)
 
@@ -279,7 +281,9 @@ class TestRasterLayerChecker(QgisTestCase):
 
     def test_wms_xyz_type_uppercase(self):
         """Test WMS layer with XYZ type in uppercase"""
-        layer = self.create_wms_layer("url=http://example.com&TYPE=XYZ&param=value")
+        layer = self.create_wms_layer(
+            "tilePixelRatio=1&amp;type=XYZ&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
+        )
 
         is_compatible, reason = RasterLayerChecker.check(layer)
 
@@ -303,23 +307,6 @@ class TestRasterLayerChecker(QgisTestCase):
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")
-
-    def test_wms_layer_validation_with_qgis_testing(self):
-        """Test WMS layer validation using QgisTestCase methods"""
-        # Create different types of WMS layers
-        xyz_layer = self.create_wms_layer("url=http://example.com&type=xyz")
-        non_xyz_layer = self.create_wms_layer("url=http://example.com&format=image/png")
-
-        # Use QgisTestCase assertion methods to validate layers
-        self.assertIsNotNone(xyz_layer)
-        self.assertIsNotNone(non_xyz_layer)
-
-        # Test compatibility
-        xyz_compatible, _ = RasterLayerChecker.check(xyz_layer)
-        non_xyz_compatible, _ = RasterLayerChecker.check(non_xyz_layer)
-
-        self.assertTrue(xyz_compatible)
-        self.assertFalse(non_xyz_compatible)
 
 
 class TestMapLibreCompatibilityDialog(QgisTestCase):
@@ -352,12 +339,6 @@ class TestMapLibreCompatibilityDialog(QgisTestCase):
 
             self.assertEqual(compatible, [])
             self.assertEqual(incompatible, [])
-
-    def test_analyze_mixed_layers(self):
-        """Test analyzing project with mixed compatible and incompatible layers"""
-        # This test is simplified to avoid complex mocking that causes timeout
-        # The individual checker tests already cover the functionality comprehensively
-        pass
 
 
 if __name__ == "__main__":
