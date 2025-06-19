@@ -9,7 +9,13 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
 )
-from qgis.core import QgsMapLayer, QgsProject, QgsRasterLayer, QgsVectorLayer
+from qgis.core import (
+    QgsMapLayer,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+    QgsWkbTypes,
+)
 
 
 class MapLibreCompatibilityDialog(QDialog):
@@ -112,22 +118,69 @@ class MapLibreCompatibilityDialog(QDialog):
         for map_layer in layers.values():
             layer_name = map_layer.name()
             provider_type = map_layer.dataProvider().name()
+            layer_info = f"{layer_name} ({provider_type})"
 
             # Check if layer is compatible with MapLibre based on provider type
             is_compatible = False
+            incompatibility_reason = ""
 
             if isinstance(map_layer, QgsVectorLayer):
                 if provider_type == "qgishub":
-                    is_compatible = True
+                    # Check geometry type and renderer compatibility
+                    geometry_type = map_layer.geometryType()
+                    renderer = map_layer.renderer()
+                    
+                    if renderer and hasattr(renderer, 'symbol') and renderer.symbol():
+                        symbol = renderer.symbol()
+                        symbol_layers = symbol.symbolLayers() if hasattr(symbol, 'symbolLayers') else []
+                        
+                        # Check compatibility based on geometry type and symbol layer class
+                        if geometry_type == QgsWkbTypes.PointGeometry:
+                            # For Point geometry, check for SimpleMarker
+                            for sym_layer in symbol_layers:
+                                if sym_layer.layerType() == 'SimpleMarker':
+                                    is_compatible = True
+                                    break
+                            if not is_compatible:
+                                incompatibility_reason = " - unsupported point renderer"
+                                
+                        elif geometry_type == QgsWkbTypes.LineGeometry:
+                            # For Line geometry, check for SimpleLine
+                            for sym_layer in symbol_layers:
+                                if sym_layer.layerType() == 'SimpleLine':
+                                    is_compatible = True
+                                    break
+                            if not is_compatible:
+                                incompatibility_reason = " - unsupported line renderer"
+                                
+                        elif geometry_type == QgsWkbTypes.PolygonGeometry:
+                            # For Polygon geometry, check for SimpleFill
+                            for sym_layer in symbol_layers:
+                                if sym_layer.layerType() == 'SimpleFill':
+                                    is_compatible = True
+                                    break
+                            if not is_compatible:
+                                incompatibility_reason = " - unsupported polygon renderer"
+                        else:
+                            incompatibility_reason = " - unsupported geometry type"
+                    else:
+                        incompatibility_reason = " - no renderer found"
+                else:
+                    incompatibility_reason = " - generic vector data not supported"
+                    
             elif isinstance(map_layer, QgsRasterLayer):
                 if provider_type == "wms":
                     source = map_layer.dataProvider().dataSourceUri()
                     if "type=xyz" in source.lower():
                         is_compatible = True
+                    else:
+                        incompatibility_reason = " - only XYZ type WMS supported"
+                else:
+                    incompatibility_reason = " - raster provider not supported"
 
             if is_compatible:
-                compatible_layers.append(f"{layer_name} ({provider_type})")
+                compatible_layers.append(layer_info)
             else:
-                incompatible_layers.append(f"{layer_name} ({provider_type})")
+                incompatible_layers.append(layer_info + incompatibility_reason)
 
         return compatible_layers, incompatible_layers
