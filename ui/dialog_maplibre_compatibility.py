@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
 from PyQt5.QtCore import QCoreApplication
@@ -18,6 +19,78 @@ from qgis.core import (
 )
 
 
+class LayerCompatibilityChecker(ABC):
+    """Abstract base class for layer compatibility checking"""
+
+    @abstractmethod
+    def check(self, layer: QgsMapLayer) -> Tuple[bool, str]:
+        """
+        Check if a layer is compatible with MapLibre.
+
+        Returns:
+            Tuple of (is_compatible, reason_if_not_compatible)
+        """
+        pass
+
+
+class VectorLayerChecker(LayerCompatibilityChecker):
+    """Compatibility checker for vector layers"""
+
+    def check(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+        """Check vector layer compatibility based on provider and renderer"""
+        provider_type = layer.dataProvider().name()
+
+        if provider_type != "qgishub":
+            return False, " - generic vector data not supported"
+
+        return self._check_renderer_compatibility(layer)
+
+    def _check_renderer_compatibility(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+        """Check if the layer's renderer is compatible"""
+        renderer = layer.renderer()
+        if not renderer or not hasattr(renderer, "symbol") or not renderer.symbol():
+            return False, " - no renderer found"
+
+        geometry_type = layer.geometryType()
+        symbol = renderer.symbol()
+        symbol_layers = symbol.symbolLayers() if hasattr(symbol, "symbolLayers") else []
+
+        # Map geometry types to required symbol layer types
+        compatibility_map = {
+            QgsWkbTypes.PointGeometry: ("SimpleMarker", "unsupported point renderer"),
+            QgsWkbTypes.LineGeometry: ("SimpleLine", "unsupported line renderer"),
+            QgsWkbTypes.PolygonGeometry: ("SimpleFill", "unsupported polygon renderer"),
+        }
+
+        if geometry_type not in compatibility_map:
+            return False, " - unsupported geometry type"
+
+        required_type, error_msg = compatibility_map[geometry_type]
+
+        for sym_layer in symbol_layers:
+            if sym_layer.layerType() == required_type:
+                return True, ""
+
+        return False, f" - {error_msg}"
+
+
+class RasterLayerChecker(LayerCompatibilityChecker):
+    """Compatibility checker for raster layers"""
+
+    def check(self, layer: QgsRasterLayer) -> Tuple[bool, str]:
+        """Check raster layer compatibility based on provider and type"""
+        provider_type = layer.dataProvider().name()
+
+        if provider_type != "wms":
+            return False, " - raster provider not supported"
+
+        source = layer.dataProvider().dataSourceUri()
+        if "type=xyz" in source.lower():
+            return True, ""
+
+        return False, " - only XYZ type WMS supported"
+
+
 class MapLibreCompatibilityDialog(QDialog):
     """Dialog to show MapLibre compatibility information for project layers"""
 
@@ -25,6 +98,11 @@ class MapLibreCompatibilityDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(self.tr("MapLibre Compatibility Check"))
         self.setMinimumSize(500, 200)
+
+        # Initialize checkers
+        self.vector_checker = VectorLayerChecker()
+        self.raster_checker = RasterLayerChecker()
+
         self._setup_ui()
         self._analyze_and_display()
 
@@ -120,67 +198,26 @@ class MapLibreCompatibilityDialog(QDialog):
             provider_type = map_layer.dataProvider().name()
             layer_info = f"{layer_name} ({provider_type})"
 
-            # Check if layer is compatible with MapLibre based on provider type
-            is_compatible = False
-            incompatibility_reason = ""
-
-            if isinstance(map_layer, QgsVectorLayer):
-                if provider_type == "qgishub":
-                    # Check geometry type and renderer compatibility
-                    geometry_type = map_layer.geometryType()
-                    renderer = map_layer.renderer()
-                    
-                    if renderer and hasattr(renderer, 'symbol') and renderer.symbol():
-                        symbol = renderer.symbol()
-                        symbol_layers = symbol.symbolLayers() if hasattr(symbol, 'symbolLayers') else []
-                        
-                        # Check compatibility based on geometry type and symbol layer class
-                        if geometry_type == QgsWkbTypes.PointGeometry:
-                            # For Point geometry, check for SimpleMarker
-                            for sym_layer in symbol_layers:
-                                if sym_layer.layerType() == 'SimpleMarker':
-                                    is_compatible = True
-                                    break
-                            if not is_compatible:
-                                incompatibility_reason = " - unsupported point renderer"
-                                
-                        elif geometry_type == QgsWkbTypes.LineGeometry:
-                            # For Line geometry, check for SimpleLine
-                            for sym_layer in symbol_layers:
-                                if sym_layer.layerType() == 'SimpleLine':
-                                    is_compatible = True
-                                    break
-                            if not is_compatible:
-                                incompatibility_reason = " - unsupported line renderer"
-                                
-                        elif geometry_type == QgsWkbTypes.PolygonGeometry:
-                            # For Polygon geometry, check for SimpleFill
-                            for sym_layer in symbol_layers:
-                                if sym_layer.layerType() == 'SimpleFill':
-                                    is_compatible = True
-                                    break
-                            if not is_compatible:
-                                incompatibility_reason = " - unsupported polygon renderer"
-                        else:
-                            incompatibility_reason = " - unsupported geometry type"
-                    else:
-                        incompatibility_reason = " - no renderer found"
-                else:
-                    incompatibility_reason = " - generic vector data not supported"
-                    
-            elif isinstance(map_layer, QgsRasterLayer):
-                if provider_type == "wms":
-                    source = map_layer.dataProvider().dataSourceUri()
-                    if "type=xyz" in source.lower():
-                        is_compatible = True
-                    else:
-                        incompatibility_reason = " - only XYZ type WMS supported"
-                else:
-                    incompatibility_reason = " - raster provider not supported"
+            # Use appropriate checker based on layer type
+            is_compatible, reason = self._check_layer_compatibility(map_layer)
 
             if is_compatible:
                 compatible_layers.append(layer_info)
             else:
-                incompatible_layers.append(layer_info + incompatibility_reason)
+                incompatible_layers.append(layer_info + reason)
 
         return compatible_layers, incompatible_layers
+
+    def _check_layer_compatibility(self, layer: QgsMapLayer) -> Tuple[bool, str]:
+        """
+        Check layer compatibility using the appropriate strategy.
+
+        Returns:
+            Tuple of (is_compatible, reason_if_not_compatible)
+        """
+        if isinstance(layer, QgsVectorLayer):
+            return self.vector_checker.check(layer)
+        elif isinstance(layer, QgsRasterLayer):
+            return self.raster_checker.check(layer)
+        else:
+            return False, " - unsupported layer type"
