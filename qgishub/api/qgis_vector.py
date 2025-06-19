@@ -106,19 +106,16 @@ def change_attribute_values(
         # Process QVariant values to make them JSON serializable
         processed_items = []
         for item in attribute_items:
-            processed_item = {
-                "qgishub_id": item["qgishub_id"],
-                "properties": {}
-            }
-            
+            processed_item = {"qgishub_id": item["qgishub_id"], "properties": {}}
+
             for k, v in item["properties"].items():
                 if isinstance(v, QVariant) and v.isNull():
                     processed_item["properties"][k] = None
                 else:
                     processed_item["properties"][k] = v
-            
+
             processed_items.append(processed_item)
-        
+
         ApiClient.post(
             f"/_qgis/vector/{vector_id}/change-attribute-values",
             {"attribute_items": processed_items},
@@ -126,6 +123,7 @@ def change_attribute_values(
         return True
     except Exception as e:
         import traceback
+
         error_msg = (
             f"Error changing attribute values for {len(attribute_items)} features "
             f"in vector {vector_id}: {str(e)}\n"
@@ -134,7 +132,8 @@ def change_attribute_values(
         print(error_msg)
         # Also log to QGIS message log if available
         try:
-            from qgis.core import QgsMessageLog, Qgis
+            from qgis.core import Qgis, QgsMessageLog
+
             QgsMessageLog.logMessage(error_msg, "QGISHUB", level=Qgis.Critical)
         except ImportError:
             pass
