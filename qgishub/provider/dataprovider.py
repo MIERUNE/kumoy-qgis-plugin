@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 from qgis.core import (
-    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
@@ -10,7 +9,6 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsMessageLog,
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,
@@ -250,7 +248,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 return False
         return True
 
-    def addFeatures(self, features: List[QgsFeature], flags=None):  # noqa: ARG002
+    def addFeatures(self, features: List[QgsFeature], flags=None):
         candidates: list[QgsFeature] = []
 
         for f in features:
@@ -319,21 +317,10 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         for i in range(0, total_items, MAX_FEATURES):
             chunk = attribute_items[i : i + MAX_FEATURES]
-            QgsMessageLog.logMessage(
-                f"Processing attributes chunk: {i + 1}-{min(i + len(chunk), total_items)} of {total_items}",
-                "QGISHUB",
-                level=Qgis.Info,
-            )
-
             result = api.qgis_vector.change_attribute_values(
                 vector_id=self._qgishub_vector.id, attribute_items=chunk
             )
             if not result:
-                QgsMessageLog.logMessage(
-                    f"Failed to update attributes at chunk starting from {i}",
-                    "QGISHUB",
-                    level=Qgis.Critical,
-                )
                 return False
             processed_items += len(chunk)
 
