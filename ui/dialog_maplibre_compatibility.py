@@ -91,23 +91,15 @@ class PolygonSymbolChecker(GeometrySymbolChecker):
 class VectorLayerChecker(LayerCompatibilityChecker):
     """Compatibility checker for vector layers"""
 
-    def __init__(self):
-        # Initialize geometry-specific checkers
-        self.geometry_checkers = {
+    @staticmethod
+    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
+        """Internal method to check layer compatibility"""
+        geometry_checkers = {
             QgsWkbTypes.PointGeometry: PointSymbolChecker(),
             QgsWkbTypes.LineGeometry: LineSymbolChecker(),
             QgsWkbTypes.PolygonGeometry: PolygonSymbolChecker(),
         }
 
-    @staticmethod
-    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
-        """Check vector layer compatibility based on provider and renderer"""
-        # Create instance to use geometry checkers
-        checker = VectorLayerChecker()
-        return checker._check_layer(layer)
-
-    def _check_layer(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
-        """Internal method to check layer compatibility"""
         provider_type = layer.dataProvider().name()
 
         if provider_type != "qgishub":
@@ -130,10 +122,10 @@ class VectorLayerChecker(LayerCompatibilityChecker):
 
         # Get geometry-specific checker
         geometry_type = layer.geometryType()
-        if geometry_type not in self.geometry_checkers:
+        if geometry_type not in geometry_checkers:
             return False, " - unsupported geometry type"
 
-        geometry_checker: GeometrySymbolChecker = self.geometry_checkers[geometry_type]
+        geometry_checker: GeometrySymbolChecker = geometry_checkers[geometry_type]
         symbol_layers = symbol.symbolLayers()
 
         # Check symbol layers using geometry-specific checker
