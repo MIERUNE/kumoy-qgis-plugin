@@ -13,7 +13,12 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QVBoxLayout,
 )
-from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsDataItem,
+    QgsMessageLog,
+    QgsProject,
+)
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
@@ -25,6 +30,7 @@ from ..qgishub.api.project_styledmap import (
 )
 from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
+from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
 
 
@@ -312,10 +318,18 @@ class StyledMapRoot(QgsDataItem):
             if result:
                 # 値を取得（タイトルと公開設定のみ）
                 name = name_field.text()
-                # QGISプロジェクト情報はバックグラウンドで取得
-                qgisproject = get_qgisproject_str()
 
                 if name:
+                    # Show MapLibre compatibility dialog before saving
+                    compatibility_dialog = MapLibreCompatibilityDialog()
+                    result = compatibility_dialog.exec_()
+
+                    if not result:
+                        return  # User cancelled after seeing compatibility info
+
+                    # QGISプロジェクト情報はバックグラウンドで取得
+                    qgisproject = get_qgisproject_str()
+
                     settings = SettingsManager()
                     project_id = settings.get_setting("selected_project_id")
 
@@ -394,7 +408,7 @@ def get_qgisproject_str() -> str:
         with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()
     finally:
-        _delete_tempfile(tmp_path)
+        delete_tempfile(tmp_path)
 
 
 def load_project_from_xml(xml_string: str) -> bool:
@@ -409,10 +423,10 @@ def load_project_from_xml(xml_string: str) -> bool:
         res = project.read(tmp_path)
         return res
     finally:
-        _delete_tempfile(tmp_path)
+        delete_tempfile(tmp_path)
 
 
-def _delete_tempfile(tmp_path: str):
+def delete_tempfile(tmp_path: str):
     if os.path.exists(tmp_path):
         os.remove(tmp_path)
         QgsMessageLog.logMessage(

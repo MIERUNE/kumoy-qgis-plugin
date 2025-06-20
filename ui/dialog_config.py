@@ -15,8 +15,8 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 from qgis.utils import iface
 
+from ..qgishub.api import config
 from ..qgishub.auth_manager import AuthManager
-from ..qgishub.config import config
 from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
 
@@ -256,9 +256,6 @@ class DialogConfig(QDialog):
         )
         settings_manager.store_setting("custom_server_url", custom_server_url)
 
-        # 設定を保存した後、configを更新
-        config.load_settings()
-
     def load_server_settings(self):
         """保存されたサーバー設定を読み込む"""
         settings_manager = SettingsManager()
@@ -307,12 +304,6 @@ class DialogConfig(QDialog):
 
     def check_and_show_project_selection(self):
         """Check if project is selected and show project selection dialog if needed"""
-        settings = SettingsManager()
-        project_id = settings.get_setting("selected_project_id")
-
-        if project_id:
-            return
-
         QgsMessageLog.logMessage(
             "Project not selected, showing project selection dialog",
             LOG_CATEGORY,

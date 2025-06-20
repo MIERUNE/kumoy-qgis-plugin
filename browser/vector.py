@@ -18,8 +18,7 @@ from ..qgishub.api.project_vector import (
     QgishubVector,
     UpdateVectorOptions,
 )
-from ..qgishub.config import config as qgishub_config
-from ..qgishub.constants import LOG_CATEGORY
+from ..qgishub.constants import LOG_CATEGORY, PLUGIN_NAME
 from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from .utils import ErrorItem
@@ -84,23 +83,19 @@ class VectorItem(QgsDataItem):
 
     def add_to_map(self):
         """Add vector layer to QGIS map"""
-        try:
-            # Create URI
-            uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={qgishub_config.API_URL}"
-            # Create layer
-            layer = QgsVectorLayer(uri, self.vector.name, "qgishub")
+        config = api.config.get_api_config()
+        # Create URI
+        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
+        # Create layer
+        layer_name = f"{PLUGIN_NAME} - {self.vector.name}"
+        layer = QgsVectorLayer(uri, layer_name, "qgishub")
 
-            if layer.isValid():
-                # Add layer to map
-                QgsProject.instance().addMapLayer(layer)
-            else:
-                QgsMessageLog.logMessage(
-                    f"Layer is invalid: {uri}", LOG_CATEGORY, Qgis.Critical
-                )
-
-        except Exception as e:
+        if layer.isValid():
+            # Add layer to map
+            QgsProject.instance().addMapLayer(layer)
+        else:
             QgsMessageLog.logMessage(
-                f"Error adding vector to map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Layer is invalid: {uri}", LOG_CATEGORY, Qgis.Critical
             )
 
     def handleDoubleClick(self):
