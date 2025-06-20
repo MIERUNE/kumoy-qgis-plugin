@@ -22,6 +22,7 @@ from qgis.core import (
 
 from ...qgishub import api
 from ...qgishub.get_token import get_token
+from ...qgishub.usecase import check_plan
 from ...settings_manager import SettingsManager
 from ..feature_uploader import FeatureUploader
 from ..field_name_normalizer import FieldNameNormalizer
@@ -40,7 +41,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def tr(self, string: str) -> str:
         """Translate string"""
-        return QCoreApplication.translate("Processing", string)
+        return QCoreApplication.translate("UploadVectorAlgorithm", string)
 
     def createInstance(self) -> "UploadVectorAlgorithm":
         """Create new instance of algorithm"""
@@ -184,15 +185,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Get vector name
             vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
 
-            # Check authentication
-            self._check_authentication()
-
             project = api.project.get_project(project_id)
             organization = api.organization.get_organization(project.organizationId)
             plan_limits = api.plan.get_plan_limits(organization.plan)
 
             # Check vector count limit early
-            self._check_vector_count_limit(project_id, plan_limits.maxVectors)
+            current_vectors = api.project_vector.get_vectors(project_id)
+            current_vector_count = len(current_vectors)
+            if not check_plan.check_vector_count_limit(
+                current_vector_count, plan_limits.maxVectors
+            ):
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. Your plan allows up to {} vectors per project, "
+                        "but you already have {} vectors."
+                    ).format(plan_limits.maxVectors, current_vector_count)
+                )
 
             # Use layer name if vector name not provided
             if not vector_name:
@@ -208,18 +216,30 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Check feature count limit
             proc_feature_count = processed_layer.featureCount()
-            self._check_feature_count_limit(
+            if not check_plan.check_feature_count_limit(
                 proc_feature_count, plan_limits.maxVectorFeatures
-            )
+            ):
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} features, "
+                        "but your plan allows up to {} features per vector."
+                    ).format(proc_feature_count, plan_limits.maxVectorFeatures)
+                )
 
             # Setup field name normalization
             normalizer = FieldNameNormalizer(processed_layer, feedback)
 
             # Check attribute count limit after normalization
             proc_layer_field_count = len(normalizer.columns)
-            self._check_attribute_count_limit(
+            if not check_plan.check_attribute_count_limit(
                 proc_layer_field_count, plan_limits.maxVectorAttributes
-            )
+            ):
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} attributes, "
+                        "but your plan allows up to {} attributes per vector."
+                    ).format(proc_layer_field_count, plan_limits.maxVectorAttributes)
+                )
 
             # Create vector in STRATO
             creator = VectorCreator(feedback)
@@ -233,7 +253,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             uploaded_feature_count = uploader.upload_layer(processed_layer)
 
             feedback.pushInfo(
-                self.tr(f"Upload complete: {uploaded_feature_count} features")
+                self.tr("Upload complete: {} features").format(uploaded_feature_count)
             )
 
             return {"VECTOR_ID": vector_id}
@@ -250,85 +270,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         )
                 except Exception as delete_error:
                     feedback.reportError(
-                        self.tr(
-                            f"Failed to clean up incomplete vector: {str(delete_error)}"
+                        self.tr("Failed to clean up incomplete vector: {}").format(
+                            str(delete_error)
                         )
                     )
 
             # Re-raise the original exception
             raise
-
-    def _check_authentication(self) -> None:
-        """Check if user is authenticated"""
-        token = get_token()
-        if not token:
-            raise QgsProcessingException(
-                self.tr("Authentication required. Please login from plugin settings.")
-            )
-
-    def _check_vector_count_limit(self, project_id: str, plan_max_vectors: int) -> None:
-        """Check if adding one more vector would exceed plan limit"""
-        try:
-            # Get current vectors count in the project
-            current_vectors = api.project_vector.get_vectors(project_id)
-            current_vector_count = len(current_vectors)
-
-            # Check if adding one more vector would exceed limit
-            if current_vector_count >= plan_max_vectors:
-                raise QgsProcessingException(
-                    self.tr(
-                        f"Cannot upload vector. Your plan allows up to {plan_max_vectors} vectors, "
-                        f"but this project already has {current_vector_count} vectors."
-                    )
-                )
-        except Exception as e:
-            # Log error but don't block upload for other errors
-            raise QgsProcessingException(
-                self.tr(
-                    f"Error checking vector count limit:\n {str(e)} "
-                    "\nPlease check your plan limits in the STRATO dashboard."
-                )
-            ) from e
-
-    def _check_feature_count_limit(
-        self, feature_count: int, plan_max_features: int
-    ) -> None:
-        """Check if layer feature count would exceed plan limit"""
-        try:
-            if feature_count > plan_max_features:
-                raise QgsProcessingException(
-                    self.tr(
-                        f"Cannot upload vector. The layer has {feature_count:,} features, "
-                        f"but your plan allows up to {plan_max_features:,} features per vector."
-                    )
-                )
-        except Exception as e:
-            raise QgsProcessingException(
-                self.tr(
-                    f"Error checking feature count limit:\n {str(e)} "
-                    "\nPlease check your plan limits in the STRATO dashboard."
-                )
-            ) from e
-
-    def _check_attribute_count_limit(
-        self, layer_field_count: int, plan_max_attributes: int
-    ) -> None:
-        """Check if layer attribute count would exceed plan limit"""
-        try:
-            if layer_field_count > plan_max_attributes:
-                raise QgsProcessingException(
-                    self.tr(
-                        f"Cannot upload vector. After field normalization, the layer has {layer_field_count} attributes, "
-                        f"but your plan allows up to {plan_max_attributes} attributes per vector."
-                    )
-                )
-        except Exception as e:
-            raise QgsProcessingException(
-                self.tr(
-                    f"Error checking attribute count limit:\n {str(e)} "
-                    "\nPlease check your plan limits in the STRATO dashboard."
-                )
-            ) from e
 
     def _get_geometry_type(self, layer: QgsVectorLayer) -> Tuple[str, bool]:
         """Determine geometry type and check for multipart"""
@@ -394,7 +342,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             processing_steps.append(self.tr("Converting multipart to singlepart"))
         if needs_reprojection:
             processing_steps.append(
-                self.tr(f"Reprojecting from {source_crs.authid()} to EPSG:4326")
+                self.tr("Reprojecting from {} to EPSG:4326").format(source_crs.authid())
             )
 
         feedback.pushInfo(self.tr("Processing layer: ") + ", ".join(processing_steps))
@@ -515,22 +463,24 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback.setProgress(progress)
 
         feedback.pushInfo(
-            self.tr(
-                f"Geometry processing completed: {features_processed} features processed"
+            self.tr("Geometry processing completed: {} features processed").format(
+                features_processed
             )
         )
         if fixed_geometries > 0:
-            feedback.pushInfo(self.tr(f"Fixed {fixed_geometries} invalid geometries"))
+            feedback.pushInfo(
+                self.tr("Fixed {} invalid geometries").format(fixed_geometries)
+            )
         if invalid_geometries > 0:
             feedback.reportError(
-                self.tr(
-                    f"Skipped {invalid_geometries} features with unfixable geometries"
+                self.tr("Skipped {} features with unfixable geometries").format(
+                    invalid_geometries
                 )
             )
         if wrong_geometry_type > 0:
             feedback.reportError(
-                self.tr(
-                    f"Skipped {wrong_geometry_type} features with wrong geometry type"
+                self.tr("Skipped {} features with wrong geometry type").format(
+                    wrong_geometry_type
                 )
             )
 

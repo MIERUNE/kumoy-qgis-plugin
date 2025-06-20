@@ -32,7 +32,7 @@ qgis-plugin/
 # qgis_hub.pro のSOURCESセクションに新しいファイルを追加
 
 # 翻訳ファイルを更新
-/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main i18n/strato_ja.ts
+/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main strato.pro
 ```
 
 ### 2. 翻訳の追加・編集
