@@ -1,6 +1,5 @@
 import os
 import tempfile
-from typing import Dict
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
@@ -10,20 +9,15 @@ from PyQt5.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QLabel,
     QLineEdit,
     QMessageBox,
-    QScrollArea,
     QVBoxLayout,
 )
 from qgis.core import (
     Qgis,
     QgsDataItem,
-    QgsMapLayer,
     QgsMessageLog,
     QgsProject,
-    QgsRasterLayer,
-    QgsVectorLayer,
 )
 from qgis.utils import iface
 
@@ -36,6 +30,7 @@ from ..qgishub.api.project_styledmap import (
 )
 from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
+from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
 
 
@@ -326,7 +321,10 @@ class StyledMapRoot(QgsDataItem):
 
                 if name:
                     # Show MapLibre compatibility dialog before saving
-                    if not self.show_maplibre_compatibility_dialog():
+                    compatibility_dialog = MapLibreCompatibilityDialog()
+                    result = compatibility_dialog.exec_()
+
+                    if not result:
                         return  # User cancelled after seeing compatibility info
 
                     # QGISプロジェクト情報はバックグラウンドで取得
@@ -397,75 +395,6 @@ class StyledMapRoot(QgsDataItem):
         except Exception as e:
             return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
 
-    def show_maplibre_compatibility_dialog(self):
-        """Show dialog with MapLibre compatibility information"""
-        compatible_layers, incompatible_layers = analyze_layer_maplibre_compatibility()
-
-        if not compatible_layers and not incompatible_layers:
-            QMessageBox.information(
-                None,
-                self.tr("Layer Compatibility"),
-                self.tr("No layers found in the current project."),
-            )
-            return True
-
-        # Create HTML message with colored text
-        html_parts = []
-        html_parts.append(
-            f"<b>{self.tr('Layer compatibility analysis for MapLibre:')}</b><br><br>"
-        )
-
-        if compatible_layers:
-            html_parts.append(f"<b>{self.tr('MapLibre Compatible Layers:')}</b><br>")
-            for layer in compatible_layers:
-                html_parts.append(f"<span style='color: green;'>✓ {layer}</span><br>")
-            html_parts.append("<br>")
-
-        if incompatible_layers:
-            html_parts.append(f"<b>{self.tr('MapLibre Incompatible Layers:')}</b><br>")
-            for layer in incompatible_layers:
-                html_parts.append(f"<span style='color: red;'>✗ {layer}</span><br>")
-            html_parts.append("<br>")
-
-        html_parts.append(f"<b>{self.tr('Note:')}</b><br>")
-        html_parts.append(
-            f"• {self.tr('Web display: Only MapLibre Compatible Layers will be shown')}<br>"
-        )
-        html_parts.append(
-            f"• {self.tr('Local QGIS: All layers will be fully restored with complete configuration')}"
-        )
-
-        # Create custom dialog with colored HTML text
-        dialog = QDialog()
-        dialog.setWindowTitle(self.tr("MapLibre Compatibility Check"))
-        dialog.setMinimumSize(500, 200)
-
-        layout = QVBoxLayout()
-
-        # Create label with HTML content
-        label = QLabel()
-        label.setTextFormat(1)  # RichText format
-        label.setText("".join(html_parts))
-        label.setWordWrap(True)
-
-        # Add scroll area in case content is long
-        scroll_area = QScrollArea()
-        scroll_area.setWidget(label)
-        scroll_area.setWidgetResizable(True)
-
-        layout.addWidget(scroll_area)
-
-        # Add buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
-        layout.addWidget(button_box)
-
-        dialog.setLayout(layout)
-
-        result = dialog.exec_()
-        return result == QDialog.Accepted
-
 
 def get_qgisproject_str() -> str:
     with tempfile.NamedTemporaryFile(
@@ -507,35 +436,3 @@ def delete_tempfile(tmp_path: str):
         QgsMessageLog.logMessage(
             f"Temporary file {tmp_path} does not exist.", LOG_CATEGORY, Qgis.Warning
         )
-
-
-def analyze_layer_maplibre_compatibility():
-    """Analyze current QGIS project layers for MapLibre compatibility"""
-    project = QgsProject.instance()
-    layers: Dict[str, QgsMapLayer] = project.mapLayers()
-
-    compatible_layers = []
-    incompatible_layers = []
-
-    for map_layer in layers.values():
-        layer_name = map_layer.name()
-        provider_type = map_layer.dataProvider().name()
-
-        # Check if layer is compatible with MapLibre based on provider type
-        is_compatible = False
-
-        if isinstance(map_layer, QgsVectorLayer):
-            if provider_type == "qgishub":
-                is_compatible = True
-        if isinstance(map_layer, QgsRasterLayer):
-            if provider_type == "wms":
-                source = map_layer.dataProvider().dataSourceUri()
-                if "type=xyz" in source.lower():
-                    is_compatible = True
-
-        if is_compatible:
-            compatible_layers.append(f"{layer_name} ({provider_type})")
-        else:
-            incompatible_layers.append(f"{layer_name} ({provider_type})")
-
-    return compatible_layers, incompatible_layers

@@ -1,5 +1,6 @@
 from . import (
     auth,
+    config,
     layer,
     organization,
     plan,

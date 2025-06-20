@@ -3,11 +3,7 @@ import urllib.parse
 import urllib.request
 from typing import Dict, Optional
 
-from PyQt5.QtCore import QEventLoop, QJsonDocument, QTextStream, QUrl
-from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
-from qgis.core import QgsNetworkAccessManager
-
-from ..config import config as qgishub_config
+from . import config as api_config
 
 
 def refresh_token(refresh_token: str) -> Optional[Dict]:
@@ -23,14 +19,16 @@ def refresh_token(refresh_token: str) -> Optional[Dict]:
     if not refresh_token:
         return None
 
+    config = api_config.get_api_config()
+
     try:
         # Cognitoのトークンエンドポイントを使用
-        token_url = f"{qgishub_config.COGNITO_URL}/oauth2/token"
+        token_url = f"{config.COGNITO_URL}/oauth2/token"
 
         # リクエストデータを準備
         data = {
             "grant_type": "refresh_token",
-            "client_id": qgishub_config.COGNITO_CLIENT_ID,
+            "client_id": config.COGNITO_CLIENT_ID,
             "refresh_token": refresh_token,
         }
         encoded_data = urllib.parse.urlencode(data).encode("utf-8")
