@@ -87,6 +87,7 @@ class VectorItem(QgsDataItem):
         # Create URI
         uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
         # Create layer
+        layer_name = f"{PLUGIN_NAME} - {self.vector.name}"
         layer = QgsVectorLayer(uri, layer_name, "qgishub")
 
         if layer.isValid():
