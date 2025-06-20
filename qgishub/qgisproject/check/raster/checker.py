@@ -8,7 +8,8 @@ from ..base import BaseCompatibilityChecker
 class RasterLayerChecker(BaseCompatibilityChecker):
     """Compatibility checker for raster layers"""
 
-    def check(self, layer: QgsRasterLayer) -> Tuple[bool, str]:
+    @staticmethod
+    def check(layer: QgsRasterLayer) -> Tuple[bool, str]:
         """Check if a raster layer is compatible with MapLibre"""
         provider_type = layer.dataProvider().name()
 

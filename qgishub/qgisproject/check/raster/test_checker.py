@@ -61,7 +61,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test that non-WMS providers are not supported"""
         layer = self.create_gdal_raster_layer()
 
-        is_compatible, reason = CompatibilityChecker.raster().check(layer)
+        is_compatible, reason = CompatibilityChecker.raster.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")
@@ -72,7 +72,7 @@ class TestRasterLayerChecker(QgisTestCase):
             "tilePixelRatio=1&amp;type=xyz&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
         )
 
-        is_compatible, reason = CompatibilityChecker.raster().check(layer)
+        is_compatible, reason = CompatibilityChecker.raster.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -83,7 +83,7 @@ class TestRasterLayerChecker(QgisTestCase):
             "tilePixelRatio=1&amp;type=XYZ&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
         )
 
-        is_compatible, reason = CompatibilityChecker.raster().check(layer)
+        is_compatible, reason = CompatibilityChecker.raster.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -92,7 +92,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test WMS layer without XYZ type"""
         layer = self.create_wms_layer("url=http://example.com&param=value")
 
-        is_compatible, reason = CompatibilityChecker.raster().check(layer)
+        is_compatible, reason = CompatibilityChecker.raster.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - only XYZ type WMS supported")
@@ -101,7 +101,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test that xyzvectortiles provider is not supported"""
         layer = self.create_xyzvectortiles_layer()
 
-        is_compatible, reason = CompatibilityChecker.raster().check(layer)
+        is_compatible, reason = CompatibilityChecker.raster.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")

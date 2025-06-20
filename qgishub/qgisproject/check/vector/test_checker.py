@@ -101,7 +101,7 @@ class TestVectorLayerChecker(QgisTestCase):
         """Test that non-qgishub providers are not supported"""
         layer = self.create_memory_layer(QgsWkbTypes.PointGeometry)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - generic vector data not supported")
@@ -111,7 +111,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         layer.setRenderer(None)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - no renderer found")
@@ -121,7 +121,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_categorized_renderer(layer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - categorizedSymbol renderer not supported")
@@ -131,7 +131,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_simple_marker_renderer(layer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -141,7 +141,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_svg_marker_renderer(layer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - unsupported point renderer")
@@ -151,7 +151,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.LineGeometry)
         self.set_simple_line_renderer(layer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -161,7 +161,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PolygonGeometry)
         self.set_simple_fill_renderer(layer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -178,7 +178,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -196,7 +196,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -215,7 +215,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = CompatibilityChecker.vector().check(layer)
+        is_compatible, reason = CompatibilityChecker.vector.check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - unsupported point renderer")

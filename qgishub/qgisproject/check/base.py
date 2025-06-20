@@ -7,8 +7,9 @@ from qgis.core import QgsMapLayer
 class BaseCompatibilityChecker(ABC):
     """Abstract base class for all compatibility checkers"""
 
+    @staticmethod
     @abstractmethod
-    def check(self, layer: QgsMapLayer) -> Tuple[bool, str]:
+    def check(layer: QgsMapLayer) -> Tuple[bool, str]:
         """
         Check if a layer is compatible.
 

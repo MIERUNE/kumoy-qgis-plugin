@@ -14,7 +14,8 @@ from .symbol import (
 class VectorLayerChecker(BaseCompatibilityChecker):
     """Compatibility checker for vector layers"""
 
-    def check(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+    @staticmethod
+    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
         """Check if a vector layer is compatible with MapLibre"""
         geometry_checkers = {
             QgsWkbTypes.PointGeometry: PointSymbolChecker(),
