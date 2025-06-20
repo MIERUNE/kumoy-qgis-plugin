@@ -17,9 +17,16 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 
 from .. import api
-from ..constants import DATA_PROVIDER_DESCRIPTION, DATA_PROVIDER_KEY
+from ..constants import (
+    DATA_PROVIDER_DESCRIPTION,
+    DATA_PROVIDER_KEY,
+)
 from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
+
+ADD_MAX_FEATURE_COUNT = 1000
+UPDATE_MAX_FEATURE_COUNT = 1000
+DELETE_MAX_FEATURE_COUNT = 1000
 
 
 def parse_uri(
@@ -177,7 +184,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
             else:
                 data_type = QVariant.Bool
 
-            f = QgsField(name=k, type=data_type, len=len)
+            f = QgsField(k, data_type)
+            if len > 0:
+                f.setLength(len)
             fs.append(f)
         return fs
 
@@ -237,7 +246,12 @@ class QgishubDataProvider(QgsVectorDataProvider):
         )
 
     def deleteFeatures(self, qgishub_ids: list[int]) -> bool:
-        api.qgis_vector.delete_features(self._qgishub_vector.id, qgishub_ids)
+        # Process in chunks of 1000 to avoid server limits
+        for i in range(0, len(qgishub_ids), DELETE_MAX_FEATURE_COUNT):
+            chunk = qgishub_ids[i : i + DELETE_MAX_FEATURE_COUNT]
+            success = api.qgis_vector.delete_features(self._qgishub_vector.id, chunk)
+            if not success:
+                return False
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
@@ -267,12 +281,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
             return True, []
 
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
-        MAX_FEATURES = 1000  # FIXME: この手のパラメータは一括管理したい
-        for i in range(1 + len(candidates) // MAX_FEATURES):
-            sliced = candidates[i * MAX_FEATURES : (i + 1) * MAX_FEATURES]
+        for i in range(0, len(candidates), ADD_MAX_FEATURE_COUNT):
+            sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
             succeeded = api.qgis_vector.add_features(self._qgishub_vector.id, sliced)
             if not succeeded:
-                return False, candidates[0 : i * MAX_FEATURES]
+                return False, candidates[0:i]
 
         # reload
         self._qgishub_vector = api.project_vector.get_vector(
@@ -302,12 +315,18 @@ class QgishubDataProvider(QgsVectorDataProvider):
         if not attribute_items:
             return True
 
-        result = api.qgis_vector.change_attribute_values(
-            vector_id=self._qgishub_vector.id, attribute_items=attribute_items
-        )
+        # Process in chunks of 1000 to avoid server limits
+        total_items = len(attribute_items)
+        processed_items = 0
 
-        if not result:
-            return False
+        for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
+            chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
+            result = api.qgis_vector.change_attribute_values(
+                vector_id=self._qgishub_vector.id, attribute_items=chunk
+            )
+            if not result:
+                return False
+            processed_items += len(chunk)
 
         # reload
         self._qgishub_vector = api.project_vector.get_vector(
@@ -323,12 +342,14 @@ class QgishubDataProvider(QgsVectorDataProvider):
             for feature_id, geometry in geometry_map.items()
         ]
 
-        result = api.qgis_vector.change_geometry_values(
-            vector_id=self._qgishub_vector.id, geometry_items=geometry_items
-        )
-
-        if not result:
-            return False
+        # Process in chunks of 1000 to avoid server limits
+        for i in range(0, len(geometry_items), UPDATE_MAX_FEATURE_COUNT):
+            chunk = geometry_items[i : i + UPDATE_MAX_FEATURE_COUNT]
+            result = api.qgis_vector.change_geometry_values(
+                vector_id=self._qgishub_vector.id, geometry_items=chunk
+            )
+            if not result:
+                return False
 
         # reload
         self._qgishub_vector = api.project_vector.get_vector(
