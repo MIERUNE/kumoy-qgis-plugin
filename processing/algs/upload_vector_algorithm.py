@@ -191,15 +191,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Check vector count limit early
             current_vectors = api.project_vector.get_vectors(project_id)
-            current_vector_count = len(current_vectors)
-            if not check_plan.check_vector_count_limit(
-                current_vector_count, plan_limits.maxVectors
-            ):
+            upload_vector_count = len(current_vectors) + 1
+            if not check_plan.count_limit(upload_vector_count, plan_limits.maxVectors):
                 raise QgsProcessingException(
                     self.tr(
                         "Cannot upload vector. Your plan allows up to {} vectors per project, "
                         "but you already have {} vectors."
-                    ).format(plan_limits.maxVectors, current_vector_count)
+                    ).format(plan_limits.maxVectors, upload_vector_count)
                 )
 
             # Use layer name if vector name not provided
@@ -216,7 +214,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Check feature count limit
             proc_feature_count = processed_layer.featureCount()
-            if not check_plan.check_feature_count_limit(
+            if not check_plan.count_limit(
                 proc_feature_count, plan_limits.maxVectorFeatures
             ):
                 raise QgsProcessingException(
@@ -231,7 +229,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Check attribute count limit after normalization
             proc_layer_field_count = len(normalizer.columns)
-            if not check_plan.check_attribute_count_limit(
+            if not check_plan.count_limit(
                 proc_layer_field_count, plan_limits.maxVectorAttributes
             ):
                 raise QgsProcessingException(

@@ -34,25 +34,8 @@ def get_plan_limits(project_id: str) -> Optional[api.plan.PlanLimits]:
     return api.plan.get_plan_limits(organization.plan)
 
 
-def check_vector_count_limit(current_vector_count: int, plan_max_vectors: int) -> bool:
-    """Check if adding one more vector would exceed plan limit"""
-    # Check if adding one more vector would exceed limit
-    if current_vector_count >= plan_max_vectors:
-        return False
-    return True
-
-
-def check_feature_count_limit(feature_count: int, plan_max_features: int) -> bool:
-    """Check if layer feature count would exceed plan limit"""
-    if feature_count > plan_max_features:
-        return False
-    return True
-
-
-def check_attribute_count_limit(
-    layer_field_count: int, plan_max_attributes: int
-) -> bool:
-    """Check if layer attribute count would exceed plan limit"""
-    if layer_field_count > plan_max_attributes:
+def count_limit(current_count: int, plan_max_count: int) -> bool:
+    """Check if current count exceeds plan limit"""
+    if current_count > plan_max_count:
         return False
     return True
