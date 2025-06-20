@@ -29,6 +29,7 @@ from ..qgishub.api.project_styledmap import (
     UpdateStyledMapOptions,
 )
 from ..qgishub.constants import LOG_CATEGORY
+from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
@@ -286,6 +287,33 @@ class StyledMapRoot(QgsDataItem):
     def add_styled_map(self):
         """新しいスタイルマップを追加する"""
         try:
+            settings = SettingsManager()
+            project_id = settings.get_setting("selected_project_id")
+
+            if not project_id:
+                QMessageBox.critical(
+                    None, self.tr("Error"), self.tr("No project selected.")
+                )
+                return
+
+            # Check plan limits before creating styled map
+            plan_limit = check_plan.get_plan_limits(project_id)
+            if plan_limit:
+                current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+                current_styled_map_count = len(current_styled_maps) + 1
+                if not check_plan.count_limit(
+                    current_styled_map_count, plan_limit.maxStyledMaps
+                ):
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr(
+                            "Cannot create new map. Your plan allows up to {} maps, "
+                            "but you have reached the limit."
+                        ).format(plan_limit.maxStyledMaps),
+                    )
+                    return
+
             # ダイアログ作成
             dialog = QDialog()
             dialog.setWindowTitle(self.tr("Add Map"))
@@ -329,15 +357,6 @@ class StyledMapRoot(QgsDataItem):
 
                     # QGISプロジェクト情報はバックグラウンドで取得
                     qgisproject = get_qgisproject_str()
-
-                    settings = SettingsManager()
-                    project_id = settings.get_setting("selected_project_id")
-
-                    if not project_id:
-                        QMessageBox.critical(
-                            None, self.tr("Error"), self.tr("No project selected.")
-                        )
-                        return
 
                     # スタイルマップ作成
                     new_styled_map = api.project_styledmap.add_styled_map(
