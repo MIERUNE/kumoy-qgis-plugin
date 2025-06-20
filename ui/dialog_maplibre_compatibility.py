@@ -9,7 +9,14 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
 )
-from qgis.core import QgsMapLayer, QgsProject, QgsRasterLayer, QgsVectorLayer
+from qgis.core import (
+    QgsMapLayer,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
+
+from ..qgishub.qgisproject.check import CompatibilityChecker
 
 
 class MapLibreCompatibilityDialog(QDialog):
@@ -112,22 +119,19 @@ class MapLibreCompatibilityDialog(QDialog):
         for map_layer in layers.values():
             layer_name = map_layer.name()
             provider_type = map_layer.dataProvider().name()
+            layer_info = f"{layer_name} ({provider_type})"
 
-            # Check if layer is compatible with MapLibre based on provider type
-            is_compatible = False
-
+            # Check layer compatibility based on type
             if isinstance(map_layer, QgsVectorLayer):
-                if provider_type == "qgishub":
-                    is_compatible = True
+                is_compatible, reason = CompatibilityChecker.vector.check(map_layer)
             elif isinstance(map_layer, QgsRasterLayer):
-                if provider_type == "wms":
-                    source = map_layer.dataProvider().dataSourceUri()
-                    if "type=xyz" in source.lower():
-                        is_compatible = True
+                is_compatible, reason = CompatibilityChecker.raster.check(map_layer)
+            else:
+                is_compatible, reason = False, " - unsupported layer type"
 
             if is_compatible:
-                compatible_layers.append(f"{layer_name} ({provider_type})")
+                compatible_layers.append(layer_info)
             else:
-                incompatible_layers.append(f"{layer_name} ({provider_type})")
+                incompatible_layers.append(layer_info + reason)
 
         return compatible_layers, incompatible_layers
