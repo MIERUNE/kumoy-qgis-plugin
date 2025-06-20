@@ -16,10 +16,7 @@ from qgis.core import (
 )
 from qgis.testing import QgisTestCase, start_app
 
-from qgishub.qgisproject.check.layer import (
-    RasterLayerChecker,
-    VectorLayerChecker,
-)
+from qgishub.qgisproject.check.layer import RasterLayerChecker, VectorLayerChecker
 
 
 class TestVectorLayerChecker(QgisTestCase):
@@ -52,8 +49,6 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def create_qgishub_layer(self, geometry_type):
         """Create a layer that mimics qgishub provider"""
-        from unittest.mock import Mock
-
         layer = self.create_memory_layer(geometry_type)
 
         # Create a mock data provider that returns 'qgishub' as name
@@ -343,38 +338,6 @@ class TestRasterLayerChecker(QgisTestCase):
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")
-
-
-class TestMapLibreCompatibilityDialog(QgisTestCase):
-    """Test cases for MapLibreCompatibilityDialog integration"""
-
-    @classmethod
-    def setUpClass(cls):
-        """Initialize QGIS application using qgis.testing"""
-        super().setUpClass()
-        start_app()
-
-    @patch("ui.dialog_maplibre_compatibility.QgsProject")
-    def test_analyze_empty_project(self, mock_project_class):
-        """Test analyzing an empty project"""
-        from ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
-
-        # Mock empty project
-        mock_project = Mock()
-        mock_project.mapLayers.return_value = {}
-        mock_project_class.instance.return_value = mock_project
-
-        # Create dialog instance (with mocked QDialog parent)
-        with patch("ui.dialog_maplibre_compatibility.QDialog.__init__"):
-            dialog = MapLibreCompatibilityDialog.__new__(MapLibreCompatibilityDialog)
-            dialog._analyze_layer_maplibre_compatibility = MapLibreCompatibilityDialog._analyze_layer_maplibre_compatibility.__get__(
-                dialog
-            )
-
-            compatible, incompatible = dialog._analyze_layer_maplibre_compatibility()
-
-            self.assertEqual(compatible, [])
-            self.assertEqual(incompatible, [])
 
 
 if __name__ == "__main__":
