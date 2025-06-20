@@ -14,6 +14,3 @@ BROWSER_ROOT_PATH = "strato:/"
 # データプロバイダー関連
 DATA_PROVIDER_KEY = "qgishub"
 DATA_PROVIDER_DESCRIPTION = "QGIS HUB Data Provider"
-
-# API関連の制限値
-API_MAX_FEATURE_COUNT = 1000
