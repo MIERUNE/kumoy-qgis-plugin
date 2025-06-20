@@ -258,6 +258,23 @@ class DbRoot(QgsDataItem):
                 )
                 return
 
+            # check plan limits before creating vector
+            plan_limit = check_plan.get_plan_limits(project_id)
+            current_vectors = api.project_vector.get_vectors(project_id)
+            upload_vector_count = len(current_vectors) + 1
+            if not check_plan.count_limit(
+                upload_vector_count, plan_max_count=plan_limit.maxVectors
+            ):
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
+                        "but you have reached the limit."
+                    ).format(plan_limit.maxVectors),
+                )
+                return
+
             # Create dialog for new vector
             from PyQt5.QtWidgets import (
                 QComboBox,
@@ -308,23 +325,6 @@ class DbRoot(QgsDataItem):
 
             if not result:
                 return  # User canceled
-
-            # check plan limits before creating vector
-            plan_limit = check_plan.get_plan_limits(project_id)
-            current_vectors = api.project_vector.get_vectors(project_id)
-            upload_vector_count = len(current_vectors) + 1
-            if not check_plan.count_limit(
-                upload_vector_count, plan_max_count=plan_limit.maxVectors
-            ):
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr(
-                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                        "but you have reached the limit."
-                    ).format(plan_limit.maxVectors),
-                )
-                return
 
             # Get values
             name = name_field.text()
