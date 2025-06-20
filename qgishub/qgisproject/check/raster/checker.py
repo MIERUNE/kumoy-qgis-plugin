@@ -2,10 +2,10 @@ from typing import Tuple
 
 from qgis.core import QgsRasterLayer
 
-from ..base import CompatibilityChecker
+from ..base import BaseCompatibilityChecker
 
 
-class RasterLayerChecker(CompatibilityChecker):
+class RasterLayerChecker(BaseCompatibilityChecker):
     """Compatibility checker for raster layers"""
 
     def check(self, layer: QgsRasterLayer) -> Tuple[bool, str]:

@@ -2,7 +2,7 @@ from typing import Tuple
 
 from qgis.core import QgsSymbol, QgsVectorLayer, QgsWkbTypes
 
-from ..base import CompatibilityChecker
+from ..base import BaseCompatibilityChecker
 from .symbol import (
     GeometrySymbolChecker,
     LineSymbolChecker,
@@ -11,7 +11,7 @@ from .symbol import (
 )
 
 
-class VectorLayerChecker(CompatibilityChecker):
+class VectorLayerChecker(BaseCompatibilityChecker):
     """Compatibility checker for vector layers"""
 
     def check(self, layer: QgsVectorLayer) -> Tuple[bool, str]:

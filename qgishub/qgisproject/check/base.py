@@ -4,7 +4,7 @@ from typing import Tuple
 from qgis.core import QgsMapLayer
 
 
-class CompatibilityChecker(ABC):
+class BaseCompatibilityChecker(ABC):
     """Abstract base class for all compatibility checkers"""
 
     @abstractmethod
