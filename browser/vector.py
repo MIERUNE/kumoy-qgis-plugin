@@ -19,7 +19,7 @@ from ..qgishub.api.project_vector import (
     UpdateVectorOptions,
     add_vector,
 )
-from ..qgishub.constants import LOG_CATEGORY
+from ..qgishub.constants import LOG_CATEGORY, PLUGIN_NAME
 from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
@@ -87,7 +87,8 @@ class VectorItem(QgsDataItem):
         # Create URI
         uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
         # Create layer
-        layer = QgsVectorLayer(uri, self.vector.name, "qgishub")
+        layer_name = f"{PLUGIN_NAME} - {self.vector.name}"
+        layer = QgsVectorLayer(uri, layer_name, "qgishub")
 
         if layer.isValid():
             # Add layer to map
