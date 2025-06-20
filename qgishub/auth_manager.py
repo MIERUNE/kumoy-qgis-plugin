@@ -12,8 +12,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
-from qgishub.config import config as qgishub_config
-from qgishub.constants import PLUGIN_NAME
+from qgishub import api, constants
 
 # OAuth2 Configuration Constants
 REDIRECT_URL = "http://localhost:9248/callback"
@@ -51,7 +50,7 @@ AUTH_HANDLER_RESPONSE = f"""
 <body>
     <div class="container">
         <h1 class="success">Authentication Successful</h1>
-        <p id="status">Authentication completed. Please close this window and return to the {PLUGIN_NAME} QGIS plugin.</p>
+        <p id="status">Authentication completed. Please close this window and return to the {constants.PLUGIN_NAME} QGIS plugin.</p>
     </div>
 </body>
 </html>
@@ -177,12 +176,12 @@ class AuthManager(QObject):
             self.server.auth_code = None
             self.server.state = None
             self.server.redirect_url = REDIRECT_URL
-            self.server.cognito_url = qgishub_config.COGNITO_URL
-            self.server.client_id = qgishub_config.COGNITO_CLIENT_ID
+            # 利用するエンドポイント設定
+            api_config = api.config.get_api_config()
+            self.server.cognito_url = api_config.COGNITO_URL
+            self.server.client_id = api_config.COGNITO_CLIENT_ID
             self.server.code_verifier = self.code_verifier
             self.server.expected_state = self.state
-            # デバッグ用に期待されるstateをプリント
-            print(f"Expected state: {self.state}")
 
             # Start server in a separate thread
             self.server_thread = threading.Thread(target=self.server.serve_forever)
@@ -271,10 +270,11 @@ class AuthManager(QObject):
         if not self.start_local_server():
             return False, f"Failed to start local server: {self.error}"
 
+        api_config = api.config.get_api_config()
         # Get authorization URL with the same state parameter
         auth_url = (
-            f"{qgishub_config.COGNITO_URL}/oauth2/authorize?"
-            f"client_id={qgishub_config.COGNITO_CLIENT_ID}&"
+            f"{api_config.COGNITO_URL}/oauth2/authorize?"
+            f"client_id={api_config.COGNITO_CLIENT_ID}&"
             f"redirect_uri={REDIRECT_URL}&"
             f"response_type=code&"
             f"scope=openid+email+profile&"
