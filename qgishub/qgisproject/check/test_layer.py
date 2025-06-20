@@ -16,7 +16,7 @@ from qgis.core import (
 )
 from qgis.testing import QgisTestCase, start_app
 
-from qgishub.qgisproject.check.layer import RasterLayerChecker, VectorLayerChecker
+from qgishub.qgisproject.check import CompatibilityChecker
 
 
 class TestVectorLayerChecker(QgisTestCase):
@@ -102,7 +102,7 @@ class TestVectorLayerChecker(QgisTestCase):
         """Test that non-qgishub providers are not supported"""
         layer = self.create_memory_layer(QgsWkbTypes.PointGeometry)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - generic vector data not supported")
@@ -112,7 +112,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         layer.setRenderer(None)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - no renderer found")
@@ -122,7 +122,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_categorized_renderer(layer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - categorizedSymbol renderer not supported")
@@ -132,7 +132,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_simple_marker_renderer(layer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -142,7 +142,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
         self.set_svg_marker_renderer(layer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - unsupported point renderer")
@@ -152,7 +152,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.LineGeometry)
         self.set_simple_line_renderer(layer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -162,7 +162,7 @@ class TestVectorLayerChecker(QgisTestCase):
         layer = self.create_qgishub_layer(QgsWkbTypes.PolygonGeometry)
         self.set_simple_fill_renderer(layer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -179,7 +179,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -197,7 +197,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -216,7 +216,7 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsSingleSymbolRenderer(symbol)
         layer.setRenderer(renderer)
 
-        is_compatible, reason = VectorLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.vector().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - unsupported point renderer")
@@ -294,7 +294,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test that non-WMS providers are not supported"""
         layer = self.create_gdal_raster_layer()
 
-        is_compatible, reason = RasterLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.raster().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")
@@ -305,7 +305,7 @@ class TestRasterLayerChecker(QgisTestCase):
             "tilePixelRatio=1&amp;type=xyz&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
         )
 
-        is_compatible, reason = RasterLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.raster().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -316,7 +316,7 @@ class TestRasterLayerChecker(QgisTestCase):
             "tilePixelRatio=1&amp;type=XYZ&amp;url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&amp;zmax=19&amp;zmin=0"
         )
 
-        is_compatible, reason = RasterLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.raster().check(layer)
 
         self.assertTrue(is_compatible)
         self.assertEqual(reason, "")
@@ -325,7 +325,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test WMS layer without XYZ type"""
         layer = self.create_wms_layer("url=http://example.com&param=value")
 
-        is_compatible, reason = RasterLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.raster().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - only XYZ type WMS supported")
@@ -334,7 +334,7 @@ class TestRasterLayerChecker(QgisTestCase):
         """Test that xyzvectortiles provider is not supported"""
         layer = self.create_xyzvectortiles_layer()
 
-        is_compatible, reason = RasterLayerChecker.check(layer)
+        is_compatible, reason = CompatibilityChecker.raster().check(layer)
 
         self.assertFalse(is_compatible)
         self.assertEqual(reason, " - raster provider not supported")

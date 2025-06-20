@@ -1,15 +1,9 @@
-from abc import ABC, abstractmethod
 from typing import Tuple
 
-from qgis.core import (
-    QgsMapLayer,
-    QgsRasterLayer,
-    QgsSymbol,
-    QgsVectorLayer,
-    QgsWkbTypes,
-)
+from qgis.core import QgsSymbol, QgsVectorLayer, QgsWkbTypes
 
-from .geom_symbol import (
+from ..base import CompatibilityChecker
+from .symbol import (
     GeometrySymbolChecker,
     LineSymbolChecker,
     PointSymbolChecker,
@@ -17,26 +11,11 @@ from .geom_symbol import (
 )
 
 
-class LayerCompatibilityChecker(ABC):
-    """Abstract base class for layer compatibility checking"""
-
-    @abstractmethod
-    def check(self, layer: QgsMapLayer) -> Tuple[bool, str]:
-        """
-        Check if a layer is compatible with MapLibre.
-
-        Returns:
-            Tuple of (is_compatible, reason_if_not_compatible)
-        """
-        pass
-
-
-class VectorLayerChecker(LayerCompatibilityChecker):
+class VectorLayerChecker(CompatibilityChecker):
     """Compatibility checker for vector layers"""
 
-    @staticmethod
-    def check(layer: QgsVectorLayer) -> Tuple[bool, str]:
-        """Internal method to check layer compatibility"""
+    def check(self, layer: QgsVectorLayer) -> Tuple[bool, str]:
+        """Check if a vector layer is compatible with MapLibre"""
         geometry_checkers = {
             QgsWkbTypes.PointGeometry: PointSymbolChecker(),
             QgsWkbTypes.LineGeometry: LineSymbolChecker(),
@@ -87,21 +66,3 @@ class VectorLayerChecker(LayerCompatibilityChecker):
 
         # No symbol layers found
         return False, " - no symbol layers found"
-
-
-class RasterLayerChecker(LayerCompatibilityChecker):
-    """Compatibility checker for raster layers"""
-
-    @staticmethod
-    def check(layer: QgsRasterLayer) -> Tuple[bool, str]:
-        """Check raster layer compatibility based on provider and type"""
-        provider_type = layer.dataProvider().name()
-
-        if provider_type != "wms":
-            return False, " - raster provider not supported"
-
-        source = layer.dataProvider().dataSourceUri()
-        if "type=xyz" in source.lower():
-            return True, ""
-
-        return False, " - only XYZ type WMS supported"

@@ -16,10 +16,7 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from qgishub.qgisproject.check.layer import (
-    RasterLayerChecker,
-    VectorLayerChecker,
-)
+from qgishub.qgisproject.check import CompatibilityChecker
 
 
 class MapLibreCompatibilityDialog(QDialog):
@@ -126,9 +123,9 @@ class MapLibreCompatibilityDialog(QDialog):
 
             # Check layer compatibility based on type
             if isinstance(map_layer, QgsVectorLayer):
-                is_compatible, reason = VectorLayerChecker.check(map_layer)
+                is_compatible, reason = CompatibilityChecker.vector().check(map_layer)
             elif isinstance(map_layer, QgsRasterLayer):
-                is_compatible, reason = RasterLayerChecker.check(map_layer)
+                is_compatible, reason = CompatibilityChecker.raster().check(map_layer)
             else:
                 is_compatible, reason = False, " - unsupported layer type"
 
