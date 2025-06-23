@@ -2,7 +2,17 @@ import os
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction, QMessageBox
+from PyQt5.QtWidgets import (
+    QAction,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QVBoxLayout,
+)
 from qgis.core import (
     Qgis,
     QgsDataItem,
@@ -19,7 +29,6 @@ from ..qgishub.api.project_vector import (
     UpdateVectorOptions,
 )
 from ..qgishub.constants import LOG_CATEGORY, PLUGIN_NAME
-from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
@@ -248,121 +257,99 @@ class DbRoot(QgsDataItem):
 
     def new_vector(self):
         """Create a new vector layer in the project"""
-        try:
-            settings = SettingsManager()
-            project_id = settings.get_setting("selected_project_id")
+        settings = SettingsManager()
+        organization_id = settings.get_setting("selected_organization_id")
+        organization = api.organization.get_organization(organization_id)
+        project_id = settings.get_setting("selected_project_id")
 
-            if not project_id:
-                QgsMessageLog.logMessage(
-                    self.tr("No project selected"), LOG_CATEGORY, Qgis.Critical
-                )
-                return
+        # check plan limits before creating vector
+        plan_limit = api.plan.get_plan_limits(organization.plan)
+        if not plan_limit:
+            return
 
-            # Create dialog for new vector
-            from PyQt5.QtWidgets import (
-                QComboBox,
-                QDialog,
-                QDialogButtonBox,
-                QFormLayout,
-                QLabel,
-                QLineEdit,
-                QVBoxLayout,
-            )
-
-            dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Create New Vector Layer"))
-            dialog.resize(400, 200)
-
-            # Create layout
-            layout = QVBoxLayout()
-            form_layout = QFormLayout()
-
-            # Name field
-            name_field = QLineEdit()
-            form_layout.addRow(self.tr("Name:"), name_field)
-
-            # Type field
-            type_field = QComboBox()
-            type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-            form_layout.addRow(self.tr("Geometry Type:"), type_field)
-
-            # Add description
-            description = QLabel(
-                self.tr("This will create an empty vector layer in the project.")
-            )
-            description.setWordWrap(True)
-
-            # Buttons
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-
-            # Add to layout
-            layout.addLayout(form_layout)
-            layout.addWidget(description)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
-
-            # Show dialog
-            result = dialog.exec_()
-
-            if not result:
-                return  # User canceled
-
-            # check plan limits before creating vector
-            plan_limit = check_plan.get_plan_limits(project_id)
-            current_vectors = api.project_vector.get_vectors(project_id)
-            current_vector_count = len(current_vectors)
-            if not check_plan.check_vector_count_limit(
-                current_vector_count, plan_max_vectors=plan_limit.maxVectors
-            ):
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr(
-                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                        "but you have reached the limit."
-                    ).format(plan_limit.maxVectors),
-                )
-                return
-
-            # Get values
-            name = name_field.text()
-            vector_type = type_field.currentText()
-
-            if not name:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Vector name cannot be empty."),
-                )
-                return
-
-            options = AddVectorOptions(name=name, type=vector_type)
-            new_vector = api.project_vector.add_vector(project_id, options)
-
-            if new_vector:
-                QgsMessageLog.logMessage(
-                    self.tr("Created new vector layer '{}' in project {}").format(
-                        name, project_id
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                # Refresh to show new vector
-                self.refresh()
-            else:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Failed to create the vector layer '{}'.").format(name),
-                )
-
-        except Exception as e:
+        current_vectors = api.project_vector.get_vectors(project_id)
+        upload_vector_count = len(current_vectors) + 1
+        if upload_vector_count > plan_limit.maxVectors:
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error creating vector: {}").format(str(e)),
+                self.tr(
+                    "Cannot create new vector layer. Your plan allows up to {} vectors, "
+                    "but you have reached the limit."
+                ).format(plan_limit.maxVectors),
+            )
+            return
+
+        dialog = QDialog()
+        dialog.setWindowTitle(self.tr("Create New Vector Layer"))
+        dialog.resize(400, 200)
+
+        # Create layout
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+
+        # Name field
+        name_field = QLineEdit()
+        form_layout.addRow(self.tr("Name:"), name_field)
+
+        # Type field
+        type_field = QComboBox()
+        type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
+        form_layout.addRow(self.tr("Geometry Type:"), type_field)
+
+        # Add description
+        description = QLabel(
+            self.tr("This will create an empty vector layer in the project.")
+        )
+        description.setWordWrap(True)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        # Add to layout
+        layout.addLayout(form_layout)
+        layout.addWidget(description)
+        layout.addWidget(button_box)
+        dialog.setLayout(layout)
+
+        # Show dialog
+        result = dialog.exec_()
+
+        if not result:
+            return  # User canceled
+
+        # Get values
+        name = name_field.text()
+        vector_type = type_field.currentText()
+
+        if not name:
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Vector name cannot be empty."),
+            )
+            return
+
+        options = AddVectorOptions(name=name, type=vector_type)
+        new_vector = api.project_vector.add_vector(project_id, options)
+
+        if new_vector:
+            QgsMessageLog.logMessage(
+                self.tr("Created new vector layer '{}' in project {}").format(
+                    name, project_id
+                ),
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
+            # Refresh to show new vector
+            self.refresh()
+        else:
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Failed to create the vector layer '{}'.").format(name),
             )
 
     def upload_vector(self):
