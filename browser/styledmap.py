@@ -301,9 +301,7 @@ class StyledMapRoot(QgsDataItem):
             if plan_limit:
                 current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
                 current_styled_map_count = len(current_styled_maps) + 1
-                if not check_plan.count_limit(
-                    current_styled_map_count, plan_limit.maxStyledMaps
-                ):
+                if current_styled_map_count > plan_limit.maxStyledMaps:
                     QMessageBox.critical(
                         None,
                         self.tr("Error"),

@@ -262,9 +262,7 @@ class DbRoot(QgsDataItem):
             plan_limit = check_plan.get_plan_limits(project_id)
             current_vectors = api.project_vector.get_vectors(project_id)
             upload_vector_count = len(current_vectors) + 1
-            if not check_plan.count_limit(
-                upload_vector_count, plan_max_count=plan_limit.maxVectors
-            ):
+            if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),

@@ -192,7 +192,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Check vector count limit early
             current_vectors = api.project_vector.get_vectors(project_id)
             upload_vector_count = len(current_vectors) + 1
-            if not check_plan.count_limit(upload_vector_count, plan_limits.maxVectors):
+            if upload_vector_count > plan_limits.maxVectors:
                 raise QgsProcessingException(
                     self.tr(
                         "Cannot upload vector. Your plan allows up to {} vectors per project, "

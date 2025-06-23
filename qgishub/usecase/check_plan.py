@@ -32,10 +32,3 @@ def get_plan_limits(project_id: str) -> Optional[api.plan.PlanLimits]:
 
     # Get plan limits for the plan
     return api.plan.get_plan_limits(organization.plan)
-
-
-def count_limit(current_count: int, plan_max_count: int) -> bool:
-    """Check if current count exceeds plan limit"""
-    if current_count > plan_max_count:
-        return False
-    return True
