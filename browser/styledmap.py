@@ -290,12 +290,6 @@ class StyledMapRoot(QgsDataItem):
             settings = SettingsManager()
             project_id = settings.get_setting("selected_project_id")
 
-            if not project_id:
-                QMessageBox.critical(
-                    None, self.tr("Error"), self.tr("No project selected.")
-                )
-                return
-
             # Check plan limits before creating styled map
             plan_limit = check_plan.get_plan_limits(project_id)
             if plan_limit:
