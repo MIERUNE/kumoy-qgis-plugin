@@ -182,6 +182,13 @@ class StyledMapItem(QgsDataItem):
             )
 
     def apply_qgisproject_to_styledmap(self):
+        # Show MapLibre compatibility dialog before saving
+        compatibility_dialog = MapLibreCompatibilityDialog()
+        result = compatibility_dialog.exec_()
+
+        if not result:
+            return
+
         # QGISプロジェクト情報はバックグラウンドで取得
         new_qgisproject = get_qgisproject_str()
 
@@ -197,8 +204,7 @@ class StyledMapItem(QgsDataItem):
             self.styled_map = updated_styled_map
             self.setName(updated_styled_map.name)
             self.refresh()
-            QMessageBox.information(
-                None,
+            iface.messageBar().pushSuccess(
                 self.tr("Success"),
                 self.tr("Map '{}' has been saved successfully.").format(
                     self.styled_map.name
@@ -354,13 +360,7 @@ class StyledMapRoot(QgsDataItem):
             return  # User cancelled after seeing compatibility info
 
         # QGISプロジェクト情報はバックグラウンドで取得
-        try:
-            qgisproject = get_qgisproject_str()
-        except Exception:
-            QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Failed to get QGIS project data.")
-            )
-            return
+        qgisproject = get_qgisproject_str()
 
         # スタイルマップ作成
         new_styled_map = api.project_styledmap.add_styled_map(
@@ -380,8 +380,7 @@ class StyledMapRoot(QgsDataItem):
 
         # 上書き保存して新しいスタイルマップを表示
         self.refresh()
-        QMessageBox.information(
-            None,
+        iface.messageBar().pushSuccess(
             self.tr("Success"),
             self.tr("Map '{}' has been created successfully.").format(name),
         )
