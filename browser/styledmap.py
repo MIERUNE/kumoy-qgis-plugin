@@ -286,28 +286,28 @@ class StyledMapRoot(QgsDataItem):
 
     def add_styled_map(self):
         """新しいスタイルマップを追加する"""
+        settings = SettingsManager()
+        project_id = settings.get_setting("selected_project_id")
+
+        # Check plan limits before creating styled map
+        plan_limit = check_plan.get_plan_limits(project_id)
+        if not plan_limit:
+            return
+
+        current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+        current_styled_map_count = len(current_styled_maps) + 1
+        if current_styled_map_count > plan_limit.maxStyledMaps:
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr(
+                    "Cannot create new map. Your plan allows up to {} maps, "
+                    "but you have reached the limit."
+                ).format(plan_limit.maxStyledMaps),
+            )
+            return
+
         try:
-            settings = SettingsManager()
-            project_id = settings.get_setting("selected_project_id")
-
-            # Check plan limits before creating styled map
-            plan_limit = check_plan.get_plan_limits(project_id)
-            if not plan_limit:
-                return
-
-            current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
-            current_styled_map_count = len(current_styled_maps) + 1
-            if current_styled_map_count > plan_limit.maxStyledMaps:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr(
-                        "Cannot create new map. Your plan allows up to {} maps, "
-                        "but you have reached the limit."
-                    ).format(plan_limit.maxStyledMaps),
-                )
-                return
-
             # ダイアログ作成
             dialog = QDialog()
             dialog.setWindowTitle(self.tr("Add Map"))
@@ -337,45 +337,47 @@ class StyledMapRoot(QgsDataItem):
             # ダイアログ表示
             result = dialog.exec_()
 
-            if result:
-                # 値を取得（タイトルと公開設定のみ）
-                name = name_field.text()
+            if not result:
+                return
 
-                if name:
-                    # Show MapLibre compatibility dialog before saving
-                    compatibility_dialog = MapLibreCompatibilityDialog()
-                    result = compatibility_dialog.exec_()
+            # 値を取得（タイトルと公開設定のみ）
+            name = name_field.text()
 
-                    if not result:
-                        return  # User cancelled after seeing compatibility info
+            if not name:
+                return
 
-                    # QGISプロジェクト情報はバックグラウンドで取得
-                    qgisproject = get_qgisproject_str()
+            # Show MapLibre compatibility dialog before saving
+            compatibility_dialog = MapLibreCompatibilityDialog()
+            result = compatibility_dialog.exec_()
 
-                    # スタイルマップ作成
-                    new_styled_map = api.project_styledmap.add_styled_map(
-                        project_id,
-                        AddStyledMapOptions(
-                            name=name,
-                            qgisproject=qgisproject,
-                        ),
-                    )
+            if not result:
+                return  # User cancelled after seeing compatibility info
 
-                    if new_styled_map:
-                        # 上書き保存して新しいスタイルマップを表示
-                        self.refresh()
-                        QMessageBox.information(
-                            None,
-                            self.tr("Success"),
-                            self.tr("Map '{}' has been created successfully.").format(
-                                name
-                            ),
-                        )
-                    else:
-                        # エラーメッセージを表示
-                        QMessageBox.critical(
-                            None, self.tr("Error"), self.tr("Failed to create the map.")
-                        )
+            # QGISプロジェクト情報はバックグラウンドで取得
+            qgisproject = get_qgisproject_str()
+
+            # スタイルマップ作成
+            new_styled_map = api.project_styledmap.add_styled_map(
+                project_id,
+                AddStyledMapOptions(
+                    name=name,
+                    qgisproject=qgisproject,
+                ),
+            )
+
+            if not new_styled_map:
+                # エラーメッセージを表示
+                QMessageBox.critical(
+                    None, self.tr("Error"), self.tr("Failed to create the map.")
+                )
+
+            # 上書き保存して新しいスタイルマップを表示
+            self.refresh()
+            QMessageBox.information(
+                None,
+                self.tr("Success"),
+                self.tr("Map '{}' has been created successfully.").format(name),
+            )
 
         except Exception as e:
             QgsMessageLog.logMessage(
