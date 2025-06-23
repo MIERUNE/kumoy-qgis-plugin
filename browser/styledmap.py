@@ -292,19 +292,21 @@ class StyledMapRoot(QgsDataItem):
 
             # Check plan limits before creating styled map
             plan_limit = check_plan.get_plan_limits(project_id)
-            if plan_limit:
-                current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
-                current_styled_map_count = len(current_styled_maps) + 1
-                if current_styled_map_count > plan_limit.maxStyledMaps:
-                    QMessageBox.critical(
-                        None,
-                        self.tr("Error"),
-                        self.tr(
-                            "Cannot create new map. Your plan allows up to {} maps, "
-                            "but you have reached the limit."
-                        ).format(plan_limit.maxStyledMaps),
-                    )
-                    return
+            if not plan_limit:
+                return
+
+            current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+            current_styled_map_count = len(current_styled_maps) + 1
+            if current_styled_map_count > plan_limit.maxStyledMaps:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot create new map. Your plan allows up to {} maps, "
+                        "but you have reached the limit."
+                    ).format(plan_limit.maxStyledMaps),
+                )
+                return
 
             # ダイアログ作成
             dialog = QDialog()

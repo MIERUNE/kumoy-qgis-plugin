@@ -260,6 +260,9 @@ class DbRoot(QgsDataItem):
 
             # check plan limits before creating vector
             plan_limit = check_plan.get_plan_limits(project_id)
+            if not plan_limit:
+                return
+
             current_vectors = api.project_vector.get_vectors(project_id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
