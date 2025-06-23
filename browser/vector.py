@@ -19,7 +19,6 @@ from ..qgishub.api.project_vector import (
     UpdateVectorOptions,
 )
 from ..qgishub.constants import LOG_CATEGORY, PLUGIN_NAME
-from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from .utils import ErrorItem
 
@@ -250,16 +249,12 @@ class DbRoot(QgsDataItem):
         """Create a new vector layer in the project"""
         try:
             settings = SettingsManager()
+            organization_id = settings.get_setting("selected_organization_id")
+            organization = api.organization.get_organization(organization_id)
             project_id = settings.get_setting("selected_project_id")
 
-            if not project_id:
-                QgsMessageLog.logMessage(
-                    self.tr("No project selected"), LOG_CATEGORY, Qgis.Critical
-                )
-                return
-
             # check plan limits before creating vector
-            plan_limit = check_plan.get_plan_limits(project_id)
+            plan_limit = api.plan.get_plan_limits(organization.plan)
             if not plan_limit:
                 return
 

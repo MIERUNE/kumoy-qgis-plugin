@@ -29,7 +29,6 @@ from ..qgishub.api.project_styledmap import (
     UpdateStyledMapOptions,
 )
 from ..qgishub.constants import LOG_CATEGORY
-from ..qgishub.usecase import check_plan
 from ..settings_manager import SettingsManager
 from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
@@ -287,10 +286,12 @@ class StyledMapRoot(QgsDataItem):
     def add_styled_map(self):
         """新しいスタイルマップを追加する"""
         settings = SettingsManager()
+        organization_id = settings.get_setting("selected_organization_id")
+        organization = api.organization.get_organization(organization_id)
         project_id = settings.get_setting("selected_project_id")
 
         # Check plan limits before creating styled map
-        plan_limit = check_plan.get_plan_limits(project_id)
+        plan_limit = api.plan.get_plan_limits(organization.plan)
         if not plan_limit:
             return
 
