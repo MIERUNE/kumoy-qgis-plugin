@@ -3,10 +3,9 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsFeature,
     QgsFeatureRequest,
-    QgsGeometry,
 )
 
-from .. import api
+from . import cache
 
 
 class QgishubFeatureIterator(QgsAbstractFeatureIterator):
@@ -37,10 +36,16 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         # Pagination parameters
         self._features = []
         self._features_idx = 0
-        self._page_size = 5000  # Number of features to fetch per page
+        self._page_size = 10000  # Number of features to fetch per page
         self._current_offset = 0
         self._last_fetch = False  # Flag to indicate if the last page has been fetched
         self._fetched_count = 0  # Total number of features fetched
+
+        cache.sync_local_cache(
+            self._provider._qgishub_vector.id,
+            self._provider.fields(),
+            self._provider.wkbType(),
+        )
 
     def _load_features_page(self):
         """Load a page of features using pagination"""
@@ -55,23 +60,13 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
         elif self._request.filterType() == QgsFeatureRequest.FilterType.FilterFid:
             qgishub_ids = [self._request.filterFid()]
 
-        # Prepare bbox parameter if spatial filter is applied
-        bbox = None
-        if not self._filter_rect.isEmpty():
-            bbox = [
-                self._filter_rect.xMinimum(),
-                self._filter_rect.yMinimum(),
-                self._filter_rect.xMaximum(),
-                self._filter_rect.yMaximum(),
-            ]
-
         # Fetch features with pagination parameters
-        features = api.qgis_vector.get_features(
-            vector_id=self._provider._qgishub_vector.id,
-            qgishub_ids=qgishub_ids,
-            bbox=bbox,
-            limit=self._page_size,
-            offset=self._current_offset,
+        features = cache.get_features(
+            self._provider._qgishub_vector.id,
+            self._page_size,
+            self._current_offset,
+            bbox=self._filter_rect,
+            ids=qgishub_ids,
         )
 
         # Update pagination state
@@ -106,23 +101,17 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
 
         # Get the current feature
         feature = self._features[self._features_idx]
-        wkb = feature["qgishub_wkb"]
-        fid = feature["qgishub_id"]
 
-        # Set geometry
-        g = QgsGeometry()
-        g.fromWkb(wkb)
-        f.setGeometry(g)
+        f.setGeometry(feature.geometry())
         self.geometryToDestinationCrs(f, self._transform)
 
         # Set attributes
         # feature["properties"] = { field_name: value, ... }
-        f.setFields(self._provider.fields())
-        for i in range(f.fields().count()):
-            f.setAttribute(i, feature["properties"][f.fields().field(i).name()])
+        f.setFields(feature.fields())
+        f.setAttributes(feature.attributes())
 
         # Set feature ID and validity
-        f.setId(fid)
+        f.setId(feature.id())
         f.setValid(True)
 
         # Increment counters
