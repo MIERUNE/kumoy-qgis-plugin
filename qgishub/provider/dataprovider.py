@@ -4,7 +4,6 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
-    QgsFeatureIterator,
     QgsFeatureRequest,
     QgsField,
     QgsFields,
@@ -21,7 +20,7 @@ from ..constants import (
     DATA_PROVIDER_DESCRIPTION,
     DATA_PROVIDER_KEY,
 )
-from .feature_iterator import QgishubFeatureIterator
+from . import cache
 from .feature_source import QgishubFeatureSource
 
 ADD_MAX_FEATURE_COUNT = 1000
@@ -73,6 +72,12 @@ class QgishubDataProvider(QgsVectorDataProvider):
         _, project_id, vector_id = parse_uri(uri)
 
         self._qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
+
+        cache.sync_local_cache(
+            self._qgishub_vector.id,
+            self.fields(),
+            self.wkbType(),
+        )
 
         self._is_valid = True
 
@@ -241,9 +246,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return QgsVectorDataProvider.NoCapabilities
 
     def getFeatures(self, request=QgsFeatureRequest()) -> QgsFeature:
-        return QgsFeatureIterator(
-            QgishubFeatureIterator(QgishubFeatureSource(self), request)
-        )
+        return cache.get_cached_layer(self._qgishub_vector.id).getFeatures(request)
 
     def deleteFeatures(self, qgishub_ids: list[int]) -> bool:
         # Process in chunks of 1000 to avoid server limits

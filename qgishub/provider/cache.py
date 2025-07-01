@@ -1,6 +1,7 @@
 import itertools
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 
 from qgis.core import (
     Qgis,
@@ -105,6 +106,21 @@ def sync_local_cache(
 
 
 LAYER_CACHE = {}
+
+
+@lru_cache(maxsize=128)
+def get_cached_layer(vector_id: str) -> QgsVectorLayer:
+    """Retrieve a cached QgsVectorLayer by vector ID."""
+    cache_dir = get_cache_dir()
+    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
+    layer = QgsVectorLayer(cache_file, "cache", "ogr")
+    if layer.isValid():
+        return layer
+    else:
+        QgsApplication.messageLog().logMessage(
+            f"Cache layer {vector_id} is not valid.", Qgis.Critical
+        )
+        return None
 
 
 def get_features(
