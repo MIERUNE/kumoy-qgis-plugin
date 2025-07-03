@@ -8,17 +8,12 @@ from qgis.core import (
     QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsFeature,
-    QgsFeatureRequest,
-    QgsField,
     QgsFields,
     QgsGeometry,
-    QgsPointXY,
-    QgsRectangle,
     QgsVectorFileWriter,
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
 
 from .. import api
 
@@ -28,23 +23,27 @@ def get_cache_dir() -> str:
     cache_dir = QgsApplication.qgisSettingsDirPath()
     if not cache_dir.endswith("/"):
         cache_dir += "/"
-    return cache_dir + "cache/"
+    cache_dir = cache_dir + "cache/"
 
-
-def sync_local_cache(
-    vector_id: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
-):
-    # create empty GeoPackage cache for the vector
-    """Initialize a local cache for the vector with the given ID."""
-
-    cache_dir = get_cache_dir()
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
 
+    return cache_dir
+
+
+# TODO: 差分更新
+def sync_local_cache(
+    vector_id: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
+):
+    """
+    サーバー上のデータとローカルのキャッシュを同期する
+    - キャッシュはGPKGを用いる
+    - ローカルにGPKGが存在しなければ新規で作成する
+    - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
+    """
+
+    cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-    if os.path.exists(cache_file):
-        print(f"Cache file {cache_file} already exists. Skipping creation.")
-        return cache_file
 
     writer = QgsVectorFileWriter(
         cache_file,
@@ -62,7 +61,10 @@ def sync_local_cache(
         )
         return None
 
-    # memo: 一旦差分のことは考えないで毎回全件取得する
+    # memo: 最終同期時刻を用いてAPIリクエストする。
+    # そこで得られたデータは全てローカルキャッシュにUPSERTする。
+
+    # FIXME: 一旦差分のことは考えないで毎回全件取得する
     BATCH_SIZE = 5000  # Number of features to fetch in each batch
     count = 0
     while True:
@@ -72,7 +74,6 @@ def sync_local_cache(
             limit=BATCH_SIZE,
             offset=count * BATCH_SIZE,
         )
-        print(f"Fetched {len(features)} features for {vector_id} (batch {count})")
 
         for feature in features:
             qgsfeature = QgsFeature()
@@ -105,9 +106,6 @@ def sync_local_cache(
     del writer
 
 
-LAYER_CACHE = {}
-
-
 @lru_cache(maxsize=128)
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
@@ -121,34 +119,3 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
             f"Cache layer {vector_id} is not valid.", Qgis.Critical
         )
         return None
-
-
-def get_features(
-    vector_id: str, limit: int, offset: int, bbox: QgsRectangle = None, ids: list = None
-):
-    """Fetch features from the local cache."""
-
-    if vector_id not in LAYER_CACHE:
-        cache_dir = get_cache_dir()
-        cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-        layer = QgsVectorLayer(cache_file, "cache", "ogr")
-        LAYER_CACHE[vector_id] = layer
-
-    layer = LAYER_CACHE[vector_id]
-    if not layer.isValid():
-        return []
-
-    request = QgsFeatureRequest()
-    if ids:
-        request.setFilterFids(ids)  # IDフィルタ
-    if bbox:
-        request.setFilterRect(bbox)  # 空間フィルタ
-
-    features = [
-        feature
-        for feature in itertools.islice(
-            layer.getFeatures(request), offset, offset + limit
-        )
-    ]
-
-    return features

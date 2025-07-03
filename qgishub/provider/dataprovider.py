@@ -20,7 +20,7 @@ from ..constants import (
     DATA_PROVIDER_DESCRIPTION,
     DATA_PROVIDER_KEY,
 )
-from . import cache
+from . import local_cache
 from .feature_source import QgishubFeatureSource
 
 ADD_MAX_FEATURE_COUNT = 1000
@@ -73,7 +73,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         self._qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
 
-        cache.sync_local_cache(
+        local_cache.sync_local_cache(
             self._qgishub_vector.id,
             self.fields(),
             self.wkbType(),
@@ -246,7 +246,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return QgsVectorDataProvider.NoCapabilities
 
     def getFeatures(self, request=QgsFeatureRequest()) -> QgsFeature:
-        return cache.get_cached_layer(self._qgishub_vector.id).getFeatures(request)
+        return local_cache.get_cached_layer(self._qgishub_vector.id).getFeatures(
+            request
+        )
 
     def deleteFeatures(self, qgishub_ids: list[int]) -> bool:
         # Process in chunks of 1000 to avoid server limits
