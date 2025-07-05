@@ -4,6 +4,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
+    QgsFeatureIterator,
     QgsFeatureRequest,
     QgsField,
     QgsFields,
@@ -21,6 +22,7 @@ from ..constants import (
     DATA_PROVIDER_KEY,
 )
 from . import local_cache
+from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
 
 ADD_MAX_FEATURE_COUNT = 1000
@@ -175,9 +177,6 @@ class QgishubDataProvider(QgsVectorDataProvider):
             k = column["name"]
             v = column["type"]
 
-            if k == "qgishub_geom" or k == "qgishub_id":
-                continue
-
             len = 0
             if v == "string":
                 data_type = QVariant.String
@@ -246,8 +245,8 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return QgsVectorDataProvider.NoCapabilities
 
     def getFeatures(self, request=QgsFeatureRequest()) -> QgsFeature:
-        return local_cache.get_cached_layer(self._qgishub_vector.id).getFeatures(
-            request
+        return QgsFeatureIterator(
+            QgishubFeatureIterator(QgishubFeatureSource(self), request)
         )
 
     def deleteFeatures(self, qgishub_ids: list[int]) -> bool:

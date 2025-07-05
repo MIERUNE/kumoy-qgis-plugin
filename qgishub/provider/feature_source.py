@@ -7,7 +7,7 @@ from qgis.core import (
     QgsVectorDataProvider,
 )
 
-from . import local_cache
+from .feature_iterator import QgishubFeatureIterator
 
 
 class QgishubFeatureSource(QgsAbstractFeatureSource):
@@ -25,9 +25,7 @@ class QgishubFeatureSource(QgsAbstractFeatureSource):
 
     def getFeatures(self, request) -> QgsFeatureIterator:
         """Return features based on the request."""
-        return local_cache.get_cached_layer(
-            self._provider._qgishub_vector.id
-        ).getFeatures(request)
+        return QgsFeatureIterator(QgishubFeatureIterator(self, request))
 
     def get_provider(self):
         """Return the associated provider."""

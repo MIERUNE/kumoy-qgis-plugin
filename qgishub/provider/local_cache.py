@@ -45,6 +45,9 @@ def sync_local_cache(
     cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
+    if os.path.exists(cache_file):
+        return
+
     writer = QgsVectorFileWriter(
         cache_file,
         "UTF-8",
@@ -74,6 +77,7 @@ def sync_local_cache(
             limit=BATCH_SIZE,
             offset=count * BATCH_SIZE,
         )
+        print(f"Fetched {len(features)} features from server.")
 
         for feature in features:
             qgsfeature = QgsFeature()
@@ -86,12 +90,9 @@ def sync_local_cache(
             qgsfeature.setGeometry(g)
 
             # Set attributes
-            # feature["properties"] = { field_name: value, ... }
             qgsfeature.setFields(fields)
-            for i in range(qgsfeature.fields().count()):
-                qgsfeature.setAttribute(
-                    i, feature["properties"][qgsfeature.fields().field(i).name()]
-                )
+            for name in qgsfeature.fields().names():
+                qgsfeature[name] = feature["properties"][name]
 
             # Set feature ID and validity
             qgsfeature.setId(fid)
@@ -106,7 +107,6 @@ def sync_local_cache(
     del writer
 
 
-@lru_cache(maxsize=128)
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
     cache_dir = get_cache_dir()
