@@ -47,26 +47,17 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             f.setValid(False)
             return False
 
-        feature = QgsFeature()
-        res = self._feature_iterator.nextFeature(feature)
+        res = self._feature_iterator.nextFeature(f)
 
         if not res:
             # If no more features are available, return False
             f.setValid(False)
             return False
 
-        f.setGeometry(feature.geometry())
         self.geometryToDestinationCrs(f, self._transform)
-
-        # Set attributes
-        # feature["properties"] = { field_name: value, ... }
-        f.setFields(self._provider.fields())
-
-        feature.deleteAttribute("fid")
-        f.setAttributes(feature.attributes())
+        f.deleteAttribute("qgishub_id")  # Remove qgishub_id attribute if it exists
 
         # Set feature ID and validity
-        f.setId(feature.id())
         f.setValid(True)
 
         return True

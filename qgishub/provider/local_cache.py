@@ -8,12 +8,15 @@ from qgis.core import (
     QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsFeature,
+    QgsField,
     QgsFields,
     QgsGeometry,
+    QgsProject,
     QgsVectorFileWriter,
     QgsVectorLayer,
     QgsWkbTypes,
 )
+from qgis.PyQt.QtCore import QVariant
 
 from .. import api
 
@@ -48,19 +51,26 @@ def sync_local_cache(
     if os.path.exists(cache_file):
         return
 
-    writer = QgsVectorFileWriter(
+    new_fields = QgsFields(fields)
+    new_fields.append(QgsField("qgishub_id", QVariant.Int))
+
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.layerOptions = ["FID=qgishub_id"]
+    options.driverName = "GPKG"
+    options.fileEncoding = "UTF-8"
+
+    writer = QgsVectorFileWriter.create(
         cache_file,
-        "UTF-8",
-        fields,
+        new_fields,
         geometry_type,
         QgsCoordinateReferenceSystem("EPSG:4326"),
-        "GPKG",
+        QgsProject.instance().transformContext(),
+        options,
     )
 
     if writer.hasError() != QgsVectorFileWriter.NoError:
         QgsApplication.messageLog().logMessage(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}",
-            Qgis.Critical,
         )
         return None
 
@@ -81,21 +91,18 @@ def sync_local_cache(
 
         for feature in features:
             qgsfeature = QgsFeature()
-            wkb = feature["qgishub_wkb"]
-            fid = feature["qgishub_id"]
-
             # Set geometry
             g = QgsGeometry()
-            g.fromWkb(wkb)
+            g.fromWkb(feature["qgishub_wkb"])
             qgsfeature.setGeometry(g)
 
             # Set attributes
-            qgsfeature.setFields(fields)
-            for name in qgsfeature.fields().names():
+            qgsfeature.setFields(new_fields)
+            qgsfeature["qgishub_id"] = feature["qgishub_id"]
+            for name in fields.names():
                 qgsfeature[name] = feature["properties"][name]
 
             # Set feature ID and validity
-            qgsfeature.setId(fid)
             qgsfeature.setValid(True)
             # 地物を書き込み
             writer.addFeature(qgsfeature)
@@ -115,7 +122,5 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     if layer.isValid():
         return layer
     else:
-        QgsApplication.messageLog().logMessage(
-            f"Cache layer {vector_id} is not valid.", Qgis.Critical
-        )
+        QgsApplication.messageLog().logMessage(f"Cache layer {vector_id} is not valid.")
         return None
