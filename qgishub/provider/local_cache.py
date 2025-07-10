@@ -21,14 +21,9 @@ from .. import api
 
 def get_cache_dir() -> str:
     """Return the directory where cache files are stored."""
-    cache_dir = QgsApplication.qgisSettingsDirPath()
-    if not cache_dir.endswith("/"):
-        cache_dir += "/"
-    cache_dir = cache_dir + "cache/"
-
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-
+    setting_dir = QgsApplication.qgisSettingsDirPath()
+    cache_dir = os.path.join(setting_dir, "qgishub", "local_cache")
+    os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
 
@@ -45,7 +40,18 @@ def sync_local_cache(
     cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
-    new_fields = QgsFields(fields)
+    vlayer = None
+    if os.path.exists(cache_file):
+        vlayer = QgsVectorLayer(cache_file, "cache", "ogr")
+        if not vlayer.isValid():
+            # 不正なキャッシュファイルかどうかをチェック：不正なら削除
+            QgsApplication.messageLog().logMessage(
+                f"Cache layer {cache_file} is not valid. Deleting it."
+            )
+            vlayer = None
+            os.remove(cache_file)
+
+    new_fields = QgsFields(fields)  # ユーザー定義カラム
     new_fields.append(QgsField("qgishub_id", QVariant.Int))
 
     last_updated = get_last_updated(vector_id)
@@ -59,10 +65,8 @@ def sync_local_cache(
         delete_last_updated(vector_id)
         last_updated = None
 
-    if os.path.exists(cache_file):
-        # memo: 最終同期時刻を用いてAPIリクエストする。
-        # そこで得られたデータは全てローカルキャッシュにUPSERTする。
-        # last_updatedが存在することは保証されている
+    if vlayer is not None:
+        # 最終同期時刻を用いてAPIリクエストして差分を取得する
         diff = api.qgis_vector.get_diff(vector_id, last_updated)
         updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
@@ -76,9 +80,9 @@ def sync_local_cache(
             # No changes, do nothing
             pass
         else:
-            vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
             vlayer.startEditing()
 
+            # 削除された行と更新された行を全て削除する
             if len(should_deleted_fids) > 0:
                 for fid in should_deleted_fids:
                     # Delete features by fid
@@ -86,6 +90,7 @@ def sync_local_cache(
                     if feature.isValid():
                         vlayer.deleteFeature(feature.id())
 
+            # 更新された行を新たなレコードとして追加する
             if len(diff["updatedRows"]) > 0:
                 # add features
                 for feature in diff["updatedRows"]:
