@@ -1,3 +1,4 @@
+import time
 from typing import Dict, List
 
 from qgis.core import (
@@ -72,8 +73,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Parse the URI
         _, project_id, vector_id = parse_uri(uri)
-
         self.qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
+
+        # local cache
         self._refresh_local_cache()
         self.cached_layer = local_cache.get_cached_layer(self.qgishub_vector.id)
 
