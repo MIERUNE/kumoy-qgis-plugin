@@ -75,12 +75,6 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         self._qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
 
-        local_cache.sync_local_cache(
-            self._qgishub_vector.id,
-            self.fields(),
-            self.wkbType(),
-        )
-
         self._is_valid = True
 
         # Set native types based on PostgreSQL data type constraints

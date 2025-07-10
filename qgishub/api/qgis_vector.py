@@ -227,3 +227,32 @@ def rename_attributes(
     except Exception as e:
         print(f"Error renaming attributes in vector {vector_id}: {str(e)}")
         return False
+
+
+def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
+    """
+    Get the difference of features in a vector layer since the last updated time.
+
+    Args:
+        vector_id: The ID of the vector layer.
+        last_updated_at: The last updated time in ISO format.
+
+    Returns:
+        A list of features that have changed since the last updated time.
+    """
+    try:
+        response = ApiClient.post(
+            f"/_qgis/vector/{vector_id}/get-diff",
+            {"last_updated": last_updated},
+        )
+
+        for feature in response["updatedRows"]:
+            feature["qgishub_wkb"] = base64.b64decode(feature["qgishub_wkb"])
+
+        return response
+    except Exception as e:
+        print(f"Error getting diff for vector {vector_id}: {str(e)}")
+        return {
+            "updatedRows": [],
+            "deletedRows": [],
+        }
