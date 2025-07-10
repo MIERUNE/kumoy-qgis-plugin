@@ -34,15 +34,12 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             return
 
         local_cache.sync_local_cache(
-            self._provider._qgishub_vector.id,
+            self._provider.qgishub_vector.id,
             self._provider.fields(),
             self._provider.wkbType(),
         )
-        import time
 
-        time.sleep(0.1)  # Wait for the cache to be ready
-        _cached_layer = local_cache.get_cached_layer(self._provider._qgishub_vector.id)
-        self._feature_iterator = _cached_layer.getFeatures(self._request)
+        self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
     def fetchFeature(self, f: QgsFeature) -> bool:
         """読むべき地物の数だけ実行される。引数のQgsFeatureを破壊的に更新する。"""
