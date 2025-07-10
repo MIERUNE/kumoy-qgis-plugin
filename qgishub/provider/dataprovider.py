@@ -21,7 +21,6 @@ from ..constants import (
     DATA_PROVIDER_DESCRIPTION,
     DATA_PROVIDER_KEY,
 )
-from . import local_cache
 from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
 

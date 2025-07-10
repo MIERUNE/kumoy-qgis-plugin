@@ -14,12 +14,13 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QSettings, QVariant
+from qgis.PyQt.QtCore import QVariant
 
-from .. import api
+from ... import api
+from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
-def get_cache_dir() -> str:
+def _get_cache_dir() -> str:
     """Return the directory where cache files are stored."""
     setting_dir = QgsApplication.qgisSettingsDirPath()
     cache_dir = os.path.join(setting_dir, "qgishub", "local_cache")
@@ -37,7 +38,7 @@ def sync_local_cache(
     - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
     """
 
-    cache_dir = get_cache_dir()
+    cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
     vlayer = None
@@ -186,7 +187,7 @@ def sync_local_cache(
 @lru_cache(maxsize=128)
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
-    cache_dir = get_cache_dir()
+    cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
     layer = QgsVectorLayer(cache_file, "cache", "ogr")
     if layer.isValid():
@@ -194,38 +195,3 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     else:
         QgsApplication.messageLog().logMessage(f"Cache layer {vector_id} is not valid.")
         return None
-
-
-SETTING_GROUP = "/QGISHUB/local_cache"
-
-
-def get_last_updated(vector_id: str) -> str:
-    """
-    Get the last updated timestamp for a vector ID from settings.
-    Returns None if not found.
-    """
-    qsettings = QSettings()
-    qsettings.beginGroup(SETTING_GROUP)
-    value = qsettings.value(vector_id)
-    qsettings.endGroup()
-    return value
-
-
-def store_last_updated(vector_id: str, timestamp: str):
-    """
-    Store the last updated timestamp for a vector ID in settings.
-    """
-    qsettings = QSettings()
-    qsettings.beginGroup(SETTING_GROUP)
-    qsettings.setValue(vector_id, timestamp)
-    qsettings.endGroup()
-
-
-def delete_last_updated(vector_id: str):
-    """
-    Delete the last updated timestamp for a vector ID from settings.
-    """
-    qsettings = QSettings()
-    qsettings.beginGroup(SETTING_GROUP)
-    qsettings.remove(vector_id)
-    qsettings.endGroup()
