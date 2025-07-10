@@ -73,7 +73,6 @@ class QgishubDataProvider(QgsVectorDataProvider):
         _, project_id, vector_id = parse_uri(uri)
 
         self._qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
-
         self._is_valid = True
 
         # Set native types based on PostgreSQL data type constraints

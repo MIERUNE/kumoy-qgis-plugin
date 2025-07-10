@@ -38,6 +38,9 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             self._provider.fields(),
             self._provider.wkbType(),
         )
+        import time
+
+        time.sleep(0.1)  # Wait for the cache to be ready
         _cached_layer = local_cache.get_cached_layer(self._provider._qgishub_vector.id)
         self._feature_iterator = _cached_layer.getFeatures(self._request)
 
