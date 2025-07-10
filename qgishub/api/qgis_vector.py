@@ -12,7 +12,7 @@ def get_features(
     qgishub_ids: Optional[List[int]] = None,
     bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
-    offset: Optional[int] = None,
+    after_id: Optional[int] = None,
 ) -> list:
     """
     Get features from a vector layer
@@ -20,16 +20,16 @@ def get_features(
     if qgishub_ids is None:
         qgishub_ids = []
 
+    options = {
+        "qgishub_ids": qgishub_ids,
+        "bbox": bbox,
+        "limit": limit,
+    }
+    if after_id is not None:
+        options["after_id"] = after_id
+
     try:
-        response = ApiClient.post(
-            f"/_qgis/vector/{vector_id}/get-features",
-            {
-                "qgishub_ids": qgishub_ids,
-                "bbox": bbox,
-                "limit": limit,
-                "offset": offset,
-            },
-        )
+        response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
 
         # decode base64
         for feature in response:

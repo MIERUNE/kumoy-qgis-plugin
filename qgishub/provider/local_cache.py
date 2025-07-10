@@ -53,12 +53,20 @@ def sync_local_cache(
         # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
         # 不整合が生じているので既存ファイルを削除する
         os.remove(cache_file)
+    if last_updated is not None and not os.path.exists(cache_file):
+        # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
+        # 不整合が生じているので最終更新日時を削除する
+        delete_last_updated(vector_id)
+        last_updated = None
 
     if os.path.exists(cache_file):
         # memo: 最終同期時刻を用いてAPIリクエストする。
         # そこで得られたデータは全てローカルキャッシュにUPSERTする。
         # last_updatedが存在することは保証されている
         diff = api.qgis_vector.get_diff(vector_id, last_updated)
+        updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
 
         should_deleted_fids = diff["deletedRows"] + list(
             map(lambda rec: rec["qgishub_id"], diff["updatedRows"])
@@ -99,7 +107,6 @@ def sync_local_cache(
 
             vlayer.commitChanges()
             del vlayer
-
     else:
         # Create a new cache file
         options = QgsVectorFileWriter.SaveVectorOptions()
@@ -122,14 +129,21 @@ def sync_local_cache(
             )
             return None
 
+        # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
+        # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
+        updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+
         BATCH_SIZE = 5000  # Number of features to fetch in each batch
         count = 0
+        after_id = None  # 1回のバッチで最後に取得したqgishub_idを保持する
         while True:
             # Fetch features in batches
             features = api.qgis_vector.get_features(
                 vector_id=vector_id,
                 limit=BATCH_SIZE,
-                offset=count * BATCH_SIZE,
+                after_id=after_id,
             )
 
             for feature in features:
@@ -151,15 +165,17 @@ def sync_local_cache(
                 writer.addFeature(qgsfeature)
 
             if len(features) < BATCH_SIZE:
+                # 取得終了
                 break
+
+            # Update after_id for the next batch
+            after_id = features[-1]["qgishub_id"]
+
             count += 1
 
         del writer
 
-    last_updated = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-    store_last_updated(vector_id, last_updated)
+    store_last_updated(vector_id, updated_at)
 
 
 @lru_cache(maxsize=128)
@@ -197,4 +213,14 @@ def store_last_updated(vector_id: str, timestamp: str):
     qsettings = QSettings()
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.setValue(vector_id, timestamp)
+    qsettings.endGroup()
+
+
+def delete_last_updated(vector_id: str):
+    """
+    Delete the last updated timestamp for a vector ID from settings.
+    """
+    qsettings = QSettings()
+    qsettings.beginGroup(SETTING_GROUP)
+    qsettings.remove(vector_id)
     qsettings.endGroup()
