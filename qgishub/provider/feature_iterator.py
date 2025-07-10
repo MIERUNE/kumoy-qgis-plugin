@@ -1,3 +1,5 @@
+import time
+
 from qgis.core import (
     QgsAbstractFeatureIterator,
     QgsCoordinateTransform,
@@ -32,12 +34,6 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             print("ERROR", e)
             self.close()
             return
-
-        local_cache.sync_local_cache(
-            self._provider.qgishub_vector.id,
-            self._provider.fields(),
-            self._provider.wkbType(),
-        )
 
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 

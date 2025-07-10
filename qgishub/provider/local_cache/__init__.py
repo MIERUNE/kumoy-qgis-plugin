@@ -69,7 +69,6 @@ def _create_new_cache(
     )
 
     BATCH_SIZE = 5000  # Number of features to fetch in each batch
-    count = 0
     after_id = None  # 1回のバッチで最後に取得したqgishub_idを保持する
     while True:
         # Fetch features in batches
@@ -103,8 +102,6 @@ def _create_new_cache(
 
         # Update after_id for the next batch
         after_id = features[-1]["qgishub_id"]
-
-        count += 1
     del writer
 
     return updated_at
@@ -216,19 +213,12 @@ def sync_local_cache(
     store_last_updated(vector_id, updated_at)
 
 
-LAYER_CACHE = {}
-
-
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
-    if vector_id in LAYER_CACHE:
-        return LAYER_CACHE[vector_id]
-
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
     layer = QgsVectorLayer(cache_file, "cache", "ogr")
     if layer.isValid():
-        LAYER_CACHE[vector_id] = layer
         return layer
     else:
         QgsApplication.messageLog().logMessage(f"Cache layer {vector_id} is not valid.")

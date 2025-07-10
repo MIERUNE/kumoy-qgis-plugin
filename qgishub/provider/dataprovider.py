@@ -74,6 +74,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         _, project_id, vector_id = parse_uri(uri)
 
         self.qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
+        self._refresh_local_cache()
         self.cached_layer = local_cache.get_cached_layer(self.qgishub_vector.id)
 
         self._is_valid = True
@@ -126,6 +127,14 @@ class QgishubDataProvider(QgsVectorDataProvider):
                     maxPrec=0,  # Not applicable for varchar
                 ),
             ]
+        )
+
+    def _refresh_local_cache(self):
+        """Refresh local cache"""
+        local_cache.sync_local_cache(
+            self.qgishub_vector.id,
+            self.fields(),
+            self.wkbType(),
         )
 
     @classmethod
@@ -251,6 +260,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
             success = api.qgis_vector.delete_features(self.qgishub_vector.id, chunk)
             if not success:
                 return False
+        self._refresh_local_cache()
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
@@ -293,7 +303,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         self.clearMinMaxCache()
         self.updateExtents()
-
+        self._refresh_local_cache()
         return True, candidates
 
     def changeAttributeValues(self, attr_map: Dict[str, dict]) -> bool:
@@ -333,6 +343,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         )
 
         self.clearMinMaxCache()
+        self._refresh_local_cache()
         return True
 
     def changeGeometryValues(self, geometry_map: Dict[str, QgsGeometry]) -> bool:
@@ -355,6 +366,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
             self.qgishub_vector.projectId, self.qgishub_vector.id
         )
         self.updateExtents()
+        self._refresh_local_cache()
         return True
 
     def renameAttributes(self, renamedAttributes: Dict[int, str]) -> bool:
@@ -375,7 +387,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-
+        self._refresh_local_cache()
         return success
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
@@ -404,7 +416,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-
+        self._refresh_local_cache()
         return success
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -422,5 +434,5 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-
+        self._refresh_local_cache()
         return success
