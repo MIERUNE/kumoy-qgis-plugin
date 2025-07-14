@@ -1,4 +1,3 @@
-import time
 from typing import Dict, List
 
 from qgis.core import (
@@ -135,7 +134,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         """Refresh local cache"""
         local_cache.sync_local_cache(
             self.qgishub_vector.id,
-            self.fields(),
+            self.raw_fields(),
             self.wkbType(),
         )
 
@@ -180,25 +179,39 @@ class QgishubDataProvider(QgsVectorDataProvider):
         fs = QgsFields()
 
         for column in self.qgishub_vector.columns:
-            k = column["name"]
-            v = column["type"]
+            name = column["name"]
+            suffix = name.split("_")[-1]  # e.g.) usercol_uuid_colname
+            type_ = column["type"]
 
             len = 0
-            if v == "string":
+            if type_ == "string":
                 data_type = QVariant.String
                 len = 255
-            elif v == "integer":
+            elif type_ == "integer":
                 data_type = QVariant.Int
-            elif v == "float":
+            elif type_ == "float":
                 data_type = QVariant.Double
             else:
                 data_type = QVariant.Bool
 
-            f = QgsField(k, data_type)
+            f = QgsField(suffix, data_type)
             if len > 0:
                 f.setLength(len)
             fs.append(f)
         return fs
+
+    def raw_fields(self) -> QgsFields:
+        # ローカルキャッシュにはsuffixだけではなくfull column nameを保存する
+        fields = self.fields()
+        new_fields = QgsFields()
+        for field in fields:
+            # Convert suffix to full column name
+            full_colname = self._get_suffix_to_full_column_name(field.name())
+            new_field = QgsField(
+                full_colname, field.type(), field.typeName(), field.length()
+            )
+            new_fields.append(new_field)
+        return new_fields
 
     def extent(self) -> QgsRectangle:
         extent = self.qgishub_vector.extent  # [xmin, ymin, xmax, ymax]
@@ -266,7 +279,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
-        candidates: list[QgsFeature] = []
+        candidates: List[QgsFeature] = []
 
         for f in features:
             if not f.hasGeometry():
@@ -277,15 +290,17 @@ class QgishubDataProvider(QgsVectorDataProvider):
             if f.hasGeometry() and (f.geometry().wkbType() != self.wkbType()):
                 continue
 
-            _f = QgsFeature(self.fields())
-            _f.setGeometry(f.geometry())
-            attrs = [None for i in range(_f.fields().count())]
-            for i in range(min(len(attrs), len(f.attributes()))):
-                attrs[i] = f.attributes()[i]
+            cur_feature = QgsFeature()
+            cur_feature.setGeometry(f.geometry())
+            cur_feature.setFields(self.raw_fields())
 
-            _f.setAttributes(attrs)
+            # Set attributes
+            for name in self.fields().names():
+                # Convert suffix to full column name
+                full_colname = self._get_suffix_to_full_column_name(name)
+                cur_feature[full_colname] = f[name]
 
-            candidates.append(_f)
+            candidates.append(cur_feature)
 
         if len(candidates) == 0:
             # 何もせず終了
@@ -317,7 +332,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
             properties = {}
             for idx, value in raw_attr.items():
                 field_name = self.fields().field(idx).name()
-                properties[field_name] = value
+                # Convert suffix to full column name
+                full_colname = self._get_suffix_to_full_column_name(field_name)
+                properties[full_colname] = value
 
             attribute_items.append(
                 {"qgishub_id": int(feature_id), "properties": properties}
@@ -375,7 +392,8 @@ class QgishubDataProvider(QgsVectorDataProvider):
         # Convert field index to field name mapping
         attribute_map = {}
         for idx, new_name in renamedAttributes.items():
-            old_name = self.fields().field(idx).name()
+            old_suffix = self.fields().field(idx).name()
+            old_name = self._get_suffix_to_full_column_name(old_suffix)
             attribute_map[old_name] = new_name
 
         # Call the API to rename attributes
@@ -425,9 +443,19 @@ class QgishubDataProvider(QgsVectorDataProvider):
         # Convert field indices to field names
         attribute_names = [self.fields().field(idx).name() for idx in attribute_ids]
 
+        full_colnames = []
+        for name in attribute_names:
+            # Convert suffix to full column name
+            try:
+                full_colname = self._get_suffix_to_full_column_name(name)
+                full_colnames.append(full_colname)
+            except ValueError as e:
+                print(f"Error: {e}")
+                return False
+
         # Call the API to delete attributes
         success = api.qgis_vector.delete_attributes(
-            vector_id=self.qgishub_vector.id, attribute_names=attribute_names
+            vector_id=self.qgishub_vector.id, attribute_names=full_colnames
         )
 
         if success:
@@ -438,3 +466,12 @@ class QgishubDataProvider(QgsVectorDataProvider):
             self.clearMinMaxCache()
         self._refresh_local_cache()
         return success
+
+    def _get_suffix_to_full_column_name(self, suffix: str) -> str:
+        """Convert suffix to full column name by searching in qgishub_vector.columns"""
+        # e.g.) colname -> usercol_uuid_colname
+        for column in self.qgishub_vector.columns:
+            if column["name"].endswith(suffix):
+                return column["name"]
+
+        raise ValueError(f"Column with suffix '{suffix}' not found in vector columns.")

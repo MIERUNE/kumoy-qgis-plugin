@@ -178,6 +178,7 @@ def sync_local_cache(
     - キャッシュはGPKGを用いる
     - ローカルにGPKGが存在しなければ新規で作成する
     - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
+    fieldsは、DBのrawカラム名を利用すること
     """
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
