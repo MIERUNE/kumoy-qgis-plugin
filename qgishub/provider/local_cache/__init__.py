@@ -120,6 +120,22 @@ def _update_existing_cache(
     new_fields.append(QgsField("qgishub_id", QVariant.Int))
 
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
+
+    # カラム名の変更を検知して更新する
+    # usercol_uuid_suffix: usercol_uuid_でマッチングして常に上書き
+    vlayer.startEditing()
+    for cache_colname in vlayer.fields().names():
+        segments = cache_colname.split("_")
+        prefix = f"{segments[0]}_{segments[1]}_"
+        for field in fields:
+            if field.name().startswith(prefix):
+                # ユーザー定義カラムの接頭辞が一致する場合、キャッシュのカラム名を更新する
+                new_colname = field.name()
+                vlayer.renameAttribute(
+                    vlayer.fields().indexOf(cache_colname), new_colname
+                )
+    vlayer.commitChanges()
+
     # 最終同期時刻を用いてAPIリクエストして差分を取得する
     diff = api.qgis_vector.get_diff(vector_id, last_updated)
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
