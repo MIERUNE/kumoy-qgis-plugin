@@ -127,6 +127,7 @@ class FeatureUploader:
         """
         new_feature = QgsFeature()
         new_feature.setGeometry(original_feature.geometry())
+
         new_feature.setFields(self.normalized_upload_fields)
 
         # Map attributes from original to normalized names

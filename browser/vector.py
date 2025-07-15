@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
 from qgis.core import (
     Qgis,
     QgsDataItem,
+    QgsEditorWidgetSetup,
     QgsMessageLog,
     QgsProject,
     QgsVectorLayer,
@@ -100,6 +101,22 @@ class VectorItem(QgsDataItem):
         layer = QgsVectorLayer(uri, layer_name, "qgishub")
 
         if layer.isValid():
+            # MEMO: 各地物はqgishub_idというPKを暗黙的に持っている
+            # read-onlyであるし、基本的にユーザーが知る必要のない情報なので
+            # GUI上で非表示とする（この情報はlayerおよびプロジェクトのレベルで保存される）
+            # 属性テーブルで非表示に
+            config = layer.attributeTableConfig()
+            columns = config.columns()
+            for column in columns:
+                if column.name == "qgishub_id":
+                    column.hidden = True
+            config.setColumns(columns)
+            layer.setAttributeTableConfig(config)
+            # その他のGUI
+            field_idx = layer.fields().indexOf("qgishub_id")
+            editor_widget_setup = QgsEditorWidgetSetup("Hidden", {})
+            layer.setEditorWidgetSetup(field_idx, editor_widget_setup)
+
             # Add layer to map
             QgsProject.instance().addMapLayer(layer)
         else:

@@ -1,13 +1,9 @@
-import time
-
 from qgis.core import (
     QgsAbstractFeatureIterator,
     QgsCoordinateTransform,
     QgsFeature,
     QgsFeatureRequest,
 )
-
-from . import local_cache
 
 
 class QgishubFeatureIterator(QgsAbstractFeatureIterator):
@@ -28,12 +24,6 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
                 self._request.destinationCrs(),
                 self._request.transformContext(),
             )
-        try:
-            self._filter_rect = self.filterRectToSourceCrs(self._transform)
-        except Exception as e:
-            print("ERROR", e)
-            self.close()
-            return
 
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
@@ -51,7 +41,6 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             return False
 
         self.geometryToDestinationCrs(f, self._transform)
-        f.deleteAttribute("qgishub_id")  # Remove qgishub_id attribute if it exists
 
         # Set feature ID and validity
         f.setValid(True)

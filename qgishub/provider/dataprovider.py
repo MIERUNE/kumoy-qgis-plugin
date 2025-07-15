@@ -7,6 +7,7 @@ from qgis.core import (
     QgsFeatureIterator,
     QgsFeatureRequest,
     QgsField,
+    QgsFieldConstraints,
     QgsFields,
     QgsGeometry,
     QgsProviderRegistry,
@@ -178,6 +179,8 @@ class QgishubDataProvider(QgsVectorDataProvider):
     def fields(self) -> QgsFields:
         fs = QgsFields()
 
+        fs.append(QgsField("qgishub_id", QVariant.Int))
+
         for column in self.qgishub_vector.columns:
             name = column["name"]
             suffix = name.split("_")[-1]  # e.g.) usercol_uuid_colname
@@ -201,10 +204,12 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return fs
 
     def raw_fields(self) -> QgsFields:
-        # ローカルキャッシュにはsuffixだけではなくfull column nameを保存する
-        fields = self.fields()
         new_fields = QgsFields()
-        for field in fields:
+        for field in self.fields():
+            if field.name() == "qgishub_id":
+                # qgishub_idはそのまま追加
+                new_fields.append(field)
+                continue
             # Convert suffix to full column name
             full_colname = self._get_suffix_to_full_column_name(field.name())
             new_field = QgsField(

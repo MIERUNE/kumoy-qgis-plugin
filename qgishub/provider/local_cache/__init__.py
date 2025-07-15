@@ -127,13 +127,10 @@ def _update_existing_cache(
     for cache_colname in vlayer.fields().names():
         segments = cache_colname.split("_")
         prefix = f"{segments[0]}_{segments[1]}_"
-        for field in fields:
-            if field.name().startswith(prefix):
+        for name in fields.names():
+            if name.startswith(prefix):
                 # ユーザー定義カラムの接頭辞が一致する場合、キャッシュのカラム名を更新する
-                new_colname = field.name()
-                vlayer.renameAttribute(
-                    vlayer.fields().indexOf(cache_colname), new_colname
-                )
+                vlayer.renameAttribute(vlayer.fields().indexOf(cache_colname), name)
     vlayer.commitChanges()
 
     # 最終同期時刻を用いてAPIリクエストして差分を取得する
