@@ -183,7 +183,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         for column in self.qgishub_vector.columns:
             name = column["name"]
-            suffix = name.split("_")[-1]  # e.g.) usercol_uuid_colname
+            # usercol_uuid_colname -> colname
+            segments = name.split("_")
+            suffix = name.replace(f"{segments[0]}_{segments[1]}_", "")
             type_ = column["type"]
 
             len = 0

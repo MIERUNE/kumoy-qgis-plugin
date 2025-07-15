@@ -19,13 +19,45 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
+from qgis.PyQt.QtCore import QVariant
+
+import processing
 
 from ...qgishub import api
 from ...qgishub.get_token import get_token
 from ...settings_manager import SettingsManager
-from ..feature_uploader import FeatureUploader
-from ..field_name_normalizer import FieldNameNormalizer
-from ..vector_creator import VectorCreator
+from .normalize_fielid_name import normalize_field_name
+
+
+def rename_field_with_refactor(layer, field_mapping):
+    """リファクタリングツールを使用してフィールド名を変更"""
+
+    # フィールドマッピングの作成
+    # field_mapping = {
+    #     '元のカラム名1': '新しいカラム名1',
+    #     '元のカラム名2': '新しいカラム名2'
+    # }
+
+    # マッピング設定を作成
+    fields_mapping = []
+    for field in layer.fields():
+        field_name = field.name()
+        new_name = field_mapping.get(field_name, field_name)
+
+        mapping = {
+            "expression": f'"{field_name}"',
+            "length": field.length(),
+            "name": new_name,
+            "precision": field.precision(),
+            "type": field.type(),
+        }
+        fields_mapping.append(mapping)
+
+    # リファクタリング実行
+    params = {"INPUT": layer, "FIELDS_MAPPING": fields_mapping, "OUTPUT": "memory:"}
+
+    result = processing.run("native:refactorfields", params)
+    return result["OUTPUT"]
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
@@ -220,11 +252,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(proc_feature_count, plan_limits.maxVectorFeatures)
                 )
 
-            # Setup field name normalization
-            normalizer = FieldNameNormalizer(processed_layer, feedback)
-
             # Check attribute count limit after normalization
-            proc_layer_field_count = len(normalizer.columns)
+            proc_layer_field_count = processed_layer.fields().count()
             if proc_layer_field_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
@@ -234,18 +263,74 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             # Create vector in STRATO
-            creator = VectorCreator(feedback)
-            vector_id = creator.create_vector(project_id, vector_name, vector_type)
+            options = api.project_vector.AddVectorOptions(
+                name=vector_name,
+                type=vector_type,
+            )
+            vector = api.project_vector.add_vector(project_id, options)
 
-            # Create uploader and setup attribute schema
-            uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
-            uploader.setup_attribute_schema()
+            # Normalize field names
+            valid_fields_mapping = {}
+            for field in processed_layer.fields():
+                normalized_name = normalize_field_name(field.name())
+                if normalized_name:
+                    valid_fields_mapping[field.name()] = normalized_name
+            valid_fields_layer = rename_field_with_refactor(
+                processed_layer, valid_fields_mapping
+            )
+
+            # Convert QgsField list to dictionary of name:type
+            attr_dict = {}
+            for field in valid_fields_layer.fields():
+                # Map QGIS field types to our supported types
+                field_type = "string"  # Default to string
+                if field.type() == QVariant.Int:
+                    field_type = "integer"
+                elif field.type() == QVariant.Double:
+                    field_type = "float"
+                elif field.type() == QVariant.Bool:
+                    field_type = "boolean"
+
+                column_name = field.name()
+                attr_dict[column_name] = field_type
+
+            # Call the API to add attributes
+            success = api.qgis_vector.add_attributes(
+                vector_id=vector.id, attributes=attr_dict
+            )
+
+            # サーバー側で付番されるカラム名のuuidを得るためにリロード
+            vector = api.project_vector.get_vector(project_id, vector.id)
+            # 手元のデータのカラムをサーバー側のカラム名に一致させる
+            uuid_fields_mapping = {}
+            for field in valid_fields_layer.fields():
+                # Convert suffix to full column name
+                for column in vector.columns:
+                    if column["name"].endswith(field.name()):
+                        uuid_fields_mapping[field.name()] = column["name"]
+
+            # カラム名のrefactoring
+            uuid_fields_layer = rename_field_with_refactor(
+                valid_fields_layer, uuid_fields_mapping
+            )
 
             # Upload features to STRATO
-            uploaded_feature_count = uploader.upload_layer(processed_layer)
+            cur_features = []
+            for f in uuid_fields_layer.getFeatures():
+                if len(cur_features) >= 1000:
+                    result = api.qgis_vector.add_features(vector.id, cur_features)
+                    feedback.pushInfo(
+                        self.tr("Upload complete: {} features").format(
+                            len(cur_features)
+                        )
+                    )
+                    cur_features = []
+                cur_features.append(f)
 
+            # ページングの最後の1回
+            result = api.qgis_vector.add_features(vector.id, cur_features)
             feedback.pushInfo(
-                self.tr("Upload complete: {} features").format(uploaded_feature_count)
+                self.tr("Upload complete: {} features").format(len(cur_features))
             )
 
             return {"VECTOR_ID": vector_id}
