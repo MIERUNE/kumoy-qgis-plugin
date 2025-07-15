@@ -7,7 +7,6 @@ from qgis.core import (
     QgsFeatureIterator,
     QgsFeatureRequest,
     QgsField,
-    QgsFieldConstraints,
     QgsFields,
     QgsGeometry,
     QgsProviderRegistry,
