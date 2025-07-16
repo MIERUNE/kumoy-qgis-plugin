@@ -194,6 +194,41 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
         self.addParameter(param)
 
+    def _get_project_info_and_validate(
+        self,
+        parameters: Dict[str, Any],
+        context: QgsProcessingContext,
+        layer: QgsVectorLayer,
+    ) -> Tuple[str, str, Any]:
+        """Get project information and validate limits"""
+        # Get project ID
+        project_index = self.parameterAsEnum(parameters, self.STRATO_PROJECT, context)
+        project_options = list(self.project_map.keys())
+        project_id = self.project_map[project_options[project_index]]
+
+        # Get vector name
+        vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
+        if not vector_name:
+            vector_name = layer.name()
+
+        # Get project and plan limits
+        project = api.project.get_project(project_id)
+        organization = api.organization.get_organization(project.organizationId)
+        plan_limits = api.plan.get_plan_limits(organization.plan)
+
+        # Check vector count limit
+        current_vectors = api.project_vector.get_vectors(project_id)
+        upload_vector_count = len(current_vectors) + 1
+        if upload_vector_count > plan_limits.maxVectors:
+            raise QgsProcessingException(
+                self.tr(
+                    "Cannot upload vector. Your plan allows up to {} vectors per project, "
+                    "but you already have {} vectors."
+                ).format(plan_limits.maxVectors, upload_vector_count)
+            )
+
+        return project_id, vector_name, plan_limits
+
     def processAlgorithm(
         self,
         parameters: Dict[str, Any],
@@ -206,33 +241,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Get input layer
             layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
 
-            # Get project ID
-            project_index = self.parameterAsEnum(
-                parameters, self.STRATO_PROJECT, context
+            # Get project information and validate
+            project_id, vector_name, plan_limits = self._get_project_info_and_validate(
+                parameters, context, layer
             )
-            project_options = list(self.project_map.keys())
-            project_id = self.project_map[project_options[project_index]]
-
-            # Get vector name
-            vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
-
-            project = api.project.get_project(project_id)
-            organization = api.organization.get_organization(project.organizationId)
-            plan_limits = api.plan.get_plan_limits(organization.plan)
-            # Check vector count limit early
-            current_vectors = api.project_vector.get_vectors(project_id)
-            upload_vector_count = len(current_vectors) + 1
-            if upload_vector_count > plan_limits.maxVectors:
-                raise QgsProcessingException(
-                    self.tr(
-                        "Cannot upload vector. Your plan allows up to {} vectors per project, "
-                        "but you already have {} vectors."
-                    ).format(plan_limits.maxVectors, upload_vector_count)
-                )
-
-            # Use layer name if vector name not provided
-            if not vector_name:
-                vector_name = layer.name()
 
             # Determine geometry type
             vector_type, is_multipart = self._get_geometry_type(layer)
@@ -262,76 +274,24 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(proc_layer_field_count, plan_limits.maxVectorAttributes)
                 )
 
-            # Create vector in STRATO
-            options = api.project_vector.AddVectorOptions(
-                name=vector_name,
-                type=vector_type,
-            )
-            vector = api.project_vector.add_vector(project_id, options)
-
             # Normalize field names
-            valid_fields_mapping = {}
-            for field in processed_layer.fields():
-                normalized_name = normalize_field_name(field.name())
-                if normalized_name:
-                    valid_fields_mapping[field.name()] = normalized_name
-            valid_fields_layer = rename_field_with_refactor(
-                processed_layer, valid_fields_mapping
+            valid_fields_layer = self._prepare_field_mappings(processed_layer)
+
+            # Create attribute dictionary
+            attr_dict = self._create_attribute_dict(valid_fields_layer)
+
+            # Create vector and add attributes
+            vector = self._create_vector_and_attributes(
+                project_id, vector_name, vector_type, attr_dict
             )
+            # サーバー側でカラムを作成する際に、自動的にUUIDが付番されるため、再読み込み
+            vector_id = vector.id
 
-            # Convert QgsField list to dictionary of name:type
-            attr_dict = {}
-            for field in valid_fields_layer.fields():
-                # Map QGIS field types to our supported types
-                field_type = "string"  # Default to string
-                if field.type() == QVariant.Int:
-                    field_type = "integer"
-                elif field.type() == QVariant.Double:
-                    field_type = "float"
-                elif field.type() == QVariant.Bool:
-                    field_type = "boolean"
+            # Map to server column names
+            uuid_fields_layer = self._map_to_server_columns(valid_fields_layer, vector)
 
-                column_name = field.name()
-                attr_dict[column_name] = field_type
-
-            # Call the API to add attributes
-            success = api.qgis_vector.add_attributes(
-                vector_id=vector.id, attributes=attr_dict
-            )
-
-            # サーバー側で付番されるカラム名のuuidを得るためにリロード
-            vector = api.project_vector.get_vector(project_id, vector.id)
-            # 手元のデータのカラムをサーバー側のカラム名に一致させる
-            uuid_fields_mapping = {}
-            for field in valid_fields_layer.fields():
-                # Convert suffix to full column name
-                for column in vector.columns:
-                    if column["name"].endswith(field.name()):
-                        uuid_fields_mapping[field.name()] = column["name"]
-
-            # カラム名のrefactoring
-            uuid_fields_layer = rename_field_with_refactor(
-                valid_fields_layer, uuid_fields_mapping
-            )
-
-            # Upload features to STRATO
-            cur_features = []
-            for f in uuid_fields_layer.getFeatures():
-                if len(cur_features) >= 1000:
-                    result = api.qgis_vector.add_features(vector.id, cur_features)
-                    feedback.pushInfo(
-                        self.tr("Upload complete: {} features").format(
-                            len(cur_features)
-                        )
-                    )
-                    cur_features = []
-                cur_features.append(f)
-
-            # ページングの最後の1回
-            result = api.qgis_vector.add_features(vector.id, cur_features)
-            feedback.pushInfo(
-                self.tr("Upload complete: {} features").format(len(cur_features))
-            )
+            # Upload features
+            self._upload_features(vector.id, uuid_fields_layer, feedback)
 
             return {"VECTOR_ID": vector_id}
 
@@ -567,3 +527,99 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.tr("Could not retrieve processed layer"))
 
         return processed_layer, source_crs
+
+    def _prepare_field_mappings(
+        self, processed_layer: QgsVectorLayer
+    ) -> QgsVectorLayer:
+        """Normalize field names for PostgreSQL/PostGIS compatibility"""
+        # Normalize field names
+        valid_fields_mapping = {}
+        for field in processed_layer.fields():
+            normalized_name = normalize_field_name(field.name())
+            if normalized_name:
+                valid_fields_mapping[field.name()] = normalized_name
+
+        return rename_field_with_refactor(processed_layer, valid_fields_mapping)
+
+    def _create_attribute_dict(
+        self, valid_fields_layer: QgsVectorLayer
+    ) -> Dict[str, str]:
+        """Convert QgsField list to dictionary of name:type"""
+        attr_dict = {}
+        for field in valid_fields_layer.fields():
+            # Map QGIS field types to our supported types
+            field_type = "string"  # Default to string
+            if field.type() == QVariant.Int:
+                field_type = "integer"
+            elif field.type() == QVariant.Double:
+                field_type = "float"
+            elif field.type() == QVariant.Bool:
+                field_type = "boolean"
+
+            column_name = field.name()
+            attr_dict[column_name] = field_type
+
+        return attr_dict
+
+    def _create_vector_and_attributes(
+        self,
+        project_id: str,
+        vector_name: str,
+        vector_type: str,
+        attr_dict: Dict[str, str],
+    ) -> Any:
+        """Create vector in STRATO and add attributes"""
+        # Create vector
+        options = api.project_vector.AddVectorOptions(
+            name=vector_name,
+            type=vector_type,
+        )
+        vector = api.project_vector.add_vector(project_id, options)
+
+        # Add attributes
+        api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
+
+        # Reload to get server-assigned column names
+        return api.project_vector.get_vector(project_id, vector.id)
+
+    def _map_to_server_columns(
+        self,
+        valid_fields_layer: QgsVectorLayer,
+        vector: Any,
+    ) -> QgsVectorLayer:
+        """Map local field names to server-assigned column names with UUIDs"""
+        uuid_fields_mapping = {}
+        for field in valid_fields_layer.fields():
+            # Convert suffix to full column name
+            for column in vector.columns:
+                if column["name"].endswith(field.name()):
+                    uuid_fields_mapping[field.name()] = column["name"]
+
+        # Rename fields to match server column names
+        return rename_field_with_refactor(valid_fields_layer, uuid_fields_mapping)
+
+    def _upload_features(
+        self,
+        vector_id: str,
+        uuid_fields_layer: QgsVectorLayer,
+        feedback: QgsProcessingFeedback,
+    ) -> None:
+        """Upload features to STRATO in batches"""
+        cur_features = []
+        batch_size = 1000
+
+        for f in uuid_fields_layer.getFeatures():
+            if len(cur_features) >= batch_size:
+                api.qgis_vector.add_features(vector_id, cur_features)
+                feedback.pushInfo(
+                    self.tr("Upload complete: {} features").format(len(cur_features))
+                )
+                cur_features = []
+            cur_features.append(f)
+
+        # Upload remaining features
+        if cur_features:
+            api.qgis_vector.add_features(vector_id, cur_features)
+            feedback.pushInfo(
+                self.tr("Upload complete: {} features").format(len(cur_features))
+            )
