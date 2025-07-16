@@ -298,10 +298,20 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
             cur_feature = QgsFeature()
             cur_feature.setGeometry(f.geometry())
-            cur_feature.setFields(self.raw_fields())
+
+            fields = QgsFields()
+            for field in self.raw_fields():
+                if field.name() == "qgishub_id":
+                    # qgishub_idはサーバー側で自動付番されるものなのでアップロードしない
+                    continue
+                fields.append(field)
+            cur_feature.setFields(fields)
 
             # Set attributes
             for name in self.fields().names():
+                if name == "qgishub_id":
+                    # qgishub_idはサーバー側で自動付番されるものなのでアップロードしない
+                    continue
                 # Convert suffix to full column name
                 full_colname = self._get_suffix_to_full_column_name(name)
                 cur_feature[full_colname] = f[name]
