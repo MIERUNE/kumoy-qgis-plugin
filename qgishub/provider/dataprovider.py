@@ -423,7 +423,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-        self._refresh_local_cache()
+            self._refresh_local_cache()
         return success
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
@@ -452,7 +452,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-        self._refresh_local_cache()
+            self._refresh_local_cache()
         return success
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -480,7 +480,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 self.qgishub_vector.projectId, self.qgishub_vector.id
             )
             self.clearMinMaxCache()
-        self._refresh_local_cache()
+            self._refresh_local_cache()
         return success
 
     def _get_suffix_to_full_column_name(self, suffix: str) -> str:
