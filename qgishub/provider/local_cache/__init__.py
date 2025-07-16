@@ -39,8 +39,6 @@ def _create_new_cache(
     Returns:
         updated_at: 最終更新日時
     """
-    new_fields = QgsFields(fields)  # ユーザー定義カラム
-    new_fields.append(QgsField("qgishub_id", QVariant.Int))
 
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.layerOptions = ["FID=qgishub_id"]
@@ -49,7 +47,7 @@ def _create_new_cache(
 
     writer = QgsVectorFileWriter.create(
         cache_file,
-        new_fields,
+        fields,
         geometry_type,
         QgsCoordinateReferenceSystem("EPSG:4326"),
         QgsProject.instance().transformContext(),
@@ -86,7 +84,7 @@ def _create_new_cache(
             qgsfeature.setGeometry(g)
 
             # Set attributes
-            qgsfeature.setFields(new_fields)
+            qgsfeature.setFields(fields)
             qgsfeature["qgishub_id"] = feature["qgishub_id"]
             for name in fields.names():
                 if name == "qgishub_id":
@@ -118,8 +116,6 @@ def _update_existing_cache(
     Returns:
         updated_at: 最終更新日時
     """
-    new_fields = QgsFields(fields)  # ユーザー定義カラム
-    new_fields.append(QgsField("qgishub_id", QVariant.Int))
 
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
 
@@ -129,10 +125,29 @@ def _update_existing_cache(
     for cache_colname in vlayer.fields().names():
         segments = cache_colname.split("_")
         prefix = f"{segments[0]}_{segments[1]}_"
+
+        not_found = (
+            True  # キャッシュにはあるが、現在のサーバー上のカラムには存在しない場合
+        )
         for name in fields.names():
             if name.startswith(prefix):
                 # ユーザー定義カラムの接頭辞が一致する場合、キャッシュのカラム名を更新する
                 vlayer.renameAttribute(vlayer.fields().indexOf(cache_colname), name)
+                not_found = False
+                break
+
+        if not_found:
+            # ユーザー定義カラムの接頭辞が一致しない場合、キャッシュのカラム名を削除する
+            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
+
+    # 新規追加カラムのチェック
+    for name in fields.names():
+        if name == "qgishub_id":
+            continue  # qgishub_idはサーバー側で自動付番されるものなのでアップロードしない
+        if vlayer.fields().indexOf(name) == -1:
+            # キャッシュに存在しないカラムを追加する
+            vlayer.addAttribute(QgsField(name, fields[name].type()))
+
     vlayer.commitChanges()
 
     # 最終同期時刻を用いてAPIリクエストして差分を取得する
@@ -170,7 +185,7 @@ def _update_existing_cache(
                 qgsfeature.setGeometry(g)
 
                 # Set attributes
-                qgsfeature.setFields(new_fields)
+                qgsfeature.setFields(fields)
                 qgsfeature["qgishub_id"] = feature["qgishub_id"]
                 for name in fields.names():
                     if name == "qgishub_id":
