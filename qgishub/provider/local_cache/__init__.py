@@ -13,7 +13,6 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
 
 from ... import api
 from .settings import delete_last_updated, get_last_updated, store_last_updated
@@ -116,7 +115,13 @@ def _update_existing_cache(
         updated_at: 最終更新日時
     """
 
-    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
+    if vector_id in LAYER_CACHE:
+        vlayer = LAYER_CACHE[vector_id]
+    else:
+        # キャッシュファイルが存在する場合は、QgsVectorLayerを作成してキャッシュを読み込む
+        LAYER_CACHE[vector_id] = QgsVectorLayer(cache_file, "temp", "ogr")
+        vlayer = LAYER_CACHE[vector_id]
+
     vlayer.startEditing()
 
     # サーバーに存在しないカラムをキャッシュから削除
@@ -178,7 +183,6 @@ def _update_existing_cache(
                 vlayer.addFeature(qgsfeature)
 
     vlayer.commitChanges()
-    del vlayer
     return updated_at
 
 
@@ -217,11 +221,18 @@ def sync_local_cache(
     store_last_updated(vector_id, updated_at)
 
 
+LAYER_CACHE = {}
+
+
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-    layer = QgsVectorLayer(cache_file, "cache", "ogr")
+
+    if vector_id not in LAYER_CACHE:
+        LAYER_CACHE[vector_id] = QgsVectorLayer(cache_file, "cache", "ogr")
+
+    layer = LAYER_CACHE[vector_id]
     if layer.isValid():
         return layer
     else:
