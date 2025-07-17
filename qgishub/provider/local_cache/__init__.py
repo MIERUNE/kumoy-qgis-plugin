@@ -117,6 +117,21 @@ def _update_existing_cache(
     """
 
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
+    vlayer.startEditing()
+
+    # サーバーに存在しないカラムをキャッシュから削除
+    for cache_colname in vlayer.fields().names():
+        if cache_colname == "qgishub_id":
+            continue
+        # キャッシュにはあるが、現在のサーバー上のカラムには存在しないキャッシュのカラムを削除
+        if fields.indexOf(cache_colname) == -1:
+            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
+
+    # サーバーだけに存在するカラムをキャッシュに追加
+    for name in fields.names():
+        if vlayer.fields().indexOf(name) == -1:
+            vlayer.addAttribute(QgsField(name, fields[name].type()))
+
     # 最終同期時刻を用いてAPIリクエストして差分を取得する
     diff = api.qgis_vector.get_diff(vector_id, last_updated)
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
@@ -131,8 +146,6 @@ def _update_existing_cache(
         # No changes, do nothing
         pass
     else:
-        vlayer.startEditing()
-
         # 削除された行と更新された行を全て削除する
         if len(should_deleted_fids) > 0:
             for fid in should_deleted_fids:
@@ -164,9 +177,8 @@ def _update_existing_cache(
                 qgsfeature.setValid(True)
                 vlayer.addFeature(qgsfeature)
 
-        vlayer.commitChanges()
-        del vlayer
-
+    vlayer.commitChanges()
+    del vlayer
     return updated_at
 
 
@@ -194,14 +206,6 @@ def sync_local_cache(
         last_updated = None
 
     if os.path.exists(cache_file):
-        # 前回更新から一定時間経過していない場合は同期しない
-        last_updated_dt = datetime.datetime.strptime(
-            last_updated, "%Y-%m-%dT%H:%M:%SZ"
-        ).replace(tzinfo=datetime.timezone.utc)
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if (now - last_updated_dt).total_seconds() < 1:  # 1秒以内の更新は無視
-            return
-
         # 既存キャッシュファイルを更新
         updated_at = _update_existing_cache(cache_file, vector_id, fields, last_updated)
     else:

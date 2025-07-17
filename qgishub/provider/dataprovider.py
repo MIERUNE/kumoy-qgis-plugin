@@ -71,11 +71,10 @@ class QgishubDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        _, project_id, vector_id = parse_uri(uri)
-        self.qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
+        _, self.project_id, self.vector_id = parse_uri(uri)
 
         # local cache
-        self._refresh_local_cache()
+        self._reload_vector()
         self.cached_layer = local_cache.get_cached_layer(self.qgishub_vector.id)
 
         self._is_valid = True
@@ -130,13 +129,18 @@ class QgishubDataProvider(QgsVectorDataProvider):
             ]
         )
 
-    def _refresh_local_cache(self):
+    def _reload_vector(self):
         """Refresh local cache"""
+        self.qgishub_vector = api.project_vector.get_vector(
+            self.project_id, self.vector_id
+        )
         local_cache.sync_local_cache(
             self.qgishub_vector.id,
             self.fields(),
             self.wkbType(),
         )
+        self.clearMinMaxCache()
+        self.updateExtents()
 
     @classmethod
     def providerKey(cls) -> str:
@@ -261,7 +265,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
             success = api.qgis_vector.delete_features(self.qgishub_vector.id, chunk)
             if not success:
                 return False
-        self._refresh_local_cache()
+        self._reload_vector()
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
@@ -285,13 +289,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 return False, candidates[0:i]
 
         # reload
-        self.qgishub_vector = api.project_vector.get_vector(
-            self.qgishub_vector.projectId, self.qgishub_vector.id
-        )
-
-        self.clearMinMaxCache()
-        self.updateExtents()
-        self._refresh_local_cache()
+        self._reload_vector()
         return True, candidates
 
     def changeAttributeValues(self, attr_map: Dict[str, dict]) -> bool:
@@ -317,8 +315,6 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Process in chunks of 1000 to avoid server limits
         total_items = len(attribute_items)
-        processed_items = 0
-
         for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
             chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
             result = api.qgis_vector.change_attribute_values(
@@ -326,15 +322,8 @@ class QgishubDataProvider(QgsVectorDataProvider):
             )
             if not result:
                 return False
-            processed_items += len(chunk)
 
-        # reload
-        self.qgishub_vector = api.project_vector.get_vector(
-            self.qgishub_vector.projectId, self.qgishub_vector.id
-        )
-
-        self.clearMinMaxCache()
-        self._refresh_local_cache()
+        self._reload_vector()
         return True
 
     def changeGeometryValues(self, geometry_map: Dict[str, QgsGeometry]) -> bool:
@@ -352,12 +341,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
             if not result:
                 return False
 
-        # reload
-        self.qgishub_vector = api.project_vector.get_vector(
-            self.qgishub_vector.projectId, self.qgishub_vector.id
-        )
-        self.updateExtents()
-        self._refresh_local_cache()
+        self._reload_vector()
         return True
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
@@ -381,12 +365,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
             vector_id=self.qgishub_vector.id, attributes=attr_dict
         )
         if success:
-            # Update the vector information to reflect the changes
-            self.qgishub_vector = api.project_vector.get_vector(
-                self.qgishub_vector.projectId, self.qgishub_vector.id
-            )
-            self.clearMinMaxCache()
-        self._refresh_local_cache()
+            self._reload_vector()
         return success
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -399,10 +378,5 @@ class QgishubDataProvider(QgsVectorDataProvider):
         )
 
         if success:
-            # Update the vector information to reflect the changes
-            self.qgishub_vector = api.project_vector.get_vector(
-                self.qgishub_vector.projectId, self.qgishub_vector.id
-            )
-            self.clearMinMaxCache()
-        self._refresh_local_cache()
+            self._reload_vector()
         return success
