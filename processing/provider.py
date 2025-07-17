@@ -6,7 +6,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgishub.constants import PLUGIN_NAME
 
 from ..imgs import IMGS_PATH
-from .upload_vector.algorithm import UploadVectorAlgorithm
+from .algs import UploadVectorAlgorithm
 
 
 class StratoProcessingProvider(QgsProcessingProvider):

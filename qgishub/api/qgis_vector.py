@@ -57,6 +57,11 @@ def add_features(
             for f in features
         ]
 
+        # rm qgishub_id from properties
+        for feature in _features:
+            if "qgishub_id" in feature["properties"]:
+                del feature["properties"]["qgishub_id"]
+
         # HACK: replace QVariant of properties with None
         # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
         for feature in _features:

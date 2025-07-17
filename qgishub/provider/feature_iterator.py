@@ -1,3 +1,5 @@
+import time
+
 from qgis.core import (
     QgsAbstractFeatureIterator,
     QgsCoordinateTransform,
@@ -24,6 +26,12 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
                 self._request.destinationCrs(),
                 self._request.transformContext(),
             )
+        try:
+            self._filter_rect = self.filterRectToSourceCrs(self._transform)
+        except Exception as e:
+            print("ERROR", e)
+            self.close()
+            return
 
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 

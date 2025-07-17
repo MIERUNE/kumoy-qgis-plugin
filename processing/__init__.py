@@ -11,3 +11,5 @@ try:
 except ImportError:
     # In test environment, only expose FieldNameNormalizer
     __all__ = ["FieldNameNormalizer"]
+
+from .field_name_normalizer import FieldNameNormalizer

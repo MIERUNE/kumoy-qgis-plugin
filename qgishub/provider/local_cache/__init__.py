@@ -13,6 +13,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
+from qgis.PyQt.QtCore import QVariant
 
 from ... import api
 from .settings import delete_last_updated, get_last_updated, store_last_updated
@@ -38,7 +39,6 @@ def _create_new_cache(
     Returns:
         updated_at: 最終更新日時
     """
-
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.layerOptions = ["FID=qgishub_id"]
     options.driverName = "GPKG"
@@ -86,9 +86,8 @@ def _create_new_cache(
             qgsfeature.setFields(fields)
             qgsfeature["qgishub_id"] = feature["qgishub_id"]
             for name in fields.names():
-                if name == "qgishub_id":
-                    continue
-                qgsfeature[name] = feature["properties"][name]
+                if name != "qgishub_id":
+                    qgsfeature[name] = feature["properties"][name]
 
             # Set feature ID and validity
             qgsfeature.setValid(True)
@@ -117,39 +116,6 @@ def _update_existing_cache(
     """
 
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
-
-    # カラム名の変更を検知して更新する
-    # usercol_uuid_suffix: usercol_uuid_でマッチングして常に上書き
-    vlayer.startEditing()
-
-    for cache_colname in vlayer.fields().names():
-        if cache_colname == "qgishub_id":
-            continue
-
-        segments = cache_colname.split("_")
-        prefix = f"{segments[0]}_{segments[1]}_"
-
-        # キャッシュにはあるが、現在のサーバー上のカラムには存在しない場合のフラグ
-        not_found = True
-        for name in fields.names():
-            if name.startswith(prefix):
-                # ユーザー定義カラムの接頭辞が一致する場合、キャッシュのカラム名を更新する
-                vlayer.renameAttribute(vlayer.fields().indexOf(cache_colname), name)
-                not_found = False
-                break
-
-        if not_found:
-            # ユーザー定義カラムの接頭辞が一致しない場合、キャッシュのカラム名を削除する
-            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
-
-    # 新規追加カラムのチェック
-    for name in fields.names():
-        if name == "qgishub_id":
-            continue  # qgishub_idはサーバー側で自動付番されるものなのでアップロードしない
-        if vlayer.fields().indexOf(name) == -1:
-            # キャッシュに存在しないカラムを追加する
-            vlayer.addAttribute(QgsField(name, fields[name].type()))
-
     # 最終同期時刻を用いてAPIリクエストして差分を取得する
     diff = api.qgis_vector.get_diff(vector_id, last_updated)
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
@@ -160,38 +126,46 @@ def _update_existing_cache(
         map(lambda rec: rec["qgishub_id"], diff["updatedRows"])
     )
 
-    # 削除された行と更新された行を全て削除する
-    if len(should_deleted_fids) > 0:
-        for fid in should_deleted_fids:
-            # Delete features by fid
-            feature = vlayer.getFeature(fid)
-            if feature.isValid():
-                vlayer.deleteFeature(feature.id())
+    if len(should_deleted_fids) == 0 and len(diff["updatedRows"]) == 0:
+        # No changes, do nothing
+        pass
+    else:
+        vlayer.startEditing()
 
-    # 更新された行を新たなレコードとして追加する
-    if len(diff["updatedRows"]) > 0:
-        # add features
-        for feature in diff["updatedRows"]:
-            qgsfeature = QgsFeature()
-            # Set geometry
-            g = QgsGeometry()
-            g.fromWkb(feature["qgishub_wkb"])
-            qgsfeature.setGeometry(g)
+        # 削除された行と更新された行を全て削除する
+        if len(should_deleted_fids) > 0:
+            for fid in should_deleted_fids:
+                # Delete features by fid
+                feature = vlayer.getFeature(fid)
+                if feature.isValid():
+                    vlayer.deleteFeature(feature.id())
 
-            # Set attributes
-            qgsfeature.setFields(fields)
-            qgsfeature["qgishub_id"] = feature["qgishub_id"]
-            for name in fields.names():
-                if name == "qgishub_id":
-                    continue
-                qgsfeature[name] = feature["properties"][name]
+        # 更新された行を新たなレコードとして追加する
+        if len(diff["updatedRows"]) > 0:
+            # add features
+            for feature in diff["updatedRows"]:
+                qgsfeature = QgsFeature()
+                # Set geometry
+                g = QgsGeometry()
+                g.fromWkb(feature["qgishub_wkb"])
+                qgsfeature.setGeometry(g)
 
-            # Set feature ID and validity
-            qgsfeature.setValid(True)
-            vlayer.addFeature(qgsfeature)
+                # Set attributes
+                qgsfeature.setFields(fields)
 
-    vlayer.commitChanges()
-    del vlayer
+                for name in fields.names():
+                    if name == "qgishub_id":
+                        qgsfeature["qgishub_id"] = feature["qgishub_id"]
+                    else:
+                        qgsfeature[name] = feature["properties"][name]
+
+                # Set feature ID and validity
+                qgsfeature.setValid(True)
+                vlayer.addFeature(qgsfeature)
+
+        vlayer.commitChanges()
+        del vlayer
+
     return updated_at
 
 
@@ -203,7 +177,6 @@ def sync_local_cache(
     - キャッシュはGPKGを用いる
     - ローカルにGPKGが存在しなければ新規で作成する
     - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
-    fieldsは、DBのrawカラム名を利用すること
     """
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
