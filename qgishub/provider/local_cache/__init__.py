@@ -84,9 +84,10 @@ def _create_new_cache(
 
             # Set attributes
             qgsfeature.setFields(fields)
-            qgsfeature["qgishub_id"] = feature["qgishub_id"]
             for name in fields.names():
-                if name != "qgishub_id":
+                if name == "qgishub_id":
+                    qgsfeature["qgishub_id"] = feature["qgishub_id"]
+                else:
                     qgsfeature[name] = feature["properties"][name]
 
             # Set feature ID and validity
