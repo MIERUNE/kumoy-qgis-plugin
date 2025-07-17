@@ -21,6 +21,7 @@ from ..constants import (
     DATA_PROVIDER_DESCRIPTION,
     DATA_PROVIDER_KEY,
 )
+from . import local_cache
 from .feature_iterator import QgishubFeatureIterator
 from .feature_source import QgishubFeatureSource
 
@@ -70,9 +71,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        _, project_id, vector_id = parse_uri(uri)
+        _, self.project_id, self.vector_id = parse_uri(uri)
 
-        self._qgishub_vector = api.project_vector.get_vector(project_id, vector_id)
+        # local cache
+        self._reload_vector()
+        self.cached_layer = local_cache.get_cached_layer(self.qgishub_vector.id)
 
         self._is_valid = True
 
@@ -126,6 +129,19 @@ class QgishubDataProvider(QgsVectorDataProvider):
             ]
         )
 
+    def _reload_vector(self):
+        """Refresh local cache"""
+        self.qgishub_vector = api.project_vector.get_vector(
+            self.project_id, self.vector_id
+        )
+        local_cache.sync_local_cache(
+            self.qgishub_vector.id,
+            self.fields(),
+            self.wkbType(),
+        )
+        self.clearMinMaxCache()
+        self.updateExtents()
+
     @classmethod
     def providerKey(cls) -> str:
         return DATA_PROVIDER_KEY
@@ -142,11 +158,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return QgishubFeatureSource(self)
 
     def wkbType(self) -> QgsWkbTypes:
-        if self._qgishub_vector.type == "POINT":
+        if self.qgishub_vector.type == "POINT":
             return QgsWkbTypes.Point
-        elif self._qgishub_vector.type == "LINESTRING":
+        elif self.qgishub_vector.type == "LINESTRING":
             return QgsWkbTypes.LineString
-        elif self._qgishub_vector.type == "POLYGON":
+        elif self.qgishub_vector.type == "POLYGON":
             return QgsWkbTypes.Polygon
         else:
             return QgsWkbTypes.Unknown
@@ -161,17 +177,14 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
-        return self._qgishub_vector.count
+        return self.qgishub_vector.count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
-
-        for column in self._qgishub_vector.columns:
+        fs.append(QgsField("qgishub_id", QVariant.Int))
+        for column in self.qgishub_vector.columns:
             k = column["name"]
             v = column["type"]
-
-            if k == "qgishub_geom" or k == "qgishub_id":
-                continue
 
             len = 0
             if v == "string":
@@ -188,10 +201,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
             if len > 0:
                 f.setLength(len)
             fs.append(f)
+
         return fs
 
     def extent(self) -> QgsRectangle:
-        extent = self._qgishub_vector.extent  # [xmin, ymin, xmax, ymax]
+        extent = self.qgishub_vector.extent  # [xmin, ymin, xmax, ymax]
         return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
 
     def updateExtents(self) -> None:
@@ -202,11 +216,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return self._is_valid
 
     def geometryType(self) -> QgsWkbTypes:
-        if self._qgishub_vector.type == "POINT":
+        if self.qgishub_vector.type == "POINT":
             return QgsWkbTypes.Point
-        elif self._qgishub_vector.type == "LINESTRING":
+        elif self.qgishub_vector.type == "LINESTRING":
             return QgsWkbTypes.LineString
-        elif self._qgishub_vector.type == "POLYGON":
+        elif self.qgishub_vector.type == "POLYGON":
             return QgsWkbTypes.Polygon
         else:
             return QgsWkbTypes.Unknown
@@ -218,7 +232,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return False
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
-        role = self._qgishub_vector.role
+        role = self.qgishub_vector.role
 
         if role == "OWNER" or role == "ADMIN":
             return (
@@ -230,7 +244,6 @@ class QgishubDataProvider(QgsVectorDataProvider):
                 | QgsVectorDataProvider.ChangeGeometries
                 | QgsVectorDataProvider.AddAttributes
                 | QgsVectorDataProvider.DeleteAttributes
-                | QgsVectorDataProvider.RenameAttributes
             )
         elif role == "MEMBER":
             return (
@@ -249,52 +262,34 @@ class QgishubDataProvider(QgsVectorDataProvider):
         # Process in chunks of 1000 to avoid server limits
         for i in range(0, len(qgishub_ids), DELETE_MAX_FEATURE_COUNT):
             chunk = qgishub_ids[i : i + DELETE_MAX_FEATURE_COUNT]
-            success = api.qgis_vector.delete_features(self._qgishub_vector.id, chunk)
+            success = api.qgis_vector.delete_features(self.qgishub_vector.id, chunk)
             if not success:
                 return False
+        self._reload_vector()
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
-        candidates: list[QgsFeature] = []
-
-        for f in features:
-            if not f.hasGeometry():
-                # geometryがない地物は無視
-                continue
-
-            # geometryのwkbTypeが異なる場合は無視
-            if f.hasGeometry() and (f.geometry().wkbType() != self.wkbType()):
-                continue
-
-            _f = QgsFeature(self.fields())
-            _f.setGeometry(f.geometry())
-            attrs = [None for i in range(_f.fields().count())]
-            for i in range(min(len(attrs), len(f.attributes()))):
-                attrs[i] = f.attributes()[i]
-
-            _f.setAttributes(attrs)
-
-            candidates.append(_f)
+        candidates: list[QgsFeature] = list(
+            filter(
+                lambda f: f.hasGeometry()
+                and (f.geometry().wkbType() == self.wkbType()),
+                features,
+            )
+        )
 
         if len(candidates) == 0:
             # 何もせず終了
             return True, []
 
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
-        for i in range(0, len(candidates), ADD_MAX_FEATURE_COUNT):
+        for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
-            succeeded = api.qgis_vector.add_features(self._qgishub_vector.id, sliced)
+            succeeded = api.qgis_vector.add_features(self.qgishub_vector.id, sliced)
             if not succeeded:
                 return False, candidates[0:i]
 
         # reload
-        self._qgishub_vector = api.project_vector.get_vector(
-            self._qgishub_vector.projectId, self._qgishub_vector.id
-        )
-
-        self.clearMinMaxCache()
-        self.updateExtents()
-
+        self._reload_vector()
         return True, candidates
 
     def changeAttributeValues(self, attr_map: Dict[str, dict]) -> bool:
@@ -306,6 +301,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
             properties = {}
             for idx, value in raw_attr.items():
                 field_name = self.fields().field(idx).name()
+                if field_name == "qgishub_id":
+                    # Skip qgishub_id as it is not a valid field for update
+                    continue
                 properties[field_name] = value
 
             attribute_items.append(
@@ -317,23 +315,15 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Process in chunks of 1000 to avoid server limits
         total_items = len(attribute_items)
-        processed_items = 0
-
         for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
             chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
             result = api.qgis_vector.change_attribute_values(
-                vector_id=self._qgishub_vector.id, attribute_items=chunk
+                vector_id=self.qgishub_vector.id, attribute_items=chunk
             )
             if not result:
                 return False
-            processed_items += len(chunk)
 
-        # reload
-        self._qgishub_vector = api.project_vector.get_vector(
-            self._qgishub_vector.projectId, self._qgishub_vector.id
-        )
-
-        self.clearMinMaxCache()
+        self._reload_vector()
         return True
 
     def changeGeometryValues(self, geometry_map: Dict[str, QgsGeometry]) -> bool:
@@ -346,38 +336,13 @@ class QgishubDataProvider(QgsVectorDataProvider):
         for i in range(0, len(geometry_items), UPDATE_MAX_FEATURE_COUNT):
             chunk = geometry_items[i : i + UPDATE_MAX_FEATURE_COUNT]
             result = api.qgis_vector.change_geometry_values(
-                vector_id=self._qgishub_vector.id, geometry_items=chunk
+                vector_id=self.qgishub_vector.id, geometry_items=chunk
             )
             if not result:
                 return False
 
-        # reload
-        self._qgishub_vector = api.project_vector.get_vector(
-            self._qgishub_vector.projectId, self._qgishub_vector.id
-        )
-        self.updateExtents()
+        self._reload_vector()
         return True
-
-    def renameAttributes(self, renamedAttributes: Dict[int, str]) -> bool:
-        # Convert field index to field name mapping
-        attribute_map = {}
-        for idx, new_name in renamedAttributes.items():
-            old_name = self.fields().field(idx).name()
-            attribute_map[old_name] = new_name
-
-        # Call the API to rename attributes
-        success = api.qgis_vector.rename_attributes(
-            vector_id=self._qgishub_vector.id, attribute_map=attribute_map
-        )
-
-        if success:
-            # Update the vector information to reflect the changes
-            self._qgishub_vector = api.project_vector.get_vector(
-                self._qgishub_vector.projectId, self._qgishub_vector.id
-            )
-            self.clearMinMaxCache()
-
-        return success
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
         # Convert QgsField list to dictionary of name:type
@@ -397,15 +362,10 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Call the API to add attributes
         success = api.qgis_vector.add_attributes(
-            vector_id=self._qgishub_vector.id, attributes=attr_dict
+            vector_id=self.qgishub_vector.id, attributes=attr_dict
         )
         if success:
-            # Update the vector information to reflect the changes
-            self._qgishub_vector = api.project_vector.get_vector(
-                self._qgishub_vector.projectId, self._qgishub_vector.id
-            )
-            self.clearMinMaxCache()
-
+            self._reload_vector()
         return success
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -414,14 +374,9 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Call the API to delete attributes
         success = api.qgis_vector.delete_attributes(
-            vector_id=self._qgishub_vector.id, attribute_names=attribute_names
+            vector_id=self.qgishub_vector.id, attribute_names=attribute_names
         )
 
         if success:
-            # Update the vector information to reflect the changes
-            self._qgishub_vector = api.project_vector.get_vector(
-                self._qgishub_vector.projectId, self._qgishub_vector.id
-            )
-            self.clearMinMaxCache()
-
+            self._reload_vector()
         return success

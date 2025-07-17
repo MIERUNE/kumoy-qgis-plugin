@@ -16,6 +16,8 @@ from PyQt5.QtWidgets import (
 from qgis.core import (
     Qgis,
     QgsDataItem,
+    QgsEditorWidgetSetup,
+    QgsFields,
     QgsMessageLog,
     QgsProject,
     QgsVectorLayer,
@@ -100,6 +102,15 @@ class VectorItem(QgsDataItem):
         layer = QgsVectorLayer(uri, layer_name, "qgishub")
 
         if layer.isValid():
+            # qgishub_idをread-onlyに設定
+            field_idx = layer.fields().indexOf("qgishub_id")
+            # フィールド設定で読み取り専用を設定
+            if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
+                # プロバイダーフィールドの場合
+                config = layer.editFormConfig()
+                config.setReadOnly(field_idx, True)
+                layer.setEditFormConfig(config)
+
             # Add layer to map
             QgsProject.instance().addMapLayer(layer)
         else:

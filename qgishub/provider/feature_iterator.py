@@ -1,12 +1,11 @@
+import time
+
 from qgis.core import (
     QgsAbstractFeatureIterator,
     QgsCoordinateTransform,
     QgsFeature,
     QgsFeatureRequest,
-    QgsGeometry,
 )
-
-from .. import api
 
 
 class QgishubFeatureIterator(QgsAbstractFeatureIterator):
@@ -34,54 +33,7 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             self.close()
             return
 
-        # Pagination parameters
-        self._features = []
-        self._features_idx = 0
-        self._page_size = 5000  # Number of features to fetch per page
-        self._current_offset = 0
-        self._last_fetch = False  # Flag to indicate if the last page has been fetched
-        self._fetched_count = 0  # Total number of features fetched
-
-    def _load_features_page(self):
-        """Load a page of features using pagination"""
-        # Return immediately if we've already fetched all features
-        if self._last_fetch:
-            return
-
-        # Prepare filter parameters
-        qgishub_ids = []
-        if self._request.filterType() == QgsFeatureRequest.FilterType.FilterFids:
-            qgishub_ids = self._request.filterFids()
-        elif self._request.filterType() == QgsFeatureRequest.FilterType.FilterFid:
-            qgishub_ids = [self._request.filterFid()]
-
-        # Prepare bbox parameter if spatial filter is applied
-        bbox = None
-        if not self._filter_rect.isEmpty():
-            bbox = [
-                self._filter_rect.xMinimum(),
-                self._filter_rect.yMinimum(),
-                self._filter_rect.xMaximum(),
-                self._filter_rect.yMaximum(),
-            ]
-
-        # Fetch features with pagination parameters
-        features = api.qgis_vector.get_features(
-            vector_id=self._provider._qgishub_vector.id,
-            qgishub_ids=qgishub_ids,
-            bbox=bbox,
-            limit=self._page_size,
-            offset=self._current_offset,
-        )
-
-        # Update pagination state
-        self._features = features
-        self._features_idx = 0
-        self._current_offset += len(features)
-
-        # If we received fewer features than requested, we've reached the end
-        if len(features) < self._page_size:
-            self._last_fetch = True
+        self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
     def fetchFeature(self, f: QgsFeature) -> bool:
         """読むべき地物の数だけ実行される。引数のQgsFeatureを破壊的に更新する。"""
@@ -89,45 +41,17 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
             f.setValid(False)
             return False
 
-        # If we've reached the end of the current page, load the next page
-        if self._features_idx >= len(self._features):
-            # If we've already fetched all features, return False
-            if self._last_fetch:
-                f.setValid(False)
-                return False
+        res = self._feature_iterator.nextFeature(f)
 
-            # Load the next page of features
-            self._load_features_page()
+        if not res:
+            # If no more features are available, return False
+            f.setValid(False)
+            return False
 
-            # If no more features were loaded, return False
-            if len(self._features) == 0:
-                f.setValid(False)
-                return False
-
-        # Get the current feature
-        feature = self._features[self._features_idx]
-        wkb = feature["qgishub_wkb"]
-        fid = feature["qgishub_id"]
-
-        # Set geometry
-        g = QgsGeometry()
-        g.fromWkb(wkb)
-        f.setGeometry(g)
         self.geometryToDestinationCrs(f, self._transform)
 
-        # Set attributes
-        # feature["properties"] = { field_name: value, ... }
-        f.setFields(self._provider.fields())
-        for i in range(f.fields().count()):
-            f.setAttribute(i, feature["properties"][f.fields().field(i).name()])
-
         # Set feature ID and validity
-        f.setId(fid)
         f.setValid(True)
-
-        # Increment counters
-        self._features_idx += 1
-        self._fetched_count += 1
 
         return True
 
@@ -136,7 +60,7 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
 
     def __iter__(self):
         """Return self as an iterator object."""
-        self.rewind()
+        self._feature_iterator.rewind()
         return self
 
     def __next__(self) -> QgsFeature:
@@ -149,16 +73,8 @@ class QgishubFeatureIterator(QgsAbstractFeatureIterator):
 
     def rewind(self) -> bool:
         """Reset the iterator."""
-        self._features = []
-        self._features_idx = 0
-        self._current_offset = 0
-        self._last_fetch = False
-        self._fetched_count = 0
-        return True
+        return self._feature_iterator.rewind()
 
     def close(self) -> bool:
         """Close the iterator and release resources."""
-        self._features = []
-        self._features_idx = -1
-        self._last_fetch = True
-        return True
+        return self._feature_iterator.close()

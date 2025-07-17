@@ -12,7 +12,7 @@ def get_features(
     qgishub_ids: Optional[List[int]] = None,
     bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
-    offset: Optional[int] = None,
+    after_id: Optional[int] = None,
 ) -> list:
     """
     Get features from a vector layer
@@ -20,16 +20,16 @@ def get_features(
     if qgishub_ids is None:
         qgishub_ids = []
 
+    options = {
+        "qgishub_ids": qgishub_ids,
+        "bbox": bbox,
+        "limit": limit,
+    }
+    if after_id is not None:
+        options["after_id"] = after_id
+
     try:
-        response = ApiClient.post(
-            f"/_qgis/vector/{vector_id}/get-features",
-            {
-                "qgishub_ids": qgishub_ids,
-                "bbox": bbox,
-                "limit": limit,
-                "offset": offset,
-            },
-        )
+        response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
 
         # decode base64
         for feature in response:
@@ -56,6 +56,11 @@ def add_features(
             }
             for f in features
         ]
+
+        # rm qgishub_id from properties
+        for feature in _features:
+            if "qgishub_id" in feature["properties"]:
+                del feature["properties"]["qgishub_id"]
 
         # HACK: replace QVariant of properties with None
         # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
@@ -227,3 +232,32 @@ def rename_attributes(
     except Exception as e:
         print(f"Error renaming attributes in vector {vector_id}: {str(e)}")
         return False
+
+
+def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
+    """
+    Get the difference of features in a vector layer since the last updated time.
+
+    Args:
+        vector_id: The ID of the vector layer.
+        last_updated_at: The last updated time in ISO format.
+
+    Returns:
+        A list of features that have changed since the last updated time.
+    """
+    try:
+        response = ApiClient.post(
+            f"/_qgis/vector/{vector_id}/get-diff",
+            {"last_updated": last_updated},
+        )
+
+        for feature in response["updatedRows"]:
+            feature["qgishub_wkb"] = base64.b64decode(feature["qgishub_wkb"])
+
+        return response
+    except Exception as e:
+        print(f"Error getting diff for vector {vector_id}: {str(e)}")
+        return {
+            "updatedRows": [],
+            "deletedRows": [],
+        }
