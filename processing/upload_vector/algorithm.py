@@ -19,13 +19,45 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
+from qgis.PyQt.QtCore import QVariant
+
+import processing
 
 from ...settings_manager import SettingsManager
 from ...strato import api
 from ...strato.get_token import get_token
-from ..feature_uploader import FeatureUploader
-from ..field_name_normalizer import FieldNameNormalizer
-from ..vector_creator import VectorCreator
+from .normalize_fielid_name import normalize_field_name
+
+
+def rename_field_with_refactor(layer, field_mapping):
+    """リファクタリングツールを使用してフィールド名を変更"""
+
+    # フィールドマッピングの作成
+    # field_mapping = {
+    #     '元のカラム名1': '新しいカラム名1',
+    #     '元のカラム名2': '新しいカラム名2'
+    # }
+
+    # マッピング設定を作成
+    fields_mapping = []
+    for field in layer.fields():
+        field_name = field.name()
+        new_name = field_mapping.get(field_name, field_name)
+
+        mapping = {
+            "expression": f'"{field_name}"',
+            "length": field.length(),
+            "name": new_name,
+            "precision": field.precision(),
+            "type": field.type(),
+        }
+        fields_mapping.append(mapping)
+
+    # リファクタリング実行
+    params = {"INPUT": layer, "FIELDS_MAPPING": fields_mapping, "OUTPUT": "memory:"}
+
+    result = processing.run("native:refactorfields", params)
+    return result["OUTPUT"]
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
@@ -162,6 +194,41 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
         self.addParameter(param)
 
+    def _get_project_info_and_validate(
+        self,
+        parameters: Dict[str, Any],
+        context: QgsProcessingContext,
+        layer: QgsVectorLayer,
+    ) -> Tuple[str, str, Any]:
+        """Get project information and validate limits"""
+        # Get project ID
+        project_index = self.parameterAsEnum(parameters, self.STRATO_PROJECT, context)
+        project_options = list(self.project_map.keys())
+        project_id = self.project_map[project_options[project_index]]
+
+        # Get vector name
+        vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
+        if not vector_name:
+            vector_name = layer.name()
+
+        # Get project and plan limits
+        project = api.project.get_project(project_id)
+        organization = api.organization.get_organization(project.organizationId)
+        plan_limits = api.plan.get_plan_limits(organization.plan)
+
+        # Check vector count limit
+        current_vectors = api.project_vector.get_vectors(project_id)
+        upload_vector_count = len(current_vectors) + 1
+        if upload_vector_count > plan_limits.maxVectors:
+            raise QgsProcessingException(
+                self.tr(
+                    "Cannot upload vector. Your plan allows up to {} vectors per project, "
+                    "but you already have {} vectors."
+                ).format(plan_limits.maxVectors, upload_vector_count)
+            )
+
+        return project_id, vector_name, plan_limits
+
     def processAlgorithm(
         self,
         parameters: Dict[str, Any],
@@ -169,38 +236,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         """Process the algorithm"""
-        vector_id = None
+        vector = None
         try:
             # Get input layer
             layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
 
-            # Get project ID
-            project_index = self.parameterAsEnum(
-                parameters, self.STRATO_PROJECT, context
+            # Get project information and validate
+            project_id, vector_name, plan_limits = self._get_project_info_and_validate(
+                parameters, context, layer
             )
-            project_options = list(self.project_map.keys())
-            project_id = self.project_map[project_options[project_index]]
-
-            # Get vector name
-            vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
-
-            project = api.project.get_project(project_id)
-            organization = api.organization.get_organization(project.organizationId)
-            plan_limits = api.plan.get_plan_limits(organization.plan)
-            # Check vector count limit early
-            current_vectors = api.project_vector.get_vectors(project_id)
-            upload_vector_count = len(current_vectors) + 1
-            if upload_vector_count > plan_limits.maxVectors:
-                raise QgsProcessingException(
-                    self.tr(
-                        "Cannot upload vector. Your plan allows up to {} vectors per project, "
-                        "but you already have {} vectors."
-                    ).format(plan_limits.maxVectors, upload_vector_count)
-                )
-
-            # Use layer name if vector name not provided
-            if not vector_name:
-                vector_name = layer.name()
 
             # Determine geometry type
             vector_type, is_multipart = self._get_geometry_type(layer)
@@ -220,11 +264,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(proc_feature_count, plan_limits.maxVectorFeatures)
                 )
 
-            # Setup field name normalization
-            normalizer = FieldNameNormalizer(processed_layer, feedback)
-
             # Check attribute count limit after normalization
-            proc_layer_field_count = len(normalizer.columns)
+            proc_layer_field_count = processed_layer.fields().count()
             if proc_layer_field_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
@@ -233,28 +274,27 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(proc_layer_field_count, plan_limits.maxVectorAttributes)
                 )
 
-            # Create vector in STRATO
-            creator = VectorCreator(feedback)
-            vector_id = creator.create_vector(project_id, vector_name, vector_type)
+            # Normalize field names
+            valid_fields_layer = self._prepare_field_mappings(processed_layer)
 
-            # Create uploader and setup attribute schema
-            uploader = FeatureUploader(vector_id, normalizer, original_crs, feedback)
-            uploader.setup_attribute_schema()
+            # Create attribute dictionary
+            attr_dict = self._create_attribute_dict(valid_fields_layer)
 
-            # Upload features to STRATO
-            uploaded_feature_count = uploader.upload_layer(processed_layer)
-
-            feedback.pushInfo(
-                self.tr("Upload complete: {} features").format(uploaded_feature_count)
+            # Create vector and add attributes
+            vector = self._create_vector_and_attributes(
+                project_id, vector_name, vector_type, attr_dict
             )
 
-            return {"VECTOR_ID": vector_id}
+            # Upload features
+            self._upload_features(vector.id, valid_fields_layer, feedback)
+
+            return {"VECTOR_ID": vector.id}
 
         except Exception:
             # If vector was created but upload failed, delete it
-            if vector_id:
+            if vector is not None:
                 try:
-                    if api.project_vector.delete_vector(project_id, vector_id):
+                    if api.project_vector.delete_vector(project_id, vector.id):
                         feedback.pushInfo(
                             self.tr(
                                 "Cleaned up incomplete vector layer due to upload failure"
@@ -482,3 +522,98 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.tr("Could not retrieve processed layer"))
 
         return processed_layer, source_crs
+
+    def _prepare_field_mappings(
+        self, processed_layer: QgsVectorLayer
+    ) -> QgsVectorLayer:
+        """Normalize field names for PostgreSQL/PostGIS compatibility"""
+        # Normalize field names
+        valid_fields_mapping = {}
+        for field in processed_layer.fields():
+            normalized_name = normalize_field_name(field.name())
+            if normalized_name:
+                valid_fields_mapping[field.name()] = normalized_name
+
+        return rename_field_with_refactor(processed_layer, valid_fields_mapping)
+
+    def _create_attribute_dict(
+        self, valid_fields_layer: QgsVectorLayer
+    ) -> Dict[str, str]:
+        """Convert QgsField list to dictionary of name:type"""
+        attr_dict = {}
+        for field in valid_fields_layer.fields():
+            # Map QGIS field types to our supported types
+            field_type = "string"  # Default to string
+            if field.type() == QVariant.Int:
+                field_type = "integer"
+            elif field.type() == QVariant.Double:
+                field_type = "float"
+            elif field.type() == QVariant.Bool:
+                field_type = "boolean"
+
+            column_name = field.name()
+            attr_dict[column_name] = field_type
+
+        return attr_dict
+
+    def _create_vector_and_attributes(
+        self,
+        project_id: str,
+        vector_name: str,
+        vector_type: str,
+        attr_dict: Dict[str, str],
+    ) -> Any:
+        """Create vector in STRATO and add attributes"""
+        # Create vector
+        options = api.project_vector.AddVectorOptions(
+            name=vector_name,
+            type=vector_type,
+        )
+        vector = api.project_vector.add_vector(project_id, options)
+
+        # Add attributes
+        api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
+
+        # Reload to get server-assigned column names
+        return api.project_vector.get_vector(project_id, vector.id)
+
+    def _upload_features(
+        self,
+        vector_id: str,
+        valid_fields_layer: QgsVectorLayer,
+        feedback: QgsProcessingFeedback,
+    ) -> None:
+        """Upload features to STRATO in batches"""
+        cur_features = []
+        accumulated_features = 0
+        batch_size = 1000
+
+        for f in valid_fields_layer.getFeatures():
+            if len(cur_features) >= batch_size:
+                result = api.qgis_vector.add_features(vector_id, cur_features)
+                if not result:
+                    raise QgsProcessingException(
+                        self.tr("Failed to upload features to STRATO")
+                    )
+                accumulated_features += len(cur_features)
+                feedback.pushInfo(
+                    self.tr("Upload complete: {} / {} features").format(
+                        accumulated_features, valid_fields_layer.featureCount()
+                    )
+                )
+                cur_features = []
+            cur_features.append(f)
+
+        # Upload remaining features
+        if cur_features:
+            result = api.qgis_vector.add_features(vector_id, cur_features)
+            if not result:
+                raise QgsProcessingException(
+                    self.tr("Failed to upload features to STRATO")
+                )
+            accumulated_features += len(cur_features)
+            feedback.pushInfo(
+                self.tr("Upload complete: {} / {} features").format(
+                    accumulated_features, valid_fields_layer.featureCount()
+                )
+            )
