@@ -22,8 +22,8 @@ from ..constants import (
     DATA_PROVIDER_KEY,
 )
 from . import local_cache
-from .feature_iterator import QgishubFeatureIterator
-from .feature_source import QgishubFeatureSource
+from .feature_iterator import StratoFeatureIterator
+from .feature_source import StratoFeatureSource
 
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
@@ -33,10 +33,10 @@ DELETE_MAX_FEATURE_COUNT = 1000
 def parse_uri(
     uri: str,
 ) -> tuple[str, str, str]:
-    qgishubProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
+    stratoProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
         DATA_PROVIDER_KEY
     )
-    parsed_uri = qgishubProviderMetadata.decodeUri(uri)
+    parsed_uri = stratoProviderMetadata.decodeUri(uri)
 
     endpoint = parsed_uri.get("endpoint", "")
     project_id = parsed_uri.get("project_id", "")
@@ -51,7 +51,7 @@ def parse_uri(
     return (endpoint, project_id, vector_id)
 
 
-class QgishubDataProvider(QgsVectorDataProvider):
+class StratoDataProvider(QgsVectorDataProvider):
     def __init__(
         self,
         uri="",
@@ -75,7 +75,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # local cache
         self._reload_vector()
-        self.cached_layer = local_cache.get_cached_layer(self.qgishub_vector.id)
+        self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
 
         self._is_valid = True
 
@@ -131,11 +131,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     def _reload_vector(self):
         """Refresh local cache"""
-        self.qgishub_vector = api.project_vector.get_vector(
+        self.strato_vector = api.project_vector.get_vector(
             self.project_id, self.vector_id
         )
         local_cache.sync_local_cache(
-            self.qgishub_vector.id,
+            self.strato_vector.id,
             self.fields(),
             self.wkbType(),
         )
@@ -152,17 +152,17 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     @classmethod
     def createProvider(cls, uri, providerOptions, flags=QgsDataProvider.ReadFlags()):
-        return QgishubDataProvider(uri, providerOptions, flags)
+        return StratoDataProvider(uri, providerOptions, flags)
 
     def featureSource(self):
-        return QgishubFeatureSource(self)
+        return StratoFeatureSource(self)
 
     def wkbType(self) -> QgsWkbTypes:
-        if self.qgishub_vector.type == "POINT":
+        if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
-        elif self.qgishub_vector.type == "LINESTRING":
+        elif self.strato_vector.type == "LINESTRING":
             return QgsWkbTypes.LineString
-        elif self.qgishub_vector.type == "POLYGON":
+        elif self.strato_vector.type == "POLYGON":
             return QgsWkbTypes.Polygon
         else:
             return QgsWkbTypes.Unknown
@@ -177,12 +177,12 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
-        return self.qgishub_vector.count
+        return self.strato_vector.count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
-        fs.append(QgsField("qgishub_id", QVariant.Int))
-        for column in self.qgishub_vector.columns:
+        fs.append(QgsField("strato_id", QVariant.Int))
+        for column in self.strato_vector.columns:
             k = column["name"]
             v = column["type"]
 
@@ -205,7 +205,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return fs
 
     def extent(self) -> QgsRectangle:
-        extent = self.qgishub_vector.extent  # [xmin, ymin, xmax, ymax]
+        extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
         return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
 
     def updateExtents(self) -> None:
@@ -216,11 +216,11 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return self._is_valid
 
     def geometryType(self) -> QgsWkbTypes:
-        if self.qgishub_vector.type == "POINT":
+        if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
-        elif self.qgishub_vector.type == "LINESTRING":
+        elif self.strato_vector.type == "LINESTRING":
             return QgsWkbTypes.LineString
-        elif self.qgishub_vector.type == "POLYGON":
+        elif self.strato_vector.type == "POLYGON":
             return QgsWkbTypes.Polygon
         else:
             return QgsWkbTypes.Unknown
@@ -232,7 +232,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         return False
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
-        role = self.qgishub_vector.role
+        role = self.strato_vector.role
 
         if role == "OWNER" or role == "ADMIN":
             return (
@@ -255,14 +255,14 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     def getFeatures(self, request=QgsFeatureRequest()) -> QgsFeature:
         return QgsFeatureIterator(
-            QgishubFeatureIterator(QgishubFeatureSource(self), request)
+            StratoFeatureIterator(StratoFeatureSource(self), request)
         )
 
-    def deleteFeatures(self, qgishub_ids: list[int]) -> bool:
+    def deleteFeatures(self, strato_ids: list[int]) -> bool:
         # Process in chunks of 1000 to avoid server limits
-        for i in range(0, len(qgishub_ids), DELETE_MAX_FEATURE_COUNT):
-            chunk = qgishub_ids[i : i + DELETE_MAX_FEATURE_COUNT]
-            success = api.qgis_vector.delete_features(self.qgishub_vector.id, chunk)
+        for i in range(0, len(strato_ids), DELETE_MAX_FEATURE_COUNT):
+            chunk = strato_ids[i : i + DELETE_MAX_FEATURE_COUNT]
+            success = api.qgis_vector.delete_features(self.strato_vector.id, chunk)
             if not success:
                 return False
         self._reload_vector()
@@ -284,7 +284,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
         for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
-            succeeded = api.qgis_vector.add_features(self.qgishub_vector.id, sliced)
+            succeeded = api.qgis_vector.add_features(self.strato_vector.id, sliced)
             if not succeeded:
                 return False, candidates[0:i]
 
@@ -301,13 +301,13 @@ class QgishubDataProvider(QgsVectorDataProvider):
             properties = {}
             for idx, value in raw_attr.items():
                 field_name = self.fields().field(idx).name()
-                if field_name == "qgishub_id":
-                    # Skip qgishub_id as it is not a valid field for update
+                if field_name == "strato_id":
+                    # Skip strato_id as it is not a valid field for update
                     continue
                 properties[field_name] = value
 
             attribute_items.append(
-                {"qgishub_id": int(feature_id), "properties": properties}
+                {"strato_id": int(feature_id), "properties": properties}
             )
 
         if not attribute_items:
@@ -318,7 +318,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
             chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
             result = api.qgis_vector.change_attribute_values(
-                vector_id=self.qgishub_vector.id, attribute_items=chunk
+                vector_id=self.strato_vector.id, attribute_items=chunk
             )
             if not result:
                 return False
@@ -328,7 +328,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
     def changeGeometryValues(self, geometry_map: Dict[str, QgsGeometry]) -> bool:
         geometry_items = [
-            {"qgishub_id": int(feature_id), "geom": geometry.asWkb()}
+            {"strato_id": int(feature_id), "geom": geometry.asWkb()}
             for feature_id, geometry in geometry_map.items()
         ]
 
@@ -336,7 +336,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
         for i in range(0, len(geometry_items), UPDATE_MAX_FEATURE_COUNT):
             chunk = geometry_items[i : i + UPDATE_MAX_FEATURE_COUNT]
             result = api.qgis_vector.change_geometry_values(
-                vector_id=self.qgishub_vector.id, geometry_items=chunk
+                vector_id=self.strato_vector.id, geometry_items=chunk
             )
             if not result:
                 return False
@@ -362,7 +362,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Call the API to add attributes
         success = api.qgis_vector.add_attributes(
-            vector_id=self.qgishub_vector.id, attributes=attr_dict
+            vector_id=self.strato_vector.id, attributes=attr_dict
         )
         if success:
             self._reload_vector()
@@ -374,7 +374,7 @@ class QgishubDataProvider(QgsVectorDataProvider):
 
         # Call the API to delete attributes
         success = api.qgis_vector.delete_attributes(
-            vector_id=self.qgishub_vector.id, attribute_names=attribute_names
+            vector_id=self.strato_vector.id, attribute_names=attribute_names
         )
 
         if success:

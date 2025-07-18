@@ -22,14 +22,14 @@ from qgis.core import (
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
-from ..qgishub import api
-from ..qgishub.api.project_styledmap import (
+from ..settings_manager import SettingsManager
+from ..strato import api
+from ..strato.api.project_styledmap import (
     AddStyledMapOptions,
-    QgishubStyledMap,
+    StratoStyledMap,
     UpdateStyledMapOptions,
 )
-from ..qgishub.constants import LOG_CATEGORY
-from ..settings_manager import SettingsManager
+from ..strato.constants import LOG_CATEGORY
 from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
 
@@ -37,7 +37,7 @@ from .utils import ErrorItem
 class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
 
-    def __init__(self, parent, path: str, styled_map: QgishubStyledMap):
+    def __init__(self, parent, path: str, styled_map: StratoStyledMap):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,

@@ -9,7 +9,7 @@ from .client import ApiClient
 
 def get_features(
     vector_id: str,
-    qgishub_ids: Optional[List[int]] = None,
+    strato_ids: Optional[List[int]] = None,
     bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
     after_id: Optional[int] = None,
@@ -17,11 +17,11 @@ def get_features(
     """
     Get features from a vector layer
     """
-    if qgishub_ids is None:
-        qgishub_ids = []
+    if strato_ids is None:
+        strato_ids = []
 
     options = {
-        "qgishub_ids": qgishub_ids,
+        "strato_ids": strato_ids,
         "bbox": bbox,
         "limit": limit,
     }
@@ -33,7 +33,7 @@ def get_features(
 
         # decode base64
         for feature in response:
-            feature["qgishub_wkb"] = base64.b64decode(feature["qgishub_wkb"])
+            feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
 
         return response
     except Exception as e:
@@ -51,16 +51,16 @@ def add_features(
     try:
         _features = [
             {
-                "qgishub_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
+                "strato_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
                 "properties": dict(zip(f.fields().names(), f.attributes())),
             }
             for f in features
         ]
 
-        # rm qgishub_id from properties
+        # rm strato_id from properties
         for feature in _features:
-            if "qgishub_id" in feature["properties"]:
-                del feature["properties"]["qgishub_id"]
+            if "strato_id" in feature["properties"]:
+                del feature["properties"]["strato_id"]
 
         # HACK: replace QVariant of properties with None
         # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
@@ -84,14 +84,14 @@ def add_features(
 
 def delete_features(
     vector_id: str,
-    qgishub_ids: List[int],
+    strato_ids: List[int],
 ) -> bool:
     """
     Delete features from a vector layer
     """
     try:
         ApiClient.post(
-            f"/_qgis/vector/{vector_id}/delete-features", {"qgishub_ids": qgishub_ids}
+            f"/_qgis/vector/{vector_id}/delete-features", {"strato_ids": strato_ids}
         )
 
         return True
@@ -130,8 +130,8 @@ def change_geometry_values(
     try:
         geometry_items_encoded = [
             {
-                "qgishub_id": item["qgishub_id"],
-                "qgishub_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
+                "strato_id": item["strato_id"],
+                "strato_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
             }
             for item in geometry_items
         ]
@@ -252,7 +252,7 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
         )
 
         for feature in response["updatedRows"]:
-            feature["qgishub_wkb"] = base64.b64decode(feature["qgishub_wkb"])
+            feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
 
         return response
     except Exception as e:

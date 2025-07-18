@@ -14,9 +14,9 @@ from qgis.core import (
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
-from ..qgishub import api
-from ..qgishub.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..settings_manager import SettingsManager
+from ..strato import api
+from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..ui.dialog_config import DialogConfig
 from ..ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot

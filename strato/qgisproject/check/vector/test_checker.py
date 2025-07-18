@@ -15,7 +15,7 @@ from qgis.core import (
 )
 from qgis.testing import QgisTestCase, start_app
 
-from qgishub.qgisproject.check import CompatibilityChecker
+from strato.qgisproject.check import CompatibilityChecker
 
 
 class TestVectorLayerChecker(QgisTestCase):
@@ -46,13 +46,13 @@ class TestVectorLayerChecker(QgisTestCase):
 
         return layer
 
-    def create_qgishub_layer(self, geometry_type):
-        """Create a layer that mimics qgishub provider"""
+    def create_strato_layer(self, geometry_type):
+        """Create a layer that mimics strato provider"""
         layer = self.create_memory_layer(geometry_type)
 
-        # Create a mock data provider that returns 'qgishub' as name
+        # Create a mock data provider that returns 'strato' as name
         mock_provider = Mock()
-        mock_provider.name.return_value = "qgishub"
+        mock_provider.name.return_value = "strato"
 
         # Replace the layer's dataProvider method to return our mock
         layer.dataProvider = lambda: mock_provider
@@ -97,8 +97,8 @@ class TestVectorLayerChecker(QgisTestCase):
         renderer = QgsCategorizedSymbolRenderer()
         layer.setRenderer(renderer)
 
-    def test_non_qgishub_provider(self):
-        """Test that non-qgishub providers are not supported"""
+    def test_non_strato_provider(self):
+        """Test that non-strato providers are not supported"""
         layer = self.create_memory_layer(QgsWkbTypes.PointGeometry)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -108,7 +108,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_no_renderer(self):
         """Test layer with no renderer"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
         layer.setRenderer(None)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -118,7 +118,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_non_single_symbol_renderer(self):
         """Test that non-single symbol renderers are not supported"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
         self.set_categorized_renderer(layer)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -128,7 +128,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_point_layer_with_simple_marker(self):
         """Test point layer with SimpleMarker symbol"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
         self.set_simple_marker_renderer(layer)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -138,7 +138,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_point_layer_with_unsupported_renderer(self):
         """Test point layer with unsupported renderer"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
         self.set_svg_marker_renderer(layer)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -148,7 +148,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_line_layer_with_simple_line(self):
         """Test line layer with SimpleLine symbol"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.LineGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.LineGeometry)
         self.set_simple_line_renderer(layer)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -158,7 +158,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_polygon_layer_with_simple_fill(self):
         """Test polygon layer with SimpleFill symbol"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PolygonGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PolygonGeometry)
         self.set_simple_fill_renderer(layer)
 
         is_compatible, reason = CompatibilityChecker.vector.check(layer)
@@ -168,7 +168,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_multiple_symbol_layers(self):
         """Test layer with multiple simple symbol layers - should be compatible"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
 
         # Create symbol with multiple compatible layers
         symbol = QgsMarkerSymbol()
@@ -185,7 +185,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_mixed_symbol_layers(self):
         """Test layer with mixed symbol layers - should be compatible if one simple exists"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
 
         # Create symbol with mixed layers (simple + non-simple)
         symbol = QgsMarkerSymbol()
@@ -203,7 +203,7 @@ class TestVectorLayerChecker(QgisTestCase):
 
     def test_all_non_simple_symbol_layers(self):
         """Test layer with all non-simple symbol layers - should be incompatible"""
-        layer = self.create_qgishub_layer(QgsWkbTypes.PointGeometry)
+        layer = self.create_strato_layer(QgsWkbTypes.PointGeometry)
 
         # Create symbol with only non-simple layers
         symbol = QgsMarkerSymbol()

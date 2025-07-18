@@ -5,7 +5,7 @@ from .client import ApiClient
 
 
 @dataclass
-class QgishubStyledMap:
+class StratoStyledMap:
     """
     STRATOのStyledMapを表すデータクラス
     """
@@ -17,7 +17,7 @@ class QgishubStyledMap:
     projectId: str
 
 
-def get_styled_maps(project_id: str) -> List[QgishubStyledMap]:
+def get_styled_maps(project_id: str) -> List[StratoStyledMap]:
     """
     特定のプロジェクトのスタイルマップリストを取得する
 
@@ -25,7 +25,7 @@ def get_styled_maps(project_id: str) -> List[QgishubStyledMap]:
         project_id: プロジェクトID
 
     Returns:
-        QgishubStyledMapオブジェクトのリスト
+        StratoStyledMapオブジェクトのリスト
     """
     try:
         response = ApiClient.get(f"/project/{project_id}/styled-map")
@@ -33,7 +33,7 @@ def get_styled_maps(project_id: str) -> List[QgishubStyledMap]:
         styled_maps = []
         for styled_map_data in response:
             styled_maps.append(
-                QgishubStyledMap(
+                StratoStyledMap(
                     id=styled_map_data.get("id", ""),
                     name=styled_map_data.get("name", ""),
                     qgisproject=styled_map_data.get("qgisproject", ""),
@@ -48,7 +48,7 @@ def get_styled_maps(project_id: str) -> List[QgishubStyledMap]:
         return []
 
 
-def get_styled_map(styled_map_id: str) -> Optional[QgishubStyledMap]:
+def get_styled_map(styled_map_id: str) -> Optional[StratoStyledMap]:
     """
     特定のスタイルマップの詳細を取得する
 
@@ -56,7 +56,7 @@ def get_styled_map(styled_map_id: str) -> Optional[QgishubStyledMap]:
         styled_map_id: スタイルマップID
 
     Returns:
-        QgishubStyledMapオブジェクトまたは見つからない場合はNone
+        StratoStyledMapオブジェクトまたは見つからない場合はNone
     """
     try:
         response = ApiClient.get(f"/styled-map/{styled_map_id}")
@@ -64,7 +64,7 @@ def get_styled_map(styled_map_id: str) -> Optional[QgishubStyledMap]:
         if not response:
             return None
 
-        return QgishubStyledMap(
+        return StratoStyledMap(
             id=response.get("id", ""),
             name=response.get("name", ""),
             qgisproject=response.get("qgisproject", ""),
@@ -89,7 +89,7 @@ class AddStyledMapOptions:
 
 def add_styled_map(
     project_id: str, options: AddStyledMapOptions
-) -> Optional[QgishubStyledMap]:
+) -> Optional[StratoStyledMap]:
     """
     プロジェクトに新しいスタイルマップを追加する
 
@@ -98,7 +98,7 @@ def add_styled_map(
         options: 新しいスタイルマップのオプション
 
     Returns:
-        QgishubStyledMapオブジェクトまたは作成失敗時はNone
+        StratoStyledMapオブジェクトまたは作成失敗時はNone
     """
     try:
         response = ApiClient.post(
@@ -111,7 +111,7 @@ def add_styled_map(
         if not response:
             return None
 
-        return QgishubStyledMap(
+        return StratoStyledMap(
             id=response.get("id", ""),
             name=response.get("name", ""),
             qgisproject=response.get("qgisproject", ""),
@@ -154,7 +154,7 @@ class UpdateStyledMapOptions:
 
 def update_styled_map(
     styled_map_id: str, options: UpdateStyledMapOptions
-) -> Optional[QgishubStyledMap]:
+) -> Optional[StratoStyledMap]:
     """
     スタイルマップを更新する
 
@@ -163,7 +163,7 @@ def update_styled_map(
         options: 更新オプション
 
     Returns:
-        更新されたQgishubStyledMapオブジェクトまたは更新失敗時はNone
+        更新されたStratoStyledMapオブジェクトまたは更新失敗時はNone
     """
     try:
         update_data = {}
@@ -182,7 +182,7 @@ def update_styled_map(
         if not response:
             return None
 
-        return QgishubStyledMap(
+        return StratoStyledMap(
             id=response.get("id", ""),
             name=response.get("name", ""),
             qgisproject=response.get("qgisproject", ""),

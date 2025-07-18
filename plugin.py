@@ -6,11 +6,11 @@ from qgis.gui import QgisInterface
 
 from .browser.root import DataItemProvider
 from .processing.provider import StratoProcessingProvider
-from .qgishub.constants import PLUGIN_NAME
-from .qgishub.provider.dataprovider_metadata import QgishubProviderMetadata
+from .strato.constants import PLUGIN_NAME
+from .strato.provider.dataprovider_metadata import StratoProviderMetadata
 
 
-class QgishubPlugin:
+class StratoPlugin:
     def __init__(self, iface: QgisInterface):
         self.iface = iface
         self.win = self.iface.mainWindow()
@@ -21,7 +21,7 @@ class QgishubPlugin:
         self.init_translation()
 
         registry = QgsProviderRegistry.instance()
-        metadata = QgishubProviderMetadata()
+        metadata = StratoProviderMetadata()
         # FIXME: It is not possible to remove unregister a provider
         # Is it the correct approach?
         # assert registry.registerProvider(metadata)

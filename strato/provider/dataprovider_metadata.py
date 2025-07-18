@@ -3,15 +3,15 @@ from typing import Dict
 
 from qgis.core import QgsProviderMetadata
 
-from .dataprovider import QgishubDataProvider
+from .dataprovider import StratoDataProvider
 
 
-class QgishubProviderMetadata(QgsProviderMetadata):
+class StratoProviderMetadata(QgsProviderMetadata):
     def __init__(self):
         super().__init__(
-            QgishubDataProvider.providerKey(),
-            QgishubDataProvider.description(),
-            QgishubDataProvider.createProvider,
+            StratoDataProvider.providerKey(),
+            StratoDataProvider.description(),
+            StratoDataProvider.createProvider,
         )
 
     def decodeUri(self, uri: str) -> Dict[str, str]:

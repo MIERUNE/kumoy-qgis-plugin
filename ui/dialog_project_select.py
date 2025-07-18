@@ -17,11 +17,11 @@ from PyQt5.QtWidgets import (
 from qgis.core import Qgis, QgsMessageLog
 
 from ..imgs import IMGS_PATH
-from ..qgishub.api import organization, project
-from ..qgishub.api.organization import Organization
-from ..qgishub.api.project import Project
-from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
+from ..strato.api import organization, project
+from ..strato.api.organization import Organization
+from ..strato.api.project import Project
+from ..strato.constants import LOG_CATEGORY
 
 
 class ProjectSelectDialog(QDialog):

@@ -1,6 +1,6 @@
-# qgishub-plugin
+# strato-plugin
 
-[QGIS HUB(TBD)](https://github.com/MIERUNE/qgishub-backend)の Backend と疎通するための Plugin
+StratoGIS Plugin
 
 ## specification
 
@@ -19,7 +19,7 @@ uv venv --python /Applications/QGIS.app/Contents/MacOS/bin/python3 --system-site
 ### シンボリックリンクの作成
 
 ```sh
-ln -s '/Users/hoge/GitHub/qgishub-plugin' '/Users/hoge/Library/Application Support/QGIS/QGIS3/profiles/qgishub/python/plugins/qgis-hub'
+ln -s '/Users/hoge/GitHub/strato-plugin' '/Users/hoge/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/strato-plugin'
 ```
 
 ### (when VSCode) 仮想環境を VSCode 上の Python インタプリタとして選択

@@ -1,7 +1,7 @@
 FORMS = ui/dialog_config.ui
 
 SOURCES = __init__.py \
-          qgishub_plugin.py \
+          plugin.py \
           browser/root.py \
           browser/styledmap.py \
           browser/vector.py \
@@ -9,20 +9,20 @@ SOURCES = __init__.py \
           ui/dialog_config.py \
           ui/dialog_project_select.py \
           settings_manager.py \
-          qgishub/auth_manager.py \
-          qgishub/config.py \
-          qgishub/constants.py \
-          qgishub/api/auth.py \
-          qgishub/api/client.py \
-          qgishub/api/organization.py \
-          qgishub/api/project.py \
-          qgishub/api/project_styledmap.py \
-          qgishub/api/project_vector.py \
-          qgishub/api/qgis_vector.py \
-          qgishub/provider/dataprovider.py \
-          qgishub/provider/dataprovider_metadata.py \
-          qgishub/provider/feature_iterator.py \
-          qgishub/provider/feature_source.py \
+          strato/auth_manager.py \
+          strato/config.py \
+          strato/constants.py \
+          strato/api/auth.py \
+          strato/api/client.py \
+          strato/api/organization.py \
+          strato/api/project.py \
+          strato/api/project_styledmap.py \
+          strato/api/project_vector.py \
+          strato/api/qgis_vector.py \
+          strato/provider/dataprovider.py \
+          strato/provider/dataprovider_metadata.py \
+          strato/provider/feature_iterator.py \
+          strato/provider/feature_source.py \
           processing/provider.py \
           processing/feature_uploader.py \
           processing/field_name_normalizer.py \

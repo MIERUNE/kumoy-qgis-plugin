@@ -7,7 +7,7 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from ..qgishub import api
+from ..strato import api
 from .field_name_normalizer import FieldNameNormalizer
 
 

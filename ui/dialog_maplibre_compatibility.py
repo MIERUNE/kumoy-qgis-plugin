@@ -16,7 +16,7 @@ from qgis.core import (
     QgsVectorLayer,
 )
 
-from ..qgishub.qgisproject.check import CompatibilityChecker
+from ..strato.qgisproject.check import CompatibilityChecker
 
 
 class MapLibreCompatibilityDialog(QDialog):

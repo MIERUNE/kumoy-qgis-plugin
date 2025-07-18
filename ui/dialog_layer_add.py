@@ -14,9 +14,9 @@ from PyQt5.QtWidgets import (
 from qgis.core import Qgis, QgsMessageLog, QgsProject, QgsRasterLayer, QgsVectorLayer
 
 from ..imgs import IMGS_PATH
-from ..qgishub.api import layer
-from ..qgishub.api.layer import Layer
-from ..qgishub.constants import LOG_CATEGORY
+from ..strato.api import layer
+from ..strato.api.layer import Layer
+from ..strato.constants import LOG_CATEGORY
 
 
 class LayerAddDialog(QDialog):
