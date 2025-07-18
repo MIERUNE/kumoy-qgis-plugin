@@ -26,7 +26,7 @@ import processing
 from ...settings_manager import SettingsManager
 from ...strato import api
 from ...strato.get_token import get_token
-from .normalize_fielid_name import normalize_field_name
+from .normalize_field_name import normalize_field_name
 
 
 def rename_field_with_refactor(layer, field_mapping):
