@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
