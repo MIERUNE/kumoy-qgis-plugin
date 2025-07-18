@@ -12,5 +12,5 @@ LOG_CATEGORY = PLUGIN_NAME
 BROWSER_ROOT_PATH = "strato:/"
 
 # データプロバイダー関連
-DATA_PROVIDER_KEY = "qgishub"
+DATA_PROVIDER_KEY = "strato"
 DATA_PROVIDER_DESCRIPTION = "QGIS HUB Data Provider"

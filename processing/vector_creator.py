@@ -2,8 +2,8 @@ from typing import Optional
 
 from qgis.core import QgsProcessingFeedback
 
-from ..qgishub import api
-from ..qgishub.api.project_vector import AddVectorOptions
+from ..strato import api
+from ..strato.api.project_vector import AddVectorOptions
 
 
 class VectorCreator:

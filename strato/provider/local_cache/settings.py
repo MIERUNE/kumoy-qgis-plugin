@@ -1,6 +1,6 @@
 from qgis.PyQt.QtCore import QSettings
 
-SETTING_GROUP = "/QGISHUB/local_cache"
+SETTING_GROUP = "/STRATO/local_cache"
 
 
 def get_last_updated(vector_id: str) -> str:

@@ -24,21 +24,21 @@ from qgis.core import (
 )
 
 from ..imgs import IMGS_PATH
-from ..qgishub import api
-from ..qgishub.api.project_vector import (
+from ..settings_manager import SettingsManager
+from ..strato import api
+from ..strato.api.project_vector import (
     AddVectorOptions,
-    QgishubVector,
+    StratoVector,
     UpdateVectorOptions,
 )
-from ..qgishub.constants import LOG_CATEGORY, PLUGIN_NAME
-from ..settings_manager import SettingsManager
+from ..strato.constants import LOG_CATEGORY, PLUGIN_NAME
 from .utils import ErrorItem
 
 
 class VectorItem(QgsDataItem):
     """Vector layer item for browser"""
 
-    def __init__(self, parent, path: str, vector: QgishubVector):
+    def __init__(self, parent, path: str, vector: StratoVector):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -99,11 +99,11 @@ class VectorItem(QgsDataItem):
         uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
         # Create layer
         layer_name = f"{PLUGIN_NAME} - {self.vector.name}"
-        layer = QgsVectorLayer(uri, layer_name, "qgishub")
+        layer = QgsVectorLayer(uri, layer_name, "strato")
 
         if layer.isValid():
-            # qgishub_idをread-onlyに設定
-            field_idx = layer.fields().indexOf("qgishub_id")
+            # strato_idをread-onlyに設定
+            field_idx = layer.fields().indexOf("strato_id")
             # フィールド設定で読み取り専用を設定
             if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
                 # プロバイダーフィールドの場合

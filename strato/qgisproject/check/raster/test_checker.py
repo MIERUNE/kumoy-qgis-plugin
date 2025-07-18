@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from qgis.core import QgsRasterLayer
 from qgis.testing import QgisTestCase, start_app
 
-from qgishub.qgisproject.check import CompatibilityChecker
+from strato.qgisproject.check import CompatibilityChecker
 
 
 class TestRasterLayerChecker(QgisTestCase):

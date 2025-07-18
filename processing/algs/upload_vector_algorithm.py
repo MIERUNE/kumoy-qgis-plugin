@@ -20,9 +20,9 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from ...qgishub import api
-from ...qgishub.get_token import get_token
 from ...settings_manager import SettingsManager
+from ...strato import api
+from ...strato.get_token import get_token
 from ..feature_uploader import FeatureUploader
 from ..field_name_normalizer import FieldNameNormalizer
 from ..vector_creator import VectorCreator

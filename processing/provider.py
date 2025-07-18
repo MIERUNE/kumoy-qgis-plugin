@@ -3,9 +3,8 @@ import os
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
-from qgishub.constants import PLUGIN_NAME
-
 from ..imgs import IMGS_PATH
+from ..strato.constants import PLUGIN_NAME
 from .algs import UploadVectorAlgorithm
 
 

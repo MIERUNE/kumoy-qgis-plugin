@@ -8,7 +8,7 @@ from qgis.core import (
 )
 
 
-class QgishubFeatureIterator(QgsAbstractFeatureIterator):
+class StratoFeatureIterator(QgsAbstractFeatureIterator):
     def __init__(self, source, request: QgsFeatureRequest):
         """Constructor"""
 

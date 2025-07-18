@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 
 from ..imgs import IMGS_PATH
-from ..qgishub.constants import LOG_CATEGORY
+from ..strato.constants import LOG_CATEGORY
 
 
 class ErrorItem(QgsDataItem):

@@ -15,10 +15,10 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 from qgis.utils import iface
 
-from ..qgishub.api import config
-from ..qgishub.auth_manager import AuthManager
-from ..qgishub.constants import LOG_CATEGORY
 from ..settings_manager import SettingsManager
+from ..strato.api import config
+from ..strato.auth_manager import AuthManager
+from ..strato.constants import LOG_CATEGORY
 
 
 class DialogConfig(QDialog):

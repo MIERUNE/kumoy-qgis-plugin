@@ -25,7 +25,7 @@ class VectorLayerChecker(BaseCompatibilityChecker):
 
         provider_type = layer.dataProvider().name()
 
-        if provider_type != "qgishub":
+        if provider_type != "strato":
             return False, " - generic vector data not supported"
 
         # Get renderer and check type

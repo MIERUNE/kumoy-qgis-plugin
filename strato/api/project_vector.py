@@ -5,7 +5,7 @@ from .client import ApiClient
 
 
 @dataclass
-class QgishubVector:
+class StratoVector:
     id: str
     name: str
     uri: str
@@ -13,9 +13,9 @@ class QgishubVector:
     projectId: str
 
 
-# extends QgishubVector
+# extends StratoVector
 @dataclass
-class QgishubVectorReturnValue(QgishubVector):
+class StratoVectorReturnValue(StratoVector):
     extent: List[float]
     count: int
     columns: Dict[str, str]
@@ -24,7 +24,7 @@ class QgishubVectorReturnValue(QgishubVector):
     role: Literal["ADMIN", "OWNER", "MEMBER"] = "MEMBER"
 
 
-def get_vectors(project_id: str) -> List[QgishubVector]:
+def get_vectors(project_id: str) -> List[StratoVector]:
     """
     Get a list of vectors for a specific project
 
@@ -32,7 +32,7 @@ def get_vectors(project_id: str) -> List[QgishubVector]:
         project_id: Project ID
 
     Returns:
-        List of QgishubVector objects
+        List of StratoVector objects
     """
     try:
         response = ApiClient.get(f"/project/{project_id}/vector")
@@ -40,7 +40,7 @@ def get_vectors(project_id: str) -> List[QgishubVector]:
         vectors = []
         for vector_data in response:
             vectors.append(
-                QgishubVector(
+                StratoVector(
                     id=vector_data.get("id", ""),
                     name=vector_data.get("name", ""),
                     uri=vector_data.get("uri", ""),
@@ -55,7 +55,7 @@ def get_vectors(project_id: str) -> List[QgishubVector]:
         return []
 
 
-def get_vector(project_id: str, vector_id: str) -> Optional[QgishubVectorReturnValue]:
+def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnValue]:
     """
     Get details for a specific vector
 
@@ -64,7 +64,7 @@ def get_vector(project_id: str, vector_id: str) -> Optional[QgishubVectorReturnV
         vector_id: Vector ID
 
     Returns:
-        QgishubVectorReturnValue object or None if not found
+        StratoVectorReturnValue object or None if not found
     """
     try:
         response = ApiClient.get(f"/vector/{vector_id}")
@@ -72,7 +72,7 @@ def get_vector(project_id: str, vector_id: str) -> Optional[QgishubVectorReturnV
         if not response:
             return None
 
-        return QgishubVectorReturnValue(
+        return StratoVectorReturnValue(
             id=response.get("id", ""),
             name=response.get("name", ""),
             uri=response.get("uri", ""),
@@ -99,7 +99,7 @@ class AddVectorOptions:
 
 def add_vector(
     project_id: str, add_vector_options: AddVectorOptions
-) -> Optional[QgishubVector]:
+) -> Optional[StratoVector]:
     """
     Add a new vector to a project
 
@@ -108,7 +108,7 @@ def add_vector(
         add_vector_options: Options for the new vector
 
     Returns:
-        QgishubVector object or None if creation failed
+        StratoVector object or None if creation failed
     """
     try:
         response = ApiClient.post(
@@ -119,7 +119,7 @@ def add_vector(
         if not response:
             return None
 
-        return QgishubVector(
+        return StratoVector(
             id=response.get("id", ""),
             name=response.get("name", ""),
             uri=response.get("uri", ""),
@@ -167,7 +167,7 @@ def update_vector(
         if not response:
             return None
 
-        return QgishubVector(
+        return StratoVector(
             id=response.get("id", ""),
             name=response.get("name", ""),
             uri=response.get("uri", ""),
