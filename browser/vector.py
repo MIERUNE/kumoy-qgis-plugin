@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtGui import QIcon
@@ -15,6 +16,7 @@ from PyQt5.QtWidgets import (
 )
 from qgis.core import (
     Qgis,
+    QgsApplication,
     QgsDataItem,
     QgsEditorWidgetSetup,
     QgsFields,
@@ -32,6 +34,7 @@ from ..strato.api.project_vector import (
     UpdateVectorOptions,
 )
 from ..strato.constants import LOG_CATEGORY, PLUGIN_NAME
+from ..strato.provider import local_cache
 from .utils import ErrorItem
 
 
@@ -84,6 +87,11 @@ class VectorItem(QgsDataItem):
         delete_action = QAction(self.tr("Delete Vector"), parent)
         delete_action.triggered.connect(self.delete_vector)
         actions.append(delete_action)
+
+        # Clear cache action
+        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action.triggered.connect(self.clear_cache)
+        actions.append(clear_cache_action)
 
         # Refresh action
         refresh_action = QAction(self.tr("Refresh"), parent)
@@ -227,6 +235,53 @@ class VectorItem(QgsDataItem):
                 Qgis.Critical,
             )
 
+    def clear_cache(self):
+        """Clear cache for this specific vector"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear Cache"),
+            self.tr(
+                "This will clear the local cache for vector '{}'.\n"
+                "The cached data will be re-downloaded when you access it next time.\n\n"
+                "Do you want to continue?"
+            ).format(self.vector.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            try:
+                # Clear cache for this specific vector
+                local_cache.clear(self.vector.id)
+
+                QgsMessageLog.logMessage(
+                    self.tr("Cache cleared for vector '{}'").format(self.vector.name),
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                QMessageBox.information(
+                    None,
+                    self.tr("Success"),
+                    self.tr("Cache cleared successfully for vector '{}'.").format(
+                        self.vector.name
+                    ),
+                )
+
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    self.tr("Error clearing cache for vector '{}': {}").format(
+                        self.vector.name, str(e)
+                    ),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
+                )
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Failed to clear cache: {}").format(str(e)),
+                )
+
 
 class DbRoot(QgsDataItem):
     """Root item for vectors in a project"""
@@ -258,6 +313,11 @@ class DbRoot(QgsDataItem):
         upload_vector_action = QAction(self.tr("Upload Vector"), parent)
         upload_vector_action.triggered.connect(self.upload_vector)
         actions.append(upload_vector_action)
+
+        # Clear cache action
+        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action.triggered.connect(self.clear_cache)
+        actions.append(clear_cache_action)
 
         # Refresh action
         refresh_action = QAction(self.tr("Refresh"), parent)
@@ -410,3 +470,40 @@ class DbRoot(QgsDataItem):
 
         except Exception as e:
             return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+
+    def clear_cache(self):
+        """Clear all cached data"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear Cache"),
+            self.tr(
+                "This will clear all local cache files. "
+                "Cached data will be re-downloaded when you access vectors next time.\n\n"
+                "Do you want to continue?"
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            try:
+                # Get cache directory path
+                local_cache.clear_all()
+                QgsMessageLog.logMessage(
+                    self.tr("Cache cleared successfully"),
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    self.tr("Error clearing cache: {}").format(str(e)),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
+                )
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Failed to clear cache: {}").format(str(e)),
+                )

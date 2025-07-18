@@ -139,6 +139,7 @@ class StratoDataProvider(QgsVectorDataProvider):
             self.fields(),
             self.wkbType(),
         )
+        self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
         self.clearMinMaxCache()
         self.updateExtents()
 
