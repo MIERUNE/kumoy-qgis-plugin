@@ -29,7 +29,9 @@ from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
 
-def rename_field_with_refactor(layer, field_mapping):
+def rename_field_with_refactor(
+    layer: QgsVectorLayer, field_mapping: Dict[str, str]
+) -> QgsVectorLayer:
     """リファクタリングツールを使用してフィールド名を変更"""
 
     # フィールドマッピングの作成
@@ -42,7 +44,10 @@ def rename_field_with_refactor(layer, field_mapping):
     fields_mapping = []
     for field in layer.fields():
         field_name = field.name()
-        new_name = field_mapping.get(field_name, field_name)
+
+        new_name = field_mapping.get(field_name)
+        if new_name is None:
+            continue
 
         mapping = {
             "expression": f'"{field_name}"',
@@ -275,14 +280,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             # Normalize field names
-            valid_fields_layer = self._prepare_field_mappings(processed_layer)
+            valid_fields_layer = self._prepare_field_mappings(processed_layer, feedback)
 
             # Create attribute dictionary
             attr_dict = self._create_attribute_dict(valid_fields_layer)
 
             # Create vector and add attributes
             vector = self._create_vector_and_attributes(
-                project_id, vector_name, vector_type, attr_dict
+                project_id, vector_name, vector_type, attr_dict, feedback
             )
 
             # Upload features
@@ -524,15 +529,36 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         return processed_layer, source_crs
 
     def _prepare_field_mappings(
-        self, processed_layer: QgsVectorLayer
+        self, processed_layer: QgsVectorLayer, feedback: QgsProcessingFeedback
     ) -> QgsVectorLayer:
         """Normalize field names for PostgreSQL/PostGIS compatibility"""
         # Normalize field names
         valid_fields_mapping = {}
         for field in processed_layer.fields():
+            # validate field type
+            if field.type() not in [
+                QVariant.String,
+                QVariant.Int,
+                QVariant.Double,
+                QVariant.Bool,
+            ]:
+                feedback.pushInfo(
+                    self.tr(
+                        "Unsupported field type for field '{}'. "
+                        "Only string, integer, float, and boolean fields are supported."
+                    ).format(field.name())
+                )
+                continue  # Skip unsupported field types
+
+            # validate field name
             normalized_name = normalize_field_name(field.name())
             if normalized_name:
                 valid_fields_mapping[field.name()] = normalized_name
+                feedback.pushInfo(
+                    self.tr("Field '{}' normalized to '{}'").format(
+                        field.name(), normalized_name
+                    )
+                )
 
         return rename_field_with_refactor(processed_layer, valid_fields_mapping)
 
@@ -562,6 +588,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector_name: str,
         vector_type: str,
         attr_dict: Dict[str, str],
+        feedback: QgsProcessingFeedback,
     ) -> Any:
         """Create vector in STRATO and add attributes"""
         # Create vector
@@ -570,12 +597,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             type=vector_type,
         )
         vector = api.project_vector.add_vector(project_id, options)
-
-        # Add attributes
+        feedback.pushInfo(
+            self.tr("Created vector layer '{}' with ID: {}").format(
+                vector_name, vector.id
+            )
+        )
         api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
-
-        # Reload to get server-assigned column names
-        return api.project_vector.get_vector(project_id, vector.id)
+        feedback.pushInfo(
+            self.tr("Added attributes to vector layer '{}': {}").format(
+                vector_name, ", ".join(attr_dict.keys())
+            )
+        )
+        return vector
 
     def _upload_features(
         self,
