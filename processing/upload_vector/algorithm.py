@@ -601,6 +601,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         accumulated_features, valid_fields_layer.featureCount()
                     )
                 )
+                feedback.setProgress(
+                    50
+                    + int(
+                        (accumulated_features / valid_fields_layer.featureCount()) * 50
+                    )
+                )
                 cur_features = []
             cur_features.append(f)
 
