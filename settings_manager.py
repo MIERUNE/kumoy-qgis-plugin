@@ -20,7 +20,7 @@ def DEFAULT_SETTINGS():
 
 
 class SettingsManager:
-    SETTING_GROUP = "/QGISHUB"
+    SETTING_GROUP = "/STRATO"
 
     def __init__(self):
         self.__settings = DEFAULT_SETTINGS()

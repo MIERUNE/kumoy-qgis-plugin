@@ -13,4 +13,4 @@ BROWSER_ROOT_PATH = "strato:/"
 
 # データプロバイダー関連
 DATA_PROVIDER_KEY = "strato"
-DATA_PROVIDER_DESCRIPTION = "QGIS HUB Data Provider"
+DATA_PROVIDER_DESCRIPTION = "STRATO Data Provider"

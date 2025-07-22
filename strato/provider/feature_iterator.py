@@ -1,5 +1,3 @@
-import time
-
 from qgis.core import (
     QgsAbstractFeatureIterator,
     QgsCoordinateTransform,

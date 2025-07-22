@@ -21,8 +21,10 @@ if package_name not in sys.modules:
 
 
 spec = importlib.util.spec_from_file_location(
-    "field_name_normalizer",
-    os.path.join(project_root, "processing", "field_name_normalizer.py"),
+    "normalize_field_name",
+    os.path.join(
+        project_root, "processing", "upload_vector", "normalize_field_name.py"
+    ),
 )
 field_name_normalizer_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(field_name_normalizer_module)
