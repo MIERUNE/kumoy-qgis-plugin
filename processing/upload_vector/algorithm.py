@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Dict, Optional, Tuple, Union, cast
 
 from PyQt5.QtCore import QCoreApplication
 from qgis.core import (
@@ -63,6 +63,60 @@ def rename_field_with_refactor(
 
     result = processing.run("native:refactorfields", params)
     return result["OUTPUT"]
+
+
+def _is_geometry_type_consistent(geometry: QgsGeometry, expected_type: str) -> bool:
+    """check if geometry type matches expected type"""
+    if not geometry:
+        return False
+
+    actual_type = QgsWkbTypes.geometryType(geometry.wkbType())
+    return actual_type == expected_type
+
+
+def _get_geometry_type(layer: QgsVectorLayer) -> Union[Tuple[str, bool], None]:
+    """Determine geometry type and check for multipart"""
+    wkb_type = layer.wkbType()
+    is_multipart = False
+
+    if wkb_type in [QgsWkbTypes.Point]:
+        vector_type = "POINT"
+    elif wkb_type in [QgsWkbTypes.MultiPoint]:
+        vector_type = "POINT"
+        is_multipart = True
+    elif wkb_type in [QgsWkbTypes.LineString]:
+        vector_type = "LINESTRING"
+    elif wkb_type in [QgsWkbTypes.MultiLineString]:
+        vector_type = "LINESTRING"
+        is_multipart = True
+    elif wkb_type in [QgsWkbTypes.Polygon]:
+        vector_type = "POLYGON"
+    elif wkb_type in [QgsWkbTypes.MultiPolygon]:
+        vector_type = "POLYGON"
+        is_multipart = True
+    else:
+        return None
+
+    return vector_type, is_multipart
+
+
+def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]:
+    """Convert QgsField list to dictionary of name:type"""
+    attr_dict = {}
+    for field in valid_fields_layer.fields():
+        # Map QGIS field types to our supported types
+        field_type = "string"  # Default to string
+        if field.type() == QVariant.Int:
+            field_type = "integer"
+        elif field.type() == QVariant.Double:
+            field_type = "float"
+        elif field.type() == QVariant.Bool:
+            field_type = "boolean"
+
+        column_name = field.name()
+        attr_dict[column_name] = field_type
+
+    return attr_dict
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
@@ -252,7 +306,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             # Determine geometry type
-            vector_type, is_multipart = self._get_geometry_type(layer)
+            result = _get_geometry_type(layer)
+            if result is None:
+                raise QgsProcessingException(self.tr("Unsupported geometry type"))
+            vector_type, is_multipart = result
 
             # Process layer: convert to singlepart and reproject in one step
             processed_layer, original_crs = self._process_layer_geometry(
@@ -283,7 +340,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             valid_fields_layer = self._prepare_field_mappings(processed_layer, feedback)
 
             # Create attribute dictionary
-            attr_dict = self._create_attribute_dict(valid_fields_layer)
+            attr_dict = _create_attribute_dict(valid_fields_layer)
 
             # Create vector and add attributes
             vector = self._create_vector_and_attributes(
@@ -314,39 +371,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Re-raise the original exception
             raise
-
-    def _get_geometry_type(self, layer: QgsVectorLayer) -> Tuple[str, bool]:
-        """Determine geometry type and check for multipart"""
-        wkb_type = layer.wkbType()
-        is_multipart = False
-
-        if wkb_type in [QgsWkbTypes.Point]:
-            vector_type = "POINT"
-        elif wkb_type in [QgsWkbTypes.MultiPoint]:
-            vector_type = "POINT"
-            is_multipart = True
-        elif wkb_type in [QgsWkbTypes.LineString]:
-            vector_type = "LINESTRING"
-        elif wkb_type in [QgsWkbTypes.MultiLineString]:
-            vector_type = "LINESTRING"
-            is_multipart = True
-        elif wkb_type in [QgsWkbTypes.Polygon]:
-            vector_type = "POLYGON"
-        elif wkb_type in [QgsWkbTypes.MultiPolygon]:
-            vector_type = "POLYGON"
-            is_multipart = True
-        else:
-            raise QgsProcessingException(self.tr("Unsupported geometry type"))
-
-        return vector_type, is_multipart
-
-    def _is_geometry_type_consistent(self, geometry, expected_type):
-        """check if geometry type matches expected type"""
-        if not geometry:
-            return False
-
-        actual_type = QgsWkbTypes.geometryType(geometry.wkbType())
-        return actual_type == expected_type
 
     def _process_layer_geometry(
         self,
@@ -453,7 +477,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                             continue  # Skip unfixable parts
 
                     # Check geometry type consistency
-                    if not self._is_geometry_type_consistent(
+                    if not _is_geometry_type_consistent(
                         single_geometry_part, expected_geom_type
                     ):
                         wrong_geometry_type += 1
@@ -476,7 +500,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     features_processed += 1
             else:
                 # Check geometry type consistency
-                if not self._is_geometry_type_consistent(geom, expected_geom_type):
+                if not _is_geometry_type_consistent(geom, expected_geom_type):
                     wrong_geometry_type += 1
                     continue  # Skip features with wrong geometry type
 
@@ -561,26 +585,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
         return rename_field_with_refactor(processed_layer, valid_fields_mapping)
-
-    def _create_attribute_dict(
-        self, valid_fields_layer: QgsVectorLayer
-    ) -> Dict[str, str]:
-        """Convert QgsField list to dictionary of name:type"""
-        attr_dict = {}
-        for field in valid_fields_layer.fields():
-            # Map QGIS field types to our supported types
-            field_type = "string"  # Default to string
-            if field.type() == QVariant.Int:
-                field_type = "integer"
-            elif field.type() == QVariant.Double:
-                field_type = "float"
-            elif field.type() == QVariant.Bool:
-                field_type = "boolean"
-
-            column_name = field.name()
-            attr_dict[column_name] = field_type
-
-        return attr_dict
 
     def _create_vector_and_attributes(
         self,
