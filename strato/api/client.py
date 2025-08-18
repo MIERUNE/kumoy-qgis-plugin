@@ -1,9 +1,9 @@
 import json
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QByteArray, QEventLoop, QTextStream, QUrl
-from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
+from qgis.PyQt.QtCore import QByteArray, QEventLoop, QTextStream, QUrl
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
 from ..get_token import get_token
 from . import config as api_config

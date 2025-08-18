@@ -1,9 +1,10 @@
 import os
 from typing import Optional, Tuple
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
+from qgis.core import Qgis, QgsMessageLog
+from qgis.PyQt.QtCore import QT_VERSION_STR, Qt
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -14,7 +15,6 @@ from PyQt5.QtWidgets import (
     QTreeWidgetItem,
     QVBoxLayout,
 )
-from qgis.core import Qgis, QgsMessageLog
 
 from ..imgs import IMGS_PATH
 from ..settings_manager import SettingsManager
@@ -22,6 +22,8 @@ from ..strato.api import organization, project
 from ..strato.api.organization import Organization
 from ..strato.api.project import Project
 from ..strato.constants import LOG_CATEGORY
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
 
 
 class ProjectSelectDialog(QDialog):
@@ -47,6 +49,23 @@ class ProjectSelectDialog(QDialog):
 
         # Load previously selected project
         self.load_saved_selection()
+
+    def _get_user_role(self):
+        if QT_VERSION_INT <= 5:
+            return Qt.UserRole
+        else:
+            return Qt.ItemDataRole.UserRole
+
+    def _get_dialog_buttons(self):
+        """Get the appropriate button constants based on Qt version"""
+        if QT_VERSION_INT <= 5:
+            return (QDialogButtonBox.Ok | QDialogButtonBox.Cancel, QDialogButtonBox.Ok)
+        else:
+            return (
+                QDialogButtonBox.StandardButton.Ok
+                | QDialogButtonBox.StandardButton.Cancel,
+                QDialogButtonBox.StandardButton.Ok,
+            )
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -78,12 +97,12 @@ class ProjectSelectDialog(QDialog):
         button_layout.addStretch()
 
         # OK/Cancel buttons
-        self.button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
+        buttons, ok_button_enum = self._get_dialog_buttons()
+        self.button_box = QDialogButtonBox(buttons)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+        self.button_box.button(ok_button_enum).setEnabled(False)
+        self._ok_button_enum = ok_button_enum
         button_layout.addWidget(self.button_box)
 
         layout.addLayout(button_layout)
@@ -149,7 +168,7 @@ class ProjectSelectDialog(QDialog):
                 tree_item = QTreeWidgetItem(self.project_tree)
                 tree_item.setText(0, project_item.name)
                 tree_item.setIcon(0, self.project_icon)
-                tree_item.setData(0, Qt.UserRole, project_item)
+                tree_item.setData(0, self._get_user_role(), project_item)
 
             # Expand all items
             self.project_tree.expandAll()
@@ -163,16 +182,16 @@ class ProjectSelectDialog(QDialog):
         """Handle project selection"""
         selected_items = self.project_tree.selectedItems()
         if not selected_items:
-            self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
+            self.button_box.button(self._ok_button_enum).setEnabled(False)
             self.selected_project = None
             return
 
         # Get selected project
         item = selected_items[0]
-        self.selected_project = item.data(0, Qt.UserRole)
+        self.selected_project = item.data(0, self._get_user_role())
 
         # Enable OK button
-        self.button_box.button(QDialogButtonBox.Ok).setEnabled(True)
+        self.button_box.button(self._ok_button_enum).setEnabled(True)
 
     def refresh(self):
         """Refresh all data"""
@@ -229,7 +248,7 @@ class ProjectSelectDialog(QDialog):
             # Find project in tree
             for i in range(self.project_tree.topLevelItemCount()):
                 item = self.project_tree.topLevelItem(i)
-                project_item = item.data(0, Qt.UserRole)
+                project_item = item.data(0, self._get_user_role())
                 if project_item and project_item.id == project_id:
                     item.setSelected(True)
                     break

@@ -2,8 +2,10 @@ import json
 import os
 import webbrowser
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtWidgets import (
+from qgis.core import Qgis, QgsMessageLog
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QT_VERSION_STR, QCoreApplication
+from qgis.PyQt.QtWidgets import (
     QDialog,
     QGroupBox,
     QLabel,
@@ -11,14 +13,21 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
 )
-from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt import uic
 from qgis.utils import iface
 
 from ..settings_manager import SettingsManager
 from ..strato.api import config
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+
+
+def exec_dialog(dialog):
+    if QT_VERSION_INT <= 5:
+        return dialog.exec_()
+    else:
+        return dialog.exec()
 
 
 class DialogConfig(QDialog):
@@ -318,7 +327,7 @@ class DialogConfig(QDialog):
 
         # Show project selection dialog
         dialog = ProjectSelectDialog()
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
 
         if not result:
             return

@@ -1,8 +1,8 @@
 import re
 from typing import Dict, Literal, Optional, cast
 
-from PyQt5.QtCore import QMetaType
 from qgis.core import QgsField, QgsFields, QgsProcessingFeedback, QgsVectorLayer
+from qgis.PyQt.QtCore import QMetaType
 
 MAX_FIELD_LENGTH = 63
 
@@ -446,6 +446,6 @@ class FieldNameNormalizer:
 
     def tr(self, string: str) -> str:
         """Translate string"""
-        from PyQt5.QtCore import QCoreApplication
+        from qgis.PyQt.QtCore import QCoreApplication
 
         return QCoreApplication.translate("FieldNameNormalizer", string)

@@ -1,8 +1,8 @@
 import os
 
-from PyQt5.QtCore import QCoreApplication, QTranslator
 from qgis.core import QgsApplication, QgsProviderRegistry
 from qgis.gui import QgisInterface
+from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
 from .browser.root import DataItemProvider
 from .processing.provider import StratoProcessingProvider
