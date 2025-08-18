@@ -238,3 +238,46 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     else:
         QgsApplication.messageLog().logMessage(f"Cache layer {vector_id} is not valid.")
         return None
+
+
+def clear_all():
+    """Clear cached GPKG files"""
+    cache_dir = _get_cache_dir()
+    # Remove all files in cache directory
+    for filename in os.listdir(cache_dir):
+        file_path = os.path.join(cache_dir, filename)
+        os.unlink(file_path)
+
+    global LAYER_CACHE
+    for vector_id in list(LAYER_CACHE.keys()):
+        del LAYER_CACHE[vector_id]
+        delete_last_updated(vector_id)
+
+    LAYER_CACHE.clear()
+
+
+def clear(vector_id: str):
+    """Clear cache for a specific vector."""
+    cache_dir = _get_cache_dir()
+    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
+    gpkg_shm_file = f"{cache_file}-shm"
+    gpkg_wal_file = f"{cache_file}-wal"
+    gpkg_journal_file = f"{cache_file}-journal"
+
+    # Remove cache file if it exists
+    if os.path.exists(cache_file):
+        os.unlink(cache_file)
+    if os.path.exists(gpkg_shm_file):
+        os.unlink(gpkg_shm_file)
+    if os.path.exists(gpkg_wal_file):
+        os.unlink(gpkg_wal_file)
+    if os.path.exists(gpkg_journal_file):
+        os.unlink(gpkg_journal_file)
+
+    # Remove from in-memory cache
+    global LAYER_CACHE
+    if vector_id in LAYER_CACHE:
+        del LAYER_CACHE[vector_id]
+
+    # Delete last updated timestamp
+    delete_last_updated(vector_id)
