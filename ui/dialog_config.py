@@ -2,15 +2,18 @@ import json
 import os
 import webbrowser
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtWidgets import (
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtWidgets import (
     QDialog,
     QGroupBox,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QVBoxLayout
 )
+from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtCore import Qt
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
 from qgis.utils import iface
@@ -20,6 +23,8 @@ from ..strato.api import config
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 
+from .ui_utils import DialogUtils
+
 
 class DialogConfig(QDialog):
     def __init__(self):
@@ -27,6 +32,8 @@ class DialogConfig(QDialog):
         self.ui = uic.loadUi(
             os.path.join(os.path.dirname(__file__), "dialog_config.ui"), self
         )
+
+        DialogUtils.apply_stylesheet(self)
 
         # Set type hints for UI
         self.buttonClose: QPushButton = self.ui.buttonClose
@@ -53,7 +60,44 @@ class DialogConfig(QDialog):
         # Initialize auth manager
         self.auth_manager = AuthManager(port=9248)
 
+        # Add header logo
+        self.add_header_logo()
+
+        # Apply button styles
+        self.setup_button_styles()
+
         self.update_login_status()
+
+    def add_header_logo(self):
+        """Add the header logo to the dialog"""
+        try: 
+            logo_image = DialogUtils.get_svg_as_image("name", 237, 58)
+
+            if not logo_image.isNull():
+                self.logo_label = QLabel()
+                self.logo_label.setPixmap(QPixmap.fromImage(logo_image))
+                self.logo_label.setAlignment(Qt.AlignCenter)
+                self.logo_label.setStyleSheet("margin: 10px 0px;")
+                
+                layout = self.layout()
+                if layout:
+                    layout.insertWidget(0, self.logo_label)
+                else:
+                    main_layout = QVBoxLayout(self)
+                    main_layout.insertWidget(0, self.logo_label)
+                    main_layout.addWidget(self.ui)
+                    
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Failed to load header logo: {str(e)}", 
+                LOG_CATEGORY, 
+                Qgis.Warning
+            )
+
+    def setup_button_styles(self):
+        """Set up the styles for the dialog buttons"""
+        DialogUtils.apply_button_style(self.buttonLogin, "apply")
+        DialogUtils.apply_button_style(self.buttonLogout, "cancel")
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
