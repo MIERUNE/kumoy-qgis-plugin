@@ -253,7 +253,7 @@ def clear_all():
         del LAYER_CACHE[vector_id]
         delete_last_updated(vector_id)
 
-    LAYER_CACHE = {}
+    LAYER_CACHE.clear()
 
 
 def clear(vector_id: str):
