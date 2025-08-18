@@ -2,7 +2,10 @@ import json
 import os
 import webbrowser
 
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import Qgis, QgsMessageLog
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtGui import QPixmap
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -10,19 +13,14 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QVBoxLayout
+    QVBoxLayout,
 )
-from qgis.PyQt.QtGui import QPixmap
-from qgis.PyQt.QtCore import Qt
-from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt import uic
 from qgis.utils import iface
 
 from ..settings_manager import SettingsManager
 from ..strato.api import config
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
-
 from .ui_utils import DialogUtils
 
 
@@ -70,7 +68,7 @@ class DialogConfig(QDialog):
 
     def add_header_logo(self):
         """Add the header logo to the dialog"""
-        try: 
+        try:
             logo_image = DialogUtils.get_svg_as_image("name", 237, 58)
 
             if not logo_image.isNull():
@@ -78,7 +76,7 @@ class DialogConfig(QDialog):
                 self.logo_label.setPixmap(QPixmap.fromImage(logo_image))
                 self.logo_label.setAlignment(Qt.AlignCenter)
                 self.logo_label.setStyleSheet("margin: 10px 0px;")
-                
+
                 layout = self.layout()
                 if layout:
                     layout.insertWidget(0, self.logo_label)
@@ -86,12 +84,10 @@ class DialogConfig(QDialog):
                     main_layout = QVBoxLayout(self)
                     main_layout.insertWidget(0, self.logo_label)
                     main_layout.addWidget(self.ui)
-                    
+
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Failed to load header logo: {str(e)}", 
-                LOG_CATEGORY, 
-                Qgis.Warning
+                f"Failed to load header logo: {str(e)}", LOG_CATEGORY, Qgis.Warning
             )
 
     def setup_button_styles(self):

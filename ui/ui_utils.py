@@ -1,13 +1,14 @@
 """
 Dialog Utilities
 """
-import os
 
-from qgis.PyQt.QtWidgets import QDialog, QPushButton
-from qgis.PyQt.QtGui import QPainter, QImage, QColor
-from qgis.PyQt.QtSvg import QSvgRenderer
-from qgis.PyQt.QtCore import Qt
+import os
 from typing import Optional
+
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
+from qgis.PyQt.QtSvg import QSvgRenderer
+from qgis.PyQt.QtWidgets import QDialog, QPushButton
 
 STRATO_STYLESHEET = """
 QDialog {
@@ -16,8 +17,10 @@ QDialog {
 }
 """
 
+
 class ButtonColors:
     """Button color definitions for the dialog"""
+
     # Apply Button Colors
     APPLY = "5165FF"
     APPLY_HOVER = "4158B8"
@@ -28,16 +31,20 @@ class ButtonColors:
     CANCEL_HOVER = "B31D3A"
     CANCEL_PRESSED = "9C162B"
 
+
 class DialogUtils:
     @staticmethod
     def apply_stylesheet(dialog: QDialog):
         dialog.setStyleSheet(STRATO_STYLESHEET)
 
     @staticmethod
-    def get_svg_as_image(icon: str, width: int, height: int,
-                         background_color: Optional[QColor] = None,
-                         device_pixel_ratio: float = 1) -> QImage:
-        
+    def get_svg_as_image(
+        icon: str,
+        width: int,
+        height: int,
+        background_color: Optional[QColor] = None,
+        device_pixel_ratio: float = 1,
+    ) -> QImage:
         plugin_dir = os.path.dirname(os.path.dirname(__file__))
         path = os.path.join(plugin_dir, "imgs", f"{icon}.svg")
 
@@ -45,9 +52,11 @@ class DialogUtils:
             return QImage()
 
         renderer = QSvgRenderer(path)
-        image = QImage(int(width * device_pixel_ratio),
-                       int(height * device_pixel_ratio),
-                       QImage.Format_ARGB32)
+        image = QImage(
+            int(width * device_pixel_ratio),
+            int(height * device_pixel_ratio),
+            QImage.Format_ARGB32,
+        )
         image.setDevicePixelRatio(device_pixel_ratio)
         if not background_color:
             image.fill(Qt.transparent)
@@ -55,8 +64,7 @@ class DialogUtils:
             image.fill(background_color)
 
         painter = QPainter(image)
-        painter.scale(1 / device_pixel_ratio,
-                      1 / device_pixel_ratio)
+        painter.scale(1 / device_pixel_ratio, 1 / device_pixel_ratio)
         renderer.render(painter)
         painter.end()
 
@@ -66,12 +74,20 @@ class DialogUtils:
     def apply_button_style(button: QPushButton, button_type: str):
         """Apply the style to a button based on its type"""
         color_map = {
-            "apply": (ButtonColors.APPLY, ButtonColors.APPLY_HOVER, ButtonColors.APPLY_PRESSED),
-            "cancel": (ButtonColors.CANCEL, ButtonColors.CANCEL_HOVER, ButtonColors.CANCEL_PRESSED),
+            "apply": (
+                ButtonColors.APPLY,
+                ButtonColors.APPLY_HOVER,
+                ButtonColors.APPLY_PRESSED,
+            ),
+            "cancel": (
+                ButtonColors.CANCEL,
+                ButtonColors.CANCEL_HOVER,
+                ButtonColors.CANCEL_PRESSED,
+            ),
         }
 
         if button_type not in color_map:
-            return    
+            return
 
         colors = color_map[button_type]
 
