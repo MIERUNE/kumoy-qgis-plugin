@@ -118,7 +118,7 @@ class RootCollection(QgsDataCollectionItem):
 
             # Show project selection dialog
             dialog = ProjectSelectDialog()
-            result = dialog.exec_()
+            result = exec_dialog(dialog)
 
             if result:
                 # Get selected project
