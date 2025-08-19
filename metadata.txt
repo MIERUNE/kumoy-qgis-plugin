@@ -8,6 +8,8 @@ version=1.0
 #Plugin main icon
 icon=imgs/icon.png
 
+supportsQt6=True
+
 author=MIERUNE Inc.
 email=info@mierune.co.jp
 homepage=

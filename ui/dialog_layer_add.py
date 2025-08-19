@@ -1,9 +1,10 @@
 import os
 from typing import List
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
+from qgis.core import Qgis, QgsMessageLog, QgsProject, QgsRasterLayer, QgsVectorLayer
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLabel,
@@ -11,7 +12,6 @@ from PyQt5.QtWidgets import (
     QListWidgetItem,
     QVBoxLayout,
 )
-from qgis.core import Qgis, QgsMessageLog, QgsProject, QgsRasterLayer, QgsVectorLayer
 
 from ..imgs import IMGS_PATH
 from ..strato.api import layer

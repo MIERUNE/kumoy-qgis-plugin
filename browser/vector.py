@@ -1,8 +1,16 @@
 import os
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
+from qgis.core import (
+    Qgis,
+    QgsDataItem,
+    QgsFields,
+    QgsMessageLog,
+    QgsProject,
+    QgsVectorLayer,
+)
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
     QAction,
     QComboBox,
     QDialog,
@@ -12,16 +20,6 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
-)
-from qgis.core import (
-    Qgis,
-    QgsApplication,
-    QgsDataItem,
-    QgsEditorWidgetSetup,
-    QgsFields,
-    QgsMessageLog,
-    QgsProject,
-    QgsVectorLayer,
 )
 
 from ..imgs import IMGS_PATH
@@ -133,7 +131,7 @@ class VectorItem(QgsDataItem):
     def edit_vector(self):
         """Edit vector details"""
         try:
-            from PyQt5.QtWidgets import (
+            from qgis.PyQt.QtWidgets import (
                 QDialog,
                 QDialogButtonBox,
                 QFormLayout,

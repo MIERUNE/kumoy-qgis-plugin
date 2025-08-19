@@ -1,9 +1,15 @@
 import os
 import tempfile
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
+from qgis.core import (
+    Qgis,
+    QgsDataItem,
+    QgsMessageLog,
+    QgsProject,
+)
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
     QDialog,
@@ -12,12 +18,6 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
-)
-from qgis.core import (
-    Qgis,
-    QgsDataItem,
-    QgsMessageLog,
-    QgsProject,
 )
 from qgis.utils import iface
 

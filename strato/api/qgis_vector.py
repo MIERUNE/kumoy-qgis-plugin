@@ -1,8 +1,8 @@
 import base64
 from typing import Dict, List, Optional
 
-from PyQt5.QtCore import QVariant
 from qgis.core import QgsFeature
+from qgis.PyQt.QtCore import QVariant
 
 from .client import ApiClient
 

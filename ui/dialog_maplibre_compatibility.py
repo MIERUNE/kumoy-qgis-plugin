@@ -1,19 +1,19 @@
 from typing import Dict, List, Tuple
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtWidgets import (
+from qgis.core import (
+    QgsMapLayer,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLabel,
     QMessageBox,
     QScrollArea,
     QVBoxLayout,
-)
-from qgis.core import (
-    QgsMapLayer,
-    QgsProject,
-    QgsRasterLayer,
-    QgsVectorLayer,
 )
 
 from ..strato.qgisproject.check import CompatibilityChecker

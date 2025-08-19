@@ -1,16 +1,15 @@
 import os
 
-from PyQt5.QtCore import QCoreApplication
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction, QMessageBox
 from qgis.core import (
     Qgis,
     QgsDataCollectionItem,
-    QgsDataItem,
     QgsDataItemProvider,
     QgsDataProvider,
     QgsMessageLog,
 )
+from qgis.PyQt.QtCore import QT_VERSION_STR, QCoreApplication
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
@@ -22,6 +21,15 @@ from ..ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
 from .vector import DbRoot
+
+QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+
+
+def exec_dialog(dialog):
+    if QT_VERSION_INT <= 5:
+        return dialog.exec_()
+    else:
+        return dialog.exec()
 
 
 class DataItemProvider(QgsDataItemProvider):
@@ -85,7 +93,7 @@ class RootCollection(QgsDataCollectionItem):
 
         # Show config dialog with Supabase login tab
         dialog = DialogConfig()
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
 
         if result:
             # Refresh to show projects

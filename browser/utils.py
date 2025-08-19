@@ -1,7 +1,7 @@
 import os
 
-from PyQt5.QtGui import QIcon
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
+from qgis.PyQt.QtGui import QIcon
 
 from ..imgs import IMGS_PATH
 from ..strato.constants import LOG_CATEGORY
