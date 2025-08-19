@@ -1,5 +1,6 @@
 import os
 
+from qgis import processing
 from qgis.core import (
     Qgis,
     QgsDataItem,
@@ -130,107 +131,83 @@ class VectorItem(QgsDataItem):
 
     def edit_vector(self):
         """Edit vector details"""
-        try:
-            from qgis.PyQt.QtWidgets import (
-                QDialog,
-                QDialogButtonBox,
-                QFormLayout,
-                QLineEdit,
-                QVBoxLayout,
-            )
+        # Create dialog
+        dialog = QDialog()
+        dialog.setWindowTitle(self.tr("Edit Vector"))
+        dialog.resize(400, 250)
 
-            # Create dialog
-            dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Edit Vector"))
-            dialog.resize(400, 250)
+        # Create layout
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
 
-            # Create layout
-            layout = QVBoxLayout()
-            form_layout = QFormLayout()
+        # Create fields
+        name_field = QLineEdit(self.vector.name)
 
-            # Create fields
-            name_field = QLineEdit(self.vector.name)
+        # Add fields to form
+        form_layout.addRow(self.tr("Name:"), name_field)
 
-            # Add fields to form
-            form_layout.addRow(self.tr("Name:"), name_field)
+        # Create buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
 
-            # Create buttons
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
+        # Add layouts to dialog
+        layout.addLayout(form_layout)
+        layout.addWidget(button_box)
+        dialog.setLayout(layout)
 
-            # Add layouts to dialog
-            layout.addLayout(form_layout)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
+        # Show dialog
+        result = dialog.exec_()
+        if not result:
+            return
 
-            # Show dialog
-            result = dialog.exec_()
+        # Get values
+        new_name = name_field.text()
 
-            if result:
-                # Get values
-                new_name = name_field.text()
+        # Update vector
+        updated_vector = api.project_vector.update_vector(
+            self.vector.projectId,
+            self.vector.id,
+            UpdateVectorOptions(name=new_name),
+        )
 
-                if new_name:
-                    # Update vector
-                    updated_vector = api.project_vector.update_vector(
-                        self.vector.projectId,
-                        self.vector.id,
-                        UpdateVectorOptions(name=new_name),
-                    )
-
-                    if updated_vector:
-                        self.vector = updated_vector
-                        self.setName(updated_vector.name)
-                        self.refresh()
-                    else:
-                        QgsMessageLog.logMessage(
-                            self.tr("Failed to update vector"),
-                            LOG_CATEGORY,
-                            Qgis.Critical,
-                        )
-
-        except Exception as e:
+        if updated_vector:
+            self.vector = updated_vector
+            self.setName(updated_vector.name)
+            self.refresh()
+        else:
             QgsMessageLog.logMessage(
-                self.tr("Error editing vector: {}").format(str(e)),
+                self.tr("Failed to update vector"),
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
 
     def delete_vector(self):
         """Delete the vector"""
-        try:
-            # Confirm deletion
-            confirm = QMessageBox.question(
-                None,
-                self.tr("Delete Vector"),
-                self.tr("Are you sure you want to delete vector '{}'?").format(
-                    self.vector.name
-                ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+        # Confirm deletion
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Delete Vector"),
+            self.tr("Are you sure you want to delete vector '{}'?").format(
+                self.vector.name
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            # Delete vector
+            success = api.project_vector.delete_vector(
+                self.vector.projectId, self.vector.id
             )
 
-            if confirm == QMessageBox.Yes:
-                # Delete vector
-                success = api.project_vector.delete_vector(
-                    self.vector.projectId, self.vector.id
+            if success:
+                # Refresh parent to show updated list
+                self.parent().refresh()
+            else:
+                QgsMessageLog.logMessage(
+                    self.tr("Failed to delete vector"), LOG_CATEGORY, Qgis.Critical
                 )
-
-                if success:
-                    # Refresh parent to show updated list
-                    self.parent().refresh()
-                else:
-                    QgsMessageLog.logMessage(
-                        self.tr("Failed to delete vector"), LOG_CATEGORY, Qgis.Critical
-                    )
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Error deleting vector: {}").format(str(e)),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
 
     def clear_cache(self):
         """Clear cache for this specific vector"""
@@ -423,8 +400,6 @@ class DbRoot(QgsDataItem):
     def upload_vector(self):
         """QGISアクティブレイヤーの地物をサーバーへアップロード"""
         try:
-            from qgis import processing
-
             # Execute with dialog
             result = processing.execAlgorithmDialog("strato:uploadvector")
 
@@ -441,32 +416,28 @@ class DbRoot(QgsDataItem):
 
     def createChildren(self):
         """Create child items for vectors in project"""
-        try:
-            settings = SettingsManager()
-            project_id = settings.get_setting("selected_project_id")
+        settings = SettingsManager()
+        project_id = settings.get_setting("selected_project_id")
 
-            if not project_id:
-                return [ErrorItem(self, self.tr("No project selected"))]
+        if not project_id:
+            return [ErrorItem(self, self.tr("No project selected"))]
 
-            # Get vectors for this project
-            vectors = api.project_vector.get_vectors(project_id)
+        # Get vectors for this project
+        vectors = api.project_vector.get_vectors(project_id)
 
-            if not vectors:
-                return [ErrorItem(self, self.tr("No vectors available"))]
+        if not vectors:
+            return [ErrorItem(self, self.tr("No vectors available"))]
 
-            children = []
+        children = []
 
-            # Create VectorItem for each vector
-            for idx, vector in enumerate(vectors):
-                vector_path = f"{self.path()}/vector/{vector.id}"
-                vector_item = VectorItem(self, vector_path, vector)
-                vector_item.setSortKey(idx)
-                children.append(vector_item)
+        # Create VectorItem for each vector
+        for idx, vector in enumerate(vectors):
+            vector_path = f"{self.path()}/vector/{vector.id}"
+            vector_item = VectorItem(self, vector_path, vector)
+            vector_item.setSortKey(idx)
+            children.append(vector_item)
 
-            return children
-
-        except Exception as e:
-            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+        return children
 
     def clear_cache(self):
         """Clear all cached data"""

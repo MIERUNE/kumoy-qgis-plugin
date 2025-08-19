@@ -24,6 +24,15 @@ from ..strato.api.project import Project
 from ..strato.constants import LOG_CATEGORY
 
 QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
+QT_USER_ROLE = Qt.UserRole if QT_VERSION_INT <= 5 else Qt.ItemDataRole.UserRole
+QT_DIALOG_BUTTON_OK = (
+    QDialogButtonBox.Ok if QT_VERSION_INT <= 5 else QDialogButtonBox.StandardButton.Ok
+)
+QT_DIALOG_BUTTON_CANCEL = (
+    QDialogButtonBox.Cancel
+    if QT_VERSION_INT <= 5
+    else QDialogButtonBox.StandardButton.Cancel
+)
 
 
 class ProjectSelectDialog(QDialog):
@@ -49,23 +58,6 @@ class ProjectSelectDialog(QDialog):
 
         # Load previously selected project
         self.load_saved_selection()
-
-    def _get_user_role(self):
-        if QT_VERSION_INT <= 5:
-            return Qt.UserRole
-        else:
-            return Qt.ItemDataRole.UserRole
-
-    def _get_dialog_buttons(self):
-        """Get the appropriate button constants based on Qt version"""
-        if QT_VERSION_INT <= 5:
-            return (QDialogButtonBox.Ok | QDialogButtonBox.Cancel, QDialogButtonBox.Ok)
-        else:
-            return (
-                QDialogButtonBox.StandardButton.Ok
-                | QDialogButtonBox.StandardButton.Cancel,
-                QDialogButtonBox.StandardButton.Ok,
-            )
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -97,12 +89,12 @@ class ProjectSelectDialog(QDialog):
         button_layout.addStretch()
 
         # OK/Cancel buttons
-        buttons, ok_button_enum = self._get_dialog_buttons()
-        self.button_box = QDialogButtonBox(buttons)
+        self.button_box = QDialogButtonBox(
+            QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL
+        )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        self.button_box.button(ok_button_enum).setEnabled(False)
-        self._ok_button_enum = ok_button_enum
+        self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(False)
         button_layout.addWidget(self.button_box)
 
         layout.addLayout(button_layout)
@@ -168,7 +160,7 @@ class ProjectSelectDialog(QDialog):
                 tree_item = QTreeWidgetItem(self.project_tree)
                 tree_item.setText(0, project_item.name)
                 tree_item.setIcon(0, self.project_icon)
-                tree_item.setData(0, self._get_user_role(), project_item)
+                tree_item.setData(0, QT_USER_ROLE, project_item)
 
             # Expand all items
             self.project_tree.expandAll()
@@ -182,16 +174,16 @@ class ProjectSelectDialog(QDialog):
         """Handle project selection"""
         selected_items = self.project_tree.selectedItems()
         if not selected_items:
-            self.button_box.button(self._ok_button_enum).setEnabled(False)
+            self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(False)
             self.selected_project = None
             return
 
         # Get selected project
         item = selected_items[0]
-        self.selected_project = item.data(0, self._get_user_role())
+        self.selected_project = item.data(0, QT_USER_ROLE)
 
         # Enable OK button
-        self.button_box.button(self._ok_button_enum).setEnabled(True)
+        self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(True)
 
     def refresh(self):
         """Refresh all data"""
@@ -248,7 +240,7 @@ class ProjectSelectDialog(QDialog):
             # Find project in tree
             for i in range(self.project_tree.topLevelItemCount()):
                 item = self.project_tree.topLevelItem(i)
-                project_item = item.data(0, self._get_user_role())
+                project_item = item.data(0, QT_USER_ROLE)
                 if project_item and project_item.id == project_id:
                     item.setSelected(True)
                     break
