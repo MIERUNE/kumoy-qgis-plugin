@@ -131,14 +131,6 @@ class VectorItem(QgsDataItem):
     def edit_vector(self):
         """Edit vector details"""
         try:
-            from qgis.PyQt.QtWidgets import (
-                QDialog,
-                QDialogButtonBox,
-                QFormLayout,
-                QLineEdit,
-                QVBoxLayout,
-            )
-
             # Create dialog
             dialog = QDialog()
             dialog.setWindowTitle(self.tr("Edit Vector"))
