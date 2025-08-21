@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from qgis.core import QgsFeature
 from qgis.PyQt.QtCore import QVariant
 
+from ..provider.local_cache import MaxDiffCountExceededError
 from .client import ApiClient
 
 
@@ -260,7 +261,7 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
     # 差分の最大数超過エラーを検知
     if response.get("error") == "MAX_DIFF_COUNT_EXCEEDED":
         # 呼び出し元に伝搬
-        raise Exception("MAX_DIFF_COUNT_EXCEEDED")
+        raise MaxDiffCountExceededError("MAX_DIFF_COUNT_EXCEEDED")
 
     for feature in response["updatedRows"]:
         feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])

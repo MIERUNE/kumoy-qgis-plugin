@@ -21,6 +21,12 @@ from ...constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
+class MaxDiffCountExceededError(Exception):
+    """Custom exception for when the diff count exceeds the maximum limit."""
+
+    pass
+
+
 def _get_cache_dir() -> str:
     """Return the directory where cache files are stored."""
     setting_dir = QgsApplication.qgisSettingsDirPath()
@@ -219,18 +225,14 @@ def sync_local_cache(
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
             # 既存キャッシュファイルを更新
             updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
-        except Exception as e:
-            # MAX_DIFF_COUNT_EXCEEDEDエラーの場合、キャッシュを削除して新規作成する
-            if str(e) == "MAX_DIFF_COUNT_EXCEEDED":
-                QgsMessageLog.logMessage(
-                    f"Diff for vector {vector_id} is too large, recreating cache file.",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                os.remove(cache_file)
-                updated_at = _create_new_cache(
-                    cache_file, vector_id, fields, geometry_type
-                )
+        except MaxDiffCountExceededError:
+            QgsMessageLog.logMessage(
+                f"Diff for vector {vector_id} is too large, recreating cache file.",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
+            os.remove(cache_file)
+            updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
