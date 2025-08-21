@@ -250,14 +250,19 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
             f"/_qgis/vector/{vector_id}/get-diff",
             {"last_updated": last_updated},
         )
-
-        for feature in response["updatedRows"]:
-            feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
-
-        return response
     except Exception as e:
         print(f"Error getting diff for vector {vector_id}: {str(e)}")
         return {
             "updatedRows": [],
             "deletedRows": [],
         }
+
+    # 差分の最大数超過エラーを検知
+    if response.get("error") == "MAX_DIFF_COUNT_EXCEEDED":
+        # 呼び出し元に伝搬
+        raise Exception("MAX_DIFF_COUNT_EXCEEDED")
+
+    for feature in response["updatedRows"]:
+        feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+
+    return response
