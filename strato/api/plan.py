@@ -27,20 +27,20 @@ def get_plan_limits(plan: PlanType) -> Optional[PlanLimits]:
     Returns:
         PlanLimits object or None if not found
     """
-    try:
-        response = ApiClient.get(f"/plan/{plan}")
-
-        if not response:
-            return None
-
-        return PlanLimits(
-            maxProjects=response.get("maxProjects", 0),
-            maxVectors=response.get("maxVectors", 0),
-            maxStyledMaps=response.get("maxStyledMaps", 0),
-            maxOrganizationMembers=response.get("maxOrganizationMembers", 0),
-            maxVectorFeatures=response.get("maxVectorFeatures", 0),
-            maxVectorAttributes=response.get("maxVectorAttributes", 0),
-        )
-    except Exception as e:
-        print(f"Error fetching plan limits for plan {plan}: {str(e)}")
+    response = ApiClient.get(f"/plan/{plan}")
+    
+    if response.get("error"):
+        print(f"Error fetching plan limits for plan {plan}: {response['error']}")
         return None
+    
+    if not response["content"]:
+        return None
+    
+    return PlanLimits(
+        maxProjects=response["content"].get("maxProjects", 0),
+        maxVectors=response["content"].get("maxVectors", 0),
+        maxStyledMaps=response["content"].get("maxStyledMaps", 0),
+        maxOrganizationMembers=response["content"].get("maxOrganizationMembers", 0),
+        maxVectorFeatures=response["content"].get("maxVectorFeatures", 0),
+        maxVectorAttributes=response["content"].get("maxVectorAttributes", 0),
+    )
