@@ -20,35 +20,6 @@ def handle_blocking_reply(content: QByteArray) -> dict:
     return json.loads(text)
 
 
-def handle_network_reply(reply: QNetworkReply) -> dict:
-    """Handle QNetworkReply and convert to Python dict"""
-    if reply.error() == QNetworkReply.NoError:
-        status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-        if status_code == 204:
-            # No Content
-            return {"content": {}, "error": None}
-        text_stream = QTextStream(reply)
-        text_stream.setCodec("UTF-8")
-        text = text_stream.readAll()
-        if not text.strip():
-            return {"content": {}, "error": None}
-        return {"content": json.loads(text), "error": None}
-    else:
-        error_msg = reply.errorString()
-        if reply.error() in [
-            QNetworkReply.ContentAccessDenied,
-            QNetworkReply.AuthenticationRequiredError,
-        ]:
-            return {"content": None, "error": "Authentication Error"}
-        elif reply.error() in [
-            QNetworkReply.HostNotFoundError,
-            QNetworkReply.UnknownNetworkError,
-        ]:
-            return {"content": None, "error": "Network Error"}
-        else:
-            return {"content": None, "error": f"API Error: {error_msg}"}
-
-
 class ApiClient:
     """Base API client for STRATO backend"""
 
