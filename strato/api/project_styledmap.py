@@ -174,7 +174,7 @@ def update_styled_map(
     if options.isPublic is not None:
         update_data["isPublic"] = options.isPublic
 
-    response = ApiClient.patch(
+    response = ApiClient.put(
         f"/styled-map/{styled_map_id}",
         update_data,
     )

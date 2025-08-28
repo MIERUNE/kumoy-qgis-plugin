@@ -139,8 +139,8 @@ class ApiClient:
         return {"content": content, "error": None}
 
     @staticmethod
-    def patch(endpoint: str, data: Any) -> dict:
-        """Make PATCH request to API endpoint
+    def put(endpoint: str, data: Any) -> dict:
+        """Make PUT request to API endpoint
 
         Args:
             endpoint (str): API endpoint
@@ -169,19 +169,17 @@ class ApiClient:
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Use QgsNetworkAccessManager for PATCH support
-        nwa_manager = QgsNetworkAccessManager.instance()
-        reply = nwa_manager.sendCustomRequest(req, "PATCH".encode("utf-8"), byte_array)
+        # Execute request
+        blocking_request = QgsBlockingNetworkRequest()
+        err = blocking_request.put(req, byte_array)
+        content = handle_blocking_reply(blocking_request.reply().content())
+        if err != QgsBlockingNetworkRequest.NoError:
+            return {
+                "content": None,
+                "error": content,
+            }
 
-        # Wait for completion synchronously
-        eventLoop = QEventLoop()
-        reply.finished.connect(eventLoop.quit)
-        eventLoop.exec_()
-
-        # Handle the reply
-        result = handle_network_reply(reply)
-        reply.deleteLater()
-        return result
+        return {"content": content, "error": None}
 
     @staticmethod
     def delete(endpoint: str) -> dict:

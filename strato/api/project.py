@@ -135,7 +135,7 @@ def update_project(
         "description": description,
     }
 
-    response = ApiClient.patch(f"/project/{project_id}", data)
+    response = ApiClient.put(f"/project/{project_id}", data)
 
     if response.get("error"):
         print(f"Error updating project {project_id}: {response['error']}")
