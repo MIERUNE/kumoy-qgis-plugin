@@ -85,12 +85,15 @@ class ApiClient:
 
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.get(req, forceRefresh=True)
+        err = blocking_request.get(req)
+        content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {"content": None, "error": "Network Error"}
+            return {
+                "content": None,
+                "error": content,
+            }
 
-        reply = blocking_request.reply()
-        return {"content": handle_blocking_reply(reply.content()), "error": None}
+        return {"content": content, "error": None}
 
     @staticmethod
     def post(endpoint: str, data: Any) -> dict:
@@ -126,11 +129,14 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
+        content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {"content": None, "error": "Network Error"}
+            return {
+                "content": None,
+                "error": content,
+            }
 
-        reply = blocking_request.reply()
-        return {"content": handle_blocking_reply(reply.content()), "error": None}
+        return {"content": content, "error": None}
 
     @staticmethod
     def patch(endpoint: str, data: Any) -> dict:
@@ -203,10 +209,14 @@ class ApiClient:
         )
 
         # Execute request
+        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
+        content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {"content": None, "error": "Network Error"}
+            return {
+                "content": None,
+                "error": content,
+            }
 
-        reply = blocking_request.reply()
-        return {"content": handle_blocking_reply(reply.content()), "error": None}
+        return {"content": content, "error": None}

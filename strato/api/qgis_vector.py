@@ -249,6 +249,9 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
         vector_id: The ID of the vector layer.
         last_updated_at: The last updated time in ISO format.
 
+    Raises:
+        MaxDiffCountExceededError: If the diff exceeds the maximum allowed size.
+
     Returns:
         A list of features that have changed since the last updated time.
     """
@@ -259,7 +262,7 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
 
     if response.get("error"):
         # 差分の最大数超過エラーを検知
-        if response["error"] == "MAX_DIFF_COUNT_EXCEEDED":
+        if response["error"]["error"] == "MAX_DIFF_COUNT_EXCEEDED":
             # 呼び出し元に伝搬
             raise MaxDiffCountExceededError("MAX_DIFF_COUNT_EXCEEDED")
 
