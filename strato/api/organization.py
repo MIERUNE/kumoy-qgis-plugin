@@ -115,7 +115,7 @@ def update_organization(organization_id: str, name: str) -> Optional[Organizatio
     """
     data = {"name": name}
 
-    response = ApiClient.patch(f"/organization/{organization_id}", data)
+    response = ApiClient.put(f"/organization/{organization_id}", data)
 
     if response.get("error"):
         print(f"Error updating organization {organization_id}: {response['error']}")

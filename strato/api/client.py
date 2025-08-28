@@ -20,35 +20,6 @@ def handle_blocking_reply(content: QByteArray) -> dict:
     return json.loads(text)
 
 
-def handle_network_reply(reply: QNetworkReply) -> dict:
-    """Handle QNetworkReply and convert to Python dict"""
-    if reply.error() == QNetworkReply.NoError:
-        status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
-        if status_code == 204:
-            # No Content
-            return {"content": {}, "error": None}
-        text_stream = QTextStream(reply)
-        text_stream.setCodec("UTF-8")
-        text = text_stream.readAll()
-        if not text.strip():
-            return {"content": {}, "error": None}
-        return {"content": json.loads(text), "error": None}
-    else:
-        error_msg = reply.errorString()
-        if reply.error() in [
-            QNetworkReply.ContentAccessDenied,
-            QNetworkReply.AuthenticationRequiredError,
-        ]:
-            return {"content": None, "error": "Authentication Error"}
-        elif reply.error() in [
-            QNetworkReply.HostNotFoundError,
-            QNetworkReply.UnknownNetworkError,
-        ]:
-            return {"content": None, "error": "Network Error"}
-        else:
-            return {"content": None, "error": f"API Error: {error_msg}"}
-
-
 class ApiClient:
     """Base API client for STRATO backend"""
 
@@ -139,8 +110,8 @@ class ApiClient:
         return {"content": content, "error": None}
 
     @staticmethod
-    def patch(endpoint: str, data: Any) -> dict:
-        """Make PATCH request to API endpoint
+    def put(endpoint: str, data: Any) -> dict:
+        """Make PUT request to API endpoint
 
         Args:
             endpoint (str): API endpoint
@@ -169,19 +140,17 @@ class ApiClient:
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Use QgsNetworkAccessManager for PATCH support
-        nwa_manager = QgsNetworkAccessManager.instance()
-        reply = nwa_manager.sendCustomRequest(req, "PATCH".encode("utf-8"), byte_array)
+        # Execute request
+        blocking_request = QgsBlockingNetworkRequest()
+        err = blocking_request.put(req, byte_array)
+        content = handle_blocking_reply(blocking_request.reply().content())
+        if err != QgsBlockingNetworkRequest.NoError:
+            return {
+                "content": None,
+                "error": content,
+            }
 
-        # Wait for completion synchronously
-        eventLoop = QEventLoop()
-        reply.finished.connect(eventLoop.quit)
-        eventLoop.exec_()
-
-        # Handle the reply
-        result = handle_network_reply(reply)
-        reply.deleteLater()
-        return result
+        return {"content": content, "error": None}
 
     @staticmethod
     def delete(endpoint: str) -> dict:

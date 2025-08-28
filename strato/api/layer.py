@@ -140,7 +140,7 @@ def update_layer(
     if source:
         data["source"] = source
 
-    response = ApiClient.patch(f"/layer/{layer_id}", data)
+    response = ApiClient.put(f"/layer/{layer_id}", data)
 
     if response.get("error"):
         print(f"Error updating layer {layer_id}: {response['error']}")

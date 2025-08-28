@@ -170,7 +170,7 @@ def update_vector(
     Returns:
         StratoVector object or None if update failed
     """
-    response = ApiClient.patch(
+    response = ApiClient.put(
         f"/vector/{vector_id}",
         {"name": update_vector_options.name},
     )
