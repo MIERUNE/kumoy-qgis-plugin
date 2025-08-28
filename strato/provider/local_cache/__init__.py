@@ -225,6 +225,8 @@ def sync_local_cache(
         try:
             # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
+            # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
+            updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
         except MaxDiffCountExceededError:
             # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
             QgsMessageLog.logMessage(
@@ -234,9 +236,6 @@ def sync_local_cache(
             )
             os.remove(cache_file)
             updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
-
-        # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-        updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
