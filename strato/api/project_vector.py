@@ -34,25 +34,25 @@ def get_vectors(project_id: str) -> List[StratoVector]:
     Returns:
         List of StratoVector objects
     """
-    try:
-        response = ApiClient.get(f"/project/{project_id}/vector")
+    response = ApiClient.get(f"/project/{project_id}/vector")
 
-        vectors = []
-        for vector_data in response:
-            vectors.append(
-                StratoVector(
-                    id=vector_data.get("id", ""),
-                    name=vector_data.get("name", ""),
-                    uri=vector_data.get("uri", ""),
-                    type=vector_data.get("type", "POINT"),
-                    projectId=project_id,
-                )
-            )
-
-        return vectors
-    except Exception as e:
-        print(f"Error fetching vectors for project {project_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error fetching vectors for project {project_id}: {response['error']}")
         return []
+
+    vectors = []
+    for vector_data in response["content"]:
+        vectors.append(
+            StratoVector(
+                id=vector_data.get("id", ""),
+                name=vector_data.get("name", ""),
+                uri=vector_data.get("uri", ""),
+                type=vector_data.get("type", "POINT"),
+                projectId=project_id,
+            )
+        )
+
+    return vectors
 
 
 def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnValue]:
@@ -66,29 +66,29 @@ def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnVa
     Returns:
         StratoVectorReturnValue object or None if not found
     """
-    try:
-        response = ApiClient.get(f"/vector/{vector_id}")
-
-        if not response:
-            return None
-
-        return StratoVectorReturnValue(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            uri=response.get("uri", ""),
-            type=response.get("type", "POINT"),
-            projectId=project_id,
-            extent=response.get("extent", []),
-            count=response.get("count", 0),
-            columns=response.get("columns", []),
-            userId=response.get("userId", ""),
-            organizationId=response.get("organizationId", ""),
-            role=response.get("role", "MEMBER"),
+    response = ApiClient.get(f"/vector/{vector_id}")
+    if response.get("error"):
+        print(
+            f"Error fetching vector {vector_id} for project {project_id}: {response['error']}"
         )
-
-    except Exception as e:
-        print(f"Error fetching vector {vector_id} for project {project_id}: {str(e)}")
         return None
+
+    if not response["content"]:
+        return None
+
+    return StratoVectorReturnValue(
+        id=response["content"].get("id", ""),
+        name=response["content"].get("name", ""),
+        uri=response["content"].get("uri", ""),
+        type=response["content"].get("type", "POINT"),
+        projectId=project_id,
+        extent=response["content"].get("extent", []),
+        count=response["content"].get("count", 0),
+        columns=response["content"].get("columns", []),
+        userId=response["content"].get("userId", ""),
+        organizationId=response["content"].get("organizationId", ""),
+        role=response["content"].get("role", "MEMBER"),
+    )
 
 
 @dataclass
@@ -110,25 +110,25 @@ def add_vector(
     Returns:
         StratoVector object or None if creation failed
     """
-    try:
-        response = ApiClient.post(
-            f"/project/{project_id}/vector",
-            {"name": add_vector_options.name, "type": add_vector_options.type},
-        )
+    response = ApiClient.post(
+        f"/project/{project_id}/vector",
+        {"name": add_vector_options.name, "type": add_vector_options.type},
+    )
 
-        if not response:
-            return None
-
-        return StratoVector(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            uri=response.get("uri", ""),
-            type=response.get("type", "POINT"),
-            projectId=project_id,
-        )
-    except Exception as e:
-        print(f"Error adding vector to project {project_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error adding vector to project {project_id}: {response['error']}")
         return None
+
+    if not response["content"]:
+        return None
+
+    return StratoVector(
+        id=response["content"].get("id", ""),
+        name=response["content"].get("name", ""),
+        uri=response["content"].get("uri", ""),
+        type=response["content"].get("type", "POINT"),
+        projectId=project_id,
+    )
 
 
 def delete_vector(project_id: str, vector_id: str) -> bool:
@@ -142,12 +142,13 @@ def delete_vector(project_id: str, vector_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    try:
-        ApiClient.delete(f"/vector/{vector_id}")
-        return True
-    except Exception as e:
-        print(f"Error deleting vector {vector_id}: {str(e)}")
+    response = ApiClient.delete(f"/vector/{vector_id}")
+
+    if response.get("error"):
+        print(f"Error deleting vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 @dataclass
@@ -157,23 +158,34 @@ class UpdateVectorOptions:
 
 def update_vector(
     project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
-):
-    try:
-        response = ApiClient.patch(
-            f"/vector/{vector_id}",
-            {"name": update_vector_options.name},
-        )
+) -> Optional[StratoVector]:
+    """
+    Update an existing vector
 
-        if not response:
-            return None
+    Args:
+        project_id: Project ID
+        vector_id: Vector ID
+        update_vector_options: Update options
 
-        return StratoVector(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            uri=response.get("uri", ""),
-            type=response.get("type", "POINT"),
-            projectId=project_id,
-        )
-    except Exception as e:
-        print(f"Error updating vector to project {project_id}: {str(e)}")
+    Returns:
+        StratoVector object or None if update failed
+    """
+    response = ApiClient.patch(
+        f"/vector/{vector_id}",
+        {"name": update_vector_options.name},
+    )
+
+    if response.get("error"):
+        print(f"Error updating vector to project {project_id}: {response['error']}")
         return None
+
+    if not response["content"]:
+        return None
+
+    return StratoVector(
+        id=response["content"].get("id", ""),
+        name=response["content"].get("name", ""),
+        uri=response["content"].get("uri", ""),
+        type=response["content"].get("type", "POINT"),
+        projectId=project_id,
+    )

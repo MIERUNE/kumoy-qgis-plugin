@@ -25,27 +25,27 @@ def get_layers_by_project(project_id: str) -> List[Layer]:
     Returns:
         List of Layer objects
     """
-    try:
-        response = ApiClient.get(f"/project/{project_id}/layers")
+    response = ApiClient.get(f"/project/{project_id}/layers")
 
-        layers = []
-        for layer_data in response.get("layers", []):
-            layers.append(
-                Layer(
-                    id=layer_data.get("id", ""),
-                    name=layer_data.get("name", ""),
-                    type=layer_data.get("type", ""),
-                    projectId=project_id,
-                    source=layer_data.get("source", ""),
-                    createdAt=layer_data.get("createdAt", ""),
-                    updatedAt=layer_data.get("updatedAt", ""),
-                )
-            )
-
-        return layers
-    except Exception as e:
-        print(f"Error fetching layers for project {project_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error fetching layers for project {project_id}: {response['error']}")
         return []
+
+    layers = []
+    for layer_data in response["content"].get("layers", []):
+        layers.append(
+            Layer(
+                id=layer_data.get("id", ""),
+                name=layer_data.get("name", ""),
+                type=layer_data.get("type", ""),
+                projectId=project_id,
+                source=layer_data.get("source", ""),
+                createdAt=layer_data.get("createdAt", ""),
+                updatedAt=layer_data.get("updatedAt", ""),
+            )
+        )
+
+    return layers
 
 
 def get_layer(layer_id: str) -> Optional[Layer]:
@@ -58,24 +58,21 @@ def get_layer(layer_id: str) -> Optional[Layer]:
     Returns:
         Layer object or None if not found
     """
-    try:
-        response = ApiClient.get(f"/layer/{layer_id}")
+    response = ApiClient.get(f"/layer/{layer_id}")
 
-        if not response:
-            return None
-
-        return Layer(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            type=response.get("type", ""),
-            projectId=response.get("projectId", ""),
-            source=response.get("source", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-        )
-    except Exception as e:
-        print(f"Error fetching layer {layer_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error fetching layer {layer_id}: {response['error']}")
         return None
+
+    return Layer(
+        id=response["content"].get("id", ""),
+        name=response["content"].get("name", ""),
+        type=response["content"].get("type", ""),
+        projectId=response["content"].get("projectId", ""),
+        source=response["content"].get("source", ""),
+        createdAt=response["content"].get("createdAt", ""),
+        updatedAt=response["content"].get("updatedAt", ""),
+    )
 
 
 def create_layer(
@@ -93,31 +90,28 @@ def create_layer(
     Returns:
         Layer object or None if creation failed
     """
-    try:
-        data = {
-            "name": name,
-            "type": layer_type,
-            "projectId": project_id,
-            "source": source,
-        }
+    data = {
+        "name": name,
+        "type": layer_type,
+        "projectId": project_id,
+        "source": source,
+    }
 
-        response = ApiClient.post("/layer", data)
+    response = ApiClient.post("/layer", data)
 
-        if not response:
-            return None
-
-        return Layer(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            type=response.get("type", ""),
-            projectId=response.get("projectId", ""),
-            source=response.get("source", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-        )
-    except Exception as e:
-        print(f"Error creating layer: {str(e)}")
+    if response.get("error"):
+        print(f"Error creating layer in project {project_id}: {response['error']}")
         return None
+
+    return Layer(
+        id=response["content"].get("id", ""),
+        name=response["content"].get("name", ""),
+        type=response["content"].get("type", ""),
+        projectId=response["content"].get("projectId", ""),
+        source=response["content"].get("source", ""),
+        createdAt=response["content"].get("createdAt", ""),
+        updatedAt=response["content"].get("updatedAt", ""),
+    )
 
 
 def update_layer(
@@ -135,34 +129,32 @@ def update_layer(
     Returns:
         Updated Layer object or None if update failed
     """
-    try:
-        data = {
-            "name": name,
-        }
 
-        if layer_type:
-            data["type"] = layer_type
+    data = {
+        "name": name,
+    }
 
-        if source:
-            data["source"] = source
+    if layer_type:
+        data["type"] = layer_type
 
-        response = ApiClient.patch(f"/layer/{layer_id}", data)
+    if source:
+        data["source"] = source
 
-        if not response:
-            return None
+    response = ApiClient.patch(f"/layer/{layer_id}", data)
 
-        return Layer(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            type=response.get("type", ""),
-            projectId=response.get("projectId", ""),
-            source=response.get("source", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-        )
-    except Exception as e:
-        print(f"Error updating layer {layer_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error updating layer {layer_id}: {response['error']}")
         return None
+
+    return Layer(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        type=response.get("type", ""),
+        projectId=response.get("projectId", ""),
+        source=response.get("source", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
+    )
 
 
 def delete_layer(layer_id: str) -> bool:
@@ -175,9 +167,9 @@ def delete_layer(layer_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    try:
-        ApiClient.delete(f"/layer/{layer_id}")
-        return True
-    except Exception as e:
-        print(f"Error deleting layer {layer_id}: {str(e)}")
+    res = ApiClient.delete(f"/layer/{layer_id}")
+    if res.get("error"):
+        print(f"Error deleting layer {layer_id}: {res['error']}")
         return False
+
+    return True

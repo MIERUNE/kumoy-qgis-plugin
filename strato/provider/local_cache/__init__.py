@@ -2,12 +2,14 @@ import datetime
 import os
 
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsField,
     QgsFields,
     QgsGeometry,
+    QgsMessageLog,
     QgsProject,
     QgsVectorFileWriter,
     QgsVectorLayer,
@@ -15,7 +17,14 @@ from qgis.core import (
 )
 
 from ... import api
+from ...constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
+
+
+class MaxDiffCountExceededError(Exception):
+    """Custom exception for when the diff count exceeds the maximum limit."""
+
+    pass
 
 
 def _get_cache_dir() -> str:
@@ -53,10 +62,14 @@ def _create_new_cache(
     )
 
     if writer.hasError() != QgsVectorFileWriter.NoError:
-        QgsApplication.messageLog().logMessage(
+        QgsMessageLog.logMessage(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}",
+            LOG_CATEGORY,
+            Qgis.Info,
         )
-        return None
+        raise Exception(
+            f"Error creating cache file {cache_file}: {writer.errorMessage()}"
+        )
 
     # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
     # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
@@ -106,7 +119,7 @@ def _create_new_cache(
 
 
 def _update_existing_cache(
-    cache_file: str, vector_id: str, fields: QgsFields, last_updated: str
+    cache_file: str, vector_id: str, fields: QgsFields, diff: dict
 ) -> str:
     """
     既存のキャッシュファイルを更新する
@@ -137,8 +150,6 @@ def _update_existing_cache(
         if vlayer.fields().indexOf(name) == -1:
             vlayer.addAttribute(QgsField(name, fields[name].type()))
 
-    # 最終同期時刻を用いてAPIリクエストして差分を取得する
-    diff = api.qgis_vector.get_diff(vector_id, last_updated)
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
@@ -211,12 +222,23 @@ def sync_local_cache(
 
     if os.path.exists(cache_file):
         # 既存キャッシュファイルを更新
-        updated_at = _update_existing_cache(cache_file, vector_id, fields, last_updated)
+        try:
+            # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
+            diff = api.qgis_vector.get_diff(vector_id, last_updated)
+            # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
+            updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
+        except MaxDiffCountExceededError:
+            # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
+            QgsMessageLog.logMessage(
+                f"Diff for vector {vector_id} is too large, recreating cache file.",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
+            os.remove(cache_file)
+            updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
-        if updated_at is None:
-            return
 
     store_last_updated(vector_id, updated_at)
 
@@ -236,7 +258,9 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     if layer.isValid():
         return layer
     else:
-        QgsApplication.messageLog().logMessage(f"Cache layer {vector_id} is not valid.")
+        QgsMessageLog.logMessage(
+            f"Cache layer {vector_id} is not valid.", LOG_CATEGORY, Qgis.Info
+        )
         return None
 
 

@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from qgis.core import QgsFeature
 from qgis.PyQt.QtCore import QVariant
 
+from ..provider.local_cache import MaxDiffCountExceededError
 from .client import ApiClient
 
 
@@ -28,17 +29,17 @@ def get_features(
     if after_id is not None:
         options["after_id"] = after_id
 
-    try:
-        response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
+    response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
 
-        # decode base64
-        for feature in response:
-            feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
-
-        return response
-    except Exception as e:
-        print(f"Error fetching features for vector {vector_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error fetching features for vector {vector_id}: {response['error']}")
         return []
+
+    # decode base64
+    for feature in response["content"]:
+        feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+
+    return response["content"]
 
 
 def add_features(
@@ -48,38 +49,38 @@ def add_features(
     """
     Add features to a vector layer
     """
-    try:
-        _features = [
-            {
-                "strato_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
-                "properties": dict(zip(f.fields().names(), f.attributes())),
-            }
-            for f in features
-        ]
+    _features = [
+        {
+            "strato_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
+            "properties": dict(zip(f.fields().names(), f.attributes())),
+        }
+        for f in features
+    ]
 
-        # rm strato_id from properties
-        for feature in _features:
-            if "strato_id" in feature["properties"]:
-                del feature["properties"]["strato_id"]
+    # rm strato_id from properties
+    for feature in _features:
+        if "strato_id" in feature["properties"]:
+            del feature["properties"]["strato_id"]
 
-        # HACK: replace QVariant of properties with None
-        # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
-        for feature in _features:
-            for k in feature["properties"]:
-                if (
-                    isinstance(feature["properties"][k], QVariant)
-                    and feature["properties"][k].isNull()
-                ):
-                    feature["properties"][k] = None
+    # HACK: replace QVariant of properties with None
+    # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
+    for feature in _features:
+        for k in feature["properties"]:
+            if (
+                isinstance(feature["properties"][k], QVariant)
+                and feature["properties"][k].isNull()
+            ):
+                feature["properties"][k] = None
 
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/add-features", {"features": _features}
-        )
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/add-features", {"features": _features}
+    )
 
-        return True
-    except Exception as e:
-        print(f"Error adding features to vector {vector_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error adding features to vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def delete_features(
@@ -89,15 +90,15 @@ def delete_features(
     """
     Delete features from a vector layer
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/delete-features", {"strato_ids": strato_ids}
-        )
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/delete-features", {"strato_ids": strato_ids}
+    )
 
-        return True
-    except Exception as e:
-        print(f"Error deleting features from vector {vector_id}: {str(e)}")
+    if response.get("error"):
+        print(f"Error deleting features from vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def change_attribute_values(
@@ -107,17 +108,18 @@ def change_attribute_values(
     """
     Change attribute values of a feature in a vector layer
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/change-attribute-values",
-            {"attribute_items": attribute_items},
-        )
-        return True
-    except Exception as e:
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/change-attribute-values",
+        {"attribute_items": attribute_items},
+    )
+
+    if response.get("error"):
         print(
-            f"Error changing attribute values for features in vector {vector_id}: {str(e)}"
+            f"Error changing attribute values for features in vector {vector_id}: {response['error']}"
         )
         return False
+
+    return True
 
 
 def change_geometry_values(
@@ -127,25 +129,26 @@ def change_geometry_values(
     """
     Change geometry values of a feature in a vector layer
     """
-    try:
-        geometry_items_encoded = [
-            {
-                "strato_id": item["strato_id"],
-                "strato_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
-            }
-            for item in geometry_items
-        ]
+    geometry_items_encoded = [
+        {
+            "strato_id": item["strato_id"],
+            "strato_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
+        }
+        for item in geometry_items
+    ]
 
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/change-geometry-values",
-            {"geometry_items": geometry_items_encoded},
-        )
-        return True
-    except Exception as e:
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/change-geometry-values",
+        {"geometry_items": geometry_items_encoded},
+    )
+
+    if response.get("error"):
         print(
-            f"Error changing geometry values for {geometry_items} in vector {vector_id}: {str(e)}"
+            f"Error changing geometry values for {geometry_items} in vector {vector_id}: {response['error']}"
         )
         return False
+
+    return True
 
 
 def update_columns(
@@ -159,14 +162,15 @@ def update_columns(
         vector_id: The ID of the vector layer
         columns: Dictionary mapping column names to data types ('integer', 'float', 'string', 'boolean')
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/update-columns", {"columns": columns}
-        )
-        return True
-    except Exception as e:
-        print(f"Error updating columns in vector {vector_id}: {str(e)}")
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/update-columns", {"columns": columns}
+    )
+
+    if response.get("error"):
+        print(f"Error updating columns in vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def add_attributes(
@@ -180,14 +184,15 @@ def add_attributes(
         vector_id: The ID of the vector layer
         attributes: Dictionary mapping attribute names to data types ('integer', 'float', 'string', 'boolean')
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/add-attributes", {"attributes": attributes}
-        )
-        return True
-    except Exception as e:
-        print(f"Error adding attributes to vector {vector_id}: {str(e)}")
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/add-attributes", {"attributes": attributes}
+    )
+
+    if response.get("error"):
+        print(f"Error adding attributes to vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def delete_attributes(
@@ -201,15 +206,16 @@ def delete_attributes(
         vector_id: The ID of the vector layer
         attribute_names: List of attribute names to delete
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/delete-attributes",
-            {"attributeNames": attribute_names},
-        )
-        return True
-    except Exception as e:
-        print(f"Error deleting attributes from vector {vector_id}: {str(e)}")
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/delete-attributes",
+        {"attributeNames": attribute_names},
+    )
+
+    if response.get("error"):
+        print(f"Error deleting attributes from vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def rename_attributes(
@@ -223,15 +229,16 @@ def rename_attributes(
         vector_id: The ID of the vector layer
         attribute_map: Dictionary mapping old attribute names to new attribute names
     """
-    try:
-        ApiClient.post(
-            f"/_qgis/vector/{vector_id}/rename-attributes",
-            {"attributeMap": attribute_map},
-        )
-        return True
-    except Exception as e:
-        print(f"Error renaming attributes in vector {vector_id}: {str(e)}")
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/rename-attributes",
+        {"attributeMap": attribute_map},
+    )
+
+    if response.get("error"):
+        print(f"Error renaming attributes in vector {vector_id}: {response['error']}")
         return False
+
+    return True
 
 
 def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
@@ -242,22 +249,30 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
         vector_id: The ID of the vector layer.
         last_updated_at: The last updated time in ISO format.
 
+    Raises:
+        MaxDiffCountExceededError: If the diff exceeds the maximum allowed size.
+
     Returns:
         A list of features that have changed since the last updated time.
     """
-    try:
-        response = ApiClient.post(
-            f"/_qgis/vector/{vector_id}/get-diff",
-            {"last_updated": last_updated},
-        )
+    response = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/get-diff",
+        {"last_updated": last_updated},
+    )
 
-        for feature in response["updatedRows"]:
-            feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+    if response.get("error"):
+        # 差分の最大数超過エラーを検知
+        if response["error"]["error"] == "MAX_DIFF_COUNT_EXCEEDED":
+            # 呼び出し元に伝搬
+            raise MaxDiffCountExceededError("MAX_DIFF_COUNT_EXCEEDED")
 
-        return response
-    except Exception as e:
-        print(f"Error getting diff for vector {vector_id}: {str(e)}")
+        print(f"Error getting diff for vector {vector_id}: {response['error']}")
         return {
             "updatedRows": [],
             "deletedRows": [],
         }
+
+    for feature in response["content"]["updatedRows"]:
+        feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+
+    return response["content"]
