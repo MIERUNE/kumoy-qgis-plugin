@@ -24,11 +24,13 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
         List of Project objects
     """
     response = ApiClient.get(f"/organization/{organization_id}/projects")
-    
+
     if response.get("error"):
-        print(f"Error fetching projects for organization {organization_id}: {response['error']}")
+        print(
+            f"Error fetching projects for organization {organization_id}: {response['error']}"
+        )
         return []
-    
+
     projects = []
     for project in response["content"]:
         projects.append(
@@ -40,7 +42,7 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
                 updatedAt=project.get("updatedAt", ""),
             )
         )
-    
+
     return projects
 
 
@@ -55,18 +57,18 @@ def get_project(project_id: str) -> Optional[Project]:
         Project object or None if not found
     """
     response = ApiClient.get(f"/project/{project_id}")
-    
+
     if response.get("error"):
         print(f"Error fetching project {project_id}: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     # Extract organization ID from nested organization object
     organization = response["content"].get("organization", {})
     organization_id = organization.get("id", "") if organization else ""
-    
+
     return Project(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -95,16 +97,16 @@ def create_project(
         "description": description,
         "organizationId": organization_id,
     }
-    
+
     response = ApiClient.post("/project", data)
-    
+
     if response.get("error"):
         print(f"Error creating project: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     return Project(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -132,16 +134,16 @@ def update_project(
         "name": name,
         "description": description,
     }
-    
+
     response = ApiClient.patch(f"/project/{project_id}", data)
-    
+
     if response.get("error"):
         print(f"Error updating project {project_id}: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     return Project(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -162,9 +164,9 @@ def delete_project(project_id: str) -> bool:
         True if successful, False otherwise
     """
     response = ApiClient.delete(f"/project/{project_id}")
-    
+
     if response.get("error"):
         print(f"Error deleting project {project_id}: {response['error']}")
         return False
-    
+
     return True

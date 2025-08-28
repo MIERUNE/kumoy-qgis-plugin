@@ -22,11 +22,11 @@ def get_organizations() -> List[Organization]:
         List of Organization objects
     """
     response = ApiClient.get("/organization")
-    
+
     if response.get("error"):
         print(f"Error fetching organizations: {response['error']}")
         return []
-    
+
     organizations = []
     for org in response["content"]:
         organizations.append(
@@ -53,14 +53,14 @@ def get_organization(organization_id: str) -> Optional[Organization]:
         Organization object or None if not found
     """
     response = ApiClient.get(f"/organization/{organization_id}")
-    
+
     if response.get("error"):
         print(f"Error fetching organization {organization_id}: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     return Organization(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -82,16 +82,16 @@ def create_organization(name: str) -> Optional[Organization]:
         Organization object or None if creation failed
     """
     data = {"name": name}
-    
+
     response = ApiClient.post("/organization", data)
-    
+
     if response.get("error"):
         print(f"Error creating organization: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     return Organization(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -114,16 +114,16 @@ def update_organization(organization_id: str, name: str) -> Optional[Organizatio
         Updated Organization object or None if update failed
     """
     data = {"name": name}
-    
+
     response = ApiClient.patch(f"/organization/{organization_id}", data)
-    
+
     if response.get("error"):
         print(f"Error updating organization {organization_id}: {response['error']}")
         return None
-    
+
     if not response["content"]:
         return None
-    
+
     return Organization(
         id=response["content"].get("id", ""),
         name=response["content"].get("name", ""),
@@ -145,9 +145,9 @@ def delete_organization(organization_id: str) -> bool:
         True if successful, False otherwise
     """
     response = ApiClient.delete(f"/organization/{organization_id}")
-    
+
     if response.get("error"):
         print(f"Error deleting organization {organization_id}: {response['error']}")
         return False
-    
+
     return True
