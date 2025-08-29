@@ -30,7 +30,6 @@ from ..strato.api.project_styledmap import (
     UpdateStyledMapOptions,
 )
 from ..strato.constants import LOG_CATEGORY
-from ..ui.dialog_maplibre_compatibility import MapLibreCompatibilityDialog
 from .utils import ErrorItem
 
 
@@ -182,13 +181,6 @@ class StyledMapItem(QgsDataItem):
             )
 
     def apply_qgisproject_to_styledmap(self):
-        # Show MapLibre compatibility dialog before saving
-        compatibility_dialog = MapLibreCompatibilityDialog()
-        result = compatibility_dialog.exec_()
-
-        if not result:
-            return
-
         # QGISプロジェクト情報はバックグラウンドで取得
         new_qgisproject = get_qgisproject_str()
 
@@ -351,13 +343,6 @@ class StyledMapRoot(QgsDataItem):
 
         if not name:
             return
-
-        # Show MapLibre compatibility dialog before saving
-        compatibility_dialog = MapLibreCompatibilityDialog()
-        result = compatibility_dialog.exec_()
-
-        if not result:
-            return  # User cancelled after seeing compatibility info
 
         # QGISプロジェクト情報はバックグラウンドで取得
         qgisproject = get_qgisproject_str()
