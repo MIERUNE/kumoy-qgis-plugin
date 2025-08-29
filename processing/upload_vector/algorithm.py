@@ -23,7 +23,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 import processing
 
 from ...settings_manager import SettingsManager
-from ...strato import api
+from ...strato import api, constants
 from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
@@ -126,7 +126,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     VECTOR_NAME: str = "VECTOR_NAME"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
-    project_map: Dict[str, str]
+    project_map: Dict[str, str] = {}
 
     def tr(self, string: str) -> str:
         """Translate string"""
@@ -174,6 +174,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         """Initialize algorithm parameters"""
+        project_options = []
+        self.project_map = {}
+
         # Input vector layer
         self.addParameter(
             QgsProcessingParameterVectorLayer(
@@ -184,29 +187,21 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Get available projects
-        try:
-            token = get_token()
-            if token:
-                # Get all organizations first
-                organizations = api.organization.get_organizations()
-                project_options = []
-                project_ids = []
-
-                # Get projects for each organization
-                for org in organizations:
-                    projects = api.project.get_projects_by_organization(org.id)
-                    for project in projects:
-                        project_options.append(f"{org.name} / {project.name}")
-                        project_ids.append(project.id)
-
-                self.project_map = dict(zip(project_options, project_ids))
-            else:
-                project_options = []
-                self.project_map = {}
-        except Exception as e:
-            print(f"Error loading projects: {str(e)}")
+        token = get_token()
+        if token:
+            # Get all organizations first
+            organizations = api.organization.get_organizations()
             project_options = []
-            self.project_map = {}
+            project_ids = []
+
+            # Get projects for each organization
+            for org in organizations:
+                projects = api.project.get_projects_by_organization(org.id)
+                for project in projects:
+                    project_options.append(f"{org.name} / {project.name}")
+                    project_ids.append(project.id)
+
+            self.project_map = dict(zip(project_options, project_ids))
 
         default_project_index = 0
         settings = SettingsManager()
@@ -295,9 +290,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     ) -> Dict[str, Any]:
         """Process the algorithm"""
         vector = None
+
         try:
             # Get input layer
+            # 入力レイヤーのproviderチェック
             layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
+            if layer is None:
+                raise QgsProcessingException(self.tr("Invalid input layer"))
+            if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
+                raise QgsProcessingException(
+                    self.tr("Cannot upload a layer that is already stored in server.")
+                )
 
             # Get project information and validate
             project_id, vector_name, plan_limits = self._get_project_info_and_validate(
@@ -354,18 +357,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         except Exception:
             # If vector was created but upload failed, delete it
             if vector is not None:
-                try:
-                    if api.project_vector.delete_vector(project_id, vector.id):
-                        feedback.pushInfo(
-                            self.tr(
-                                "Cleaned up incomplete vector layer due to upload failure"
-                            )
+                if api.project_vector.delete_vector(project_id, vector.id):
+                    feedback.pushInfo(
+                        self.tr(
+                            "Cleaned up incomplete vector layer due to upload failure"
                         )
-                except Exception as delete_error:
+                    )
+                else:
                     feedback.reportError(
-                        self.tr("Failed to clean up incomplete vector: {}").format(
-                            str(delete_error)
-                        )
+                        self.tr("Failed to clean up incomplete vector layer")
                     )
 
             # Re-raise the original exception
