@@ -34,7 +34,7 @@ def get_styled_maps(project_id: str) -> List[StratoStyledMap]:
         return []
 
     styled_maps = []
-    for styled_map_data in response["content"]:
+    for styled_map_data in response:
         styled_maps.append(
             StratoStyledMap(
                 id=styled_map_data.get("id", ""),
@@ -64,15 +64,15 @@ def get_styled_map(styled_map_id: str) -> Optional[StratoStyledMap]:
         print(f"Error getting styled map {styled_map_id}: {response['error']}")
         return None
 
-    if not response["content"]:
+    if not response:
         return None
 
     return StratoStyledMap(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        qgisproject=response["content"].get("qgisproject", ""),
-        isPublic=response["content"].get("isPublic", False),
-        projectId=response["content"].get("projectId", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        qgisproject=response.get("qgisproject", ""),
+        isPublic=response.get("isPublic", False),
+        projectId=response.get("projectId", ""),
     )
 
 
@@ -111,14 +111,14 @@ def add_styled_map(
         print(f"Error adding map to project {project_id}: {response['error']}")
         return None
 
-    if not response["content"]:
+    if not response:
         return None
 
     return StratoStyledMap(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        qgisproject=response["content"].get("qgisproject", ""),
-        isPublic=response["content"].get("isPublic", False),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        qgisproject=response.get("qgisproject", ""),
+        isPublic=response.get("isPublic", False),
         projectId=project_id,
     )
 
@@ -179,17 +179,10 @@ def update_styled_map(
         update_data,
     )
 
-    if response.get("error"):
-        print(f"Error updating map {styled_map_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     return StratoStyledMap(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        qgisproject=response["content"].get("qgisproject", ""),
-        isPublic=response["content"].get("isPublic", False),
-        projectId=response["content"].get("projectId", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        qgisproject=response.get("qgisproject", ""),
+        isPublic=response.get("isPublic", False),
+        projectId=response.get("projectId", ""),
     )

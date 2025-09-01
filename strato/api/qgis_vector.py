@@ -31,15 +31,11 @@ def get_features(
 
     response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
 
-    if response.get("error"):
-        print(f"Error fetching features for vector {vector_id}: {response['error']}")
-        return []
-
     # decode base64
-    for feature in response["content"]:
+    for feature in response:
         feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
 
-    return response["content"]
+    return response
 
 
 def add_features(
@@ -72,15 +68,7 @@ def add_features(
             ):
                 feature["properties"][k] = None
 
-    response = ApiClient.post(
-        f"/_qgis/vector/{vector_id}/add-features", {"features": _features}
-    )
-
-    if response.get("error"):
-        print(f"Error adding features to vector {vector_id}: {response['error']}")
-        return False
-
-    return True
+    ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
 
 
 def delete_features(
@@ -90,15 +78,9 @@ def delete_features(
     """
     Delete features from a vector layer
     """
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/delete-features", {"strato_ids": strato_ids}
     )
-
-    if response.get("error"):
-        print(f"Error deleting features from vector {vector_id}: {response['error']}")
-        return False
-
-    return True
 
 
 def change_attribute_values(
@@ -108,18 +90,10 @@ def change_attribute_values(
     """
     Change attribute values of a feature in a vector layer
     """
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/change-attribute-values",
         {"attribute_items": attribute_items},
     )
-
-    if response.get("error"):
-        print(
-            f"Error changing attribute values for features in vector {vector_id}: {response['error']}"
-        )
-        return False
-
-    return True
 
 
 def change_geometry_values(
@@ -137,18 +111,10 @@ def change_geometry_values(
         for item in geometry_items
     ]
 
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/change-geometry-values",
         {"geometry_items": geometry_items_encoded},
     )
-
-    if response.get("error"):
-        print(
-            f"Error changing geometry values for {geometry_items} in vector {vector_id}: {response['error']}"
-        )
-        return False
-
-    return True
 
 
 def update_columns(
@@ -162,15 +128,7 @@ def update_columns(
         vector_id: The ID of the vector layer
         columns: Dictionary mapping column names to data types ('integer', 'float', 'string', 'boolean')
     """
-    response = ApiClient.post(
-        f"/_qgis/vector/{vector_id}/update-columns", {"columns": columns}
-    )
-
-    if response.get("error"):
-        print(f"Error updating columns in vector {vector_id}: {response['error']}")
-        return False
-
-    return True
+    ApiClient.post(f"/_qgis/vector/{vector_id}/update-columns", {"columns": columns})
 
 
 def add_attributes(
@@ -184,15 +142,9 @@ def add_attributes(
         vector_id: The ID of the vector layer
         attributes: Dictionary mapping attribute names to data types ('integer', 'float', 'string', 'boolean')
     """
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/add-attributes", {"attributes": attributes}
     )
-
-    if response.get("error"):
-        print(f"Error adding attributes to vector {vector_id}: {response['error']}")
-        return False
-
-    return True
 
 
 def delete_attributes(
@@ -206,16 +158,10 @@ def delete_attributes(
         vector_id: The ID of the vector layer
         attribute_names: List of attribute names to delete
     """
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/delete-attributes",
         {"attributeNames": attribute_names},
     )
-
-    if response.get("error"):
-        print(f"Error deleting attributes from vector {vector_id}: {response['error']}")
-        return False
-
-    return True
 
 
 def rename_attributes(
@@ -229,16 +175,10 @@ def rename_attributes(
         vector_id: The ID of the vector layer
         attribute_map: Dictionary mapping old attribute names to new attribute names
     """
-    response = ApiClient.post(
+    ApiClient.post(
         f"/_qgis/vector/{vector_id}/rename-attributes",
         {"attributeMap": attribute_map},
     )
-
-    if response.get("error"):
-        print(f"Error renaming attributes in vector {vector_id}: {response['error']}")
-        return False
-
-    return True
 
 
 def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
@@ -260,19 +200,7 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
         {"last_updated": last_updated},
     )
 
-    if response.get("error"):
-        # 差分の最大数超過エラーを検知
-        if response["error"]["error"] == "MAX_DIFF_COUNT_EXCEEDED":
-            # 呼び出し元に伝搬
-            raise MaxDiffCountExceededError("MAX_DIFF_COUNT_EXCEEDED")
-
-        print(f"Error getting diff for vector {vector_id}: {response['error']}")
-        return {
-            "updatedRows": [],
-            "deletedRows": [],
-        }
-
-    for feature in response["content"]["updatedRows"]:
+    for feature in response["updatedRows"]:
         feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
 
-    return response["content"]
+    return response

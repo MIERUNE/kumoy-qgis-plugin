@@ -41,7 +41,7 @@ def get_vectors(project_id: str) -> List[StratoVector]:
         return []
 
     vectors = []
-    for vector_data in response["content"]:
+    for vector_data in response:
         vectors.append(
             StratoVector(
                 id=vector_data.get("id", ""),
@@ -73,21 +73,21 @@ def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnVa
         )
         return None
 
-    if not response["content"]:
+    if not response:
         return None
 
     return StratoVectorReturnValue(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        uri=response["content"].get("uri", ""),
-        type=response["content"].get("type", "POINT"),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        uri=response.get("uri", ""),
+        type=response.get("type", "POINT"),
         projectId=project_id,
-        extent=response["content"].get("extent", []),
-        count=response["content"].get("count", 0),
-        columns=response["content"].get("columns", []),
-        userId=response["content"].get("userId", ""),
-        organizationId=response["content"].get("organizationId", ""),
-        role=response["content"].get("role", "MEMBER"),
+        extent=response.get("extent", []),
+        count=response.get("count", 0),
+        columns=response.get("columns", []),
+        userId=response.get("userId", ""),
+        organizationId=response.get("organizationId", ""),
+        role=response.get("role", "MEMBER"),
     )
 
 
@@ -115,23 +115,16 @@ def add_vector(
         {"name": add_vector_options.name, "type": add_vector_options.type},
     )
 
-    if response.get("error"):
-        print(f"Error adding vector to project {project_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     return StratoVector(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        uri=response["content"].get("uri", ""),
-        type=response["content"].get("type", "POINT"),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        uri=response.get("uri", ""),
+        type=response.get("type", "POINT"),
         projectId=project_id,
     )
 
 
-def delete_vector(project_id: str, vector_id: str) -> bool:
+def delete_vector(vector_id: str) -> bool:
     """
     Delete a vector from a project
 
@@ -142,13 +135,7 @@ def delete_vector(project_id: str, vector_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    response = ApiClient.delete(f"/vector/{vector_id}")
-
-    if response.get("error"):
-        print(f"Error deleting vector {vector_id}: {response['error']}")
-        return False
-
-    return True
+    ApiClient.delete(f"/vector/{vector_id}")
 
 
 @dataclass
@@ -174,18 +161,10 @@ def update_vector(
         f"/vector/{vector_id}",
         {"name": update_vector_options.name},
     )
-
-    if response.get("error"):
-        print(f"Error updating vector to project {project_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     return StratoVector(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        uri=response["content"].get("uri", ""),
-        type=response["content"].get("type", "POINT"),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        uri=response.get("uri", ""),
+        type=response.get("type", "POINT"),
         projectId=project_id,
     )

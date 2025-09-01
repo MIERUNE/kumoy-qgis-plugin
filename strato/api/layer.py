@@ -27,12 +27,8 @@ def get_layers_by_project(project_id: str) -> List[Layer]:
     """
     response = ApiClient.get(f"/project/{project_id}/layers")
 
-    if response.get("error"):
-        print(f"Error fetching layers for project {project_id}: {response['error']}")
-        return []
-
     layers = []
-    for layer_data in response["content"].get("layers", []):
+    for layer_data in response.get("layers", []):
         layers.append(
             Layer(
                 id=layer_data.get("id", ""),
@@ -59,19 +55,14 @@ def get_layer(layer_id: str) -> Optional[Layer]:
         Layer object or None if not found
     """
     response = ApiClient.get(f"/layer/{layer_id}")
-
-    if response.get("error"):
-        print(f"Error fetching layer {layer_id}: {response['error']}")
-        return None
-
     return Layer(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        type=response["content"].get("type", ""),
-        projectId=response["content"].get("projectId", ""),
-        source=response["content"].get("source", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        type=response.get("type", ""),
+        projectId=response.get("projectId", ""),
+        source=response.get("source", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
@@ -99,18 +90,14 @@ def create_layer(
 
     response = ApiClient.post("/layer", data)
 
-    if response.get("error"):
-        print(f"Error creating layer in project {project_id}: {response['error']}")
-        return None
-
     return Layer(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        type=response["content"].get("type", ""),
-        projectId=response["content"].get("projectId", ""),
-        source=response["content"].get("source", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        type=response.get("type", ""),
+        projectId=response.get("projectId", ""),
+        source=response.get("source", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
@@ -142,10 +129,6 @@ def update_layer(
 
     response = ApiClient.put(f"/layer/{layer_id}", data)
 
-    if response.get("error"):
-        print(f"Error updating layer {layer_id}: {response['error']}")
-        return None
-
     return Layer(
         id=response.get("id", ""),
         name=response.get("name", ""),
@@ -167,9 +150,4 @@ def delete_layer(layer_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    res = ApiClient.delete(f"/layer/{layer_id}")
-    if res.get("error"):
-        print(f"Error deleting layer {layer_id}: {res['error']}")
-        return False
-
-    return True
+    ApiClient.delete(f"/layer/{layer_id}")
