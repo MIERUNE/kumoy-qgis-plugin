@@ -15,7 +15,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ..settings_manager import SettingsManager
+from ..settings_manager import get_settings, store_setting
 from ..strato.api import config
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
@@ -74,9 +74,8 @@ class DialogConfig(QDialog):
 
     def update_login_status(self):
         """Update the login status display based on stored tokens"""
-        settings_manager = SettingsManager()
-        id_token = settings_manager.get_setting("id_token")
-        user_info_str = settings_manager.get_setting("user_info")
+        id_token = get_settings().id_token
+        user_info_str = get_settings().user_info
 
         if id_token:
             self.labelSupabaseStatus.setText(self.tr("Logged in"))
@@ -133,12 +132,11 @@ class DialogConfig(QDialog):
         user_info = self.auth_manager.get_user_info()
 
         # Store the tokens in settings
-        settings_manager = SettingsManager()
-        settings_manager.store_setting("id_token", id_token)
-        settings_manager.store_setting("refresh_token", refresh_token)
+        store_setting("id_token", id_token)
+        store_setting("refresh_token", refresh_token)
 
         if user_info:
-            settings_manager.store_setting("user_info", json.dumps(user_info))
+            store_setting("user_info", json.dumps(user_info))
 
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success
@@ -217,11 +215,10 @@ class DialogConfig(QDialog):
     def logout(self):
         """Log out by clearing stored tokens"""
         try:
-            settings_manager = SettingsManager()
-            settings_manager.store_setting("id_token", "")
-            settings_manager.store_setting("refresh_token", "")
-            settings_manager.store_setting("user_info", "")
-            settings_manager.store_setting("selected_project_id", "")
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
             QMessageBox.information(
@@ -248,7 +245,6 @@ class DialogConfig(QDialog):
 
     def save_server_settings(self):
         """サーバー設定を保存する"""
-        settings_manager = SettingsManager()
 
         # カスタムサーバーの設定を保存
         use_custom_server = self.mGroupBoxStratoServerConfig.isChecked()
@@ -256,26 +252,19 @@ class DialogConfig(QDialog):
         custom_cognito_client_id = self.cognitoClientID.text().strip()
         custom_server_url = self.stratoURL.text().strip()
 
-        settings_manager.store_setting(
-            "use_custom_server", "true" if use_custom_server else "false"
-        )
-        settings_manager.store_setting("custom_cognito_url", custom_cognito_url)
-        settings_manager.store_setting(
-            "custom_cognito_client_id", custom_cognito_client_id
-        )
-        settings_manager.store_setting("custom_server_url", custom_server_url)
+        store_setting("use_custom_server", "true" if use_custom_server else "false")
+        store_setting("custom_cognito_url", custom_cognito_url)
+        store_setting("custom_cognito_client_id", custom_cognito_client_id)
+        store_setting("custom_server_url", custom_server_url)
 
     def load_server_settings(self):
         """保存されたサーバー設定を読み込む"""
-        settings_manager = SettingsManager()
 
         # 保存された設定を読み込む
-        use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
-        custom_cognito_url = settings_manager.get_setting("custom_cognito_url") or ""
-        custom_cognito_client_id = (
-            settings_manager.get_setting("custom_cognito_client_id") or ""
-        )
-        custom_server_url = settings_manager.get_setting("custom_server_url") or ""
+        use_custom_server = get_settings().use_custom_server == "true"
+        custom_cognito_url = get_settings().custom_cognito_url or ""
+        custom_cognito_client_id = get_settings().custom_cognito_client_id or ""
+        custom_server_url = get_settings().custom_server_url or ""
 
         # UIに設定を反映
         self.mGroupBoxStratoServerConfig.setChecked(use_custom_server)

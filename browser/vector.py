@@ -24,7 +24,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..imgs import IMGS_PATH
-from ..settings_manager import SettingsManager
+from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.api.project_vector import (
     AddVectorOptions,
@@ -302,10 +302,9 @@ class DbRoot(QgsDataItem):
 
     def new_vector(self):
         """Create a new vector layer in the project"""
-        settings = SettingsManager()
-        organization_id = settings.get_setting("selected_organization_id")
+        organization_id = get_settings().selected_organization_id
         organization = api.organization.get_organization(organization_id)
-        project_id = settings.get_setting("selected_project_id")
+        project_id = get_settings().selected_project_id
 
         # check plan limits before creating vector
         plan_limit = api.plan.get_plan_limits(organization.plan)
@@ -416,8 +415,7 @@ class DbRoot(QgsDataItem):
 
     def createChildren(self):
         """Create child items for vectors in project"""
-        settings = SettingsManager()
-        project_id = settings.get_setting("selected_project_id")
+        project_id = get_settings().selected_project_id
 
         if not project_id:
             return [ErrorItem(self, self.tr("No project selected"))]

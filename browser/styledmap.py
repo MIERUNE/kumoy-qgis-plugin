@@ -22,7 +22,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
-from ..settings_manager import SettingsManager
+from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.api.project_styledmap import (
     AddStyledMapOptions,
@@ -283,10 +283,9 @@ class StyledMapRoot(QgsDataItem):
 
     def add_styled_map(self):
         """新しいスタイルマップを追加する"""
-        settings = SettingsManager()
-        organization_id = settings.get_setting("selected_organization_id")
+        organization_id = get_settings().selected_organization_id
         organization = api.organization.get_organization(organization_id)
-        project_id = settings.get_setting("selected_project_id")
+        project_id = get_settings().selected_project_id
 
         # Check plan limits before creating styled map
         plan_limit = api.plan.get_plan_limits(organization.plan)
@@ -373,8 +372,7 @@ class StyledMapRoot(QgsDataItem):
     def createChildren(self):
         """子アイテムを作成する"""
         try:
-            settings = SettingsManager()
-            project_id = settings.get_setting("selected_project_id")
+            project_id = get_settings().selected_project_id
 
             if not project_id:
                 return [ErrorItem(self, self.tr("No project selected"))]

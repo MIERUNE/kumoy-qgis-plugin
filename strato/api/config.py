@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 
-from settings_manager import SettingsManager
+from settings_manager import get_settings, store_setting
 
 DEFAULT_COGNITO_URL: str = (
     "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
@@ -18,13 +18,11 @@ class ApiConfig(ABC):
 
 
 def get_api_config() -> ApiConfig:
-    settings_manager = SettingsManager()
-
     # カスタムサーバー設定を読み込む
-    use_custom_server = settings_manager.get_setting("use_custom_server") == "true"
-    custom_cognito_url = settings_manager.get_setting("custom_cognito_url")
-    custom_cognito_client_id = settings_manager.get_setting("custom_cognito_client_id")
-    custom_server_url = settings_manager.get_setting("custom_server_url")
+    use_custom_server = get_settings().use_custom_server == "true"
+    custom_cognito_url = get_settings().custom_cognito_url
+    custom_cognito_client_id = get_settings().custom_cognito_client_id
+    custom_server_url = get_settings().custom_server_url
 
     if (
         use_custom_server
