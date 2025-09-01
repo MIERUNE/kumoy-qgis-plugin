@@ -25,13 +25,12 @@ from qgis.PyQt.QtWidgets import (
 
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
-from ..strato import api
+from ..strato import api, constants
 from ..strato.api.project_vector import (
     AddVectorOptions,
     StratoVector,
     UpdateVectorOptions,
 )
-from ..strato.constants import LOG_CATEGORY, PLUGIN_NAME
 from ..strato.provider import local_cache
 from .utils import ErrorItem
 
@@ -104,7 +103,7 @@ class VectorItem(QgsDataItem):
         # Create URI
         uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
         # Create layer
-        layer_name = f"{PLUGIN_NAME} - {self.vector.name}"
+        layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
         layer = QgsVectorLayer(uri, layer_name, "strato")
 
         if layer.isValid():
@@ -121,7 +120,7 @@ class VectorItem(QgsDataItem):
             QgsProject.instance().addMapLayer(layer)
         else:
             QgsMessageLog.logMessage(
-                f"Layer is invalid: {uri}", LOG_CATEGORY, Qgis.Critical
+                f"Layer is invalid: {uri}", constants.LOG_CATEGORY, Qgis.Critical
             )
 
     def handleDoubleClick(self):
@@ -142,6 +141,7 @@ class VectorItem(QgsDataItem):
 
         # Create fields
         name_field = QLineEdit(self.vector.name)
+        name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
 
         # Add fields to form
         form_layout.addRow(self.tr("Name:"), name_field)
@@ -173,7 +173,9 @@ class VectorItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error updating vector: {str(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
@@ -205,7 +207,9 @@ class VectorItem(QgsDataItem):
                 api.project_vector.delete_vector(self.vector.projectId, self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                    f"Error deleting vector: {str(e)}",
+                    constants.LOG_CATEGORY,
+                    Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None,
@@ -239,7 +243,7 @@ class VectorItem(QgsDataItem):
 
                 QgsMessageLog.logMessage(
                     self.tr("Cache cleared for vector '{}'").format(self.vector.name),
-                    LOG_CATEGORY,
+                    constants.LOG_CATEGORY,
                     Qgis.Info,
                 )
                 QMessageBox.information(
@@ -255,7 +259,7 @@ class VectorItem(QgsDataItem):
                     self.tr("Error clearing cache for vector '{}': {}").format(
                         self.vector.name, str(e)
                     ),
-                    LOG_CATEGORY,
+                    constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
@@ -340,6 +344,7 @@ class DbRoot(QgsDataItem):
 
             # Name field
             name_field = QLineEdit()
+            name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
             form_layout.addRow(self.tr("Name:"), name_field)
 
             # Type field
@@ -388,14 +393,14 @@ class DbRoot(QgsDataItem):
                 self.tr("Created new vector layer '{}' in project {}").format(
                     name, project_id
                 ),
-                LOG_CATEGORY,
+                constants.LOG_CATEGORY,
                 Qgis.Info,
             )
             # Refresh to show new vector
             self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error adding vector: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 None,
@@ -416,7 +421,7 @@ class DbRoot(QgsDataItem):
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Error uploading vector: {}").format(str(e)),
-                LOG_CATEGORY,
+                constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
 
@@ -432,7 +437,9 @@ class DbRoot(QgsDataItem):
             vectors = api.project_vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error fetching vectors: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error fetching vectors: {str(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             return [ErrorItem(self, self.tr("Error fetching vectors"))]
 
@@ -468,14 +475,14 @@ class DbRoot(QgsDataItem):
                 local_cache.clear_all()
                 QgsMessageLog.logMessage(
                     self.tr("Cache cleared successfully"),
-                    LOG_CATEGORY,
+                    constants.LOG_CATEGORY,
                     Qgis.Info,
                 )
 
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Error clearing cache: {}").format(str(e)),
-                    LOG_CATEGORY,
+                    constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
