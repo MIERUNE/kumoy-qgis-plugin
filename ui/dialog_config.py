@@ -3,17 +3,23 @@ import os
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtGui import QPixmap
 from qgis.PyQt.QtWidgets import (
     QDialog,
+    QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
+    QSpacerItem,
+    QVBoxLayout,
 )
 from qgis.utils import iface
+from qgis.gui import QgsCollapsibleGroupBox
 
 from ..settings_manager import get_settings, store_setting
 from ..strato.auth_manager import AuthManager
@@ -24,22 +30,7 @@ from ..version import exec_dialog
 class DialogConfig(QDialog):
     def __init__(self):
         super().__init__()
-        self.ui = uic.loadUi(
-            os.path.join(os.path.dirname(__file__), "dialog_config.ui"), self
-        )
-
-        # Set type hints for UI
-        self.buttonClose: QPushButton = self.ui.buttonClose
-        self.buttonLogin: QPushButton = self.ui.buttonLogin
-        self.buttonLogout: QPushButton = self.ui.buttonLogout
-        self.labelSupabaseStatus: QLabel = self.ui.labelSupabaseStatus
-        self.labelUserInfo: QLabel = self.ui.labelUserInfo
-        self.mGroupBoxStratoServerConfig: QGroupBox = (
-            self.ui.mGroupBoxStratoServerConfig
-        )
-        self.cognitoURL: QLineEdit = self.ui.cognitoURL
-        self.cognitoClientID: QLineEdit = self.ui.cognitoClientID
-        self.stratoURL: QLineEdit = self.ui.stratoURL
+        self.setupUi()
 
         self.buttonClose.clicked.connect(self.reject)
 
@@ -54,6 +45,130 @@ class DialogConfig(QDialog):
         self.auth_manager = AuthManager(port=9248)
 
         self.update_login_status()
+
+    def setupUi(self):
+        # Set dialog properties
+        self.setObjectName("Dialog")
+        self.resize(400, 624)
+        self.setMinimumSize(400, 0)
+        self.setWindowTitle("Config")
+
+        # Create main vertical layout
+        verticalLayout = QVBoxLayout(self)
+
+        # Top horizontal layout for icon
+        horizontalLayout_3 = QHBoxLayout()
+        
+        # Icon label
+        label = QLabel()
+        label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        label.setMinimumSize(150, 150)
+        label.setMaximumSize(125, 125)
+        icon_path = os.path.join(os.path.dirname(__file__), "../imgs/icon.svg")
+        if os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            label.setPixmap(pixmap)
+        label.setScaledContents(True)
+        label.setAlignment(Qt.AlignCenter)
+        label.setWordWrap(False)
+        horizontalLayout_3.addWidget(label)
+        
+        verticalLayout.addLayout(horizontalLayout_3)
+
+        # Vertical spacer
+        verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        verticalLayout.addItem(verticalSpacer)
+
+        # Info label with HTML content
+        label_2 = QLabel()
+        label_2.setText(
+            '<html><head/><body><div>STRATO<br />v0.0.0<br /><br />Powered by <a href="https://develop.d1hkxct7k1njv6.amplifyapp.com/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a></p></body></html>'
+        )
+        label_2.setScaledContents(False)
+        label_2.setAlignment(Qt.AlignCenter)
+        label_2.setOpenExternalLinks(True)
+        verticalLayout.addWidget(label_2)
+
+        # Status label
+        self.labelSupabaseStatus = QLabel()
+        self.labelSupabaseStatus.setText("Not logged in")
+        self.labelSupabaseStatus.setAlignment(Qt.AlignCenter)
+        verticalLayout.addWidget(self.labelSupabaseStatus)
+
+        # User info label
+        self.labelUserInfo = QLabel()
+        self.labelUserInfo.setText("")
+        self.labelUserInfo.setAlignment(Qt.AlignCenter)
+        self.labelUserInfo.setWordWrap(True)
+        verticalLayout.addWidget(self.labelUserInfo)
+
+        # Collapsible group box for server config
+        self.mGroupBoxStratoServerConfig = QgsCollapsibleGroupBox()
+        self.mGroupBoxStratoServerConfig.setEnabled(True)
+        self.mGroupBoxStratoServerConfig.setTitle("Custom Strato server config")
+        self.mGroupBoxStratoServerConfig.setCheckable(True)
+        self.mGroupBoxStratoServerConfig.setChecked(False)
+        self.mGroupBoxStratoServerConfig.setCollapsed(False)
+        self.mGroupBoxStratoServerConfig.setSaveCheckedState(False)
+
+        # Grid layout for server config
+        gridLayout = QGridLayout(self.mGroupBoxStratoServerConfig)
+
+        # Cognito URL row
+        label_4 = QLabel()
+        label_4.setText("Cognit URL")
+        gridLayout.addWidget(label_4, 1, 0)
+
+        self.cognitoURL = QLineEdit()
+        self.cognitoURL.setText("https://strato.auth.ap-northeast-1.amazoncognito.com")
+        gridLayout.addWidget(self.cognitoURL, 1, 1)
+
+        # Cognito Client ID row
+        label_5 = QLabel()
+        label_5.setText("Cognit Client ID")
+        gridLayout.addWidget(label_5, 2, 0)
+
+        self.cognitoClientID = QLineEdit()
+        self.cognitoClientID.setText("1233456789abcdefghijklnmop")
+        gridLayout.addWidget(self.cognitoClientID, 2, 1)
+
+        # Server URL row
+        label_3 = QLabel()
+        label_3.setText("Server URL")
+        gridLayout.addWidget(label_3, 3, 0)
+
+        self.stratoURL = QLineEdit()
+        self.stratoURL.setText("https://app.strato.com/")
+        gridLayout.addWidget(self.stratoURL, 3, 1)
+
+        verticalLayout.addWidget(self.mGroupBoxStratoServerConfig)
+
+        # Login/Logout buttons layout
+        horizontalLayout_2 = QHBoxLayout()
+
+        self.buttonLogin = QPushButton()
+        self.buttonLogin.setText("Login")
+        horizontalLayout_2.addWidget(self.buttonLogin)
+
+        self.buttonLogout = QPushButton()
+        self.buttonLogout.setEnabled(False)
+        self.buttonLogout.setText("Logout")
+        horizontalLayout_2.addWidget(self.buttonLogout)
+
+        verticalLayout.addLayout(horizontalLayout_2)
+
+        # Close button layout
+        horizontalLayout = QHBoxLayout()
+
+        horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        horizontalLayout.addItem(horizontalSpacer)
+
+        self.buttonClose = QPushButton()
+        self.buttonClose.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.buttonClose.setText("Close")
+        horizontalLayout.addWidget(self.buttonClose)
+
+        verticalLayout.addLayout(horizontalLayout)
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
