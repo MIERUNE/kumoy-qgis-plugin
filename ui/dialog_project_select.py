@@ -20,16 +20,10 @@ from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
-
-QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
-QT_USER_ROLE = Qt.UserRole if QT_VERSION_INT <= 5 else Qt.ItemDataRole.UserRole
-QT_DIALOG_BUTTON_OK = (
-    QDialogButtonBox.Ok if QT_VERSION_INT <= 5 else QDialogButtonBox.StandardButton.Ok
-)
-QT_DIALOG_BUTTON_CANCEL = (
-    QDialogButtonBox.Cancel
-    if QT_VERSION_INT <= 5
-    else QDialogButtonBox.StandardButton.Cancel
+from ..version import (
+    QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
+    QT_USER_ROLE,
 )
 
 

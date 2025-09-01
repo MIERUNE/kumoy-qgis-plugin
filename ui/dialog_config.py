@@ -4,7 +4,7 @@ import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QT_VERSION_STR, QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGroupBox,
@@ -18,15 +18,7 @@ from qgis.utils import iface
 from ..settings_manager import get_settings, store_setting
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
-
-QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
-
-
-def exec_dialog(dialog):
-    if QT_VERSION_INT <= 5:
-        return dialog.exec_()
-    else:
-        return dialog.exec()
+from ..version import exec_dialog
 
 
 class DialogConfig(QDialog):
