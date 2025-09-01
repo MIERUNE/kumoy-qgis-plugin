@@ -56,29 +56,26 @@ class RootCollection(QgsDataCollectionItem):
         return QCoreApplication.translate("RootCollection", message)
 
     def actions(self, parent):
-        actions = []
-
-        # Login action
-        login_action = QAction("Login", parent)
-        login_action.triggered.connect(self.login)
-        actions.append(login_action)
-
-        # Logout action
-        logout_action = QAction("Logout", parent)
-        logout_action.triggered.connect(self.logout)
-        actions.append(logout_action)
+        id_token = get_settings().id_token
+        if not id_token:
+            # Login action
+            login_action = QAction("Login", parent)
+            login_action.triggered.connect(self.login)
+            return [login_action]
 
         # Select Project action
         select_project_action = QAction(self.tr("Select Project"), parent)
         select_project_action.triggered.connect(self.select_project)
-        actions.append(select_project_action)
 
         # Refresh action
         refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
-        actions.append(refresh_action)
 
-        return actions
+        # Logout action
+        logout_action = QAction("Logout", parent)
+        logout_action.triggered.connect(self.logout)
+
+        return [select_project_action, refresh_action, logout_action]
 
     def login(self):
         """Login to STRATO"""
