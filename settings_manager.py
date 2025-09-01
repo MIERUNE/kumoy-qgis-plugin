@@ -4,7 +4,7 @@ from qgis.PyQt.QtCore import QSettings
 
 
 @dataclass
-class Settings:
+class UserSettings:
     id_token: str = ""
     refresh_token: str = ""
     token_expires_at: str = ""
@@ -25,7 +25,7 @@ def get_settings():
     qsettings = QSettings()
     qsettings.beginGroup(SETTING_GROUP)
 
-    loaded_settings = Settings(
+    loaded_settings = UserSettings(
         id_token=qsettings.value("id_token", ""),
         refresh_token=qsettings.value("refresh_token", ""),
         token_expires_at=qsettings.value("token_expires_at", ""),
