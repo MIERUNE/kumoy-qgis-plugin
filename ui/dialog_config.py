@@ -133,7 +133,7 @@ class DialogConfig(QDialog):
 
         # Cognito Client ID row
         cognito_client_id_label = QLabel()
-        cognito_client_id_label.setText("")
+        cognito_client_id_label.setText("Cognito Client ID")
         gridLayout.addWidget(cognito_client_id_label, 2, 0)
 
         self.cognito_client_id_input = QLineEdit()
