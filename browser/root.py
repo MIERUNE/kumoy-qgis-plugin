@@ -18,18 +18,10 @@ from ..strato import api
 from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..ui.dialog_config import DialogConfig
 from ..ui.dialog_project_select import ProjectSelectDialog
+from ..version import exec_dialog
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
 from .vector import DbRoot
-
-QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
-
-
-def exec_dialog(dialog):
-    if QT_VERSION_INT <= 5:
-        return dialog.exec_()
-    else:
-        return dialog.exec()
 
 
 class DataItemProvider(QgsDataItemProvider):
