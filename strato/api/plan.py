@@ -17,7 +17,7 @@ class PlanLimits:
 PlanType = Literal["FREE", "OPERATOR", "TEAM", "CUSTOM"]
 
 
-def get_plan_limits(plan: PlanType) -> Optional[PlanLimits]:
+def get_plan_limits(plan: PlanType) -> PlanLimits:
     """
     Get plan limits for a specific plan type
 
@@ -29,18 +29,11 @@ def get_plan_limits(plan: PlanType) -> Optional[PlanLimits]:
     """
     response = ApiClient.get(f"/plan/{plan}")
 
-    if response.get("error"):
-        print(f"Error fetching plan limits for plan {plan}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     return PlanLimits(
-        maxProjects=response["content"].get("maxProjects", 0),
-        maxVectors=response["content"].get("maxVectors", 0),
-        maxStyledMaps=response["content"].get("maxStyledMaps", 0),
-        maxOrganizationMembers=response["content"].get("maxOrganizationMembers", 0),
-        maxVectorFeatures=response["content"].get("maxVectorFeatures", 0),
-        maxVectorAttributes=response["content"].get("maxVectorAttributes", 0),
+        maxProjects=response.get("maxProjects", 0),
+        maxVectors=response.get("maxVectors", 0),
+        maxStyledMaps=response.get("maxStyledMaps", 0),
+        maxOrganizationMembers=response.get("maxOrganizationMembers", 0),
+        maxVectorFeatures=response.get("maxVectorFeatures", 0),
+        maxVectorAttributes=response.get("maxVectorAttributes", 0),
     )

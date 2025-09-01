@@ -1,13 +1,13 @@
 import json
-from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
-from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
-from qgis.PyQt.QtCore import QByteArray, QEventLoop, QTextStream, QUrl
-from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.core import QgsBlockingNetworkRequest
+from qgis.PyQt.QtCore import QByteArray, QUrl
+from qgis.PyQt.QtNetwork import QNetworkRequest
 
 from ..get_token import get_token
 from . import config as api_config
+from . import error as api_error
 
 
 def handle_blocking_reply(content: QByteArray) -> dict:
@@ -59,12 +59,9 @@ class ApiClient:
         err = blocking_request.get(req)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {
-                "content": None,
-                "error": content,
-            }
+            api_error.raise_error(content)
 
-        return {"content": content, "error": None}
+        return content
 
     @staticmethod
     def post(endpoint: str, data: Any) -> dict:
@@ -102,12 +99,9 @@ class ApiClient:
         err = blocking_request.post(req, byte_array)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {
-                "content": None,
-                "error": content,
-            }
+            api_error.raise_error(content)
 
-        return {"content": content, "error": None}
+        return content
 
     @staticmethod
     def put(endpoint: str, data: Any) -> dict:
@@ -145,12 +139,9 @@ class ApiClient:
         err = blocking_request.put(req, byte_array)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {
-                "content": None,
-                "error": content,
-            }
+            api_error.raise_error(content)
 
-        return {"content": content, "error": None}
+        return content
 
     @staticmethod
     def delete(endpoint: str) -> dict:
@@ -178,14 +169,10 @@ class ApiClient:
         )
 
         # Execute request
-        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            return {
-                "content": None,
-                "error": content,
-            }
+            api_error.raise_error(content)
 
-        return {"content": content, "error": None}
+        return content

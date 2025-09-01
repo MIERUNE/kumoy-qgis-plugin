@@ -318,11 +318,9 @@ class StratoDataProvider(QgsVectorDataProvider):
         total_items = len(attribute_items)
         for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
             chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
-            result = api.qgis_vector.change_attribute_values(
+            api.qgis_vector.change_attribute_values(
                 vector_id=self.strato_vector.id, attribute_items=chunk
             )
-            if not result:
-                return False
 
         self._reload_vector()
         return True
@@ -336,11 +334,9 @@ class StratoDataProvider(QgsVectorDataProvider):
         # Process in chunks of 1000 to avoid server limits
         for i in range(0, len(geometry_items), UPDATE_MAX_FEATURE_COUNT):
             chunk = geometry_items[i : i + UPDATE_MAX_FEATURE_COUNT]
-            result = api.qgis_vector.change_geometry_values(
+            api.qgis_vector.change_geometry_values(
                 vector_id=self.strato_vector.id, geometry_items=chunk
             )
-            if not result:
-                return False
 
         self._reload_vector()
         return True

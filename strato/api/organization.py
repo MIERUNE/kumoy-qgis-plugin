@@ -23,12 +23,8 @@ def get_organizations() -> List[Organization]:
     """
     response = ApiClient.get("/organization")
 
-    if response.get("error"):
-        print(f"Error fetching organizations: {response['error']}")
-        return []
-
     organizations = []
-    for org in response["content"]:
+    for org in response:
         organizations.append(
             Organization(
                 id=org.get("id", ""),
@@ -42,7 +38,7 @@ def get_organizations() -> List[Organization]:
     return organizations
 
 
-def get_organization(organization_id: str) -> Optional[Organization]:
+def get_organization(organization_id: str) -> Organization:
     """
     Get details for a specific organization
 
@@ -54,24 +50,17 @@ def get_organization(organization_id: str) -> Optional[Organization]:
     """
     response = ApiClient.get(f"/organization/{organization_id}")
 
-    if response.get("error"):
-        print(f"Error fetching organization {organization_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     return Organization(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        plan=response["content"].get("subscriptionPlan", ""),
-        stripeCustomerId=response["content"].get("stripeCustomerId", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        plan=response.get("subscriptionPlan", ""),
+        stripeCustomerId=response.get("stripeCustomerId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def create_organization(name: str) -> Optional[Organization]:
+def create_organization(name: str) -> Organization:
     """
     Create a new organization
 
@@ -81,28 +70,19 @@ def create_organization(name: str) -> Optional[Organization]:
     Returns:
         Organization object or None if creation failed
     """
-    data = {"name": name}
-
-    response = ApiClient.post("/organization", data)
-
-    if response.get("error"):
-        print(f"Error creating organization: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
+    response = ApiClient.post("/organization", {"name": name})
 
     return Organization(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        plan=response["content"].get("subscriptionPlan", ""),
-        stripeCustomerId=response["content"].get("stripeCustomerId", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        plan=response.get("subscriptionPlan", ""),
+        stripeCustomerId=response.get("stripeCustomerId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def update_organization(organization_id: str, name: str) -> Optional[Organization]:
+def update_organization(organization_id: str, name: str) -> Organization:
     """
     Update an existing organization
 
@@ -113,28 +93,20 @@ def update_organization(organization_id: str, name: str) -> Optional[Organizatio
     Returns:
         Updated Organization object or None if update failed
     """
-    data = {"name": name}
 
-    response = ApiClient.put(f"/organization/{organization_id}", data)
-
-    if response.get("error"):
-        print(f"Error updating organization {organization_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
+    response = ApiClient.put(f"/organization/{organization_id}", {"name": name})
 
     return Organization(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        plan=response["content"].get("subscriptionPlan", ""),
-        stripeCustomerId=response["content"].get("stripeCustomerId", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        plan=response.get("subscriptionPlan", ""),
+        stripeCustomerId=response.get("stripeCustomerId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def delete_organization(organization_id: str) -> bool:
+def delete_organization(organization_id: str):
     """
     Delete an organization
 
@@ -144,10 +116,4 @@ def delete_organization(organization_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    response = ApiClient.delete(f"/organization/{organization_id}")
-
-    if response.get("error"):
-        print(f"Error deleting organization {organization_id}: {response['error']}")
-        return False
-
-    return True
+    ApiClient.delete(f"/organization/{organization_id}")

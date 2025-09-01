@@ -165,22 +165,26 @@ class VectorItem(QgsDataItem):
         new_name = name_field.text()
 
         # Update vector
-        updated_vector = api.project_vector.update_vector(
-            self.vector.projectId,
-            self.vector.id,
-            UpdateVectorOptions(name=new_name),
-        )
-
-        if updated_vector:
-            self.vector = updated_vector
-            self.setName(updated_vector.name)
-            self.refresh()
-        else:
-            QgsMessageLog.logMessage(
-                self.tr("Failed to update vector"),
-                LOG_CATEGORY,
-                Qgis.Critical,
+        try:
+            updated_vector = api.project_vector.update_vector(
+                self.vector.projectId,
+                self.vector.id,
+                UpdateVectorOptions(name=new_name),
             )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error updating vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error updating vector: {}").format(str(e)),
+            )
+            return
+
+        self.vector = updated_vector
+        self.setName(updated_vector.name)
+        self.refresh()
 
     def delete_vector(self):
         """Delete the vector"""
@@ -197,17 +201,21 @@ class VectorItem(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Delete vector
-            success = api.project_vector.delete_vector(
-                self.vector.projectId, self.vector.id
-            )
-
-            if success:
-                # Refresh parent to show updated list
-                self.parent().refresh()
-            else:
+            try:
+                api.project_vector.delete_vector(self.vector.projectId, self.vector.id)
+            except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Failed to delete vector"), LOG_CATEGORY, Qgis.Critical
+                    f"Error deleting vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
                 )
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Error deleting vector: {}").format(str(e)),
+                )
+                return
+
+            # Refresh parent to show updated list
+            self.parent().refresh()
 
     def clear_cache(self):
         """Clear cache for this specific vector"""
@@ -302,84 +310,80 @@ class DbRoot(QgsDataItem):
 
     def new_vector(self):
         """Create a new vector layer in the project"""
-        organization_id = get_settings().selected_organization_id
-        organization = api.organization.get_organization(organization_id)
-        project_id = get_settings().selected_project_id
+        try:
+            organization_id = get_settings().selected_organization_id
+            organization = api.organization.get_organization(organization_id)
+            project_id = get_settings().selected_project_id
 
-        # check plan limits before creating vector
-        plan_limit = api.plan.get_plan_limits(organization.plan)
-        if not plan_limit:
-            return
+            # check plan limits before creating vector
+            plan_limit = api.plan.get_plan_limits(organization.plan)
+            current_vectors = api.project_vector.get_vectors(project_id)
+            upload_vector_count = len(current_vectors) + 1
+            if upload_vector_count > plan_limit.maxVectors:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
+                        "but you have reached the limit."
+                    ).format(plan_limit.maxVectors),
+                )
+                return
 
-        current_vectors = api.project_vector.get_vectors(project_id)
-        upload_vector_count = len(current_vectors) + 1
-        if upload_vector_count > plan_limit.maxVectors:
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr(
-                    "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                    "but you have reached the limit."
-                ).format(plan_limit.maxVectors),
+            dialog = QDialog()
+            dialog.setWindowTitle(self.tr("Create New Vector Layer"))
+            dialog.resize(400, 200)
+
+            # Create layout
+            layout = QVBoxLayout()
+            form_layout = QFormLayout()
+
+            # Name field
+            name_field = QLineEdit()
+            form_layout.addRow(self.tr("Name:"), name_field)
+
+            # Type field
+            type_field = QComboBox()
+            type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
+            form_layout.addRow(self.tr("Geometry Type:"), type_field)
+
+            # Add description
+            description = QLabel(
+                self.tr("This will create an empty vector layer in the project.")
             )
-            return
+            description.setWordWrap(True)
 
-        dialog = QDialog()
-        dialog.setWindowTitle(self.tr("Create New Vector Layer"))
-        dialog.resize(400, 200)
+            # Buttons
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box.accepted.connect(dialog.accept)
+            button_box.rejected.connect(dialog.reject)
 
-        # Create layout
-        layout = QVBoxLayout()
-        form_layout = QFormLayout()
+            # Add to layout
+            layout.addLayout(form_layout)
+            layout.addWidget(description)
+            layout.addWidget(button_box)
+            dialog.setLayout(layout)
 
-        # Name field
-        name_field = QLineEdit()
-        form_layout.addRow(self.tr("Name:"), name_field)
+            # Show dialog
+            result = dialog.exec_()
 
-        # Type field
-        type_field = QComboBox()
-        type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-        form_layout.addRow(self.tr("Geometry Type:"), type_field)
+            if not result:
+                return  # User canceled
 
-        # Add description
-        description = QLabel(
-            self.tr("This will create an empty vector layer in the project.")
-        )
-        description.setWordWrap(True)
+            # Get values
+            name = name_field.text()
+            vector_type = type_field.currentText()
 
-        # Buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
+            if not name:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Vector name cannot be empty."),
+                )
+                return
 
-        # Add to layout
-        layout.addLayout(form_layout)
-        layout.addWidget(description)
-        layout.addWidget(button_box)
-        dialog.setLayout(layout)
-
-        # Show dialog
-        result = dialog.exec_()
-
-        if not result:
-            return  # User canceled
-
-        # Get values
-        name = name_field.text()
-        vector_type = type_field.currentText()
-
-        if not name:
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Vector name cannot be empty."),
-            )
-            return
-
-        options = AddVectorOptions(name=name, type=vector_type)
-        new_vector = api.project_vector.add_vector(project_id, options)
-
-        if new_vector:
+            options = AddVectorOptions(name=name, type=vector_type)
+            api.project_vector.add_vector(project_id, options)
             QgsMessageLog.logMessage(
                 self.tr("Created new vector layer '{}' in project {}").format(
                     name, project_id
@@ -389,11 +393,14 @@ class DbRoot(QgsDataItem):
             )
             # Refresh to show new vector
             self.refresh()
-        else:
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error adding vector: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Failed to create the vector layer '{}'.").format(name),
+                self.tr("Error adding vector: {}").format(str(e)),
             )
 
     def upload_vector(self):
@@ -421,10 +428,13 @@ class DbRoot(QgsDataItem):
             return [ErrorItem(self, self.tr("No project selected"))]
 
         # Get vectors for this project
-        vectors = api.project_vector.get_vectors(project_id)
-
-        if not vectors:
-            return [ErrorItem(self, self.tr("No vectors available"))]
+        try:
+            vectors = api.project_vector.get_vectors(project_id)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error fetching vectors: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            return [ErrorItem(self, self.tr("Error fetching vectors"))]
 
         children = []
 

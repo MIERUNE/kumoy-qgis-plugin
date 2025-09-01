@@ -24,15 +24,8 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
         List of Project objects
     """
     response = ApiClient.get(f"/organization/{organization_id}/projects")
-
-    if response.get("error"):
-        print(
-            f"Error fetching projects for organization {organization_id}: {response['error']}"
-        )
-        return []
-
     projects = []
-    for project in response["content"]:
+    for project in response:
         projects.append(
             Project(
                 id=project.get("id", ""),
@@ -46,7 +39,7 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
     return projects
 
 
-def get_project(project_id: str) -> Optional[Project]:
+def get_project(project_id: str) -> Project:
     """
     Get details for a specific project
 
@@ -58,29 +51,20 @@ def get_project(project_id: str) -> Optional[Project]:
     """
     response = ApiClient.get(f"/project/{project_id}")
 
-    if response.get("error"):
-        print(f"Error fetching project {project_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
-
     # Extract organization ID from nested organization object
-    organization = response["content"].get("organization", {})
+    organization = response.get("organization", {})
     organization_id = organization.get("id", "") if organization else ""
 
     return Project(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
         organizationId=organization_id,
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def create_project(
-    organization_id: str, name: str, description: str = ""
-) -> Optional[Project]:
+def create_project(organization_id: str, name: str, description: str = "") -> Project:
     """
     Create a new project
 
@@ -92,33 +76,26 @@ def create_project(
     Returns:
         Project object or None if creation failed
     """
-    data = {
-        "name": name,
-        "description": description,
-        "organizationId": organization_id,
-    }
 
-    response = ApiClient.post("/project", data)
-
-    if response.get("error"):
-        print(f"Error creating project: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
+    response = ApiClient.post(
+        "/project",
+        {
+            "name": name,
+            "description": description,
+            "organizationId": organization_id,
+        },
+    )
 
     return Project(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        organizationId=response["content"].get("organizationId", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        organizationId=response.get("organizationId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def update_project(
-    project_id: str, name: str, description: str = ""
-) -> Optional[Project]:
+def update_project(project_id: str, name: str, description: str = "") -> Project:
     """
     Update an existing project
 
@@ -130,30 +107,25 @@ def update_project(
     Returns:
         Updated Project object or None if update failed
     """
-    data = {
-        "name": name,
-        "description": description,
-    }
 
-    response = ApiClient.put(f"/project/{project_id}", data)
-
-    if response.get("error"):
-        print(f"Error updating project {project_id}: {response['error']}")
-        return None
-
-    if not response["content"]:
-        return None
+    response = ApiClient.put(
+        f"/project/{project_id}",
+        {
+            "name": name,
+            "description": description,
+        },
+    )
 
     return Project(
-        id=response["content"].get("id", ""),
-        name=response["content"].get("name", ""),
-        organizationId=response["content"].get("organizationId", ""),
-        createdAt=response["content"].get("createdAt", ""),
-        updatedAt=response["content"].get("updatedAt", ""),
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        organizationId=response.get("organizationId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
     )
 
 
-def delete_project(project_id: str) -> bool:
+def delete_project(project_id: str):
     """
     Delete a project
 
@@ -163,10 +135,4 @@ def delete_project(project_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    response = ApiClient.delete(f"/project/{project_id}")
-
-    if response.get("error"):
-        print(f"Error deleting project {project_id}: {response['error']}")
-        return False
-
-    return True
+    ApiClient.delete(f"/project/{project_id}")

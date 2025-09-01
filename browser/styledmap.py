@@ -24,11 +24,6 @@ from qgis.utils import iface
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
-from ..strato.api.project_styledmap import (
-    AddStyledMapOptions,
-    StratoStyledMap,
-    UpdateStyledMapOptions,
-)
 from ..strato.constants import LOG_CATEGORY
 from .utils import ErrorItem
 
@@ -36,7 +31,9 @@ from .utils import ErrorItem
 class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
 
-    def __init__(self, parent, path: str, styled_map: StratoStyledMap):
+    def __init__(
+        self, parent, path: str, styled_map: api.project_styledmap.StratoStyledMap
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -151,26 +148,21 @@ class StyledMapItem(QgsDataItem):
                     # スタイルマップ上書き保存
                     updated_styled_map = api.project_styledmap.update_styled_map(
                         self.styled_map.id,
-                        UpdateStyledMapOptions(
+                        api.project_styledmap.UpdateStyledMapOptions(
                             name=new_name,
                             isPublic=new_is_public,
                         ),
                     )
 
-                    if updated_styled_map:
-                        self.styled_map = updated_styled_map
-                        self.setName(updated_styled_map.name)
-                        self.refresh()
-                        iface.messageBar().pushSuccess(
-                            self.tr("Success"),
-                            self.tr("Map '{}' has been updated successfully.").format(
-                                new_name
-                            ),
-                        )
-                    else:
-                        QMessageBox.critical(
-                            None, self.tr("Error"), self.tr("Failed to update the map.")
-                        )
+                    self.styled_map = updated_styled_map
+                    self.setName(updated_styled_map.name)
+                    self.refresh()
+                    iface.messageBar().pushSuccess(
+                        self.tr("Success"),
+                        self.tr("Map '{}' has been updated successfully.").format(
+                            new_name
+                        ),
+                    )
 
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -184,68 +176,67 @@ class StyledMapItem(QgsDataItem):
         # QGISプロジェクト情報はバックグラウンドで取得
         new_qgisproject = get_qgisproject_str()
 
-        # スタイルマップ上書き保存
-        updated_styled_map = api.project_styledmap.update_styled_map(
-            self.styled_map.id,
-            UpdateStyledMapOptions(
-                qgisproject=new_qgisproject,
+        try:
+            # スタイルマップ上書き保存
+            updated_styled_map = api.project_styledmap.update_styled_map(
+                self.styled_map.id,
+                api.project_styledmap.UpdateStyledMapOptions(
+                    qgisproject=new_qgisproject,
+                ),
+            )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error saving map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
+            )
+            return
+
+        self.styled_map = updated_styled_map
+        self.setName(updated_styled_map.name)
+        self.refresh()
+        iface.messageBar().pushSuccess(
+            self.tr("Success"),
+            self.tr("Map '{}' has been saved successfully.").format(
+                self.styled_map.name
             ),
         )
 
-        if updated_styled_map:
-            self.styled_map = updated_styled_map
-            self.setName(updated_styled_map.name)
-            self.refresh()
-            iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("Map '{}' has been saved successfully.").format(
-                    self.styled_map.name
-                ),
-            )
-        else:
-            QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Failed to save the map.")
-            )
-
     def delete_styled_map(self):
         """スタイルマップを削除する"""
-        try:
-            # 削除確認
-            confirm = QMessageBox.question(
-                None,
-                self.tr("Delete Map"),
-                self.tr("Are you sure you want to delete map '{}'?").format(
-                    self.styled_map.name
-                ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
-            )
+        # 削除確認
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Delete Map"),
+            self.tr("Are you sure you want to delete map '{}'?").format(
+                self.styled_map.name
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
 
-            if confirm == QMessageBox.Yes:
-                # スタイルマップ削除
-                success = api.project_styledmap.delete_styled_map(self.styled_map.id)
+        if confirm == QMessageBox.Yes:
+            # スタイルマップ削除
+            try:
+                api.project_styledmap.delete_styled_map(self.styled_map.id)
 
-                if success:
-                    # 親アイテムを上書き保存して最新のリストを表示
-                    self.parent().refresh()
-                    iface.messageBar().pushSuccess(
-                        self.tr("Success"),
-                        self.tr("Map '{}' has been deleted successfully.").format(
-                            self.styled_map.name
-                        ),
-                    )
-                else:
-                    QMessageBox.critical(
-                        None, self.tr("Error"), self.tr("Failed to delete the map.")
-                    )
+                # 親アイテムを上書き保存して最新のリストを表示
+                self.parent().refresh()
+                iface.messageBar().pushSuccess(
+                    self.tr("Success"),
+                    self.tr("Map '{}' has been deleted successfully.").format(
+                        self.styled_map.name
+                    ),
+                )
 
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
-            QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error deleting map: {}").format(str(e))
-            )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    None, self.tr("Error"), self.tr("Failed to delete the map.")
+                )
 
 
 class StyledMapRoot(QgsDataItem):
@@ -283,91 +274,96 @@ class StyledMapRoot(QgsDataItem):
 
     def add_styled_map(self):
         """新しいスタイルマップを追加する"""
-        organization_id = get_settings().selected_organization_id
-        organization = api.organization.get_organization(organization_id)
-        project_id = get_settings().selected_project_id
+        try:
+            organization_id = get_settings().selected_organization_id
+            organization = api.organization.get_organization(organization_id)
+            project_id = get_settings().selected_project_id
 
-        # Check plan limits before creating styled map
-        plan_limit = api.plan.get_plan_limits(organization.plan)
-        if not plan_limit:
-            return
+            # Check plan limits before creating styled map
+            plan_limit = api.plan.get_plan_limits(organization.plan)
+            current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+            current_styled_map_count = len(current_styled_maps) + 1
+            if current_styled_map_count > plan_limit.maxStyledMaps:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot create new map. Your plan allows up to {} maps, "
+                        "but you have reached the limit."
+                    ).format(plan_limit.maxStyledMaps),
+                )
+                return
 
-        current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
-        current_styled_map_count = len(current_styled_maps) + 1
-        if current_styled_map_count > plan_limit.maxStyledMaps:
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr(
-                    "Cannot create new map. Your plan allows up to {} maps, "
-                    "but you have reached the limit."
-                ).format(plan_limit.maxStyledMaps),
+            # ダイアログ作成
+            dialog = QDialog()
+            dialog.setWindowTitle(self.tr("Add Map"))
+
+            # レイアウト作成
+            layout = QVBoxLayout()
+            form_layout = QFormLayout()
+
+            # フィールド作成（タイトルのみ編集可）
+            name_field = QLineEdit()
+            is_public_field = QCheckBox(self.tr("Make Public"))
+
+            # フォームにフィールドを追加
+            form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(self.tr("Public:"), is_public_field)
+
+            # ボタン作成
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box.accepted.connect(dialog.accept)
+            button_box.rejected.connect(dialog.reject)
+
+            # ダイアログにレイアウトを追加
+            layout.addLayout(form_layout)
+            layout.addWidget(button_box)
+            dialog.setLayout(layout)
+
+            # ダイアログ表示
+            result = dialog.exec_()
+
+            if not result:
+                return
+
+            # 値を取得（タイトルと公開設定のみ）
+            name = name_field.text()
+
+            if not name:
+                return
+
+            # QGISプロジェクト情報はバックグラウンドで取得
+            qgisproject = get_qgisproject_str()
+
+            # スタイルマップ作成
+            new_styled_map = api.project_styledmap.add_styled_map(
+                project_id,
+                api.project_styledmap.AddStyledMapOptions(
+                    name=name,
+                    qgisproject=qgisproject,
+                ),
             )
-            return
 
-        # ダイアログ作成
-        dialog = QDialog()
-        dialog.setWindowTitle(self.tr("Add Map"))
+            if not new_styled_map:
+                # エラーメッセージを表示
+                QMessageBox.critical(
+                    None, self.tr("Error"), self.tr("Failed to create the map.")
+                )
+                return
 
-        # レイアウト作成
-        layout = QVBoxLayout()
-        form_layout = QFormLayout()
-
-        # フィールド作成（タイトルのみ編集可）
-        name_field = QLineEdit()
-        is_public_field = QCheckBox(self.tr("Make Public"))
-
-        # フォームにフィールドを追加
-        form_layout.addRow(self.tr("Name:"), name_field)
-        form_layout.addRow(self.tr("Public:"), is_public_field)
-
-        # ボタン作成
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
-
-        # ダイアログにレイアウトを追加
-        layout.addLayout(form_layout)
-        layout.addWidget(button_box)
-        dialog.setLayout(layout)
-
-        # ダイアログ表示
-        result = dialog.exec_()
-
-        if not result:
-            return
-
-        # 値を取得（タイトルと公開設定のみ）
-        name = name_field.text()
-
-        if not name:
-            return
-
-        # QGISプロジェクト情報はバックグラウンドで取得
-        qgisproject = get_qgisproject_str()
-
-        # スタイルマップ作成
-        new_styled_map = api.project_styledmap.add_styled_map(
-            project_id,
-            AddStyledMapOptions(
-                name=name,
-                qgisproject=qgisproject,
-            ),
-        )
-
-        if not new_styled_map:
-            # エラーメッセージを表示
-            QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Failed to create the map.")
+            # 上書き保存して新しいスタイルマップを表示
+            self.refresh()
+            iface.messageBar().pushSuccess(
+                self.tr("Success"),
+                self.tr("Map '{}' has been created successfully.").format(name),
             )
-            return
-
-        # 上書き保存して新しいスタイルマップを表示
-        self.refresh()
-        iface.messageBar().pushSuccess(
-            self.tr("Success"),
-            self.tr("Map '{}' has been created successfully.").format(name),
-        )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error adding map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                None, self.tr("Error"), self.tr("Error adding map: {}").format(str(e))
+            )
 
     def createChildren(self):
         """子アイテムを作成する"""

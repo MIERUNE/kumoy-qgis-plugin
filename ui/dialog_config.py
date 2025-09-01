@@ -16,7 +16,6 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ..settings_manager import get_settings, store_setting
-from ..strato.api import config
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 

@@ -18,9 +18,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
-from ..strato.api import organization, project
-from ..strato.api.organization import Organization
-from ..strato.api.project import Project
+from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 
 QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
@@ -108,7 +106,7 @@ class ProjectSelectDialog(QDialog):
             self.org_combo.clear()
 
             # Get organizations
-            organizations = organization.get_organizations()
+            organizations = api.organization.get_organizations()
 
             if not organizations:
                 QgsMessageLog.logMessage(
@@ -138,14 +136,14 @@ class ProjectSelectDialog(QDialog):
         # Load projects for this organization
         self.load_projects(org_data)
 
-    def load_projects(self, org: Organization):
+    def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
         try:
             # Clear existing items
             self.project_tree.clear()
 
             # Get projects
-            projects = project.get_projects_by_organization(org.id)
+            projects = api.project.get_projects_by_organization(org.id)
 
             if not projects:
                 QgsMessageLog.logMessage(
@@ -189,13 +187,13 @@ class ProjectSelectDialog(QDialog):
         """Refresh all data"""
         self.load_organizations()
 
-    def get_selected_project(self) -> Optional[Project]:
+    def get_selected_project(self) -> Optional[api.project.Project]:
         """Get the selected project"""
         return self.selected_project
 
     def get_selected_organization(
         self,
-    ) -> Optional[Organization]:
+    ) -> Optional[api.organization.Organization]:
         """Get the selected organization"""
         org_index = self.org_combo.currentIndex()
         return self.org_combo.itemData(org_index) if org_index >= 0 else None

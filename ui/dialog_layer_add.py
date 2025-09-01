@@ -14,8 +14,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..imgs import IMGS_PATH
-from ..strato.api import layer
-from ..strato.api.layer import Layer
+from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 
 
@@ -68,7 +67,7 @@ class LayerAddDialog(QDialog):
             self.layer_list.clear()
 
             # Get layers from API
-            layers = layer.get_layers_by_project(self.project_id)
+            layers = api.layer.get_layers_by_project(self.project_id)
 
             if not layers:
                 QgsMessageLog.logMessage(
@@ -100,11 +99,11 @@ class LayerAddDialog(QDialog):
 
         super().accept()
 
-    def get_selected_layers(self) -> List[Layer]:
+    def get_selected_layers(self) -> List[api.layer.Layer]:
         """Get the selected layers"""
         return self.selected_layers
 
-    def add_layers_to_qgis(self, layers: List[Layer]):
+    def add_layers_to_qgis(self, layers: List[api.layer.Layer]):
         """Add the selected layers to QGIS"""
         # This is a placeholder implementation
         # In a real implementation, you would add the layers to QGIS based on their type and source
