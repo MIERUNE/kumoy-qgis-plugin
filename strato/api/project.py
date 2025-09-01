@@ -8,9 +8,10 @@ from .client import ApiClient
 class Project:
     id: str
     name: str
-    organizationId: str = ""
     createdAt: str = ""
     updatedAt: str = ""
+    vectorCount: int = 0
+    mapCount: int = 0
 
 
 def get_projects_by_organization(organization_id: str) -> List[Project]:
@@ -30,9 +31,10 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
             Project(
                 id=project.get("id", ""),
                 name=project.get("name", ""),
-                organizationId=organization_id,
                 createdAt=project.get("createdAt", ""),
                 updatedAt=project.get("updatedAt", ""),
+                vectorCount=project.get("vectorCount", 0),
+                mapCount=project.get("mapCount", 0),
             )
         )
 
@@ -51,14 +53,9 @@ def get_project(project_id: str) -> Project:
     """
     response = ApiClient.get(f"/project/{project_id}")
 
-    # Extract organization ID from nested organization object
-    organization = response.get("organization", {})
-    organization_id = organization.get("id", "") if organization else ""
-
     return Project(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        organizationId=organization_id,
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
@@ -87,7 +84,6 @@ def create_project(organization_id: str, name: str) -> Project:
     return Project(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        organizationId=response.get("organizationId", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
@@ -115,7 +111,6 @@ def update_project(project_id: str, name: str) -> Project:
     return Project(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        organizationId=response.get("organizationId", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
