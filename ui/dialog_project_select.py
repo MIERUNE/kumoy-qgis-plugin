@@ -9,7 +9,9 @@ from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -63,8 +65,18 @@ class ProjectSelectDialog(QDialog):
         org_layout.addWidget(self.org_combo)
         layout.addLayout(org_layout)
 
+        # Project section with new project button
+        project_header_layout = QHBoxLayout()
+        project_header_layout.addWidget(QLabel("Projects:"))
+        project_header_layout.addStretch()
+
+        # New project button
+        self.new_project_button = QPushButton("New Project")
+        self.new_project_button.clicked.connect(self.create_new_project)
+        project_header_layout.addWidget(self.new_project_button)
+        layout.addLayout(project_header_layout)
+
         # Project tree
-        layout.addWidget(QLabel("Projects:"))
         self.project_tree = QTreeWidget()
         self.project_tree.setHeaderHidden(True)
         self.project_tree.itemSelectionChanged.connect(self.on_project_selected)
@@ -139,14 +151,6 @@ class ProjectSelectDialog(QDialog):
             # Get projects
             projects = api.project.get_projects_by_organization(org.id)
 
-            if not projects:
-                QgsMessageLog.logMessage(
-                    f"No projects available for organization {org.name}",
-                    LOG_CATEGORY,
-                    Qgis.Warning,
-                )
-                return
-
             # Add projects to tree
             for project_item in projects:
                 tree_item = QTreeWidgetItem(self.project_tree)
@@ -179,7 +183,10 @@ class ProjectSelectDialog(QDialog):
 
     def refresh(self):
         """Refresh all data"""
-        self.load_organizations()
+        # Reload projects for current organization if one is selected
+        org = self.get_selected_organization()
+        if org:
+            self.load_projects(org)
 
     def get_selected_project(self) -> Optional[api.project.Project]:
         """Get the selected project"""
@@ -239,3 +246,64 @@ class ProjectSelectDialog(QDialog):
             QgsMessageLog.logMessage(
                 f"Error loading saved selection: {str(e)}", LOG_CATEGORY, Qgis.Warning
             )
+
+    def create_new_project(self):
+        """Create a new project in the selected organization"""
+        # Get selected organization
+        org = self.get_selected_organization()
+        if not org:
+            QMessageBox.warning(
+                self, "No Organization Selected", "Please select an organization first."
+            )
+            return
+
+        # Get project name from user
+        project_name, ok = QInputDialog.getText(
+            self, "New Project", f"Enter project name for organization '{org.name}':"
+        )
+
+        if not ok or not project_name:
+            return
+
+        try:
+            # Create the project
+            new_project = api.project.create_project(
+                organization_id=org.id,
+                name=project_name,
+            )
+
+            if new_project:
+                QgsMessageLog.logMessage(
+                    f"Successfully created project '{project_name}'",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # Reload projects to show the new one
+                self.refresh()
+
+                # Select the new project
+                for i in range(self.project_tree.topLevelItemCount()):
+                    item = self.project_tree.topLevelItem(i)
+                    project_item = item.data(0, QT_USER_ROLE)
+                    if project_item and project_item.id == new_project.id:
+                        item.setSelected(True)
+                        break
+
+                QMessageBox.information(
+                    self,
+                    "Project Created",
+                    f"Project '{project_name}' has been created successfully.",
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Creation Failed",
+                    "Failed to create the project. Please try again.",
+                )
+
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error creating project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(self, "Error", f"Failed to create project: {str(e)}")

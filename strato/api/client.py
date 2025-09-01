@@ -56,7 +56,7 @@ class ApiClient:
 
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.get(req)
+        err = blocking_request.get(req, forceRefresh=True)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
             api_error.raise_error(content)
