@@ -84,4 +84,4 @@ def raise_error(error: dict):
     elif message == "Conflict":
         raise ConflictError(message, error.get("error", ""))
     else:
-        raise Exception(message)
+        raise Exception(error)
