@@ -1,8 +1,10 @@
 import os
+from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtGui import QFont, QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -10,11 +12,12 @@ from qgis.PyQt.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QTreeWidget,
-    QTreeWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..imgs import IMGS_PATH
@@ -22,6 +25,90 @@ from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
+
+
+class ProjectItemWidget(QWidget):
+    """Custom widget for displaying project information in a card-like layout"""
+
+    def __init__(self, project, project_icon):
+        super().__init__()
+        self.project = project
+        self.setMinimumHeight(80)
+        self.setup_ui(project_icon)
+
+    def setup_ui(self, project_icon):
+        """Set up the project item UI"""
+        main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Thumbnail placeholder
+        thumbnail_label = QLabel()
+        pixmap = project_icon.pixmap(QSize(60, 60))
+        thumbnail_label.setPixmap(pixmap)
+        thumbnail_label.setFixedSize(60, 60)
+        thumbnail_label.setScaledContents(True)
+        thumbnail_label.setStyleSheet("""
+            QLabel {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 2px;
+                background-color: #f8f8f8;
+            }
+        """)
+        main_layout.addWidget(thumbnail_label)
+
+        # Project info layout
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(4)
+
+        # Project name
+        name_label = QLabel(self.project.name)
+        name_font = QFont()
+        name_font.setPointSize(12)
+        name_font.setBold(True)
+        name_label.setFont(name_font)
+        name_label.setStyleSheet("color: #333;")
+        info_layout.addWidget(name_label)
+
+        # Vector and Map counts
+        counts_label = QLabel(
+            f"Vectors: {self.project.vectorCount}  |  Maps: {self.project.mapCount}"
+        )
+        counts_label.setStyleSheet("color: #666; font-size: 11px;")
+        info_layout.addWidget(counts_label)
+
+        # Last updated
+        updated_text = self._format_date(self.project.updatedAt)
+        updated_label = QLabel(f"Last updated: {updated_text}")
+        updated_label.setStyleSheet("color: #999; font-size: 10px;")
+        info_layout.addWidget(updated_label)
+
+        info_layout.addStretch()
+        main_layout.addLayout(info_layout)
+        main_layout.addStretch()
+
+        self.setLayout(main_layout)
+
+        # Add hover effect
+        self.setStyleSheet("""
+            ProjectItemWidget {
+                background-color: white;
+                border-radius: 4px;
+            }
+            ProjectItemWidget:hover {
+                background-color: #f0f8ff;
+            }
+        """)
+
+    def _format_date(self, date_string: str) -> str:
+        """Format ISO date string to readable format"""
+        if not date_string:
+            return "Never"
+        try:
+            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, AttributeError):
+            return date_string
 
 
 class ProjectSelectDialog(QDialog):
@@ -59,11 +146,33 @@ class ProjectSelectDialog(QDialog):
         project_header_layout.addWidget(self.new_project_button)
         layout.addLayout(project_header_layout)
 
-        # Project tree
-        self.project_tree = QTreeWidget()
-        self.project_tree.setHeaderHidden(True)
-        self.project_tree.itemSelectionChanged.connect(self.on_project_selected)
-        layout.addWidget(self.project_tree)
+        # Project list with custom items
+        self.project_list = QListWidget()
+        self.project_list.setSpacing(4)
+        self.project_list.setStyleSheet("""
+            QListWidget {
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QListWidget::item {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                border: 1px solid #2196F3;
+            }
+            QListWidget::item:hover {
+                background-color: #f0f8ff;
+                border: 1px solid #b0d4ff;
+            }
+        """)
+        self.project_list.itemSelectionChanged.connect(self.on_project_selected)
+        layout.addWidget(self.project_list)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -100,22 +209,30 @@ class ProjectSelectDialog(QDialog):
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
         try:
-            self.project_tree.clear()
+            self.project_list.clear()
             projects = api.project.get_projects_by_organization(org.id)
+
             for project_item in projects:
-                tree_item = QTreeWidgetItem(self.project_tree)
-                tree_item.setText(0, project_item.name)
-                tree_item.setIcon(0, self.project_icon)
-                tree_item.setData(0, QT_USER_ROLE, project_item)
-            self.project_tree.expandAll()
+                # Create custom widget
+                item_widget = ProjectItemWidget(project_item, self.project_icon)
+
+                # Create list item
+                list_item = QListWidgetItem(self.project_list)
+                list_item.setSizeHint(item_widget.sizeHint())
+                list_item.setData(QT_USER_ROLE, project_item)
+
+                # Set the custom widget
+                self.project_list.addItem(list_item)
+                self.project_list.setItemWidget(list_item, item_widget)
+
         except Exception as e:
             self._log_error("Error loading projects", e)
 
     def on_project_selected(self):
         """Handle project selection"""
-        selected_items = self.project_tree.selectedItems()
+        current_item = self.project_list.currentItem()
         self.selected_project = (
-            selected_items[0].data(0, QT_USER_ROLE) if selected_items else None
+            current_item.data(QT_USER_ROLE) if current_item else None
         )
         self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(
             bool(self.selected_project)
@@ -203,11 +320,15 @@ class ProjectSelectDialog(QDialog):
                 break
 
     def _select_project_by_id(self, project_id: str):
-        """Select project by ID in tree"""
-        for i in range(self.project_tree.topLevelItemCount()):
-            item = self.project_tree.topLevelItem(i)
-            if (project := item.data(0, QT_USER_ROLE)) and project.id == project_id:
-                item.setSelected(True)
+        """Select project by ID in list"""
+        for i in range(self.project_list.count()):
+            item = self.project_list.item(i)
+            if (
+                item
+                and (project := item.data(QT_USER_ROLE))
+                and project.id == project_id
+            ):
+                self.project_list.setCurrentItem(item)
                 break
 
     def _log_error(self, message: str, error: Exception, show_dialog: bool = False):
