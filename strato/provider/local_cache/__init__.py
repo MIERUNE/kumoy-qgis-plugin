@@ -222,7 +222,7 @@ def sync_local_cache(
             # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
             updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
         except api.error.AppError as e:
-            if e.message == "MAX_DIFF_COUNT_EXCEEDED":
+            if e.error == "MAX_DIFF_COUNT_EXCEEDED":
                 # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
                 QgsMessageLog.logMessage(
                     f"Diff for vector {vector_id} is too large, recreating cache file.",
@@ -233,6 +233,8 @@ def sync_local_cache(
                 updated_at = _create_new_cache(
                     cache_file, vector_id, fields, geometry_type
                 )
+            else:
+                raise e
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
