@@ -144,13 +144,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Algorithm display name"""
         return self.tr("Upload Vector Layer to STRATO")
 
-    def group(self) -> str:
-        """Algorithm group"""
-        return self.tr("Tools")
+    def group(self):
+        return None
 
-    def groupId(self) -> str:
-        """Algorithm group ID"""
-        return "Tools"
+    def groupId(self):
+        return None
 
     def shortHelpString(self) -> str:
         """Short help string"""
@@ -353,22 +351,25 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             return {"VECTOR_ID": vector.id}
 
-        except Exception:
+        except Exception as e:
             # If vector was created but upload failed, delete it
             if vector is not None:
-                if api.project_vector.delete_vector(project_id, vector.id):
+                try:
+                    api.project_vector.delete_vector(project_id, vector.id)
                     feedback.pushInfo(
                         self.tr(
                             "Cleaned up incomplete vector layer due to upload failure"
                         )
                     )
-                else:
+                except Exception as cleanup_error:
                     feedback.reportError(
-                        self.tr("Failed to clean up incomplete vector layer")
+                        self.tr(
+                            "Failed to clean up incomplete vector layer: {}"
+                        ).format(str(cleanup_error))
                     )
 
             # Re-raise the original exception
-            raise
+            raise e
 
     def _process_layer_geometry(
         self,
@@ -625,11 +626,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         for f in valid_fields_layer.getFeatures():
             if len(cur_features) >= batch_size:
-                result = api.qgis_vector.add_features(vector_id, cur_features)
-                if not result:
-                    raise QgsProcessingException(
-                        self.tr("Failed to upload features to STRATO")
-                    )
+                api.qgis_vector.add_features(vector_id, cur_features)
+
                 accumulated_features += len(cur_features)
                 feedback.pushInfo(
                     self.tr("Upload complete: {} / {} features").format(
@@ -647,11 +645,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Upload remaining features
         if cur_features:
-            result = api.qgis_vector.add_features(vector_id, cur_features)
-            if not result:
-                raise QgsProcessingException(
-                    self.tr("Failed to upload features to STRATO")
-                )
+            api.qgis_vector.add_features(vector_id, cur_features)
             accumulated_features += len(cur_features)
             feedback.pushInfo(
                 self.tr("Upload complete: {} / {} features").format(

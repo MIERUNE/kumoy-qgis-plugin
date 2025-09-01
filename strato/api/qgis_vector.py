@@ -40,7 +40,7 @@ def get_features(
 def add_features(
     vector_id: str,
     features: List[QgsFeature],
-) -> bool:
+):
     """
     Add features to a vector layer
     """
@@ -73,7 +73,7 @@ def add_features(
 def delete_features(
     vector_id: str,
     strato_ids: List[int],
-) -> bool:
+):
     """
     Delete features from a vector layer
     """
@@ -85,7 +85,7 @@ def delete_features(
 def change_attribute_values(
     vector_id: str,
     attribute_items: List[Dict],
-) -> bool:
+):
     """
     Change attribute values of a feature in a vector layer
     """
@@ -98,7 +98,7 @@ def change_attribute_values(
 def change_geometry_values(
     vector_id: str,
     geometry_items: List[Dict],
-) -> bool:
+):
     """
     Change geometry values of a feature in a vector layer
     """
@@ -119,7 +119,7 @@ def change_geometry_values(
 def update_columns(
     vector_id: str,
     columns: dict,
-) -> bool:
+):
     """
     Update column types in a vector layer
 
@@ -133,7 +133,7 @@ def update_columns(
 def add_attributes(
     vector_id: str,
     attributes: dict,
-) -> bool:
+):
     """
     Add new attributes to a vector layer
 
@@ -149,7 +149,7 @@ def add_attributes(
 def delete_attributes(
     vector_id: str,
     attribute_names: List[str],
-) -> bool:
+):
     """
     Delete attributes from a vector layer
 
@@ -166,7 +166,7 @@ def delete_attributes(
 def rename_attributes(
     vector_id: str,
     attribute_map: dict,
-) -> bool:
+):
     """
     Rename attributes in a vector layer
 
