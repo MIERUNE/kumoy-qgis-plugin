@@ -263,8 +263,9 @@ class StratoDataProvider(QgsVectorDataProvider):
         # Process in chunks of 1000 to avoid server limits
         for i in range(0, len(strato_ids), DELETE_MAX_FEATURE_COUNT):
             chunk = strato_ids[i : i + DELETE_MAX_FEATURE_COUNT]
-            success = api.qgis_vector.delete_features(self.strato_vector.id, chunk)
-            if not success:
+            try:
+                api.qgis_vector.delete_features(self.strato_vector.id, chunk)
+            except Exception:
                 return False
         self._reload_vector()
         return True
@@ -285,8 +286,9 @@ class StratoDataProvider(QgsVectorDataProvider):
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
         for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
-            succeeded = api.qgis_vector.add_features(self.strato_vector.id, sliced)
-            if not succeeded:
+            try:
+                api.qgis_vector.add_features(self.strato_vector.id, sliced)
+            except Exception:
                 return False, candidates[0:i]
 
         # reload
@@ -318,9 +320,12 @@ class StratoDataProvider(QgsVectorDataProvider):
         total_items = len(attribute_items)
         for i in range(0, total_items, UPDATE_MAX_FEATURE_COUNT):
             chunk = attribute_items[i : i + UPDATE_MAX_FEATURE_COUNT]
-            api.qgis_vector.change_attribute_values(
-                vector_id=self.strato_vector.id, attribute_items=chunk
-            )
+            try:
+                api.qgis_vector.change_attribute_values(
+                    vector_id=self.strato_vector.id, attribute_items=chunk
+                )
+            except Exception:
+                return False
 
         self._reload_vector()
         return True
@@ -334,9 +339,12 @@ class StratoDataProvider(QgsVectorDataProvider):
         # Process in chunks of 1000 to avoid server limits
         for i in range(0, len(geometry_items), UPDATE_MAX_FEATURE_COUNT):
             chunk = geometry_items[i : i + UPDATE_MAX_FEATURE_COUNT]
-            api.qgis_vector.change_geometry_values(
-                vector_id=self.strato_vector.id, geometry_items=chunk
-            )
+            try:
+                api.qgis_vector.change_geometry_values(
+                    vector_id=self.strato_vector.id, geometry_items=chunk
+                )
+            except Exception:
+                return False
 
         self._reload_vector()
         return True
@@ -358,22 +366,27 @@ class StratoDataProvider(QgsVectorDataProvider):
             attr_dict[column_name] = field_type
 
         # Call the API to add attributes
-        success = api.qgis_vector.add_attributes(
-            vector_id=self.strato_vector.id, attributes=attr_dict
-        )
-        if success:
+        try:
+            api.qgis_vector.add_attributes(
+                vector_id=self.strato_vector.id, attributes=attr_dict
+            )
+        except Exception:
             self._reload_vector()
-        return success
+            return False
+
+        return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
         # Convert field indices to field names
         attribute_names = [self.fields().field(idx).name() for idx in attribute_ids]
 
         # Call the API to delete attributes
-        success = api.qgis_vector.delete_attributes(
-            vector_id=self.strato_vector.id, attribute_names=attribute_names
-        )
-
-        if success:
+        try:
+            api.qgis_vector.delete_attributes(
+                vector_id=self.strato_vector.id, attribute_names=attribute_names
+            )
+        except Exception:
             self._reload_vector()
-        return success
+            return False
+
+        return True

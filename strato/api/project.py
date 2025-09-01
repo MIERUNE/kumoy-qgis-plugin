@@ -64,14 +64,13 @@ def get_project(project_id: str) -> Project:
     )
 
 
-def create_project(organization_id: str, name: str, description: str = "") -> Project:
+def create_project(organization_id: str, name: str) -> Project:
     """
     Create a new project
 
     Args:
         organization_id: Organization ID
         name: Project name
-        description: Project description
 
     Returns:
         Project object or None if creation failed
@@ -81,7 +80,6 @@ def create_project(organization_id: str, name: str, description: str = "") -> Pr
         "/project",
         {
             "name": name,
-            "description": description,
             "organizationId": organization_id,
         },
     )
@@ -95,14 +93,13 @@ def create_project(organization_id: str, name: str, description: str = "") -> Pr
     )
 
 
-def update_project(project_id: str, name: str, description: str = "") -> Project:
+def update_project(project_id: str, name: str) -> Project:
     """
     Update an existing project
 
     Args:
         project_id: Project ID
         name: New project name
-        description: New project description
 
     Returns:
         Updated Project object or None if update failed
@@ -112,7 +109,6 @@ def update_project(project_id: str, name: str, description: str = "") -> Project
         f"/project/{project_id}",
         {
             "name": name,
-            "description": description,
         },
     )
 
