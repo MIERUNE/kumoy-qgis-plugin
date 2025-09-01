@@ -52,7 +52,7 @@ class ConflictError(Exception):
         super().__init__(message)
 
 
-def handle_error(error: dict):
+def raise_error(error: dict):
     """
     APIのエラーレスポンスを受け取り、適切な例外を発生させる
 
