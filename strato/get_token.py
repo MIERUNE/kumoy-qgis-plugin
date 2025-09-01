@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
-from settings_manager import SettingsManager
+from settings_manager import get_settings, store_setting
 
 from .api.auth import refresh_token
 
@@ -42,26 +42,20 @@ def save_token_to_cache(auth_response: Dict) -> None:
         auth_response: Authentication response containing tokens
     """
     try:
-        settings_manager = SettingsManager()
-
         # Save id token
         if "id_token" in auth_response:
-            settings_manager.store_setting("id_token", auth_response["id_token"])
+            store_setting("id_token", auth_response["id_token"])
 
         # Save refresh token if available
         if "refresh_token" in auth_response:
-            settings_manager.store_setting(
-                "refresh_token", auth_response["refresh_token"]
-            )
+            store_setting("refresh_token", auth_response["refresh_token"])
 
         # Calculate and save expiration time
         if "expires_in" in auth_response:
             # Convert expires_in (seconds) to timestamp
             expires_at = datetime.now().timestamp() + int(auth_response["expires_in"])
             expiration_datetime = datetime.fromtimestamp(expires_at)
-            settings_manager.store_setting(
-                "token_expires_at", expiration_datetime.isoformat()
-            )
+            store_setting("token_expires_at", expiration_datetime.isoformat())
     except Exception as e:
         print(f"Error saving token to cache: {str(e)}")
 
@@ -73,18 +67,16 @@ def get_token() -> Optional[str]:
     Returns:
         str: Authentication token or None if authentication fails
     """
-    settings_manager = SettingsManager()
-
     # Try to get token from cache first
-    cached_token = settings_manager.get_setting("id_token")
-    token_expires_at = settings_manager.get_setting("token_expires_at")
+    cached_token = get_settings().id_token
+    token_expires_at = get_settings().token_expires_at
 
     # If we have a valid cached token, use it
     if cached_token and is_token_valid(token_expires_at):
         return cached_token
 
     # Try to refresh the token if we have a refresh token
-    cached_refresh_token = settings_manager.get_setting("refresh_token")
+    cached_refresh_token = get_settings().refresh_token
     if cached_refresh_token:
         try:
             print("Attempting to refresh token...")

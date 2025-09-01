@@ -13,7 +13,7 @@ from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
-from ..settings_manager import SettingsManager
+from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
 from ..ui.dialog_config import DialogConfig
@@ -103,8 +103,7 @@ class RootCollection(QgsDataCollectionItem):
         """Select a project to display"""
         try:
             # Check if user is logged in
-            settings = SettingsManager()
-            id_token = settings.get_setting("id_token")
+            id_token = get_settings().id_token
 
             if not id_token:
                 QMessageBox.warning(
@@ -143,12 +142,11 @@ class RootCollection(QgsDataCollectionItem):
         """Logout from STRATO"""
         try:
             # Clear tokens and selected project
-            settings_manager = SettingsManager()
-            settings_manager.store_setting("id_token", "")
-            settings_manager.store_setting("refresh_token", "")
-            settings_manager.store_setting("user_info", "")
-            settings_manager.store_setting("selected_project_id", "")
-            settings_manager.store_setting("selected_organization_id", "")
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
+            store_setting("selected_organization_id", "")
 
             # Reset browser name
             self.setName(PLUGIN_NAME)
@@ -167,15 +165,14 @@ class RootCollection(QgsDataCollectionItem):
         """Update the browser name to include the project name"""
         try:
             # Check if user is logged in
-            settings = SettingsManager()
-            id_token = settings.get_setting("id_token")
+            id_token = get_settings().id_token
             if not id_token:
                 self.setName(PLUGIN_NAME)
                 return
 
             # Get selected organization and project ID
-            organization_id = settings.get_setting("selected_organization_id")
-            project_id = settings.get_setting("selected_project_id")
+            organization_id = get_settings().selected_organization_id
+            project_id = get_settings().selected_project_id
             if not project_id:
                 self.setName(PLUGIN_NAME)
                 return
@@ -202,15 +199,14 @@ class RootCollection(QgsDataCollectionItem):
         """Create child items for the root collection"""
         try:
             # Check if user is logged in
-            settings = SettingsManager()
-            id_token = settings.get_setting("id_token")
+            id_token = get_settings().id_token
 
             if not id_token:
                 return [ErrorItem(self, self.tr("Not Logged In"))]
 
             # Get selected organization and project ID
-            organization_id = settings.get_setting("selected_organization_id")
-            project_id = settings.get_setting("selected_project_id")
+            organization_id = get_settings().selected_organization_id
+            project_id = get_settings().selected_project_id
 
             if not project_id:
                 return [

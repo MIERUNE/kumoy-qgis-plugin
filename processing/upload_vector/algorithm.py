@@ -22,7 +22,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import processing
 
-from ...settings_manager import SettingsManager
+from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
 from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
@@ -204,8 +204,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self.project_map = dict(zip(project_options, project_ids))
 
         default_project_index = 0
-        settings = SettingsManager()
-        selected_project_id = settings.get_setting("selected_project_id")
+        selected_project_id = get_settings().selected_project_id
         if selected_project_id and self.project_map:
             # Find the index for the selected project ID
             for idx, (_, pid) in enumerate(self.project_map.items()):

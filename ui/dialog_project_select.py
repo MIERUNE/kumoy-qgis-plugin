@@ -17,7 +17,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..imgs import IMGS_PATH
-from ..settings_manager import SettingsManager
+from ..settings_manager import get_settings, store_setting
 from ..strato.api import organization, project
 from ..strato.api.organization import Organization
 from ..strato.api.project import Project
@@ -216,16 +216,14 @@ class ProjectSelectDialog(QDialog):
         if not org:
             return
 
-        settings = SettingsManager()
-        settings.store_setting("selected_organization_id", org.id)
-        settings.store_setting("selected_project_id", self.selected_project.id)
+        store_setting("selected_organization_id", org.id)
+        store_setting("selected_project_id", self.selected_project.id)
 
     def load_saved_selection(self):
         """Load previously saved selection"""
         try:
-            settings = SettingsManager()
-            org_id = settings.get_setting("selected_organization_id")
-            project_id = settings.get_setting("selected_project_id")
+            org_id = get_settings().selected_organization_id
+            project_id = get_settings().selected_project_id
 
             if not org_id or not project_id:
                 return
