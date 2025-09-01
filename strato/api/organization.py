@@ -38,7 +38,7 @@ def get_organizations() -> List[Organization]:
     return organizations
 
 
-def get_organization(organization_id: str) -> Optional[Organization]:
+def get_organization(organization_id: str) -> Organization:
     """
     Get details for a specific organization
 
@@ -60,7 +60,7 @@ def get_organization(organization_id: str) -> Optional[Organization]:
     )
 
 
-def create_organization(name: str) -> Optional[Organization]:
+def create_organization(name: str) -> Organization:
     """
     Create a new organization
 
@@ -82,7 +82,7 @@ def create_organization(name: str) -> Optional[Organization]:
     )
 
 
-def update_organization(organization_id: str, name: str) -> Optional[Organization]:
+def update_organization(organization_id: str, name: str) -> Organization:
     """
     Update an existing organization
 
@@ -106,7 +106,7 @@ def update_organization(organization_id: str, name: str) -> Optional[Organizatio
     )
 
 
-def delete_organization(organization_id: str) -> bool:
+def delete_organization(organization_id: str):
     """
     Delete an organization
 

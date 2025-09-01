@@ -17,7 +17,7 @@ class PlanLimits:
 PlanType = Literal["FREE", "OPERATOR", "TEAM", "CUSTOM"]
 
 
-def get_plan_limits(plan: PlanType) -> Optional[PlanLimits]:
+def get_plan_limits(plan: PlanType) -> PlanLimits:
     """
     Get plan limits for a specific plan type
 

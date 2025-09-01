@@ -44,7 +44,7 @@ def get_layers_by_project(project_id: str) -> List[Layer]:
     return layers
 
 
-def get_layer(layer_id: str) -> Optional[Layer]:
+def get_layer(layer_id: str) -> Layer:
     """
     Get details for a specific layer
 
@@ -68,7 +68,7 @@ def get_layer(layer_id: str) -> Optional[Layer]:
 
 def create_layer(
     project_id: str, name: str, layer_type: str, source: str = ""
-) -> Optional[Layer]:
+) -> Layer:
     """
     Create a new layer
 
@@ -103,7 +103,7 @@ def create_layer(
 
 def update_layer(
     layer_id: str, name: str, layer_type: str = "", source: str = ""
-) -> Optional[Layer]:
+) -> Layer:
     """
     Update an existing layer
 
@@ -140,7 +140,7 @@ def update_layer(
     )
 
 
-def delete_layer(layer_id: str) -> bool:
+def delete_layer(layer_id: str):
     """
     Delete a layer
 

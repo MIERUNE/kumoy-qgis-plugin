@@ -39,7 +39,7 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
     return projects
 
 
-def get_project(project_id: str) -> Optional[Project]:
+def get_project(project_id: str) -> Project:
     """
     Get details for a specific project
 
@@ -64,9 +64,7 @@ def get_project(project_id: str) -> Optional[Project]:
     )
 
 
-def create_project(
-    organization_id: str, name: str, description: str = ""
-) -> Optional[Project]:
+def create_project(organization_id: str, name: str, description: str = "") -> Project:
     """
     Create a new project
 
@@ -97,9 +95,7 @@ def create_project(
     )
 
 
-def update_project(
-    project_id: str, name: str, description: str = ""
-) -> Optional[Project]:
+def update_project(project_id: str, name: str, description: str = "") -> Project:
     """
     Update an existing project
 
@@ -129,7 +125,7 @@ def update_project(
     )
 
 
-def delete_project(project_id: str) -> bool:
+def delete_project(project_id: str):
     """
     Delete a project
 

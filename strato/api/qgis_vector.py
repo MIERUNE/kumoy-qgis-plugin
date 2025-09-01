@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 from qgis.core import QgsFeature
 from qgis.PyQt.QtCore import QVariant
 
-from ..provider.local_cache import MaxDiffCountExceededError
 from .client import ApiClient
 
 
@@ -188,9 +187,6 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
     Args:
         vector_id: The ID of the vector layer.
         last_updated_at: The last updated time in ISO format.
-
-    Raises:
-        MaxDiffCountExceededError: If the diff exceeds the maximum allowed size.
 
     Returns:
         A list of features that have changed since the last updated time.

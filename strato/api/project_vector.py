@@ -35,11 +35,6 @@ def get_vectors(project_id: str) -> List[StratoVector]:
         List of StratoVector objects
     """
     response = ApiClient.get(f"/project/{project_id}/vector")
-
-    if response.get("error"):
-        print(f"Error fetching vectors for project {project_id}: {response['error']}")
-        return []
-
     vectors = []
     for vector_data in response:
         vectors.append(
@@ -55,7 +50,7 @@ def get_vectors(project_id: str) -> List[StratoVector]:
     return vectors
 
 
-def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnValue]:
+def get_vector(project_id: str, vector_id: str) -> StratoVectorReturnValue:
     """
     Get details for a specific vector
 
@@ -67,14 +62,6 @@ def get_vector(project_id: str, vector_id: str) -> Optional[StratoVectorReturnVa
         StratoVectorReturnValue object or None if not found
     """
     response = ApiClient.get(f"/vector/{vector_id}")
-    if response.get("error"):
-        print(
-            f"Error fetching vector {vector_id} for project {project_id}: {response['error']}"
-        )
-        return None
-
-    if not response:
-        return None
 
     return StratoVectorReturnValue(
         id=response.get("id", ""),
@@ -97,9 +84,7 @@ class AddVectorOptions:
     type: Literal["POINT", "LINESTRING", "POLYGON"]
 
 
-def add_vector(
-    project_id: str, add_vector_options: AddVectorOptions
-) -> Optional[StratoVector]:
+def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> StratoVector:
     """
     Add a new vector to a project
 
@@ -124,7 +109,7 @@ def add_vector(
     )
 
 
-def delete_vector(vector_id: str) -> bool:
+def delete_vector(vector_id: str):
     """
     Delete a vector from a project
 
@@ -145,7 +130,7 @@ class UpdateVectorOptions:
 
 def update_vector(
     project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
-) -> Optional[StratoVector]:
+) -> StratoVector:
     """
     Update an existing vector
 

@@ -180,12 +180,10 @@ class RootCollection(QgsDataCollectionItem):
             # Get organization and project details
             organization_data = api.organization.get_organization(organization_id)
             project_data = api.project.get_project(project_id)
-            if project_data:
-                self.setName(
-                    f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
-                )
-            else:
-                self.setName(PLUGIN_NAME)
+
+            self.setName(
+                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
+            )
 
         except Exception as e:
             QgsMessageLog.logMessage(
