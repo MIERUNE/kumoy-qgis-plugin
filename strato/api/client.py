@@ -35,7 +35,7 @@ class ApiClient:
         """
         _api_config = api_config.get_api_config()
         # Build URL with query parameters if provided
-        url = f"{_api_config.API_URL}{endpoint}"
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
         if params:
             query_items = []
             for key, value in params.items():
@@ -75,7 +75,7 @@ class ApiClient:
             dict: {"content": dict, "error": None} or {"content": None, "error": str}
         """
         _api_config = api_config.get_api_config()
-        url = f"{_api_config.API_URL}{endpoint}"
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))
@@ -115,7 +115,7 @@ class ApiClient:
             dict: {"content": dict, "error": None} or {"content": None, "error": str}
         """
         _api_config = api_config.get_api_config()
-        url = f"{_api_config.API_URL}{endpoint}"
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))
@@ -154,7 +154,7 @@ class ApiClient:
             dict: {"content": dict, "error": None} or {"content": None, "error": str}
         """
         _api_config = api_config.get_api_config()
-        url = f"{_api_config.API_URL}{endpoint}"
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
         # Create request with authorization header
         req = QNetworkRequest(QUrl(url))

@@ -1,20 +1,20 @@
 from abc import ABC
 from dataclasses import dataclass
 
-from settings_manager import get_settings, store_setting
+from settings_manager import get_settings
 
 DEFAULT_COGNITO_URL: str = (
     "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
 )
 DEFAULT_COGNITO_CLIENT_ID: str = "4us5qd97e5f471pdq7kk44d63s"
-DEFAULT_API_URL: str = "https://d28cu1u5by4hv7.cloudfront.net/api"
+DEFAULT_SERVER_URL: str = "https://d28cu1u5by4hv7.cloudfront.net"
 
 
 @dataclass(frozen=True)
 class ApiConfig(ABC):
     COGNITO_URL: str
     COGNITO_CLIENT_ID: str
-    API_URL: str
+    SERVER_URL: str
 
 
 def get_api_config() -> ApiConfig:
@@ -33,12 +33,12 @@ def get_api_config() -> ApiConfig:
         return ApiConfig(
             COGNITO_URL=custom_cognito_url,
             COGNITO_CLIENT_ID=custom_cognito_client_id,
-            API_URL=custom_server_url,
+            SERVER_URL=custom_server_url,
         )
     else:
         # デフォルト値
         return ApiConfig(
             COGNITO_URL=DEFAULT_COGNITO_URL,
             COGNITO_CLIENT_ID=DEFAULT_COGNITO_CLIENT_ID,
-            API_URL=DEFAULT_API_URL,
+            SERVER_URL=DEFAULT_SERVER_URL,
         )
