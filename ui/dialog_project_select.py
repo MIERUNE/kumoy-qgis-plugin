@@ -4,7 +4,7 @@ from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtGui import QIcon, QFont
+from qgis.PyQt.QtGui import QFont, QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -29,18 +29,18 @@ from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
 
 class ProjectItemWidget(QWidget):
     """Custom widget for displaying project information in a card-like layout"""
-    
+
     def __init__(self, project, project_icon):
         super().__init__()
         self.project = project
         self.setMinimumHeight(80)
         self.setup_ui(project_icon)
-    
+
     def setup_ui(self, project_icon):
         """Set up the project item UI"""
         main_layout = QHBoxLayout()
         main_layout.setContentsMargins(10, 10, 10, 10)
-        
+
         # Thumbnail placeholder
         thumbnail_label = QLabel()
         pixmap = project_icon.pixmap(QSize(60, 60))
@@ -56,11 +56,11 @@ class ProjectItemWidget(QWidget):
             }
         """)
         main_layout.addWidget(thumbnail_label)
-        
+
         # Project info layout
         info_layout = QVBoxLayout()
         info_layout.setSpacing(4)
-        
+
         # Project name
         name_label = QLabel(self.project.name)
         name_font = QFont()
@@ -69,24 +69,26 @@ class ProjectItemWidget(QWidget):
         name_label.setFont(name_font)
         name_label.setStyleSheet("color: #333;")
         info_layout.addWidget(name_label)
-        
+
         # Vector and Map counts
-        counts_label = QLabel(f"Vectors: {self.project.vectorCount}  |  Maps: {self.project.mapCount}")
+        counts_label = QLabel(
+            f"Vectors: {self.project.vectorCount}  |  Maps: {self.project.mapCount}"
+        )
         counts_label.setStyleSheet("color: #666; font-size: 11px;")
         info_layout.addWidget(counts_label)
-        
+
         # Last updated
         updated_text = self._format_date(self.project.updatedAt)
         updated_label = QLabel(f"Last updated: {updated_text}")
         updated_label.setStyleSheet("color: #999; font-size: 10px;")
         info_layout.addWidget(updated_label)
-        
+
         info_layout.addStretch()
         main_layout.addLayout(info_layout)
         main_layout.addStretch()
-        
+
         self.setLayout(main_layout)
-        
+
         # Add hover effect
         self.setStyleSheet("""
             ProjectItemWidget {
@@ -97,13 +99,13 @@ class ProjectItemWidget(QWidget):
                 background-color: #f0f8ff;
             }
         """)
-    
+
     def _format_date(self, date_string: str) -> str:
         """Format ISO date string to readable format"""
         if not date_string:
             return "Never"
         try:
-            dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, AttributeError):
             return date_string
@@ -209,27 +211,29 @@ class ProjectSelectDialog(QDialog):
         try:
             self.project_list.clear()
             projects = api.project.get_projects_by_organization(org.id)
-            
+
             for project_item in projects:
                 # Create custom widget
                 item_widget = ProjectItemWidget(project_item, self.project_icon)
-                
+
                 # Create list item
                 list_item = QListWidgetItem(self.project_list)
                 list_item.setSizeHint(item_widget.sizeHint())
                 list_item.setData(QT_USER_ROLE, project_item)
-                
+
                 # Set the custom widget
                 self.project_list.addItem(list_item)
                 self.project_list.setItemWidget(list_item, item_widget)
-                
+
         except Exception as e:
             self._log_error("Error loading projects", e)
 
     def on_project_selected(self):
         """Handle project selection"""
         current_item = self.project_list.currentItem()
-        self.selected_project = current_item.data(QT_USER_ROLE) if current_item else None
+        self.selected_project = (
+            current_item.data(QT_USER_ROLE) if current_item else None
+        )
         self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(
             bool(self.selected_project)
         )
@@ -319,7 +323,11 @@ class ProjectSelectDialog(QDialog):
         """Select project by ID in list"""
         for i in range(self.project_list.count()):
             item = self.project_list.item(i)
-            if item and (project := item.data(QT_USER_ROLE)) and project.id == project_id:
+            if (
+                item
+                and (project := item.data(QT_USER_ROLE))
+                and project.id == project_id
+            ):
                 self.project_list.setCurrentItem(item)
                 break
 
