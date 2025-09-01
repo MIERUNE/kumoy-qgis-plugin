@@ -23,8 +23,7 @@ from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
-from ..strato import api
-from ..strato.constants import LOG_CATEGORY
+from ..strato import api, constants
 from .utils import ErrorItem
 
 
@@ -119,6 +118,7 @@ class StyledMapItem(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit(self.styled_map.name)
+            name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
             is_public_field = QCheckBox(self.tr("Make Public"))
             is_public_field.setChecked(self.styled_map.isPublic)
 
@@ -166,7 +166,7 @@ class StyledMapItem(QgsDataItem):
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error updating map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 None, self.tr("Error"), self.tr("Error updating map: {}").format(str(e))
@@ -186,7 +186,7 @@ class StyledMapItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error saving map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error saving map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
@@ -232,7 +232,9 @@ class StyledMapItem(QgsDataItem):
 
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                    f"Error deleting map: {str(e)}",
+                    constants.LOG_CATEGORY,
+                    Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None, self.tr("Error"), self.tr("Failed to delete the map.")
@@ -304,6 +306,7 @@ class StyledMapRoot(QgsDataItem):
 
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit()
+            name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
             is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
@@ -359,7 +362,7 @@ class StyledMapRoot(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding map: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error adding map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 None, self.tr("Error"), self.tr("Error adding map: {}").format(str(e))
@@ -425,9 +428,11 @@ def delete_tempfile(tmp_path: str):
     if os.path.exists(tmp_path):
         os.remove(tmp_path)
         QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} removed.", LOG_CATEGORY, Qgis.Info
+            f"Temporary file {tmp_path} removed.", constants.LOG_CATEGORY, Qgis.Info
         )
     else:
         QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} does not exist.", LOG_CATEGORY, Qgis.Warning
+            f"Temporary file {tmp_path} does not exist.",
+            constants.LOG_CATEGORY,
+            Qgis.Warning,
         )
