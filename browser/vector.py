@@ -101,7 +101,7 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         config = api.config.get_api_config()
         # Create URI
-        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.API_URL}"
+        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
         # Create layer
         layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
         layer = QgsVectorLayer(uri, layer_name, "strato")
