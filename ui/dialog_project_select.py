@@ -11,12 +11,12 @@ from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -35,10 +35,13 @@ from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
 class ProjectItemWidget(QWidget):
     """Custom widget for displaying project information in a card-like layout"""
 
-    def __init__(self, project, project_icon):
+    def __init__(self, project, project_icon, parent_dialog=None):
         super().__init__()
         self.project = project
+        self.parent_dialog = parent_dialog
         self.setMinimumHeight(80)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui(project_icon)
 
     def setup_ui(self, project_icon):
@@ -114,6 +117,84 @@ class ProjectItemWidget(QWidget):
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, AttributeError):
             return date_string
+
+    def show_context_menu(self, position):
+        """Show context menu for project item"""
+        menu = QMenu(self)
+
+        # Open in Web action
+        open_web_action = menu.addAction("Open in Web UI")
+        open_web_action.triggered.connect(self.open_in_web)
+
+        menu.addSeparator()
+
+        # Delete action
+        delete_action = menu.addAction("Delete Project")
+        delete_action.triggered.connect(self.delete_project)
+
+        menu.exec_(self.mapToGlobal(position))
+
+    def open_in_web(self):
+        """Open project in web browser"""
+        if not self.project:
+            return
+
+        config = get_api_config()
+        base_url = config.SERVER_URL.replace("/api", "")
+        project_url = f"{base_url}/projects/{self.project.id}"
+
+        try:
+            webbrowser.open(project_url)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error opening web browser: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+
+    def delete_project(self):
+        """Delete project with confirmation"""
+        if not self.project or not self.parent_dialog:
+            return
+
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self.parent_dialog,
+            "Delete Project",
+            f"Are you sure you want to delete project '{self.project.name}'?\n"
+            "This action cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Call API to delete project
+                api.project.delete_project(self.project.id)
+
+                QgsMessageLog.logMessage(
+                    f"Successfully deleted project '{self.project.name}'",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # Refresh the project list
+                if self.parent_dialog:
+                    org = self.parent_dialog.get_selected_organization()
+                    if org:
+                        self.parent_dialog.load_organization_detail(org)
+                        self.parent_dialog.load_projects(org)
+
+                QMessageBox.information(
+                    self.parent_dialog,
+                    "Project Deleted",
+                    f"Project '{self.project.name}' has been deleted successfully.",
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Failed to delete project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    self.parent_dialog, "Error", f"Failed to delete project: {str(e)}"
+                )
 
 
 class ProjectSelectDialog(QDialog):
@@ -479,7 +560,7 @@ class ProjectSelectDialog(QDialog):
 
             for project_item in projects:
                 # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self.project_icon)
+                item_widget = ProjectItemWidget(project_item, self.project_icon, self)
 
                 # Create list item
                 list_item = QListWidgetItem(self.project_list)
