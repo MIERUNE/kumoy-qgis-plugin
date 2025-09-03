@@ -125,7 +125,7 @@ class ProjectItemWidget(QWidget):
         # Open in Web action
         open_web_action = menu.addAction("Open in Web UI")
         open_web_action.triggered.connect(self.open_in_web)
-        
+
         # Edit action
         edit_action = menu.addAction("Edit Project")
         edit_action.triggered.connect(self.edit_project)
@@ -199,37 +199,33 @@ class ProjectItemWidget(QWidget):
                 QMessageBox.critical(
                     self.parent_dialog, "Error", f"Failed to delete project: {str(e)}"
                 )
-    
+
     def edit_project(self):
         """Edit project metadata"""
         if not self.project or not self.parent_dialog:
             return
-        
+
         # Show input dialog with current project name
         new_name, ok = QInputDialog.getText(
-            self.parent_dialog,
-            "Edit Project",
-            "Project name:",
-            text=self.project.name
+            self.parent_dialog, "Edit Project", "Project name:", text=self.project.name
         )
-        
+
         if ok and new_name and new_name != self.project.name:
             try:
                 # Call API to update project
                 updated_project = api.project.update_project(
-                    project_id=self.project.id,
-                    name=new_name
+                    project_id=self.project.id, name=new_name
                 )
-                
+
                 QgsMessageLog.logMessage(
                     f"Successfully updated project '{self.project.name}' to '{new_name}'",
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
-                
+
                 # Update the current project data
                 self.project = updated_project
-                
+
                 # Refresh the project list
                 if self.parent_dialog:
                     org = self.parent_dialog.get_selected_organization()
@@ -237,11 +233,11 @@ class ProjectItemWidget(QWidget):
                         self.parent_dialog.load_projects(org)
                         # Re-select the updated project
                         self.parent_dialog._select_project_by_id(self.project.id)
-                
+
                 QMessageBox.information(
                     self.parent_dialog,
                     "Project Updated",
-                    f"Project has been renamed to '{new_name}' successfully."
+                    f"Project has been renamed to '{new_name}' successfully.",
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
