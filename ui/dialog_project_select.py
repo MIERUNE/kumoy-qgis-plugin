@@ -1,20 +1,24 @@
 import os
+import webbrowser
 from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtGui import QFont, QIcon
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QCursor, QFont, QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -23,6 +27,7 @@ from qgis.PyQt.QtWidgets import (
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.config import get_api_config
 from ..strato.constants import LOG_CATEGORY
 from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
 
@@ -30,10 +35,13 @@ from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
 class ProjectItemWidget(QWidget):
     """Custom widget for displaying project information in a card-like layout"""
 
-    def __init__(self, project, project_icon):
+    def __init__(self, project, project_icon, parent_dialog=None):
         super().__init__()
         self.project = project
+        self.parent_dialog = parent_dialog
         self.setMinimumHeight(80)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui(project_icon)
 
     def setup_ui(self, project_icon):
@@ -110,15 +118,158 @@ class ProjectItemWidget(QWidget):
         except (ValueError, AttributeError):
             return date_string
 
+    def show_context_menu(self, position):
+        """Show context menu for project item"""
+        menu = QMenu(self)
+
+        # Open in Web action
+        open_web_action = menu.addAction("Open in Web UI")
+        open_web_action.triggered.connect(self.open_in_web)
+
+        # Edit action
+        edit_action = menu.addAction("Edit Project")
+        edit_action.triggered.connect(self.edit_project)
+
+        menu.addSeparator()
+
+        # Delete action
+        delete_action = menu.addAction("Delete Project")
+        delete_action.triggered.connect(self.delete_project)
+
+        menu.exec_(self.mapToGlobal(position))
+
+    def open_in_web(self):
+        """Open project in web browser"""
+        if not self.project:
+            return
+
+        config = get_api_config()
+        base_url = config.SERVER_URL.replace("/api", "")
+        project_url = f"{base_url}/projects/{self.project.id}"
+
+        try:
+            webbrowser.open(project_url)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error opening web browser: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+
+    def delete_project(self):
+        """Delete project with confirmation"""
+        if not self.project or not self.parent_dialog:
+            return
+
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self.parent_dialog,
+            "Delete Project",
+            f"Are you sure you want to delete project '{self.project.name}'?\n"
+            "This action cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Call API to delete project
+                api.project.delete_project(self.project.id)
+
+                QgsMessageLog.logMessage(
+                    f"Successfully deleted project '{self.project.name}'",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # Refresh the project list
+                if self.parent_dialog:
+                    org = self.parent_dialog.get_selected_organization()
+                    if org:
+                        self.parent_dialog.load_organization_detail(org)
+                        self.parent_dialog.load_projects(org)
+
+                QMessageBox.information(
+                    self.parent_dialog,
+                    "Project Deleted",
+                    f"Project '{self.project.name}' has been deleted successfully.",
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Failed to delete project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    self.parent_dialog, "Error", f"Failed to delete project: {str(e)}"
+                )
+
+    def edit_project(self):
+        """Edit project metadata"""
+        if not self.project or not self.parent_dialog:
+            return
+
+        # Show input dialog with current project name
+        new_name, ok = QInputDialog.getText(
+            self.parent_dialog, "Edit Project", "Project name:", text=self.project.name
+        )
+
+        if ok and new_name and new_name != self.project.name:
+            try:
+                # Call API to update project
+                updated_project = api.project.update_project(
+                    project_id=self.project.id, name=new_name
+                )
+
+                QgsMessageLog.logMessage(
+                    f"Successfully updated project '{self.project.name}' to '{new_name}'",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # Update the current project data
+                self.project = updated_project
+
+                # Refresh the project list
+                if self.parent_dialog:
+                    org = self.parent_dialog.get_selected_organization()
+                    if org:
+                        self.parent_dialog.load_projects(org)
+                        # Re-select the updated project
+                        self.parent_dialog._select_project_by_id(self.project.id)
+
+                QMessageBox.information(
+                    self.parent_dialog,
+                    "Project Updated",
+                    f"Project has been renamed to '{new_name}' successfully.",
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Failed to update project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    self.parent_dialog, "Error", f"Failed to update project: {str(e)}"
+                )
+
 
 class ProjectSelectDialog(QDialog):
     """Dialog for selecting projects from organizations"""
 
+    # UI Constants
+    LABEL_WIDTH = 80
+    USAGE_TEXT_WIDTH = 100
+    PROGRESS_HEIGHT = 8
+
+    # Style Constants
+    LABEL_STYLE = "font-size: 12px; color: #495057;"
+    INFO_STYLE = "font-size: 11px; color: #666;"
+
+    # Color thresholds
+    COLOR_RED_THRESHOLD = 90
+    COLOR_ORANGE_THRESHOLD = 75
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Select Project")
-        self.resize(500, 400)
+        self.resize(500, 500)
         self.selected_project = None
+        self.current_org_id = None
         self.org_icon = QIcon(os.path.join(IMGS_PATH, "icon_organization.svg"))
         self.project_icon = QIcon(os.path.join(IMGS_PATH, "icon_project.svg"))
         self.setup_ui()
@@ -129,27 +280,145 @@ class ProjectSelectDialog(QDialog):
         """Set up the dialog UI"""
         layout = QVBoxLayout()
 
-        # Organization selection
+        self._create_organization_selector(layout)
+        self._create_usage_panel(layout)
+        self._create_project_section(layout)
+        self._create_button_panel(layout)
+
+        self.setLayout(layout)
+
+    def _create_organization_selector(self, parent_layout: QVBoxLayout):
+        """Create organization selection combo box"""
         org_layout = QHBoxLayout()
         org_layout.addWidget(QLabel("Organization:"))
+
         self.org_combo = QComboBox()
         self.org_combo.currentIndexChanged.connect(self.on_organization_changed)
         org_layout.addWidget(self.org_combo)
-        layout.addLayout(org_layout)
 
-        # Project section with new project button
-        project_header_layout = QHBoxLayout()
-        project_header_layout.addWidget(QLabel("Projects:"))
-        project_header_layout.addStretch()
+        parent_layout.addLayout(org_layout)
+
+    def _create_usage_panel(self, parent_layout: QVBoxLayout):
+        """Create organization usage panel with progress bars"""
+        self.usage_frame = QFrame()
+        self.usage_frame.setFrameStyle(QFrame.NoFrame)
+        self.usage_frame.setVisible(False)
+
+        usage_layout = QVBoxLayout()
+        usage_layout.setSpacing(10)
+
+        self.usage_widgets = {}
+        self._create_usage_rows(usage_layout)
+        self._create_plan_info_row(usage_layout)
+
+        self.usage_frame.setLayout(usage_layout)
+        parent_layout.addWidget(self.usage_frame)
+
+    def _create_usage_rows(self, parent_layout: QVBoxLayout):
+        """Create usage progress bars for each resource"""
+        resources = [
+            ("projects", "Projects"),
+            ("maps", "Maps"),
+            ("vectors", "Vectors"),
+            ("members", "Members"),
+            ("storage", "Storage"),
+        ]
+
+        for key, label in resources:
+            row_layout = self._create_usage_row(key, label)
+            parent_layout.addLayout(row_layout)
+
+    def _create_usage_row(self, key: str, label: str) -> QHBoxLayout:
+        """Create a single usage row with label, text and progress bar"""
+        row_layout = QHBoxLayout()
+        row_layout.setSpacing(10)
+
+        # Resource label
+        resource_label = QLabel(label)
+        resource_label.setFixedWidth(self.LABEL_WIDTH)
+        resource_label.setStyleSheet(self.LABEL_STYLE)
+        row_layout.addWidget(resource_label)
+
+        # Usage text
+        usage_text = QLabel()
+        usage_text.setFixedWidth(self.USAGE_TEXT_WIDTH)
+        usage_text.setAlignment(Qt.AlignRight)
+        row_layout.addWidget(usage_text)
+
+        # Progress bar
+        progress_bar = self._create_progress_bar()
+        row_layout.addWidget(progress_bar, 1)  # Stretch factor 1
+
+        self.usage_widgets[key] = {"label": usage_text, "progress": progress_bar}
+        return row_layout
+
+    def _create_progress_bar(self) -> QProgressBar:
+        """Create a styled progress bar"""
+        progress_bar = QProgressBar()
+        progress_bar.setTextVisible(False)
+        progress_bar.setMinimumHeight(self.PROGRESS_HEIGHT)
+        progress_bar.setMaximumHeight(self.PROGRESS_HEIGHT)
+        progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: none;
+                border-radius: 4px;
+                background-color: #f5f5f5;
+            }
+            QProgressBar::chunk {
+                background-color: #4caf50;
+                border-radius: 3px;
+            }
+        """)
+        return progress_bar
+
+    def _create_plan_info_row(self, parent_layout: QVBoxLayout):
+        """Create plan and role information row"""
+        info_layout = QHBoxLayout()
+        info_layout.setContentsMargins(0, 10, 0, 0)
+        info_layout.addStretch()
+
+        self.plan_label = self._create_info_label()
+        info_layout.addWidget(self.plan_label)
+
+        self.role_label = self._create_info_label()
+        info_layout.addWidget(self.role_label)
+
+        # Add Web UI link
+        self.web_link = QLabel("<a href='#'>Open in Web</a>")
+        self.web_link.setStyleSheet(self.INFO_STYLE + " color: #0066cc;")
+        self.web_link.setCursor(QCursor(Qt.PointingHandCursor))
+        self.web_link.linkActivated.connect(self._open_web_ui)
+        info_layout.addWidget(self.web_link)
+
+        parent_layout.addLayout(info_layout)
+
+    def _create_info_label(self) -> QLabel:
+        """Create a styled info label"""
+        label = QLabel()
+        label.setStyleSheet(self.INFO_STYLE)
+        return label
+
+    def _create_project_section(self, parent_layout: QVBoxLayout):
+        """Create project list section with header"""
+        # Header with new project button
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(QLabel("Projects:"))
+        header_layout.addStretch()
+
         self.new_project_button = QPushButton("New Project")
         self.new_project_button.clicked.connect(self.create_new_project)
-        project_header_layout.addWidget(self.new_project_button)
-        layout.addLayout(project_header_layout)
+        header_layout.addWidget(self.new_project_button)
+        parent_layout.addLayout(header_layout)
 
-        # Project list with custom items
-        self.project_list = QListWidget()
-        self.project_list.setSpacing(4)
-        self.project_list.setStyleSheet("""
+        # Project list
+        self.project_list = self._create_project_list()
+        parent_layout.addWidget(self.project_list)
+
+    def _create_project_list(self) -> QListWidget:
+        """Create styled project list widget"""
+        project_list = QListWidget()
+        project_list.setSpacing(4)
+        project_list.setStyleSheet("""
             QListWidget {
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -171,14 +440,12 @@ class ProjectSelectDialog(QDialog):
                 border: 1px solid #b0d4ff;
             }
         """)
-        self.project_list.itemSelectionChanged.connect(self.on_project_selected)
-        layout.addWidget(self.project_list)
+        project_list.itemSelectionChanged.connect(self.on_project_selected)
+        return project_list
 
-        # Buttons
+    def _create_button_panel(self, parent_layout: QVBoxLayout):
+        """Create bottom button panel"""
         button_layout = QHBoxLayout()
-        self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.clicked.connect(self.refresh)
-        button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
 
         self.button_box = QDialogButtonBox(
@@ -188,8 +455,8 @@ class ProjectSelectDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(False)
         button_layout.addWidget(self.button_box)
-        layout.addLayout(button_layout)
-        self.setLayout(layout)
+
+        parent_layout.addLayout(button_layout)
 
     def load_organizations(self):
         """Load organizations into the combo box"""
@@ -204,7 +471,137 @@ class ProjectSelectDialog(QDialog):
     def on_organization_changed(self, index):
         """Handle organization selection change"""
         if index >= 0 and (org_data := self.org_combo.itemData(index)):
+            self.load_organization_detail(org_data)
             self.load_projects(org_data)
+
+    def load_organization_detail(self, org: api.organization.Organization):
+        """Load and display organization detail including usage"""
+        try:
+            # Store current organization ID
+            self.current_org_id = org.id
+            # Fetch organization details
+            org_detail = api.organization.get_organization(org.id)
+            # Update usage display
+            self.update_usage_display(org_detail)
+            self.usage_frame.setVisible(True)
+        except Exception as e:
+            self._log_error("Error loading organization details", e)
+            self.usage_frame.setVisible(False)
+
+    def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
+        """Update the usage display with organization details"""
+        # Get plan limits from API
+        try:
+            plan_type = org_detail.subscriptionPlan
+            plan_limits = api.plan.get_plan_limits(plan_type)
+        except Exception as e:
+            self._log_error("Error fetching plan limits", e)
+            # Fallback to reasonable defaults if API fails
+            plan_limits = api.plan.PlanLimits(
+                maxProjects=0,
+                maxVectors=0,
+                maxStyledMaps=0,
+                maxOrganizationMembers=0,
+                maxVectorFeatures=0,
+                maxVectorAttributes=0,
+            )
+
+        # Define resource mappings
+        resource_mappings = [
+            ("projects", org_detail.usage.projects, plan_limits.maxProjects),
+            ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps),
+            ("vectors", org_detail.usage.vectors, plan_limits.maxVectors),
+            (
+                "members",
+                org_detail.usage.organizationMembers,
+                plan_limits.maxOrganizationMembers,
+            ),
+        ]
+
+        # Update each resource
+        for key, used, limit in resource_mappings:
+            self._update_usage_widget(key, used, limit)
+
+        # Update Storage
+        if "storage" in self.usage_widgets:
+            used = org_detail.usage.usedStorageUnits
+            total = org_detail.storageUnits
+            # Format storage units with appropriate suffix
+            used_str = self._format_storage_units(used)
+            total_str = self._format_storage_units(total)
+            self.usage_widgets["storage"]["label"].setText(f"{used_str} / {total_str}")
+            if total > 0:
+                self.usage_widgets["storage"]["progress"].setMaximum(total)
+                self.usage_widgets["storage"]["progress"].setValue(used)
+                self._set_progress_color(
+                    self.usage_widgets["storage"]["progress"], used, total
+                )
+
+        # Update plan and role labels
+        self.plan_label.setText(f"Plan: {org_detail.subscriptionPlan}")
+        self.role_label.setText(f"Role: {org_detail.role}")
+
+    def _update_usage_widget(self, key: str, used: int, limit: int):
+        """Update a single usage widget with values and colors"""
+        if key not in self.usage_widgets:
+            return
+
+        widgets = self.usage_widgets[key]
+        widgets["label"].setText(f"{used} / {limit}")
+        widgets["progress"].setMaximum(limit)
+        widgets["progress"].setValue(used)
+        self._set_progress_color(widgets["progress"], used, limit)
+
+    def _set_progress_color(self, progress_bar: QProgressBar, used: int, limit: int):
+        """Set progress bar color based on usage percentage"""
+        percentage = (used / limit * 100) if limit > 0 else 0
+
+        # Determine color based on usage percentage
+        color = self._get_usage_color(percentage)
+
+        progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                border-radius: 4px;
+                background-color: #f5f5f5;
+            }}
+            QProgressBar::chunk {{
+                background-color: {color};
+                border-radius: 3px;
+            }}
+        """)
+
+    def _get_usage_color(self, percentage: float) -> str:
+        """Get color based on usage percentage"""
+        if percentage >= self.COLOR_RED_THRESHOLD:
+            return "#f44336"  # Red
+        elif percentage >= self.COLOR_ORANGE_THRESHOLD:
+            return "#ff9800"  # Orange
+        return "#4caf50"  # Green
+
+    def _open_web_ui(self):
+        """Open the organization page in web browser"""
+        if not self.current_org_id:
+            return
+
+        config = get_api_config()
+        # Remove /api from the server URL if present
+        base_url = config.SERVER_URL.replace("/api", "")
+        org_url = f"{base_url}/organization?id={self.current_org_id}"
+
+        try:
+            webbrowser.open(org_url)
+        except Exception as e:
+            self._log_error("Error opening web browser", e)
+
+    def _format_storage_units(self, units: float) -> str:
+        """Format storage units with appropriate suffix"""
+        if units < 1:
+            return f"{units:.2f}SU"
+        elif units < 1000:
+            return f"{units:.0f}SU"
+        else:
+            return f"{units / 1000:.1f}KSU"
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
@@ -214,7 +611,7 @@ class ProjectSelectDialog(QDialog):
 
             for project_item in projects:
                 # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self.project_icon)
+                item_widget = ProjectItemWidget(project_item, self.project_icon, self)
 
                 # Create list item
                 list_item = QListWidgetItem(self.project_list)
@@ -237,11 +634,6 @@ class ProjectSelectDialog(QDialog):
         self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(
             bool(self.selected_project)
         )
-
-    def refresh(self):
-        """Refresh all data"""
-        if org := self.get_selected_organization():
-            self.load_projects(org)
 
     def get_selected_project(self) -> Optional[api.project.Project]:
         """Get the selected project"""
@@ -302,8 +694,11 @@ class ProjectSelectDialog(QDialog):
                 LOG_CATEGORY,
                 Qgis.Info,
             )
-            self.refresh()
+            # refresh project list and select the new project
+            self.load_organization_detail(org)
+            self.load_projects(org)
             self._select_project_by_id(new_project.id)
+
             QMessageBox.information(
                 self,
                 "Project Created",
