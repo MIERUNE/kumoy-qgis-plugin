@@ -51,7 +51,7 @@ class OrganizationUsage:
 class OrganizationDetail:
     id: str
     name: str
-    subscriptionPlan: str
+    subscriptionPlan: Literal["FREE", "OPERATOR", "TEAM", "CUSTOM"]
     stripeCustomerId: Optional[str]
     createdAt: str
     updatedAt: str
