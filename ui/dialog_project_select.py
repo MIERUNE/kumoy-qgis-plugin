@@ -314,10 +314,6 @@ class ProjectSelectDialog(QDialog):
     def _create_button_panel(self, parent_layout: QVBoxLayout):
         """Create bottom button panel"""
         button_layout = QHBoxLayout()
-
-        self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.clicked.connect(self.refresh)
-        button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
 
         self.button_box = QDialogButtonBox(
@@ -507,12 +503,6 @@ class ProjectSelectDialog(QDialog):
             bool(self.selected_project)
         )
 
-    def refresh(self):
-        """Refresh all data"""
-        if org := self.get_selected_organization():
-            self.load_organization_detail(org)
-            self.load_projects(org)
-
     def get_selected_project(self) -> Optional[api.project.Project]:
         """Get the selected project"""
         return self.selected_project
@@ -572,8 +562,11 @@ class ProjectSelectDialog(QDialog):
                 LOG_CATEGORY,
                 Qgis.Info,
             )
-            self.refresh()
+            # refresh project list and select the new project
+            self.load_organization_detail(org)
+            self.load_projects(org)
             self._select_project_by_id(new_project.id)
+
             QMessageBox.information(
                 self,
                 "Project Created",
