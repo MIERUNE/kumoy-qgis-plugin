@@ -1,10 +1,11 @@
 import os
+import webbrowser
 from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QFont, QIcon
+from qgis.PyQt.QtGui import QCursor, QFont, QIcon
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -26,6 +27,7 @@ from qgis.PyQt.QtWidgets import (
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.config import get_api_config
 from ..strato.constants import LOG_CATEGORY
 from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
 
@@ -135,6 +137,7 @@ class ProjectSelectDialog(QDialog):
         self.setWindowTitle("Select Project")
         self.resize(500, 500)
         self.selected_project = None
+        self.current_org_id = None
         self.org_icon = QIcon(os.path.join(IMGS_PATH, "icon_organization.svg"))
         self.project_icon = QIcon(os.path.join(IMGS_PATH, "icon_project.svg"))
         self.setup_ui()
@@ -248,6 +251,13 @@ class ProjectSelectDialog(QDialog):
         self.role_label = self._create_info_label()
         info_layout.addWidget(self.role_label)
 
+        # Add Web UI link
+        self.web_link = QLabel("<a href='#'>Open in Web</a>")
+        self.web_link.setStyleSheet(self.INFO_STYLE + " color: #0066cc;")
+        self.web_link.setCursor(QCursor(Qt.PointingHandCursor))
+        self.web_link.linkActivated.connect(self._open_web_ui)
+        info_layout.addWidget(self.web_link)
+
         parent_layout.addLayout(info_layout)
 
     def _create_info_label(self) -> QLabel:
@@ -339,6 +349,8 @@ class ProjectSelectDialog(QDialog):
     def load_organization_detail(self, org: api.organization.Organization):
         """Load and display organization detail including usage"""
         try:
+            # Store current organization ID
+            self.current_org_id = org.id
             # Fetch organization details
             org_detail = api.organization.get_organization(org.id)
             # Update usage display
@@ -438,6 +450,21 @@ class ProjectSelectDialog(QDialog):
         elif percentage >= self.COLOR_ORANGE_THRESHOLD:
             return "#ff9800"  # Orange
         return "#4caf50"  # Green
+
+    def _open_web_ui(self):
+        """Open the organization page in web browser"""
+        if not self.current_org_id:
+            return
+
+        config = get_api_config()
+        # Remove /api from the server URL if present
+        base_url = config.SERVER_URL.replace("/api", "")
+        org_url = f"{base_url}/organization?id={self.current_org_id}"
+
+        try:
+            webbrowser.open(org_url)
+        except Exception as e:
+            self._log_error("Error opening web browser", e)
 
     def _format_storage_units(self, units: float) -> str:
         """Format storage units with appropriate suffix"""
