@@ -163,7 +163,9 @@ class StratoDataProvider(QgsVectorDataProvider):
         )
 
         # Show loading dialog for sync_local_cache operation
-        progress = QProgressDialog("Syncing...", "Cancel", 0, 0)
+        progress = QProgressDialog(
+            f"Syncing: {self.strato_vector.name}", "Cancel", 0, 0
+        )
         progress.setWindowTitle("Data Sync")
         progress.setWindowModality(Qt.ApplicationModal)
         progress.setMinimumDuration(0)  # Show immediately
