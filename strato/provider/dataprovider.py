@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
@@ -9,12 +10,14 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
+    QgsMessageLog,
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QEventLoop, Qt, QThread, QVariant, pyqtSignal
+from qgis.PyQt.QtWidgets import QProgressDialog
 
 from .. import api
 from ..constants import (
@@ -28,6 +31,30 @@ from .feature_source import StratoFeatureSource
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
 DELETE_MAX_FEATURE_COUNT = 1000
+
+
+class SyncWorker(QThread):
+    """Worker thread for sync_local_cache operation"""
+
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, vector_id, fields, wkb_type):
+        super().__init__()
+        self.vector_id = vector_id
+        self.fields = fields
+        self.wkb_type = wkb_type
+
+    def run(self):
+        try:
+            local_cache.sync_local_cache(
+                self.vector_id,
+                self.fields,
+                self.wkb_type,
+            )
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
 
 
 def parse_uri(
@@ -134,11 +161,66 @@ class StratoDataProvider(QgsVectorDataProvider):
         self.strato_vector = api.project_vector.get_vector(
             self.project_id, self.vector_id
         )
-        local_cache.sync_local_cache(
-            self.strato_vector.id,
-            self.fields(),
-            self.wkbType(),
+
+        # Show loading dialog for sync_local_cache operation
+        progress = QProgressDialog(
+            f"Syncing: {self.strato_vector.name}", "Cancel", 0, 0
         )
+        progress.setWindowTitle("Data Sync")
+        progress.setWindowModality(Qt.ApplicationModal)
+        progress.setMinimumDuration(0)  # Show immediately
+        progress.setValue(100)  # Set to middle to show indeterminate progress
+        progress.setAutoClose(False)  # Don't auto-close
+        progress.setAutoReset(False)  # Don't auto-reset
+        progress.show()
+
+        # Create event loop for non-blocking operation
+        loop = QEventLoop()
+        sync_cancelled = False
+        sync_error = None
+
+        # Create and configure worker thread
+        sync_worker = SyncWorker(self.strato_vector.id, self.fields(), self.wkbType())
+
+        def on_sync_finished():
+            loop.quit()
+
+        def on_sync_error(error_message):
+            nonlocal sync_error
+            sync_error = error_message
+            loop.quit()
+
+        def on_progress_cancelled():
+            nonlocal sync_cancelled
+            sync_cancelled = True
+            if sync_worker.isRunning():
+                sync_worker.terminate()
+                sync_worker.wait()
+            loop.quit()
+
+        # Connect signals
+        sync_worker.finished.connect(on_sync_finished)
+        sync_worker.error.connect(on_sync_error)
+        progress.canceled.connect(on_progress_cancelled)
+
+        # Start sync in background and wait for completion
+        sync_worker.start()
+        loop.exec_()  # This keeps UI responsive while waiting
+
+        # Clean up
+        progress.accept()
+        sync_worker.deleteLater()
+
+        # Handle results
+        if sync_cancelled:
+            # キャンセル時はレイヤーを追加したくないので例外を投げる
+            raise Exception("Sync cancelled by user")
+        elif sync_error:
+            # Log error but continue with existing cached data
+            QgsMessageLog.logMessage(
+                f"Sync error: {sync_error}", "STRATO", Qgis.Warning
+            )
+
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
         self.clearMinMaxCache()
         self.updateExtents()
