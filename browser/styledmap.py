@@ -262,9 +262,16 @@ class StyledMapRoot(QgsDataItem):
     def actions(self, parent):
         actions = []
 
+        # Map新規作成
+        new_action = QAction(self.tr("Create New Map"), parent)
+        new_action.triggered.connect(lambda: self.add_styled_map())
+        actions.append(new_action)
+
         # スタイルマップ追加アクション
         add_action = QAction(self.tr("Save QGIS Map as New Map"), parent)
-        add_action.triggered.connect(self.add_styled_map)
+        add_action.triggered.connect(
+            lambda: self.add_styled_map(qgisproject=get_qgisproject_str())
+        )
         actions.append(add_action)
 
         # 再読み込みアクション
@@ -274,7 +281,10 @@ class StyledMapRoot(QgsDataItem):
 
         return actions
 
-    def add_styled_map(self):
+    def add_styled_map(
+        self,
+        qgisproject: str = "<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'><qgis></qgis>",
+    ):
         """新しいスタイルマップを追加する"""
         try:
             organization_id = get_settings().selected_organization_id
@@ -282,7 +292,7 @@ class StyledMapRoot(QgsDataItem):
             project_id = get_settings().selected_project_id
 
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(organization.plan)
+            plan_limit = api.plan.get_plan_limits(organization.subscriptionPlan)
             current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
@@ -335,24 +345,14 @@ class StyledMapRoot(QgsDataItem):
             if not name:
                 return
 
-            # QGISプロジェクト情報はバックグラウンドで取得
-            qgisproject = get_qgisproject_str()
-
             # スタイルマップ作成
-            new_styled_map = api.project_styledmap.add_styled_map(
+            api.project_styledmap.add_styled_map(
                 project_id,
                 api.project_styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,
                 ),
             )
-
-            if not new_styled_map:
-                # エラーメッセージを表示
-                QMessageBox.critical(
-                    None, self.tr("Error"), self.tr("Failed to create the map.")
-                )
-                return
 
             # 上書き保存して新しいスタイルマップを表示
             self.refresh()
