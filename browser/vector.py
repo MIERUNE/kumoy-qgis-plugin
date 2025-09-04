@@ -204,7 +204,7 @@ class VectorItem(QgsDataItem):
         if confirm == QMessageBox.Yes:
             # Delete vector
             try:
-                api.project_vector.delete_vector(self.vector.projectId, self.vector.id)
+                api.project_vector.delete_vector(self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {str(e)}",
