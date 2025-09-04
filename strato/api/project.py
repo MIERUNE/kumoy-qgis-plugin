@@ -41,7 +41,16 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
     return projects
 
 
-def get_project(project_id: str) -> Project:
+@dataclass
+class ProjectDetail:
+    id: str
+    name: str
+    createdAt: str
+    updatedAt: str
+    organizationId: str
+
+
+def get_project(project_id: str) -> ProjectDetail:
     """
     Get details for a specific project
 
@@ -53,15 +62,16 @@ def get_project(project_id: str) -> Project:
     """
     response = ApiClient.get(f"/project/{project_id}")
 
-    return Project(
+    return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        organizationId=response.get("organization", {}).get("id", ""),
     )
 
 
-def create_project(organization_id: str, name: str) -> Project:
+def create_project(organization_id: str, name: str) -> ProjectDetail:
     """
     Create a new project
 
@@ -81,15 +91,16 @@ def create_project(organization_id: str, name: str) -> Project:
         },
     )
 
-    return Project(
+    return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        organizationId=response.get("organizationId", ""),
     )
 
 
-def update_project(project_id: str, name: str) -> Project:
+def update_project(project_id: str, name: str) -> ProjectDetail:
     """
     Update an existing project
 
@@ -108,11 +119,12 @@ def update_project(project_id: str, name: str) -> Project:
         },
     )
 
-    return Project(
+    return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        organizationId=response.get("organizationId", ""),
     )
 
 
