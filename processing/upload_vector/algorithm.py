@@ -355,7 +355,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # If vector was created but upload failed, delete it
             if vector is not None:
                 try:
-                    api.project_vector.delete_vector(project_id, vector.id)
+                    api.project_vector.delete_vector(vector.id)
                     feedback.pushInfo(
                         self.tr(
                             "Cleaned up incomplete vector layer due to upload failure"
@@ -592,7 +592,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector_type: str,
         attr_dict: Dict[str, str],
         feedback: QgsProcessingFeedback,
-    ) -> Any:
+    ):
         """Create vector in STRATO and add attributes"""
         # Create vector
         options = api.project_vector.AddVectorOptions(
