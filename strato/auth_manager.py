@@ -17,8 +17,14 @@ from . import api, constants
 # OAuth2 Configuration Constants
 REDIRECT_URL = "http://localhost:9248/callback"
 
+
 # HTML Response Templates
-AUTH_HANDLER_RESPONSE = f"""
+def get_auth_handler_response():
+    """Generate the authentication success response with redirect to website."""
+    api_config = api.config.get_api_config()
+    website_url = api_config.SERVER_URL + "/dashboard"
+
+    return f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -45,16 +51,43 @@ AUTH_HANDLER_RESPONSE = f"""
             font-size: 16px;
             line-height: 1.5;
         }}
+        .countdown {{
+            font-weight: bold;
+            color: #2196F3;
+        }}
     </style>
+    <script>
+        let countdown = 3;
+        let countdownElement;
+        
+        function updateCountdown() {{
+            if (countdownElement) {{
+                countdownElement.textContent = countdown;
+            }}
+            if (countdown <= 0) {{
+                window.location.href = '{website_url}';
+            }} else {{
+                countdown--;
+                setTimeout(updateCountdown, 1000);
+            }}
+        }}
+        
+        window.onload = function() {{
+            countdownElement = document.getElementById('countdown');
+            updateCountdown();
+        }};
+    </script>
 </head>
 <body>
     <div class="container">
         <h1 class="success">Authentication Successful</h1>
-        <p id="status">Authentication completed. Please close this window and return to the {constants.PLUGIN_NAME} QGIS plugin.</p>
+        <p id="status">Authentication completed. Redirecting to website in <span id="countdown" class="countdown">3</span> seconds...</p>
+        <p>Please close this window and return to the {constants.PLUGIN_NAME} QGIS plugin if the redirect doesn't work.</p>
     </div>
 </body>
 </html>
 """
+
 
 AUTH_HANDLER_RESPONSE_ERROR = """
 <!DOCTYPE html>
@@ -454,4 +487,5 @@ class _Handler(BaseHTTPRequestHandler):
                     )
                 )
             else:
-                self.wfile.write(AUTH_HANDLER_RESPONSE.encode("utf-8"))
+                response_html = get_auth_handler_response()
+                self.wfile.write(response_html.encode("utf-8"))
