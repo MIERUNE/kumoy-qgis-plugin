@@ -6,8 +6,9 @@ from qgis.core import (
     QgsDataItemProvider,
     QgsDataProvider,
     QgsMessageLog,
+    QgsProject,
 )
-from qgis.PyQt.QtCore import QT_VERSION_STR, QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
@@ -95,6 +96,22 @@ class RootCollection(QgsDataCollectionItem):
 
     def select_project(self):
         """Select a project to display"""
+
+        # プロジェクトを変更すると、現在の編集状態が失われる可能性があるため、ダイアログで確認
+        prev_project_id = get_settings().selected_project_id
+        if prev_project_id:
+            confirmed = QMessageBox.question(
+                None,
+                self.tr("Change Project"),
+                self.tr(
+                    "Changing the project may result in loss of current editing state. Do you want to proceed?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if confirmed != QMessageBox.Yes:
+                return
+
         try:
             # Check if user is logged in
             id_token = get_settings().id_token
@@ -126,6 +143,16 @@ class RootCollection(QgsDataCollectionItem):
                     # Refresh to show the selected project
                     self.depopulate()
                     self.refresh()
+
+                    # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
+                    if prev_project_id != project.id:
+                        QgsProject.instance().clear()
+                        iface.messageBar().pushSuccess(
+                            self.tr("Project Changed"),
+                            self.tr(
+                                "QGIS project has been cleared due to project change."
+                            ),
+                        )
 
         except Exception as e:
             QgsMessageLog.logMessage(
