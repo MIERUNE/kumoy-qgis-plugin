@@ -1,5 +1,6 @@
 import os
 import tempfile
+import webbrowser
 
 from qgis.core import (
     Qgis,
@@ -70,12 +71,25 @@ class StyledMapItem(QgsDataItem):
         edit_action.triggered.connect(self.update_metadata_styled_map)
         actions.append(edit_action)
 
+        if self.styled_map.isPublic:
+            # 公開マップの場合、公開ページを開くアクション
+            open_public_action = QAction(self.tr("Open Public Page"), parent)
+            open_public_action.triggered.connect(self.open_public_page)
+            actions.append(open_public_action)
+
         # スタイルマップ削除アクション
         delete_action = QAction(self.tr("Delete"), parent)
         delete_action.triggered.connect(self.delete_styled_map)
         actions.append(delete_action)
 
         return actions
+
+    def open_public_page(self):
+        """公開ページをブラウザで開く"""
+        url = (
+            f"{api.config.get_api_config().SERVER_URL}/public/map/{self.styled_map.id}"
+        )
+        webbrowser.open(url)
 
     def apply_style(self):
         """スタイルをQGISレイヤーに適用する"""
