@@ -61,7 +61,7 @@ class StyledMapItem(QgsDataItem):
         actions.append(apply_action)
 
         # スタイルマップ上書き保存アクション
-        save_action = QAction(self.tr("Save"), parent)
+        save_action = QAction(self.tr("Overwrite with current state"), parent)
         save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
         actions.append(save_action)
 
@@ -79,26 +79,24 @@ class StyledMapItem(QgsDataItem):
 
     def apply_style(self):
         """スタイルをQGISレイヤーに適用する"""
-        try:
-            # XML文字列をQGISプロジェクトにロード
-            success = load_project_from_xml(self.styled_map.qgisproject)
-            if success:
-                iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("Map '{}' has been loaded successfully.").format(
-                        self.styled_map.name
-                    ),
-                )
-            else:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Failed to load map '{}'.").format(self.styled_map.name),
-                )
-        except Exception as e:
-            QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error loading map: {}").format(str(e))
+
+        # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
+        if QgsProject.instance().isDirty():
+            confirm = QMessageBox.question(
+                None,
+                self.tr("Load Map"),
+                self.tr(
+                    "Are you sure you want to load the map '{}'? This will replace your current project."
+                ).format(self.styled_map.name),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
             )
+            if confirm != QMessageBox.Yes:
+                return
+
+        # XML文字列をQGISプロジェクトにロード
+        load_project_from_xml(self.styled_map.qgisproject)
+        QgsProject.instance().setTitle(self.styled_map.name)
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -107,76 +105,94 @@ class StyledMapItem(QgsDataItem):
 
     def update_metadata_styled_map(self):
         """Mapを編集する"""
+        # ダイアログ作成
+        dialog = QDialog()
+        dialog.setWindowTitle(self.tr("Edit Map"))
+
+        # レイアウト作成
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+
+        # フィールド作成（タイトルのみ編集可）
+        name_field = QLineEdit(self.styled_map.name)
+        name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
+        is_public_field = QCheckBox(self.tr("Make Public"))
+        is_public_field.setChecked(self.styled_map.isPublic)
+
+        # フォームにフィールドを追加
+        form_layout.addRow(self.tr("Name:"), name_field)
+        form_layout.addRow(self.tr("Public:"), is_public_field)
+
+        # ボタン作成
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        # ダイアログにレイアウトを追加
+        layout.addLayout(form_layout)
+        layout.addWidget(button_box)
+        dialog.setLayout(layout)
+
+        # ダイアログ表示
+        result = dialog.exec_()
+        if not result:
+            return
+
+        # 値を取得（タイトルと公開設定のみ）
+        new_name = name_field.text()
+        new_is_public = is_public_field.isChecked()
+
+        if new_name == "":
+            return
+
         try:
-            # ダイアログ作成
-            dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Edit Map"))
-
-            # レイアウト作成
-            layout = QVBoxLayout()
-            form_layout = QFormLayout()
-
-            # フィールド作成（タイトルのみ編集可）
-            name_field = QLineEdit(self.styled_map.name)
-            name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
-            is_public_field = QCheckBox(self.tr("Make Public"))
-            is_public_field.setChecked(self.styled_map.isPublic)
-
-            # フォームにフィールドを追加
-            form_layout.addRow(self.tr("Name:"), name_field)
-            form_layout.addRow(self.tr("Public:"), is_public_field)
-
-            # ボタン作成
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-
-            # ダイアログにレイアウトを追加
-            layout.addLayout(form_layout)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
-
-            # ダイアログ表示
-            result = dialog.exec_()
-
-            if result:
-                # 値を取得（タイトルと公開設定のみ）
-                new_name = name_field.text()
-                new_is_public = is_public_field.isChecked()
-
-                if new_name:
-                    # スタイルマップ上書き保存
-                    updated_styled_map = api.project_styledmap.update_styled_map(
-                        self.styled_map.id,
-                        api.project_styledmap.UpdateStyledMapOptions(
-                            name=new_name,
-                            isPublic=new_is_public,
-                        ),
-                    )
-
-                    self.styled_map = updated_styled_map
-                    self.setName(updated_styled_map.name)
-                    self.refresh()
-                    iface.messageBar().pushSuccess(
-                        self.tr("Success"),
-                        self.tr("Map '{}' has been updated successfully.").format(
-                            new_name
-                        ),
-                    )
-
+            # スタイルマップ上書き保存
+            updated_styled_map = api.project_styledmap.update_styled_map(
+                self.styled_map.id,
+                api.project_styledmap.UpdateStyledMapOptions(
+                    name=new_name,
+                    isPublic=new_is_public,
+                ),
+            )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error updating map: {str(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error updating map: {}").format(str(e))
+                None,
+                self.tr("Error"),
+                self.tr("Error updating map: {}").format(str(e)),
             )
+            return
+
+        self.styled_map = updated_styled_map
+        self.setName(updated_styled_map.name)
+        QgsProject.instance().setTitle(updated_styled_map.name)
+        self.refresh()
+        iface.messageBar().pushSuccess(
+            self.tr("Success"),
+            self.tr("Map '{}' has been updated successfully.").format(new_name),
+        )
 
     def apply_qgisproject_to_styledmap(self):
-        # QGISプロジェクト情報はバックグラウンドで取得
-        new_qgisproject = get_qgisproject_str()
+        # 確認ダイアログ
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Save Map"),
+            self.tr(
+                "Are you sure you want to overwrite the map '{}' with the current project state?"
+            ).format(self.styled_map.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
 
         try:
+            new_qgisproject = get_qgisproject_str()
+
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
                 self.styled_map.id,
@@ -263,29 +279,17 @@ class StyledMapRoot(QgsDataItem):
         actions = []
 
         # Map新規作成
-        new_action = QAction(self.tr("Create New Map"), parent)
-        new_action.triggered.connect(lambda: self.add_styled_map())
+        new_action = QAction(self.tr("Add new Map with current state"), parent)
+        new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
-
-        # スタイルマップ追加アクション
-        add_action = QAction(self.tr("Save QGIS Map as New Map"), parent)
-        add_action.triggered.connect(
-            lambda: self.add_styled_map(qgisproject=get_qgisproject_str())
-        )
-        actions.append(add_action)
-
-        # 再読み込みアクション
-        refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refresh)
-        actions.append(refresh_action)
 
         return actions
 
     def add_styled_map(
         self,
-        qgisproject: str = "<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'><qgis></qgis>",
     ):
         """新しいスタイルマップを追加する"""
+
         try:
             organization_id = get_settings().selected_organization_id
             organization = api.organization.get_organization(organization_id)
@@ -305,6 +309,8 @@ class StyledMapRoot(QgsDataItem):
                     ).format(plan_limit.maxStyledMaps),
                 )
                 return
+
+            qgisproject = get_qgisproject_str()
 
             # ダイアログ作成
             dialog = QDialog()
@@ -346,7 +352,7 @@ class StyledMapRoot(QgsDataItem):
                 return
 
             # スタイルマップ作成
-            api.project_styledmap.add_styled_map(
+            new_styled_map = api.project_styledmap.add_styled_map(
                 project_id,
                 api.project_styledmap.AddStyledMapOptions(
                     name=name,
@@ -354,7 +360,8 @@ class StyledMapRoot(QgsDataItem):
                 ),
             )
 
-            # 上書き保存して新しいスタイルマップを表示
+            # 保存完了後のUI更新
+            QgsProject.instance().setTitle(new_styled_map.name)
             self.refresh()
             iface.messageBar().pushSuccess(
                 self.tr("Success"),
@@ -400,13 +407,26 @@ def get_qgisproject_str() -> str:
     ) as tmp:
         tmp_path = tmp.name
 
-    try:
-        project = QgsProject.instance()
-        project.write(tmp_path)
-        with open(tmp_path, "r", encoding="utf-8") as f:
-            return f.read()
-    finally:
-        delete_tempfile(tmp_path)
+    project = QgsProject.instance()
+    project.write(tmp_path)
+
+    # ファイルサイズをチェック
+    SIZE_LIMIT = 1 * 1024 * 1024  # 1MB
+    actual_size = os.path.getsize(tmp_path)
+    if actual_size > SIZE_LIMIT:
+        err = f"Project file size is too large. Limit is {SIZE_LIMIT} bytes. your: {actual_size} bytes"
+        QgsMessageLog.logMessage(
+            err,
+            constants.LOG_CATEGORY,
+            Qgis.Warning,
+        )
+        raise Exception(err)
+
+    with open(tmp_path, "r", encoding="utf-8") as f:
+        qgs_str = f.read()
+
+    delete_tempfile(tmp_path)
+    return qgs_str
 
 
 def load_project_from_xml(xml_string: str) -> bool:
@@ -416,12 +436,14 @@ def load_project_from_xml(xml_string: str) -> bool:
         tmp.write(xml_string)
         tmp_path = tmp.name
 
-    try:
         project = QgsProject.instance()
         res = project.read(tmp_path)
         return res
-    finally:
-        delete_tempfile(tmp_path)
+
+    project = QgsProject.instance()
+    res = project.read(tmp_path)
+    delete_tempfile(tmp_path)
+    return res
 
 
 def delete_tempfile(tmp_path: str):
