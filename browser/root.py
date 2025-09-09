@@ -69,13 +69,18 @@ class RootCollection(QgsDataCollectionItem):
 
         # Refresh action
         refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refresh)
+        refresh_action.triggered.connect(self.refreshChildren)
 
         # Logout action
         logout_action = QAction("Logout", parent)
         logout_action.triggered.connect(self.logout)
 
         return [select_project_action, refresh_action, logout_action]
+
+    def refreshChildren(self):
+        """Refresh the children of the root collection"""
+        self.refresh()
+        self.depopulate()
 
     def login(self):
         """Login to STRATO"""
@@ -86,7 +91,7 @@ class RootCollection(QgsDataCollectionItem):
 
         if result:
             # Refresh to show projects
-            iface.browserModel().reload()
+            self.refresh()
 
     def select_project(self):
         """Select a project to display"""
@@ -141,7 +146,7 @@ class RootCollection(QgsDataCollectionItem):
             self.setName(PLUGIN_NAME)
 
             # Refresh to update UI
-            iface.browserModel().reload()
+            self.refresh()
 
             QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
 
