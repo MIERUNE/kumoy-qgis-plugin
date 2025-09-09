@@ -97,6 +97,7 @@ class StyledMapItem(QgsDataItem):
         # XML文字列をQGISプロジェクトにロード
         load_project_from_xml(self.styled_map.qgisproject)
         QgsProject.instance().setTitle(self.styled_map.name)
+        QgsProject.instance().setDirty(False)
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -167,10 +168,11 @@ class StyledMapItem(QgsDataItem):
             )
             return
 
+        # Itemを更新
         self.styled_map = updated_styled_map
         self.setName(updated_styled_map.name)
-        QgsProject.instance().setTitle(updated_styled_map.name)
         self.refresh()
+
         iface.messageBar().pushSuccess(
             self.tr("Success"),
             self.tr("Map '{}' has been updated successfully.").format(new_name),
@@ -209,9 +211,11 @@ class StyledMapItem(QgsDataItem):
             )
             return
 
+        # Itemを更新
         self.styled_map = updated_styled_map
         self.setName(updated_styled_map.name)
         self.refresh()
+
         iface.messageBar().pushSuccess(
             self.tr("Success"),
             self.tr("Map '{}' has been saved successfully.").format(
@@ -362,6 +366,7 @@ class StyledMapRoot(QgsDataItem):
 
             # 保存完了後のUI更新
             QgsProject.instance().setTitle(new_styled_map.name)
+            QgsProject.instance().setDirty(False)
             self.refresh()
             iface.messageBar().pushSuccess(
                 self.tr("Success"),
