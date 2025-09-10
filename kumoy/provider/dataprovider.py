@@ -101,6 +101,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
+        self._extent = QgsRectangle()
+        self.filter_where_clause = None
+        self._subset_string = ""
+
         # store arguments
         self._uri = uri
         self._provider_options = providerOptions
@@ -371,7 +375,22 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return self._crs
 
     def supportsSubsetString(self) -> bool:
-        return False
+        return True
+
+    def subsetString(self) -> str:
+        return self._subset_string
+
+    def setSubsetString(
+        self, subset_string: str, update_feature_count: bool = True
+    ) -> bool:
+        self._subset_string = subset_string
+
+        if update_feature_count:
+            self.clearMinMaxCache()
+            self.updateExtents()
+            self.dataChanged.emit()
+
+        return True
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
         if self.kumoy_vector is None:
