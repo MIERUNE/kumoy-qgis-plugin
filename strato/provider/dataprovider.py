@@ -91,6 +91,7 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self._extent = QgsRectangle()
         self.filter_where_clause = None
+        self._subset_string = ""
 
         # store arguments
         self._uri = uri
@@ -312,7 +313,22 @@ class StratoDataProvider(QgsVectorDataProvider):
         return self._crs
 
     def supportsSubsetString(self) -> bool:
-        return False
+        return True
+
+    def subsetString(self) -> str:
+        return self._subset_string
+
+    def setSubsetString(
+        self, subset_string: str, update_feature_count: bool = True
+    ) -> bool:
+        self._subset_string = subset_string
+
+        if update_feature_count:
+            self.clearMinMaxCache()
+            self.updateExtents()
+            self.dataChanged.emit()
+
+        return True
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
         role = self.strato_vector.role
