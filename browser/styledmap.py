@@ -429,20 +429,20 @@ def get_qgisproject_str() -> str:
     project = QgsProject.instance()
     project.write(tmp_path)
 
-    # ファイルサイズをチェック
-    SIZE_LIMIT = 1 * 1024 * 1024  # 1MB
-    actual_size = os.path.getsize(tmp_path)
-    if actual_size > SIZE_LIMIT:
-        err = f"Project file size is too large. Limit is {SIZE_LIMIT} bytes. your: {actual_size} bytes"
+    with open(tmp_path, "r", encoding="utf-8") as f:
+        qgs_str = f.read()
+
+    # 文字数制限チェック
+    LENGTH_LIMIT = 3000000  # 300万文字
+    actual_length = len(qgs_str)
+    if actual_length > LENGTH_LIMIT:
+        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
         QgsMessageLog.logMessage(
             err,
             constants.LOG_CATEGORY,
             Qgis.Warning,
         )
         raise Exception(err)
-
-    with open(tmp_path, "r", encoding="utf-8") as f:
-        qgs_str = f.read()
 
     delete_tempfile(tmp_path)
     return qgs_str
