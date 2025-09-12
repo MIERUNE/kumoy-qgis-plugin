@@ -161,6 +161,22 @@ class RootCollection(QgsDataCollectionItem):
 
     def logout(self):
         """Logout from STRATO"""
+        # ログアウト時にはProjectをクリアするので、確認ダイアログを表示
+        confirmed = QMessageBox.question(
+            None,
+            self.tr("Logout"),
+            self.tr(
+                "You have unsaved changes in the current project. Logging out will clear the current project. Do you want to proceed?"
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirmed != QMessageBox.Yes:
+            return
+
+        # Projectをクリア
+        QgsProject.instance().clear()
+
         try:
             # Clear tokens and selected project
             store_setting("id_token", "")
