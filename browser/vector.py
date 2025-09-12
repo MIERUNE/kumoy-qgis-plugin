@@ -503,6 +503,9 @@ class DbRoot(QgsDataItem):
             )
             return [ErrorItem(self, self.tr("Error fetching vectors"))]
 
+        if len(vectors) == 0:
+            return [ErrorItem(self, self.tr("No vectors in this project"))]
+
         children = []
 
         # Create VectorItem for each vector
