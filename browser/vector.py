@@ -7,6 +7,12 @@ from qgis.core import (
     QgsFields,
     QgsMessageLog,
     QgsProject,
+    QgsSimpleFillSymbolLayer,
+    QgsSimpleLineSymbolLayer,
+    QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSymbol,
+    QgsUnitTypes,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
@@ -105,6 +111,8 @@ class VectorItem(QgsDataItem):
         # Create layer
         layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
         layer = QgsVectorLayer(uri, layer_name, "strato")
+        # Set pixel-based styling
+        self._set_pixel_based_style(layer)
 
         if layer.isValid():
             # strato_idをread-onlyに設定
@@ -122,6 +130,58 @@ class VectorItem(QgsDataItem):
             QgsMessageLog.logMessage(
                 f"Layer is invalid: {uri}", constants.LOG_CATEGORY, Qgis.Critical
             )
+
+    def _set_pixel_based_style(self, layer):
+        """Set pixel-based styling for the layer"""
+        # Create symbol based on geometry type
+        if self.vector.type == "POINT":
+            # Create point symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                marker_layer = symbol.symbolLayer(0)
+                if isinstance(marker_layer, QgsSimpleMarkerSymbolLayer):
+                    # Set size in pixels
+                    marker_layer.setSize(5.0)
+                    marker_layer.setSizeUnit(QgsUnitTypes.RenderPixels)
+                    # Set stroke width in pixels
+                    marker_layer.setStrokeWidth(1.0)
+                    marker_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
+                    # offset
+                    marker_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        elif self.vector.type == "LINESTRING":
+            # Create line symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                line_layer = symbol.symbolLayer(0)
+                if isinstance(line_layer, QgsSimpleLineSymbolLayer):
+                    # Set line width in pixels
+                    line_layer.setWidth(2.0)
+                    line_layer.setWidthUnit(QgsUnitTypes.RenderPixels)
+                    # Set line offset in pixels
+                    line_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        elif self.vector.type == "POLYGON":
+            # Create polygon symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                fill_layer = symbol.symbolLayer(0)
+                if isinstance(fill_layer, QgsSimpleFillSymbolLayer):
+                    # Set stroke width in pixels
+                    fill_layer.setStrokeWidth(1.0)
+                    fill_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
+                    # Set offset in pixels
+                    fill_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        else:
+            # Use default symbol for unknown types
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+
+        # Apply the symbol to the layer
+        if symbol:
+            renderer = QgsSingleSymbolRenderer(symbol)
+            layer.setRenderer(renderer)
+            layer.triggerRepaint()
 
     def handleDoubleClick(self):
         """Handle double-click event by adding the vector layer to the map"""
