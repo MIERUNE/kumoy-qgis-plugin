@@ -365,11 +365,6 @@ class DbRoot(QgsDataItem):
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
-        # Refresh action
-        refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refresh)
-        actions.append(refresh_action)
-
         return actions
 
     def new_vector(self):
