@@ -23,6 +23,7 @@ from ..settings_manager import get_settings, store_setting
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 from ..version import exec_dialog
+from .dialog_config_login_success import LoginSuccess
 
 
 def read_version():
@@ -228,13 +229,12 @@ class DialogConfig(QDialog):
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success
         )
-        QMessageBox.information(
-            self, self.tr("Login Success"), self.tr("You have successfully logged in!")
-        )
 
+        # Show the custom login success dialog
+        success_dialog = LoginSuccess(self)
+        success_dialog.exec_()
         # Update the UI
         self.update_login_status()
-
         # Show project selection dialog if project is not selected after successful login
         self.check_and_show_project_selection()
 
