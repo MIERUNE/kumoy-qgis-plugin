@@ -56,6 +56,13 @@ class RootCollection(QgsDataCollectionItem):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("RootCollection", message)
 
+    def handleDoubleClick(self):
+        # 非ログイン時ならログイン画面を開く
+        if not get_settings().id_token:
+            self.login()
+
+        return False  # デフォルトのダブルクリック動作を実行
+
     def actions(self, parent):
         id_token = get_settings().id_token
         if not id_token:
