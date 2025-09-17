@@ -377,12 +377,11 @@ class DialogConfig(QDialog):
         if not result:
             return
 
-        selected_project = dialog.get_selected_project()
-        if not selected_project:
+        if not dialog.selected_project:
             return
 
         QgsMessageLog.logMessage(
-            f"Project selected: {selected_project.name}",
+            f"Project selected: {dialog.selected_project.name}",
             LOG_CATEGORY,
             Qgis.Info,
         )
