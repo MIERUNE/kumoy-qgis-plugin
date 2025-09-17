@@ -18,7 +18,6 @@ from qgis.PyQt.QtWidgets import (
     QSpacerItem,
     QVBoxLayout,
 )
-from qgis.utils import iface
 
 from ..settings_manager import get_settings, store_setting
 from ..strato.auth_manager import AuthManager
@@ -26,19 +25,35 @@ from ..strato.constants import LOG_CATEGORY
 from ..version import exec_dialog
 
 
+def read_version():
+    # read version from metadata.txt
+    version = "0.0.0"
+    try:
+        metadata_path = os.path.join(os.path.dirname(__file__), "../metadata.txt")
+        with open(metadata_path, "r") as f:
+            for line in f:
+                if line.startswith("version="):
+                    version = line.split("=")[1].strip()
+                    break
+    except Exception as e:
+        QgsMessageLog.logMessage(
+            f"Error reading version from metadata.txt: {e}",
+            LOG_CATEGORY,
+            Qgis.Warning,
+        )
+    return version
+
+
 class DialogConfig(QDialog):
     def __init__(self):
         super().__init__()
         self.setupUi()
-
-        self.close_button.clicked.connect(self.reject)
 
         # load saved server settings
         self.load_server_settings()
 
         # Set up Supabase login tab connections
         self.login_button.clicked.connect(self.login)
-        self.logout_button.clicked.connect(self.logout)
 
         # Initialize auth manager
         self.auth_manager = AuthManager(port=9248)
@@ -48,12 +63,21 @@ class DialogConfig(QDialog):
     def setupUi(self):
         # Set dialog properties
         self.setObjectName("Dialog")
-        self.resize(400, 624)
+        self.resize(400, 400)
         self.setMinimumSize(400, 0)
         self.setWindowTitle(self.tr("Authentication"))
+        # set padding
+        self.setContentsMargins(10, 10, 10, 10)
 
         # Create main vertical layout
         verticalLayout = QVBoxLayout(self)
+
+        version_label = QLabel()
+        version_label.setText(f"v{read_version()}")
+        version_label.setScaledContents(False)
+        version_label.setAlignment(Qt.AlignRight)
+        version_label.setOpenExternalLinks(True)
+        verticalLayout.addWidget(version_label)
 
         # Top horizontal layout for icon
         horizontalLayout_3 = QHBoxLayout()
@@ -61,8 +85,6 @@ class DialogConfig(QDialog):
         # Icon label
         logo_icon_label = QLabel()
         logo_icon_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        logo_icon_label.setMinimumSize(150, 150)
-        logo_icon_label.setMaximumSize(125, 125)
         icon_path = os.path.join(os.path.dirname(__file__), "../imgs/icon.svg")
         if os.path.exists(icon_path):
             pixmap = QPixmap(icon_path)
@@ -85,30 +107,18 @@ class DialogConfig(QDialog):
                 <head/>\
                 <body>\
                     <div>\
-                        STRATO<br />\
-                        v0.0.0<br /><br />\
-                        Powered by <a href="https://develop.d1hkxct7k1njv6.amplifyapp.com/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a>\
+                        <h2>Welcome to STRATO.</h2>\
+                        <p>Powered by <a href="https://develop.d1hkxct7k1njv6.amplifyapp.com/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a></p>\
                     </div>\
                 </body>\
             </html>'
         )
+        # padding
+        version_and_credits_label.setContentsMargins(0, 20, 0, 40)
         version_and_credits_label.setScaledContents(False)
         version_and_credits_label.setAlignment(Qt.AlignCenter)
         version_and_credits_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_and_credits_label)
-
-        # Status label
-        self.login_status_label = QLabel()
-        self.login_status_label.setText("Not logged in")
-        self.login_status_label.setAlignment(Qt.AlignCenter)
-        verticalLayout.addWidget(self.login_status_label)
-
-        # User info label
-        self.user_info_label = QLabel()
-        self.user_info_label.setText("")
-        self.user_info_label.setAlignment(Qt.AlignCenter)
-        self.user_info_label.setWordWrap(True)
-        verticalLayout.addWidget(self.user_info_label)
 
         # Collapsible group box for server config
         self.custom_server_config_group = QgsCollapsibleGroupBox()
@@ -151,34 +161,16 @@ class DialogConfig(QDialog):
 
         verticalLayout.addWidget(self.custom_server_config_group)
 
-        # Login/Logout buttons layout
-        horizontalLayout_2 = QHBoxLayout()
+        # Status label
+        self.login_status_label = QLabel()
+        self.login_status_label.setText("")
+        self.login_status_label.setAlignment(Qt.AlignCenter)
+        verticalLayout.addWidget(self.login_status_label)
 
+        # Login buttons layout
         self.login_button = QPushButton()
         self.login_button.setText("Login")
-        horizontalLayout_2.addWidget(self.login_button)
-
-        self.logout_button = QPushButton()
-        self.logout_button.setEnabled(False)
-        self.logout_button.setText("Logout")
-        horizontalLayout_2.addWidget(self.logout_button)
-
-        verticalLayout.addLayout(horizontalLayout_2)
-
-        # Close button layout
-        horizontalLayout = QHBoxLayout()
-
-        horizontalSpacer = QSpacerItem(
-            40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum
-        )
-        horizontalLayout.addItem(horizontalSpacer)
-
-        self.close_button = QPushButton()
-        self.close_button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        self.close_button.setText("Close")
-        horizontalLayout.addWidget(self.close_button)
-
-        verticalLayout.addLayout(horizontalLayout)
+        verticalLayout.addWidget(self.login_button)
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -191,37 +183,16 @@ class DialogConfig(QDialog):
     def update_login_status(self):
         """Update the login status display based on stored tokens"""
         id_token = get_settings().id_token
-        user_info_str = get_settings().user_info
 
         if id_token:
             self.login_status_label.setText(self.tr("Logged in"))
             self.login_status_label.setStyleSheet(
                 "color: green; font-weight: bold; font-size: 24px;"
             )
-            self.logout_button.setEnabled(True)
 
-            # Display user info if available
-            if user_info_str:
-                try:
-                    user_info = json.loads(user_info_str)
-                    email = user_info.get("email", "")
-                    name = user_info.get("user_metadata", {}).get("full_name", "")
-
-                    if name and email:
-                        self.user_info_label.setText(
-                            self.tr("Logged in as: {}\n{}").format(name, email)
-                        )
-                    elif email:
-                        self.user_info_label.setText(
-                            self.tr("Logged in as: {}").format(email)
-                        )
-                except json.JSONDecodeError:
-                    self.user_info_label.setText("")
         else:
-            self.login_status_label.setText(self.tr("Not logged in"))
+            self.login_status_label.setText(self.tr(""))
             self.login_status_label.setStyleSheet("")
-            self.user_info_label.setText("")
-            self.logout_button.setEnabled(False)
 
     def on_auth_completed(self, success: bool, error: str):
         """Handle authentication completion."""
@@ -327,37 +298,6 @@ class DialogConfig(QDialog):
             # Reset status and re-enable login button on error
             self.update_login_status()
             self.login_button.setEnabled(True)
-
-    def logout(self):
-        """Log out by clearing stored tokens"""
-        try:
-            store_setting("id_token", "")
-            store_setting("refresh_token", "")
-            store_setting("user_info", "")
-            store_setting("selected_project_id", "")
-
-            QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
-            QMessageBox.information(
-                self,
-                self.tr("Logout"),
-                self.tr("You have been logged out successfully."),
-            )
-
-            # Update the UI
-            self.update_login_status()
-
-            # Refresh browser panel to update the name
-            iface.browserModel().reload()
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error during logout: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
-            QMessageBox.critical(
-                self,
-                self.tr("Logout Error"),
-                self.tr("An error occurred during logout: {}").format(str(e)),
-            )
 
     def save_server_settings(self):
         """サーバー設定を保存する"""
