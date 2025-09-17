@@ -28,41 +28,71 @@ def get_auth_handler_response():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Authentication Successful</title>
+    <title>Login Successful</title>
     <style>
         body {{
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }}
         .container {{
             background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 60px 40px;
             max-width: 500px;
-            margin: 0 auto;
+            text-align: center;
         }}
-        h1.success {{
-            color: #4CAF50;
+        .checkmark-circle {{
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #5CB85C;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
         }}
-        p {{
+        .checkmark {{
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }}
+        h1 {{
+            color: #1a1a1a;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+        }}
+        .message {{
             font-size: 16px;
+            color: #666;
             line-height: 1.5;
+            margin: 0 0 24px 0;
         }}
-        .countdown {{
-            font-weight: bold;
-            color: #2196F3;
+        .redirect-link {{
+            font-size: 14px;
+            color: #999;
+        }}
+        .redirect-link a {{
+            color: #007bff;
+            text-decoration: underline;
+        }}
+        .redirect-link a:hover {{
+            color: #0056b3;
         }}
     </style>
     <script>
         let countdown = 3;
         let countdownElement;
-        
+
         function updateCountdown() {{
             if (countdownElement) {{
-                countdownElement.textContent = countdown;
+                countdownElement.textContent = countdown + ' second' + (countdown === 1 ? '' : 's');
             }}
             if (countdown <= 0) {{
                 window.location.href = '{website_url}';
@@ -71,7 +101,7 @@ def get_auth_handler_response():
                 setTimeout(updateCountdown, 1000);
             }}
         }}
-        
+
         window.onload = function() {{
             countdownElement = document.getElementById('countdown');
             updateCountdown();
@@ -80,9 +110,14 @@ def get_auth_handler_response():
 </head>
 <body>
     <div class="container">
-        <h1 class="success">Authentication Successful</h1>
-        <p id="status">Authentication completed. Redirecting to website in <span id="countdown" class="countdown">3</span> seconds...</p>
-        <p>Please close this window and return to the {constants.PLUGIN_NAME} QGIS plugin if the redirect doesn't work.</p>
+        <div class="checkmark-circle">
+            <svg class="checkmark" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+            </svg>
+        </div>
+        <h1>Login Successful!</h1>
+        <p class="message">You've signed in to Strato successfully. You'll be<br>redirected to your dashboard in <span id="countdown">3 seconds</span>...</p>
+        <p class="redirect-link">If you're not redirected, click <a href="{website_url}">here</a>.</p>
     </div>
 </body>
 </html>
