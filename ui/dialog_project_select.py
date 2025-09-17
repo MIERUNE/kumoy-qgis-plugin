@@ -4,13 +4,13 @@ from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QCursor, QFont, QIcon
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -27,86 +27,87 @@ from qgis.PyQt.QtWidgets import (
 from ..imgs import IMGS_PATH
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
-from ..strato.api.config import get_api_config
 from ..strato.constants import LOG_CATEGORY
-from ..version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK, QT_USER_ROLE
+from ..version import QT_USER_ROLE
+
+
+def _get_usage_color(percentage: float) -> str:
+    """Get color based on usage percentage"""
+    # Color thresholds
+    if percentage >= 80:
+        return "#f44336"  # Red
+    elif percentage >= 75:
+        return "#ffa726"  # Orange
+    return "#8bc34a"  # Green
 
 
 class ProjectItemWidget(QWidget):
     """Custom widget for displaying project information in a card-like layout"""
 
-    def __init__(self, project, project_icon, parent_dialog=None):
+    def __init__(self, project: api.project.ProjectDetail, parent_dialog=None):
         super().__init__()
         self.project = project
         self.parent_dialog = parent_dialog
-        self.setMinimumHeight(80)
+        # self.setMinimumHeight(80)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
-        self.setup_ui(project_icon)
+        self.setup_ui()
 
-    def setup_ui(self, project_icon):
+    def setup_ui(self):
         """Set up the project item UI"""
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(12)
 
-        # Thumbnail placeholder
+        # Thumbnail placeholder - map preview style
         thumbnail_label = QLabel()
-        pixmap = project_icon.pixmap(QSize(60, 60))
+        # Create a simple map-like thumbnail placeholder
+        pixmap = QPixmap(100, 60)
+        pixmap.fill(Qt.white)
         thumbnail_label.setPixmap(pixmap)
-        thumbnail_label.setFixedSize(60, 60)
         thumbnail_label.setScaledContents(True)
+        thumbnail_label.adjustSize()
         thumbnail_label.setStyleSheet("""
             QLabel {
-                border: 1px solid #ddd;
+                border: 1px solid #e0e0e0;
                 border-radius: 4px;
-                padding: 2px;
-                background-color: #f8f8f8;
             }
         """)
         main_layout.addWidget(thumbnail_label)
 
         # Project info layout
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(4)
-
+        info_layout.setSpacing(2)
         # Project name
         name_label = QLabel(self.project.name)
-        name_font = QFont()
-        name_font.setPointSize(12)
-        name_font.setBold(True)
-        name_label.setFont(name_font)
-        name_label.setStyleSheet("color: #333;")
         info_layout.addWidget(name_label)
-
-        # Vector and Map counts
-        counts_label = QLabel(
-            f"Vectors: {self.project.vectorCount}  |  Maps: {self.project.mapCount}"
-        )
-        counts_label.setStyleSheet("color: #666; font-size: 11px;")
-        info_layout.addWidget(counts_label)
-
-        # Last updated
-        updated_text = self._format_date(self.project.updatedAt)
-        updated_label = QLabel(f"Last updated: {updated_text}")
-        updated_label.setStyleSheet("color: #999; font-size: 10px;")
+        # Last updated with clock icon
+        updated_text = self._format_relative_date(self.project.updatedAt)
+        updated_label = QLabel(f"🕐 {updated_text}")
         info_layout.addWidget(updated_label)
 
-        info_layout.addStretch()
         main_layout.addLayout(info_layout)
         main_layout.addStretch()
 
-        self.setLayout(main_layout)
+        # Right side icons and size
+        right_layout = QVBoxLayout()
+        right_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
 
-        # Add hover effect
-        self.setStyleSheet("""
-            ProjectItemWidget {
-                background-color: white;
-                border-radius: 4px;
-            }
-            ProjectItemWidget:hover {
-                background-color: #f0f8ff;
-            }
-        """)
+        # Icons row
+        icons_layout = QHBoxLayout()
+        icons_layout.setSpacing(4)
+
+        # Vector icon with count (using emoji for simplicity)
+        vector_label = QLabel(f"💾 {self.project.vectorCount}")
+        icons_layout.addWidget(vector_label)
+
+        # Maps icon with count
+        maps_label = QLabel(f"📑 {self.project.mapCount}")
+        icons_layout.addWidget(maps_label)
+
+        right_layout.addLayout(icons_layout)
+        main_layout.addLayout(right_layout)
+
+        self.setLayout(main_layout)
 
     def _format_date(self, date_string: str) -> str:
         """Format ISO date string to readable format"""
@@ -115,6 +116,31 @@ class ProjectItemWidget(QWidget):
         try:
             dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
             return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, AttributeError):
+            return date_string
+
+    def _format_relative_date(self, date_string: str) -> str:
+        """Format date as relative time (e.g., '1 day ago')"""
+        if not date_string:
+            return "Never"
+        try:
+            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            now = datetime.now(dt.tzinfo)
+            delta = now - dt
+
+            if delta.days == 0:
+                if delta.seconds < 3600:
+                    return f"{delta.seconds // 60} minutes ago"
+                else:
+                    return f"{delta.seconds // 3600} hours ago"
+            elif delta.days == 1:
+                return "1 day ago"
+            elif delta.days < 30:
+                return f"{delta.days} days ago"
+            elif delta.days < 365:
+                return f"{delta.days // 30} months ago"
+            else:
+                return f"{delta.days // 365} years ago"
         except (ValueError, AttributeError):
             return date_string
 
@@ -143,7 +169,7 @@ class ProjectItemWidget(QWidget):
         if not self.project:
             return
 
-        config = get_api_config()
+        config = api.config.get_api_config()
         base_url = config.SERVER_URL.replace("/api", "")
         project_url = f"{base_url}/projects/{self.project.id}"
 
@@ -251,71 +277,123 @@ class ProjectItemWidget(QWidget):
 class ProjectSelectDialog(QDialog):
     """Dialog for selecting projects from organizations"""
 
-    # UI Constants
-    LABEL_WIDTH = 80
-    USAGE_TEXT_WIDTH = 100
-    PROGRESS_HEIGHT = 8
-
-    # Style Constants
-    LABEL_STYLE = "font-size: 12px; color: #495057;"
-    INFO_STYLE = "font-size: 11px; color: #666;"
-
-    # Color thresholds
-    COLOR_RED_THRESHOLD = 90
-    COLOR_ORANGE_THRESHOLD = 75
-
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Select Project")
-        self.resize(500, 500)
+        self.resize(550, 600)
+        self.setMinimumWidth(500)
         self.selected_project = None
         self.current_org_id = None
+        self.current_user = None
+        self.details_visible = False
         self.org_icon = QIcon(os.path.join(IMGS_PATH, "icon_organization.svg"))
-        self.project_icon = QIcon(os.path.join(IMGS_PATH, "icon_project.svg"))
         self.setup_ui()
+        self.load_user_info()
         self.load_organizations()
         self.load_saved_selection()
 
     def setup_ui(self):
         """Set up the dialog UI"""
         layout = QVBoxLayout()
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
 
-        self._create_organization_selector(layout)
-        self._create_usage_panel(layout)
-        self._create_project_section(layout)
-        self._create_button_panel(layout)
+        ### account / organization
+        self.account_org_panel = self._create_account_org_panel()
+        layout.addLayout(self.account_org_panel["layout"])
+
+        # Organization詳細パネル
+        self.org_details_panel = self._create_org_details_panel()
+        layout.addWidget(self.org_details_panel["usage_frame"])
+        self.org_details_panel["usage_frame"].setVisible(self.details_visible)
+
+        # Project一覧パネル
+        self.project_section = self._create_project_section()
+        layout.addWidget(self.project_section["project_list"])
+
+        # 末尾ボタン類
+        self.button_panel = self._create_button_panel()
+        layout.addLayout(self.button_panel["layout"])
 
         self.setLayout(layout)
 
-    def _create_organization_selector(self, parent_layout: QVBoxLayout):
-        """Create organization selection combo box"""
-        org_layout = QHBoxLayout()
-        org_layout.addWidget(QLabel("Organization:"))
+    def _create_account_org_panel(self):
+        account_org_layout = QGridLayout()
+        # Account label
+        account_label = QLabel("Account")
+        account_org_layout.addWidget(account_label, 0, 0, 1, 2)
+        # Avatar circle with initial + name
+        avatar_name_layout = QHBoxLayout()
+        avatar_label = QLabel()
+        avatar_label.setFixedSize(32, 32)
+        avatar_label.setAlignment(Qt.AlignCenter)
+        avatar_label.setStyleSheet("""
+            QLabel {
+                background-color: #9c27b0;
+                color: white;
+                border-radius: 16px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+        """)
+        avatar_name_layout.addWidget(avatar_label)
+        user_name_label = QLabel("Loading...")
+        avatar_name_layout.addWidget(user_name_label)
+        account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)
+        # Organization label
+        org_label = QLabel("Organization")
+        account_org_layout.addWidget(org_label, 0, 2)
+        # "show details" link
+        details_toggle = QLabel("<a href='#'>Show details ▼</a>")
+        details_toggle.setAlignment(Qt.AlignRight)
+        details_toggle.linkActivated.connect(self.toggle_details)
+        account_org_layout.addWidget(details_toggle, 0, 3)
+        # Organization selector
+        org_combo = QComboBox()
+        org_combo.setMinimumHeight(32)
+        org_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        """)
+        org_combo.currentIndexChanged.connect(self.on_organization_changed)
+        account_org_layout.addWidget(org_combo, 1, 2, 1, 2)
 
-        self.org_combo = QComboBox()
-        self.org_combo.currentIndexChanged.connect(self.on_organization_changed)
-        org_layout.addWidget(self.org_combo)
+        return {
+            "layout": account_org_layout,
+            "avatar_label": avatar_label,
+            "user_name_label": user_name_label,
+            "org_combo": org_combo,
+            "details_toggle": details_toggle,
+        }
 
-        parent_layout.addLayout(org_layout)
-
-    def _create_usage_panel(self, parent_layout: QVBoxLayout):
+    def _create_org_details_panel(self):
         """Create organization usage panel with progress bars"""
-        self.usage_frame = QFrame()
-        self.usage_frame.setFrameStyle(QFrame.NoFrame)
-        self.usage_frame.setVisible(False)
-
+        usage_frame = QFrame()
         usage_layout = QVBoxLayout()
-        usage_layout.setSpacing(10)
 
-        self.usage_widgets = {}
-        self._create_usage_rows(usage_layout)
-        self._create_plan_info_row(usage_layout)
+        # header layout
+        header_layout = QHBoxLayout()
+        # plan/role
+        plan_role_label = QLabel(
+            "<div>\
+            <span>{plan}</span><br />\
+            <span>{role}</span>\
+        </div>"
+        )
+        header_layout.addWidget(plan_role_label)
+        # Organization Settings link
+        org_settings_button = QPushButton("Organization Settings")
+        org_settings_button.clicked.connect(self.open_organization_settings)
+        header_layout.addWidget(org_settings_button)
 
-        self.usage_frame.setLayout(usage_layout)
-        parent_layout.addWidget(self.usage_frame)
+        usage_layout.addLayout(header_layout)
 
-    def _create_usage_rows(self, parent_layout: QVBoxLayout):
-        """Create usage progress bars for each resource"""
+        # usage
+        usage_widgets = {}
         resources = [
             ("projects", "Projects"),
             ("maps", "Maps"),
@@ -325,152 +403,116 @@ class ProjectSelectDialog(QDialog):
         ]
 
         for key, label in resources:
-            row_layout = self._create_usage_row(key, label)
-            parent_layout.addLayout(row_layout)
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(10)
 
-    def _create_usage_row(self, key: str, label: str) -> QHBoxLayout:
-        """Create a single usage row with label, text and progress bar"""
-        row_layout = QHBoxLayout()
-        row_layout.setSpacing(10)
+            # Resource label
+            resource_label = QLabel(label)
+            resource_label.setFixedWidth(80)
+            row_layout.addWidget(resource_label)
 
-        # Resource label
-        resource_label = QLabel(label)
-        resource_label.setFixedWidth(self.LABEL_WIDTH)
-        resource_label.setStyleSheet(self.LABEL_STYLE)
-        row_layout.addWidget(resource_label)
+            # Usage text
+            usage_text = QLabel()
+            usage_text.setFixedWidth(80)
+            usage_text.setAlignment(Qt.AlignRight)
+            row_layout.addWidget(usage_text)
 
-        # Usage text
-        usage_text = QLabel()
-        usage_text.setFixedWidth(self.USAGE_TEXT_WIDTH)
-        usage_text.setAlignment(Qt.AlignRight)
-        row_layout.addWidget(usage_text)
+            # Progress bar
+            progress_bar = QProgressBar()
+            progress_bar.setTextVisible(False)
+            progress_bar.setMinimumHeight(6)
+            progress_bar.setMaximumHeight(6)
+            progress_bar.setStyleSheet("""
+                QProgressBar {
+                    border: none;
+                    border-radius: 3px;
+                    background-color: #e0e0e0;
+                }
+                QProgressBar::chunk {
+                    background-color: #8bc34a;
+                    border-radius: 3px;
+                }
+            """)
+            row_layout.addWidget(progress_bar, 1)  # Stretch factor 1
 
-        # Progress bar
-        progress_bar = self._create_progress_bar()
-        row_layout.addWidget(progress_bar, 1)  # Stretch factor 1
+            usage_widgets[key] = {"label": usage_text, "progress": progress_bar}
+            usage_layout.addLayout(row_layout)
 
-        self.usage_widgets[key] = {"label": usage_text, "progress": progress_bar}
-        return row_layout
+        usage_frame.setLayout(usage_layout)
 
-    def _create_progress_bar(self) -> QProgressBar:
-        """Create a styled progress bar"""
-        progress_bar = QProgressBar()
-        progress_bar.setTextVisible(False)
-        progress_bar.setMinimumHeight(self.PROGRESS_HEIGHT)
-        progress_bar.setMaximumHeight(self.PROGRESS_HEIGHT)
-        progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: none;
-                border-radius: 4px;
-                background-color: #f5f5f5;
-            }
-            QProgressBar::chunk {
-                background-color: #4caf50;
-                border-radius: 3px;
-            }
-        """)
-        return progress_bar
+        return {
+            "usage_frame": usage_frame,
+            "plan_role_label": plan_role_label,
+            "usage_widgets": usage_widgets,
+        }
 
-    def _create_plan_info_row(self, parent_layout: QVBoxLayout):
-        """Create plan and role information row"""
-        info_layout = QHBoxLayout()
-        info_layout.setContentsMargins(0, 10, 0, 0)
-        info_layout.addStretch()
-
-        self.plan_label = self._create_info_label()
-        info_layout.addWidget(self.plan_label)
-
-        self.role_label = self._create_info_label()
-        info_layout.addWidget(self.role_label)
-
-        # Add Web UI link
-        self.web_link = QLabel("<a href='#'>Open in Web</a>")
-        self.web_link.setStyleSheet(self.INFO_STYLE + " color: #0066cc;")
-        self.web_link.setCursor(QCursor(Qt.PointingHandCursor))
-        self.web_link.linkActivated.connect(self._open_web_ui)
-        info_layout.addWidget(self.web_link)
-
-        parent_layout.addLayout(info_layout)
-
-    def _create_info_label(self) -> QLabel:
-        """Create a styled info label"""
-        label = QLabel()
-        label.setStyleSheet(self.INFO_STYLE)
-        return label
-
-    def _create_project_section(self, parent_layout: QVBoxLayout):
-        """Create project list section with header"""
-        # Header with new project button
-        header_layout = QHBoxLayout()
-        header_layout.addWidget(QLabel("Projects:"))
-        header_layout.addStretch()
-
-        self.new_project_button = QPushButton("New Project")
-        self.new_project_button.clicked.connect(self.create_new_project)
-        header_layout.addWidget(self.new_project_button)
-        parent_layout.addLayout(header_layout)
-
+    def _create_project_section(self):
+        """Create project list section"""
         # Project list
-        self.project_list = self._create_project_list()
-        parent_layout.addWidget(self.project_list)
-
-    def _create_project_list(self) -> QListWidget:
-        """Create styled project list widget"""
         project_list = QListWidget()
-        project_list.setSpacing(4)
+        project_list.setSpacing(6)
         project_list.setStyleSheet("""
             QListWidget {
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 4px;
+                border-radius: 6px;
+                padding: 8px;
             }
             QListWidget::item {
-                background-color: white;
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-                margin: 2px;
+                border-radius: 6px;
+                margin: 3px;
             }
             QListWidget::item:selected {
-                background-color: #e3f2fd;
-                border: 1px solid #2196F3;
+                background-color: rgba(255, 255, 255, 0.1);
+                border: 1px solid #1976d2;
             }
             QListWidget::item:hover {
-                background-color: #f0f8ff;
-                border: 1px solid #b0d4ff;
+                background-color: rgba(255, 255, 255, 0.2);
             }
         """)
         project_list.itemSelectionChanged.connect(self.on_project_selected)
-        return project_list
+        return {"project_list": project_list}
 
-    def _create_button_panel(self, parent_layout: QVBoxLayout):
+    def _create_button_panel(self):
         """Create bottom button panel"""
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+
+        # New Project button on the left
+        new_project_button = QPushButton("+ New Project")
+        new_project_button.clicked.connect(self.create_new_project)
+        button_layout.addWidget(new_project_button)
+
         button_layout.addStretch()
 
-        self.button_box = QDialogButtonBox(
-            QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL
-        )
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(False)
-        button_layout.addWidget(self.button_box)
+        # Cancel and OK buttons
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
 
-        parent_layout.addLayout(button_layout)
+        ok_btn = QPushButton("OK")
+        ok_btn.setEnabled(False)
+        ok_btn.clicked.connect(self.accept)
+        button_layout.addWidget(ok_btn)
+
+        return {
+            "layout": button_layout,
+            "ok_btn": ok_btn,
+        }
 
     def load_organizations(self):
         """Load organizations into the combo box"""
         try:
-            self.org_combo.clear()
+            self.account_org_panel["org_combo"].clear()
             organizations = api.organization.get_organizations()
             for org in organizations:
-                self.org_combo.addItem(org.name, org)
+                self.account_org_panel["org_combo"].addItem(org.name, org)
         except Exception as e:
             self._log_error("Error loading organizations", e)
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
-        if index >= 0 and (org_data := self.org_combo.itemData(index)):
+        if index >= 0 and (
+            org_data := self.account_org_panel["org_combo"].itemData(index)
+        ):
             self.load_organization_detail(org_data)
             self.load_projects(org_data)
 
@@ -483,19 +525,76 @@ class ProjectSelectDialog(QDialog):
             org_detail = api.organization.get_organization(org.id)
             # Update usage display
             self.update_usage_display(org_detail)
-            self.usage_frame.setVisible(True)
         except Exception as e:
-            self._log_error("Error loading organization details", e)
-            self.usage_frame.setVisible(False)
+            msg = f"Failed to load organization details. {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(self, "Error", msg)
+
+    def load_user_info(self):
+        """Load current user information"""
+        try:
+            user = api.user.get_me()
+
+            self.account_org_panel["user_name_label"].setText(user.name)
+            # Set avatar initial
+            if len(user.name) > 0:
+                initial = user.name[0].upper()
+            self.account_org_panel["avatar_label"].setText(initial)
+        except Exception as e:
+            msg = f"Failed to load user information. {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(self, "Error", msg)
+            # Fallback to default values
+            self.account_org_panel["user_name_label"].setText("Anonymous")
+            self.account_org_panel["avatar_label"].setText("")
+
+    def toggle_details(self):
+        """Toggle visibility of usage details panel"""
+        self.details_visible = not self.details_visible
+        self.org_details_panel["usage_frame"].setVisible(self.details_visible)
+
+        if self.details_visible:
+            self.account_org_panel["details_toggle"].setText(
+                "<a href='#'>Hide details ▲</a>"
+            )
+        else:
+            self.account_org_panel["details_toggle"].setText(
+                "<a href='#'>Show details ▼</a>"
+            )
+
+    def open_organization_settings(self):
+        """Open organization settings in web browser"""
+        if not self.current_org_id:
+            return
+
+        settings_url = f"{api.config.get_api_config().SERVER_URL}/organization?id={self.current_org_id}"
+
+        try:
+            webbrowser.open(settings_url)
+        except Exception as e:
+            msg = f"Error opening web browser: {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, "Error", msg)
 
     def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
         """Update the usage display with organization details"""
+        # Update plan label
+        self.org_details_panel["plan_role_label"].setText(
+            f"<div>\
+            <span>{org_detail.subscriptionPlan.capitalize()} Plan</span><br />\
+            <span>{org_detail.role.capitalize()}</span>\
+        </div>"
+        )
+
         # Get plan limits from API
         try:
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type)
         except Exception as e:
-            self._log_error("Error fetching plan limits", e)
+            msg = f"Failed to fetch plan limits: {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.warning(self, "Warning", msg)
+
             # Fallback to reasonable defaults if API fails
             plan_limits = api.plan.PlanLimits(
                 maxProjects=0,
@@ -523,30 +622,36 @@ class ProjectSelectDialog(QDialog):
             self._update_usage_widget(key, used, limit)
 
         # Update Storage
-        if "storage" in self.usage_widgets:
+        if "storage" in self.org_details_panel["usage_widgets"]:
             used = org_detail.usage.usedStorageUnits
             total = org_detail.storageUnits
             # Format storage units with appropriate suffix
             used_str = self._format_storage_units(used)
             total_str = self._format_storage_units(total)
-            self.usage_widgets["storage"]["label"].setText(f"{used_str} / {total_str}")
+            self.org_details_panel["usage_widgets"]["storage"]["label"].setText(
+                f"{used_str} / {total_str}"
+            )
             if total > 0:
-                self.usage_widgets["storage"]["progress"].setMaximum(total)
-                self.usage_widgets["storage"]["progress"].setValue(used)
+                self.org_details_panel["usage_widgets"]["storage"][
+                    "progress"
+                ].setMaximum(total)
+                self.org_details_panel["usage_widgets"]["storage"]["progress"].setValue(
+                    used
+                )
                 self._set_progress_color(
-                    self.usage_widgets["storage"]["progress"], used, total
+                    self.org_details_panel["usage_widgets"]["storage"]["progress"],
+                    used,
+                    total,
                 )
 
-        # Update plan and role labels
-        self.plan_label.setText(f"Plan: {org_detail.subscriptionPlan}")
-        self.role_label.setText(f"Role: {org_detail.role}")
+        # Role is now shown in the header, so no need to update separate labels
 
     def _update_usage_widget(self, key: str, used: int, limit: int):
         """Update a single usage widget with values and colors"""
-        if key not in self.usage_widgets:
+        if key not in self.org_details_panel["usage_widgets"]:
             return
 
-        widgets = self.usage_widgets[key]
+        widgets = self.org_details_panel["usage_widgets"][key]
         widgets["label"].setText(f"{used} / {limit}")
         widgets["progress"].setMaximum(limit)
         widgets["progress"].setValue(used)
@@ -557,42 +662,19 @@ class ProjectSelectDialog(QDialog):
         percentage = (used / limit * 100) if limit > 0 else 0
 
         # Determine color based on usage percentage
-        color = self._get_usage_color(percentage)
+        color = _get_usage_color(percentage)
 
         progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                border-radius: 4px;
-                background-color: #f5f5f5;
+                border-radius: 3px;
+                background-color: #e0e0e0;
             }}
             QProgressBar::chunk {{
                 background-color: {color};
                 border-radius: 3px;
             }}
         """)
-
-    def _get_usage_color(self, percentage: float) -> str:
-        """Get color based on usage percentage"""
-        if percentage >= self.COLOR_RED_THRESHOLD:
-            return "#f44336"  # Red
-        elif percentage >= self.COLOR_ORANGE_THRESHOLD:
-            return "#ff9800"  # Orange
-        return "#4caf50"  # Green
-
-    def _open_web_ui(self):
-        """Open the organization page in web browser"""
-        if not self.current_org_id:
-            return
-
-        config = get_api_config()
-        # Remove /api from the server URL if present
-        base_url = config.SERVER_URL.replace("/api", "")
-        org_url = f"{base_url}/organization?id={self.current_org_id}"
-
-        try:
-            webbrowser.open(org_url)
-        except Exception as e:
-            self._log_error("Error opening web browser", e)
 
     def _format_storage_units(self, units: float) -> str:
         """Format storage units with appropriate suffix"""
@@ -606,43 +688,43 @@ class ProjectSelectDialog(QDialog):
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
         try:
-            self.project_list.clear()
+            self.project_section["project_list"].clear()
             projects = api.project.get_projects_by_organization(org.id)
 
             for project_item in projects:
                 # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self.project_icon, self)
+                item_widget = ProjectItemWidget(project_item, self)
 
                 # Create list item
-                list_item = QListWidgetItem(self.project_list)
+                list_item = QListWidgetItem(self.project_section["project_list"])
                 list_item.setSizeHint(item_widget.sizeHint())
                 list_item.setData(QT_USER_ROLE, project_item)
 
                 # Set the custom widget
-                self.project_list.addItem(list_item)
-                self.project_list.setItemWidget(list_item, item_widget)
+                self.project_section["project_list"].addItem(list_item)
+                self.project_section["project_list"].setItemWidget(
+                    list_item, item_widget
+                )
 
         except Exception as e:
-            self._log_error("Error loading projects", e)
+            msg = f"Failed to load projects: {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, "Error", msg)
 
     def on_project_selected(self):
         """Handle project selection"""
-        current_item = self.project_list.currentItem()
+        current_item = self.project_section["project_list"].currentItem()
         self.selected_project = (
             current_item.data(QT_USER_ROLE) if current_item else None
         )
-        self.button_box.button(QT_DIALOG_BUTTON_OK).setEnabled(
-            bool(self.selected_project)
-        )
-
-    def get_selected_project(self) -> Optional[api.project.Project]:
-        """Get the selected project"""
-        return self.selected_project
+        self.button_panel["ok_btn"].setEnabled(bool(self.selected_project))
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
         """Get the selected organization"""
         return (
-            self.org_combo.currentData() if self.org_combo.currentIndex() >= 0 else None
+            self.account_org_panel["org_combo"].currentData()
+            if self.account_org_panel["org_combo"].currentIndex() >= 0
+            else None
         )
 
     def accept(self):
@@ -667,9 +749,9 @@ class ProjectSelectDialog(QDialog):
             self._select_organization_by_id(org_id)
             self._select_project_by_id(project_id)
         except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error loading saved selection: {str(e)}", LOG_CATEGORY, Qgis.Warning
-            )
+            msg = f"Failed to load saved selection. {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.warning(self, "Warning", msg)
 
     def create_new_project(self):
         """Create a new project in the selected organization"""
@@ -705,31 +787,27 @@ class ProjectSelectDialog(QDialog):
                 f"Project '{project_name}' has been created successfully.",
             )
         except Exception as e:
-            self._log_error("Failed to create project", e, show_dialog=True)
+            msg = f"Failed to create project: {str(e)}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, "Error", msg)
 
     def _select_organization_by_id(self, org_id: str):
         """Select organization by ID in combo box"""
-        for i in range(self.org_combo.count()):
-            if (org := self.org_combo.itemData(i)) and org.id == org_id:
-                self.org_combo.setCurrentIndex(i)
+        for i in range(self.account_org_panel["org_combo"].count()):
+            if (
+                org := self.account_org_panel["org_combo"].itemData(i)
+            ) and org.id == org_id:
+                self.account_org_panel["org_combo"].setCurrentIndex(i)
                 break
 
     def _select_project_by_id(self, project_id: str):
         """Select project by ID in list"""
-        for i in range(self.project_list.count()):
-            item = self.project_list.item(i)
+        for i in range(self.project_section["project_list"].count()):
+            item = self.project_section["project_list"].item(i)
             if (
                 item
                 and (project := item.data(QT_USER_ROLE))
                 and project.id == project_id
             ):
-                self.project_list.setCurrentItem(item)
+                self.project_section["project_list"].setCurrentItem(item)
                 break
-
-    def _log_error(self, message: str, error: Exception, show_dialog: bool = False):
-        """Log error and optionally show dialog"""
-        QgsMessageLog.logMessage(
-            f"{message}: {str(error)}", LOG_CATEGORY, Qgis.Critical
-        )
-        if show_dialog:
-            QMessageBox.critical(self, "Error", f"{message}: {str(error)}")
