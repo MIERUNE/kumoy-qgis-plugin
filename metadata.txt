@@ -3,7 +3,7 @@ name=STRATO
 qgisMinimumVersion=3.0
 about=STRATO Plugin
 description=QGIS plugin for managing Strato projects
-version=1.0
+version=1.0.0
 
 #Plugin main icon
 icon=imgs/icon.png
