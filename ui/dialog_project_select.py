@@ -413,7 +413,7 @@ class ProjectSelectDialog(QDialog):
 
             # Usage text
             usage_text = QLabel()
-            usage_text.setFixedWidth(80)
+            usage_text.setFixedWidth(120)
             usage_text.setAlignment(Qt.AlignRight)
             row_layout.addWidget(usage_text)
 
