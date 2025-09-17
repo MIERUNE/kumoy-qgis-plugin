@@ -107,8 +107,8 @@ class DialogConfig(QDialog):
                 <head/>\
                 <body>\
                     <div>\
-                        <h2>Welcome to STRATO.</h2>\
-                        <p>Powered by <a href="https://develop.d1hkxct7k1njv6.amplifyapp.com/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a></p>\
+                        <h2>Welcome to Strato.</h2>\
+                        <p>Powered by <a href="https://www.mierune.co.jp/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a></p>\
                     </div>\
                 </body>\
             </html>'
