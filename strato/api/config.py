@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from settings_manager import get_settings
 
 DEFAULT_COGNITO_URL: str = (
-    "https://strato-staging.auth.ap-northeast-1.amazoncognito.com"
+    "https://strato-development.auth.ap-northeast-1.amazoncognito.com"
 )
-DEFAULT_COGNITO_CLIENT_ID: str = "4us5qd97e5f471pdq7kk44d63s"
-DEFAULT_SERVER_URL: str = "https://d28cu1u5by4hv7.cloudfront.net"
+DEFAULT_COGNITO_CLIENT_ID: str = "3tti9ahi6hblmnjr67977c1uaa"
+DEFAULT_SERVER_URL: str = "https://d2570m9xwzmcva.cloudfront.net"
 
 
 @dataclass(frozen=True)
