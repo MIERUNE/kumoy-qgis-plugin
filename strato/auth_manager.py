@@ -85,15 +85,23 @@ def get_auth_handler_response():
         .redirect-link a:hover {{
             color: #0056b3;
         }}
+        #countdown-num {{
+            font-weight: bold;
+        }}
     </style>
     <script>
         let countdown = 3;
-        let countdownElement;
+        let countdownNumElement;
+        let countdownSecondsElement;
 
         function updateCountdown() {{
-            if (countdownElement) {{
-                countdownElement.textContent = countdown + ' second' + (countdown === 1 ? '' : 's');
+            if (countdownNumElement) {{
+                countdownNumElement.textContent = countdown;
             }}
+            if (countdownSecondsElement) {{
+                countdownSecondsElement.textContent = countdown === 1 ? 'second' : 'seconds';
+            }}
+
             if (countdown <= 0) {{
                 window.location.href = '{website_url}';
             }} else {{
@@ -103,7 +111,8 @@ def get_auth_handler_response():
         }}
 
         window.onload = function() {{
-            countdownElement = document.getElementById('countdown');
+            countdownNumElement = document.getElementById('countdown-num');
+            countdownSecondsElement = document.getElementById('countdown-seconds');
             updateCountdown();
         }};
     </script>
@@ -116,7 +125,7 @@ def get_auth_handler_response():
             </svg>
         </div>
         <h1>Login Successful!</h1>
-        <p class="message">You've signed in to Strato successfully. You'll be<br>redirected to your dashboard in <span id="countdown">3 seconds</span>...</p>
+        <p class="message">You've signed in to Strato successfully. You'll be<br>redirected to your dashboard in <span id="countdown-num">3</span> <span id="countdown-seconds">seconds</span>...</p>
         <p class="redirect-link">If you're not redirected, click <a href="{website_url}">here</a>.</p>
     </div>
 </body>
