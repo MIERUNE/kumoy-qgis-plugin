@@ -235,9 +235,8 @@ class RootCollection(QgsDataCollectionItem):
         try:
             # Check if user is logged in
             id_token = get_settings().id_token
-
             if not id_token:
-                return [ErrorItem(self, self.tr("Not Logged In"))]
+                return []
 
             # Get selected organization and project ID
             organization_id = get_settings().selected_organization_id
@@ -253,14 +252,6 @@ class RootCollection(QgsDataCollectionItem):
             # Get organization and project details
             organization_data = api.organization.get_organization(organization_id)
             project_data = api.project.get_project(project_id)
-
-            if not project_data:
-                return [
-                    ErrorItem(
-                        self,
-                        self.tr("Project not found. Please select another project."),
-                    )
-                ]
 
             # Update the browser name with project name
             self.setName(
