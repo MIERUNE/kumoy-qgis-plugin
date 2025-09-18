@@ -240,7 +240,7 @@ class ProjectItemWidget(QWidget):
             try:
                 # Call API to update project
                 updated_project = api.project.update_project(
-                    project_id=self.project.id, name=new_name
+                    project_id=self.project.id, name=new_name, description=""
                 )
 
                 QgsMessageLog.logMessage(
@@ -769,7 +769,7 @@ class ProjectSelectDialog(QDialog):
 
         try:
             new_project = api.project.create_project(
-                organization_id=org.id, name=project_name
+                organization_id=org.id, name=project_name, description=""
             )
             QgsMessageLog.logMessage(
                 f"Successfully created project '{project_name}'",

@@ -8,6 +8,7 @@ from .client import ApiClient
 class Project:
     id: str
     name: str
+    description: str
     createdAt: str = ""
     updatedAt: str = ""
     vectorCount: int = 0
@@ -31,6 +32,7 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
             Project(
                 id=project.get("id", ""),
                 name=project.get("name", ""),
+                description=project.get("description", ""),
                 createdAt=project.get("createdAt", ""),
                 updatedAt=project.get("updatedAt", ""),
                 vectorCount=project.get("vectorCount", 0),
@@ -65,13 +67,14 @@ def get_project(project_id: str) -> ProjectDetail:
     return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
+        description=response.get("description", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organization", {}).get("id", ""),
     )
 
 
-def create_project(organization_id: str, name: str) -> ProjectDetail:
+def create_project(organization_id: str, name: str, description: str) -> ProjectDetail:
     """
     Create a new project
 
@@ -94,13 +97,14 @@ def create_project(organization_id: str, name: str) -> ProjectDetail:
     return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
+        description=response.get("description", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organizationId", ""),
     )
 
 
-def update_project(project_id: str, name: str) -> ProjectDetail:
+def update_project(project_id: str, name: str, description: str) -> ProjectDetail:
     """
     Update an existing project
 
@@ -122,6 +126,7 @@ def update_project(project_id: str, name: str) -> ProjectDetail:
     return ProjectDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
+        description=response.get("description", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organizationId", ""),
