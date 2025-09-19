@@ -47,6 +47,7 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
 class ProjectDetail:
     id: str
     name: str
+    description: str
     createdAt: str
     updatedAt: str
     organizationId: str
