@@ -108,8 +108,22 @@ class StyledMapItem(QgsDataItem):
             if confirm != QMessageBox.Yes:
                 return
 
+        try:
+            styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error loading map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error loading map: {}").format(str(e)),
+            )
+            return
+
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(self.styled_map.qgisproject)
+        load_project_from_xml(styled_map_detail.qgisproject)
+
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
 

@@ -12,7 +12,6 @@ class StratoStyledMap:
 
     id: str
     name: str
-    qgisproject: str
     isPublic: bool
     projectId: str
 
@@ -34,7 +33,6 @@ def get_styled_maps(project_id: str) -> List[StratoStyledMap]:
             StratoStyledMap(
                 id=styled_map_data.get("id", ""),
                 name=styled_map_data.get("name", ""),
-                qgisproject=styled_map_data.get("qgisproject", ""),
                 isPublic=styled_map_data.get("isPublic", False),
                 projectId=project_id,
             )
@@ -43,7 +41,16 @@ def get_styled_maps(project_id: str) -> List[StratoStyledMap]:
     return styled_maps
 
 
-def get_styled_map(styled_map_id: str) -> StratoStyledMap:
+@dataclass
+class StratoStyledMapDetail(StratoStyledMap):
+    """
+    STRATOのStyledMapの詳細を表すデータクラス
+    """
+
+    qgisproject: str
+
+
+def get_styled_map(styled_map_id: str) -> StratoStyledMapDetail:
     """
     特定のスタイルマップの詳細を取得する
 
@@ -53,9 +60,9 @@ def get_styled_map(styled_map_id: str) -> StratoStyledMap:
     Returns:
         StratoStyledMapオブジェクトまたは見つからない場合はNone
     """
-    response = ApiClient.get(f"/styled-map/{styled_map_id}")
+    response = ApiClient.post(f"/_qgis/styled-map/{styled_map_id}", {})
 
-    return StratoStyledMap(
+    return StratoStyledMapDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         qgisproject=response.get("qgisproject", ""),
@@ -74,7 +81,9 @@ class AddStyledMapOptions:
     qgisproject: str
 
 
-def add_styled_map(project_id: str, options: AddStyledMapOptions) -> StratoStyledMap:
+def add_styled_map(
+    project_id: str, options: AddStyledMapOptions
+) -> StratoStyledMapDetail:
     """
     プロジェクトに新しいスタイルマップを追加する
 
@@ -152,7 +161,7 @@ def update_styled_map(
         update_data,
     )
 
-    return StratoStyledMap(
+    return StratoStyledMapDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         qgisproject=response.get("qgisproject", ""),
