@@ -73,30 +73,23 @@ def _is_geometry_type_consistent(geometry: QgsGeometry, expected_type: str) -> b
     return actual_type == expected_type
 
 
-def _get_geometry_type(layer: QgsVectorLayer) -> Union[Tuple[str, bool], None]:
+def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
     """Determine geometry type and check for multipart"""
     wkb_type = layer.wkbType()
-    is_multipart = False
-
-    if wkb_type in [QgsWkbTypes.Point]:
+    if wkb_type in [QgsWkbTypes.Point, QgsWkbTypes.PointZ, QgsWkbTypes.MultiPoint]:
         vector_type = "POINT"
-    elif wkb_type in [QgsWkbTypes.MultiPoint]:
-        vector_type = "POINT"
-        is_multipart = True
-    elif wkb_type in [QgsWkbTypes.LineString]:
+    elif wkb_type in [
+        QgsWkbTypes.LineString,
+        QgsWkbTypes.LineStringZ,
+        QgsWkbTypes.MultiLineString,
+    ]:
         vector_type = "LINESTRING"
-    elif wkb_type in [QgsWkbTypes.MultiLineString]:
-        vector_type = "LINESTRING"
-        is_multipart = True
-    elif wkb_type in [QgsWkbTypes.Polygon]:
+    elif wkb_type in [QgsWkbTypes.Polygon, QgsWkbTypes.PolygonZ]:
         vector_type = "POLYGON"
-    elif wkb_type in [QgsWkbTypes.MultiPolygon]:
-        vector_type = "POLYGON"
-        is_multipart = True
     else:
-        return None
+        vector_type = None
 
-    return vector_type, is_multipart
+    return vector_type
 
 
 def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]:
@@ -305,14 +298,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             # Determine geometry type
-            result = _get_geometry_type(layer)
-            if result is None:
+            geometry_type = _get_geometry_type(layer)
+            if geometry_type is None:
                 raise QgsProcessingException(self.tr("Unsupported geometry type"))
-            vector_type, is_multipart = result
 
             # Process layer: convert to singlepart and reproject in one step
             processed_layer, original_crs = self._process_layer_geometry(
-                layer, is_multipart, parameters, context, feedback
+                layer,
+                QgsWkbTypes.isMultiType(layer.wkbType()),
+                parameters,
+                context,
+                feedback,
             )
 
             # Check feature count limit
@@ -343,7 +339,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Create vector and add attributes
             vector = self._create_vector_and_attributes(
-                project_id, vector_name, vector_type, attr_dict, feedback
+                project_id, vector_name, geometry_type, attr_dict, feedback
             )
 
             # Upload features
