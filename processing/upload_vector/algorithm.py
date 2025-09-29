@@ -28,6 +28,23 @@ from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
 
+def force_2d_geometry(geometry: QgsGeometry) -> QgsGeometry:
+    """Return geometry without Z values, cloning when needed"""
+    if not geometry or geometry.isEmpty():
+        return geometry
+
+    if not QgsWkbTypes.hasZ(geometry.wkbType()):
+        return geometry
+
+    abstract_geometry = geometry.constGet()
+    if abstract_geometry is None:
+        return geometry
+
+    cloned_geometry = abstract_geometry.clone()
+    cloned_geometry.dropZValue()
+    return QgsGeometry(cloned_geometry)
+
+
 def rename_field_with_refactor(
     layer: QgsVectorLayer, field_mapping: Dict[str, str]
 ) -> QgsVectorLayer:
@@ -73,30 +90,23 @@ def _is_geometry_type_consistent(geometry: QgsGeometry, expected_type: str) -> b
     return actual_type == expected_type
 
 
-def _get_geometry_type(layer: QgsVectorLayer) -> Union[Tuple[str, bool], None]:
+def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
     """Determine geometry type and check for multipart"""
     wkb_type = layer.wkbType()
-    is_multipart = False
-
-    if wkb_type in [QgsWkbTypes.Point]:
+    if wkb_type in [QgsWkbTypes.Point, QgsWkbTypes.PointZ, QgsWkbTypes.MultiPoint]:
         vector_type = "POINT"
-    elif wkb_type in [QgsWkbTypes.MultiPoint]:
-        vector_type = "POINT"
-        is_multipart = True
-    elif wkb_type in [QgsWkbTypes.LineString]:
+    elif wkb_type in [
+        QgsWkbTypes.LineString,
+        QgsWkbTypes.LineStringZ,
+        QgsWkbTypes.MultiLineString,
+    ]:
         vector_type = "LINESTRING"
-    elif wkb_type in [QgsWkbTypes.MultiLineString]:
-        vector_type = "LINESTRING"
-        is_multipart = True
-    elif wkb_type in [QgsWkbTypes.Polygon]:
+    elif wkb_type in [QgsWkbTypes.Polygon, QgsWkbTypes.PolygonZ]:
         vector_type = "POLYGON"
-    elif wkb_type in [QgsWkbTypes.MultiPolygon]:
-        vector_type = "POLYGON"
-        is_multipart = True
     else:
-        return None
+        vector_type = None
 
-    return vector_type, is_multipart
+    return vector_type
 
 
 def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]:
@@ -153,21 +163,20 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
-            "Upload a vector layer to the STRATO backend.\n\n"
+            "Upload a vector layer to the Strato backend.\n\n"
             "User operation steps:\n"
             "1. Select the vector layer you want to upload from the dropdown\n"
             "2. Choose the destination project from Organization/Project list\n"
             "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
             "4. Click 'Run' to start the upload process\n\n"
             "The algorithm will:\n"
-            "- Automatically normalize field names for PostgreSQL/PostGIS compatibility (lowercase, remove special characters)\n"
+            "- Automatically normalize field names (lowercase, remove special characters)\n"
             "- Automatically check and fix invalid geometries before processing\n"
-            "- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step\n"
+            "- Automatically convert multipart geometries to single parts\n"
+            "- Drop Z coordinates if present\n"
+            "- Reproject to EPSG:4326 if other CRS set\n"
             "- Create a new vector layer in the selected project\n"
-            "- Configure the attribute schema based on your layer's fields\n"
-            "- Upload all features in chunkes (1000 features per chunk)\n"
-            "- Show progress during the upload\n\n"
-            "Note: You must be logged in to STRATO before using this tool."
+            "Note: You must be logged in to Strato before using this tool."
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
@@ -259,7 +268,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Get vector name
         vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
         if not vector_name:
-            vector_name = layer.name()
+            vector_name = layer.name()[:32]  # 最大32文字
 
         # Get project and plan limits
         project = api.project.get_project(project_id)
@@ -305,14 +314,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             # Determine geometry type
-            result = _get_geometry_type(layer)
-            if result is None:
+            geometry_type = _get_geometry_type(layer)
+            if geometry_type is None:
                 raise QgsProcessingException(self.tr("Unsupported geometry type"))
-            vector_type, is_multipart = result
 
             # Process layer: convert to singlepart and reproject in one step
             processed_layer, original_crs = self._process_layer_geometry(
-                layer, is_multipart, parameters, context, feedback
+                layer,
+                QgsWkbTypes.isMultiType(layer.wkbType()),
+                QgsWkbTypes.hasZ(layer.wkbType()),
+                parameters,
+                context,
+                feedback,
             )
 
             # Check feature count limit
@@ -343,7 +356,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             # Create vector and add attributes
             vector = self._create_vector_and_attributes(
-                project_id, vector_name, vector_type, attr_dict, feedback
+                project_id, vector_name, geometry_type, attr_dict, feedback
             )
 
             # Upload features
@@ -375,6 +388,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self,
         layer: QgsVectorLayer,
         is_multipart: bool,
+        has_z: bool,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
@@ -404,11 +418,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             processing_steps.append(
                 self.tr("Reprojecting from {} to EPSG:4326").format(source_crs.authid())
             )
+        if has_z:
+            processing_steps.append(self.tr("Dropping Z coordinates"))
 
         feedback.pushInfo(self.tr("Processing layer: ") + ", ".join(processing_steps))
 
-        # Get the target geometry type (always single part)
+        # Get the target geometry type (always single part, force XY when needed)
         target_wkb_type = QgsWkbTypes.singleType(layer.wkbType())
+        if has_z:
+            target_wkb_type = QgsWkbTypes.flatType(target_wkb_type)
         expected_geom_type = QgsWkbTypes.geometryType(target_wkb_type)
 
         # Create sink with target CRS and geometry type
@@ -482,14 +500,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         wrong_geometry_type += 1
                         continue  # Skip parts with wrong geometry type
 
+                    base_geometry = single_geometry_part.constGet()
+                    if base_geometry is None:
+                        invalid_geometries += 1
+                        continue
+
+                    part_geom = QgsGeometry(base_geometry.clone())
+
+                    if has_z:
+                        part_geom = force_2d_geometry(part_geom)
+
+                    if transform:
+                        part_geom.transform(transform)
+
                     # Create new feature for each part
                     new_feature = QgsFeature(feature)
-
-                    # Transform if needed
-                    if transform:
-                        single_geometry_part.transform(transform)
-
-                    new_feature.setGeometry(single_geometry_part)
+                    new_feature.setGeometry(part_geom)
 
                     # Add to sink
                     if not sink.addFeature(new_feature, QgsFeatureSink.FastInsert):
@@ -506,11 +532,20 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 # Single part geometry
                 new_feature = QgsFeature(feature)
 
-                # Transform if needed
+                base_geometry = geom.constGet()
+                if base_geometry is None:
+                    invalid_geometries += 1
+                    continue
+
+                geom_copy = QgsGeometry(base_geometry.clone())
+
+                if has_z:
+                    geom_copy = force_2d_geometry(geom_copy)
+
                 if transform:
-                    geom = QgsGeometry(geom)  # Make a copy
-                    geom.transform(transform)
-                    new_feature.setGeometry(geom)
+                    geom_copy.transform(transform)
+
+                new_feature.setGeometry(geom_copy)
 
                 # Add to sink
                 if not sink.addFeature(new_feature, QgsFeatureSink.FastInsert):
