@@ -506,7 +506,9 @@ class ProjectSelectDialog(QDialog):
             for org in organizations:
                 self.account_org_panel["org_combo"].addItem(org.name, org)
         except Exception as e:
-            self._log_error("Error loading organizations", e)
+            msg = f"Error loading organizations: {e}"
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(self, "Error", msg)
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
@@ -539,7 +541,7 @@ class ProjectSelectDialog(QDialog):
             # Set avatar initial
             if len(user.name) > 0:
                 initial = user.name[0].upper()
-            self.account_org_panel["avatar_label"].setText(initial)
+                self.account_org_panel["avatar_label"].setText(initial)
         except Exception as e:
             msg = f"Failed to load user information. {str(e)}"
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)

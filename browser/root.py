@@ -148,8 +148,8 @@ class RootCollection(QgsDataCollectionItem):
                     # Update browser name with project name
                     self.setName(f"{PLUGIN_NAME}: {project.name}({organization.name})")
                     # Refresh to show the selected project
-                    self.depopulate()
                     self.refresh()
+                    self.depopulate()
 
                     # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
                     if prev_project_id != project.id:

@@ -27,7 +27,7 @@ def refresh_token(refresh_token: str) -> Optional[Dict]:
             f"{config.SERVER_URL}/api/_public/params"
         )
         params_data = json.loads(params_response.read().decode("utf-8"))
-        cognito_domain = params_data.get("cognitoDomainUrl")
+        cognito_domain = params_data.get("cognitoDomain")
         cognito_client_id = params_data.get("cognitoClientId")
 
         # Cognitoのトークンエンドポイントを使用
