@@ -102,7 +102,7 @@ def add_styled_map(
         },
     )
 
-    return StratoStyledMap(
+    return StratoStyledMapDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         qgisproject=response.get("qgisproject", ""),
@@ -137,7 +137,7 @@ class UpdateStyledMapOptions:
 
 def update_styled_map(
     styled_map_id: str, options: UpdateStyledMapOptions
-) -> StratoStyledMap:
+) -> StratoStyledMapDetail:
     """
     スタイルマップを更新する
 
