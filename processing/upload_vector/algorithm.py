@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Dict, Optional, Set, Tuple, Union, cast
 
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -13,6 +13,7 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
     QgsVectorLayer,
@@ -93,15 +94,26 @@ def _is_geometry_type_consistent(geometry: QgsGeometry, expected_type: str) -> b
 def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
     """Determine geometry type and check for multipart"""
     wkb_type = layer.wkbType()
-    if wkb_type in [QgsWkbTypes.Point, QgsWkbTypes.PointZ, QgsWkbTypes.MultiPoint]:
+    if wkb_type in [
+        QgsWkbTypes.Point,
+        QgsWkbTypes.PointZ,
+        QgsWkbTypes.MultiPoint,
+        QgsWkbTypes.MultiPointZ,
+    ]:
         vector_type = "POINT"
     elif wkb_type in [
         QgsWkbTypes.LineString,
         QgsWkbTypes.LineStringZ,
         QgsWkbTypes.MultiLineString,
+        QgsWkbTypes.MultiLineStringZ,
     ]:
         vector_type = "LINESTRING"
-    elif wkb_type in [QgsWkbTypes.Polygon, QgsWkbTypes.PolygonZ]:
+    elif wkb_type in [
+        QgsWkbTypes.Polygon,
+        QgsWkbTypes.PolygonZ,
+        QgsWkbTypes.MultiPolygon,
+        QgsWkbTypes.MultiPolygonZ,
+    ]:
         vector_type = "POLYGON"
     else:
         vector_type = None
@@ -134,6 +146,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     INPUT_LAYER: str = "INPUT"
     STRATO_PROJECT: str = "PROJECT"
     VECTOR_NAME: str = "VECTOR_NAME"
+    SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
     project_map: Dict[str, str] = {}
@@ -176,6 +189,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "- Drop Z coordinates if present\n"
             "- Reproject to EPSG:4326 if other CRS set\n"
             "- Create a new vector layer in the selected project\n"
+            "- Let you choose which attributes are uploaded\n"
             "Note: You must be logged in to Strato before using this tool."
         )
 
@@ -228,6 +242,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 allowMultiple=False,
                 optional=False,
                 defaultValue=default_project_index,
+            )
+        )
+
+        # Field selection
+        self.addParameter(
+            QgsProcessingParameterField(
+                self.SELECTED_FIELDS,
+                self.tr("Attributes to upload"),
+                parentLayerParameterName=self.INPUT_LAYER,
+                type=QgsProcessingParameterField.Any,
+                optional=True,
+                allowMultiple=True,
             )
         )
 
@@ -319,6 +345,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 raise QgsProcessingException(self.tr("Unsupported geometry type"))
 
             # Process layer: convert to singlepart and reproject in one step
+            selected_fields = set(
+                self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
+            )
+
+            if selected_fields:
+                feedback.pushInfo(
+                    self.tr("Using {} of {} attributes for upload").format(
+                        len(selected_fields), layer.fields().count()
+                    )
+                )
+
             processed_layer, original_crs = self._process_layer_geometry(
                 layer,
                 QgsWkbTypes.isMultiType(layer.wkbType()),
@@ -349,7 +386,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             # Normalize field names
-            valid_fields_layer = self._prepare_field_mappings(processed_layer, feedback)
+            valid_fields_layer = self._prepare_field_mappings(
+                processed_layer, feedback, selected_fields if selected_fields else None
+            )
+
+            if valid_fields_layer.fields().isEmpty():
+                raise QgsProcessingException(
+                    self.tr(
+                        "No attributes available for upload. Select at least one attribute."
+                    )
+                )
 
             # Create attribute dictionary
             attr_dict = _create_attribute_dict(valid_fields_layer)
@@ -587,12 +633,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         return processed_layer, source_crs
 
     def _prepare_field_mappings(
-        self, processed_layer: QgsVectorLayer, feedback: QgsProcessingFeedback
+        self,
+        processed_layer: QgsVectorLayer,
+        feedback: QgsProcessingFeedback,
+        allowed_fields: Optional[Set[str]] = None,
     ) -> QgsVectorLayer:
         """Normalize field names for PostgreSQL/PostGIS compatibility"""
         # Normalize field names
         valid_fields_mapping = {}
         for field in processed_layer.fields():
+            if allowed_fields is not None and field.name() not in allowed_fields:
+                continue
+
             # validate field type
             if field.type() not in [
                 QVariant.String,
