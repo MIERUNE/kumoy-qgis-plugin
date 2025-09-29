@@ -16,8 +16,6 @@ class UserSettings:
     selected_project_id: str = ""
     use_custom_server: str = "false"
     custom_server_url: str = ""
-    custom_cognito_url: str = ""
-    custom_cognito_client_id: str = ""
 
 
 SETTING_GROUP = "/STRATO"
@@ -38,8 +36,6 @@ def get_settings():
             selected_project_id=qsettings.value("selected_project_id", ""),
             use_custom_server=qsettings.value("use_custom_server", "false"),
             custom_server_url=qsettings.value("custom_server_url", ""),
-            custom_cognito_url=qsettings.value("custom_cognito_url", ""),
-            custom_cognito_client_id=qsettings.value("custom_cognito_client_id", ""),
         )
     except Exception as e:
         QgsMessageLog.logMessage(

@@ -133,32 +133,14 @@ class DialogConfig(QDialog):
         # Grid layout for server config
         gridLayout = QGridLayout(self.custom_server_config_group)
 
-        # Cognito URL row
-        cognito_url_label = QLabel()
-        cognito_url_label.setText("Cognito URL")
-        gridLayout.addWidget(cognito_url_label, 1, 0)
-
-        self.cognito_url_input = QLineEdit()
-        self.cognito_url_input.setText("")
-        gridLayout.addWidget(self.cognito_url_input, 1, 1)
-
-        # Cognito Client ID row
-        cognito_client_id_label = QLabel()
-        cognito_client_id_label.setText("Cognito Client ID")
-        gridLayout.addWidget(cognito_client_id_label, 2, 0)
-
-        self.cognito_client_id_input = QLineEdit()
-        self.cognito_client_id_input.setText("")
-        gridLayout.addWidget(self.cognito_client_id_input, 2, 1)
-
         # Server URL row
         server_url_label = QLabel()
         server_url_label.setText("Server URL")
-        gridLayout.addWidget(server_url_label, 3, 0)
+        gridLayout.addWidget(server_url_label, 1, 0)
 
         self.strato_server_url_input = QLineEdit()
         self.strato_server_url_input.setText("")
-        gridLayout.addWidget(self.strato_server_url_input, 3, 1)
+        gridLayout.addWidget(self.strato_server_url_input, 1, 1)
 
         verticalLayout.addWidget(self.custom_server_config_group)
 
@@ -304,13 +286,9 @@ class DialogConfig(QDialog):
 
         # カスタムサーバーの設定を保存
         use_custom_server = self.custom_server_config_group.isChecked()
-        custom_cognito_url = self.cognito_url_input.text().strip()
-        custom_cognito_client_id = self.cognito_client_id_input.text().strip()
         custom_server_url = self.strato_server_url_input.text().strip()
 
         store_setting("use_custom_server", "true" if use_custom_server else "false")
-        store_setting("custom_cognito_url", custom_cognito_url)
-        store_setting("custom_cognito_client_id", custom_cognito_client_id)
         store_setting("custom_server_url", custom_server_url)
 
     def load_server_settings(self):
@@ -318,14 +296,10 @@ class DialogConfig(QDialog):
 
         # 保存された設定を読み込む
         use_custom_server = get_settings().use_custom_server == "true"
-        custom_cognito_url = get_settings().custom_cognito_url or ""
-        custom_cognito_client_id = get_settings().custom_cognito_client_id or ""
         custom_server_url = get_settings().custom_server_url or ""
 
         # UIに設定を反映
         self.custom_server_config_group.setChecked(use_custom_server)
-        self.cognito_url_input.setText(custom_cognito_url)
-        self.cognito_client_id_input.setText(custom_cognito_client_id)
         self.strato_server_url_input.setText(custom_server_url)
 
     def validate_custom_server_settings(self) -> bool:
@@ -337,10 +311,6 @@ class DialogConfig(QDialog):
         missing_settings = []
         if not self.strato_server_url_input.text().strip():
             missing_settings.append(self.tr("Server URL"))
-        if not self.cognito_url_input.text().strip():
-            missing_settings.append(self.tr("Cognito URL"))
-        if not self.cognito_client_id_input.text().strip():
-            missing_settings.append(self.tr("Cognito Client ID"))
 
         # 未入力項目がある場合はメッセージボックスを表示
         if missing_settings:

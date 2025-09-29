@@ -200,6 +200,18 @@ class AuthManager(QObject):
         self.auth_timer = None
         self.auth_start_time = None
 
+        # /api/_public/params エンドポイントからCognito設定を取得
+        try:
+            api_config = api.config.get_api_config()
+            params_response = urllib.request.urlopen(
+                f"{api_config.SERVER_URL}/api/_public/params"
+            )
+            params_data = json.loads(params_response.read().decode("utf-8"))
+            self.cognito_url = f"https://{params_data['cognitoDomain']}"
+            self.cognito_client_id = params_data["cognitoClientId"]
+        except Exception as e:
+            self.error = f"Error fetching Cognito configuration: {e}"
+
     def _generate_code_verifier(self) -> str:
         """Generate a code verifier for PKCE.
 
@@ -243,6 +255,7 @@ class AuthManager(QObject):
         Returns:
             True if server started successfully, False otherwise
         """
+
         try:
             self.server = HTTPServer(("localhost", self.port), _Handler)
             self.server.id_token = None
@@ -253,10 +266,9 @@ class AuthManager(QObject):
             self.server.auth_code = None
             self.server.state = None
             self.server.redirect_url = REDIRECT_URL
-            # 利用するエンドポイント設定
-            api_config = api.config.get_api_config()
-            self.server.cognito_url = api_config.COGNITO_URL
-            self.server.client_id = api_config.COGNITO_CLIENT_ID
+            self.server.cognito_url = self.cognito_url
+            self.server.client_id = self.cognito_client_id
+
             self.server.code_verifier = self.code_verifier
             self.server.expected_state = self.state
 
@@ -347,11 +359,10 @@ class AuthManager(QObject):
         if not self.start_local_server():
             return False, f"Failed to start local server: {self.error}"
 
-        api_config = api.config.get_api_config()
         # Get authorization URL with the same state parameter
         auth_url = (
-            f"{api_config.COGNITO_URL}/oauth2/authorize?"
-            f"client_id={api_config.COGNITO_CLIENT_ID}&"
+            f"{self.cognito_url}/oauth2/authorize?"
+            f"client_id={self.cognito_client_id}&"
             f"redirect_uri={REDIRECT_URL}&"
             f"response_type=code&"
             f"scope=openid+email+profile&"
