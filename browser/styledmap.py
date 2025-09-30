@@ -311,7 +311,7 @@ class StyledMapRoot(QgsDataItem):
         actions = []
 
         # Map新規作成
-        new_action = QAction(self.tr("Add new Map with current state"), parent)
+        new_action = QAction(self.tr("Upload current map"), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
 

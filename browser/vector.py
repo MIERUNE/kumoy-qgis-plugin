@@ -6,6 +6,7 @@ from qgis.core import (
     QgsDataItem,
     QgsFields,
     QgsMessageLog,
+    QgsMimeDataUtils,
     QgsProject,
     QgsSimpleFillSymbolLayer,
     QgsSimpleLineSymbolLayer,
@@ -54,6 +55,8 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
+        config = api.config.get_api_config()
+        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
 
         # Set icon based on geometry type
         icon_filename = "icon_vector.svg"  # Default icon
@@ -72,6 +75,18 @@ class VectorItem(QgsDataItem):
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("VectorItem", message)
+
+    def hasDragEnabled(self):
+        return True
+
+    def mimeUris(self):
+        # ドラッグドロップされた際にレイヤーを適切に追加するための実装
+        u = QgsMimeDataUtils.Uri()
+        u.layerType = "vector"
+        u.providerKey = constants.DATA_PROVIDER_KEY
+        u.name = self.vector.name
+        u.uri = self.vector_uri
+        return [u]
 
     def actions(self, parent):
         actions = []
@@ -105,12 +120,8 @@ class VectorItem(QgsDataItem):
 
     def add_to_map(self):
         """Add vector layer to QGIS map"""
-        config = api.config.get_api_config()
-        # Create URI
-        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
         # Create layer
-        layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
-        layer = QgsVectorLayer(uri, layer_name, "strato")
+        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
 
@@ -128,7 +139,9 @@ class VectorItem(QgsDataItem):
             QgsProject.instance().addMapLayer(layer)
         else:
             QgsMessageLog.logMessage(
-                f"Layer is invalid: {uri}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Layer is invalid: {self.vector_uri}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def _set_pixel_based_style(self, layer):
