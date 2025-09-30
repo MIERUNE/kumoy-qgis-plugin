@@ -55,6 +55,8 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
+        config = api.config.get_api_config()
+        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
 
         # Set icon based on geometry type
         icon_filename = "icon_vector.svg"  # Default icon
@@ -83,7 +85,7 @@ class VectorItem(QgsDataItem):
         u.layerType = "vector"
         u.providerKey = constants.DATA_PROVIDER_KEY
         u.name = self.vector.name
-        u.uri = self._vlayer_uri()
+        u.uri = self.vector_uri
         return [u]
 
     def actions(self, parent):
@@ -116,14 +118,10 @@ class VectorItem(QgsDataItem):
 
         return actions
 
-    def _vlayer_uri(self):
-        config = api.config.get_api_config()
-        return f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
-
     def add_to_map(self):
         """Add vector layer to QGIS map"""
         # Create layer
-        layer = QgsVectorLayer(self._vlayer_uri(), self.vector.name, "strato")
+        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
 
@@ -141,7 +139,9 @@ class VectorItem(QgsDataItem):
             QgsProject.instance().addMapLayer(layer)
         else:
             QgsMessageLog.logMessage(
-                f"Layer is invalid: {uri}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Layer is invalid: {self.vector_uri}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def _set_pixel_based_style(self, layer):
