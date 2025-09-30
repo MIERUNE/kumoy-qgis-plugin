@@ -6,6 +6,7 @@ from qgis.core import (
     QgsDataItem,
     QgsFields,
     QgsMessageLog,
+    QgsMimeDataUtils,
     QgsProject,
     QgsSimpleFillSymbolLayer,
     QgsSimpleLineSymbolLayer,
@@ -73,6 +74,18 @@ class VectorItem(QgsDataItem):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("VectorItem", message)
 
+    def hasDragEnabled(self):
+        return True
+
+    def mimeUris(self):
+        # ドラッグドロップされた際にレイヤーを適切に追加するための実装
+        u = QgsMimeDataUtils.Uri()
+        u.layerType = "vector"
+        u.providerKey = constants.DATA_PROVIDER_KEY
+        u.name = self.vector.name
+        u.uri = self._vlayer_uri()
+        return [u]
+
     def actions(self, parent):
         actions = []
 
@@ -103,14 +116,14 @@ class VectorItem(QgsDataItem):
 
         return actions
 
+    def _vlayer_uri(self):
+        config = api.config.get_api_config()
+        return f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
+
     def add_to_map(self):
         """Add vector layer to QGIS map"""
-        config = api.config.get_api_config()
-        # Create URI
-        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
         # Create layer
-        layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
-        layer = QgsVectorLayer(uri, layer_name, "strato")
+        layer = QgsVectorLayer(self._vlayer_uri(), self.vector.name, "strato")
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
 
