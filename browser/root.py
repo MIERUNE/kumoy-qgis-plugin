@@ -140,7 +140,7 @@ class RootCollection(QgsDataCollectionItem):
             if result:
                 # Get selected project
                 organization = dialog.get_selected_organization()
-                project = dialog.get_selected_project()
+                project = dialog.selected_project
                 if project:
                     QgsMessageLog.logMessage(
                         f"Selected project: {project.name}", LOG_CATEGORY, Qgis.Info
