@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, Optional, Set, Tuple, cast
 
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -23,7 +23,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 import processing
 
-from ...settings_manager import get_settings, store_setting
+from ...settings_manager import get_settings
 from ...strato import api, constants
 from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
@@ -66,9 +66,14 @@ def rename_field_with_refactor(
         if new_name is None:
             continue
 
+        # STRING型の場合は最大長を制限
+        length = field.length()
+        if field.type() == QVariant.String:
+            length = constants.MAX_CHARACTERS_STRING_FIELD
+
         mapping = {
             "expression": f'"{field_name}"',
-            "length": field.length(),
+            "length": length,
             "name": new_name,
             "precision": field.precision(),
             "type": field.type(),
@@ -284,7 +289,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         layer: QgsVectorLayer,
-    ) -> Tuple[str, str, Any]:
+    ):
         """Get project information and validate limits"""
         # Get project ID
         project_index = self.parameterAsEnum(parameters, self.STRATO_PROJECT, context)
