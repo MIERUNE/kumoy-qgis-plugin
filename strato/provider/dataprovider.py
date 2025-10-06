@@ -19,11 +19,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QEventLoop, Qt, QThread, QVariant, pyqtSignal
 from qgis.PyQt.QtWidgets import QProgressDialog
 
-from .. import api
-from ..constants import (
-    DATA_PROVIDER_DESCRIPTION,
-    DATA_PROVIDER_KEY,
-)
+from .. import api, constants
 from . import local_cache
 from .feature_iterator import StratoFeatureIterator
 from .feature_source import StratoFeatureSource
@@ -61,7 +57,7 @@ def parse_uri(
     uri: str,
 ) -> tuple[str, str, str]:
     stratoProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
-        DATA_PROVIDER_KEY
+        constants.DATA_PROVIDER_KEY
     )
     parsed_uri = stratoProviderMetadata.decodeUri(uri)
 
@@ -148,8 +144,8 @@ class StratoDataProvider(QgsVectorDataProvider):
                     typeDesc="Varchar",
                     subType=QVariant.String,
                     typeName="VARCHAR",
-                    minLen=255,
-                    maxLen=255,  # PostgreSQL allows up to 10485760 characters but allow up to 255 in our system
+                    minLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Minimum length for our system
+                    maxLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Maximum length for our system
                     minPrec=0,  # Not applicable for varchar
                     maxPrec=0,  # Not applicable for varchar
                 ),
@@ -227,11 +223,11 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     @classmethod
     def providerKey(cls) -> str:
-        return DATA_PROVIDER_KEY
+        return constants.DATA_PROVIDER_KEY
 
     @classmethod
     def description(cls) -> str:
-        return DATA_PROVIDER_DESCRIPTION
+        return constants.DATA_PROVIDER_DESCRIPTION
 
     @classmethod
     def createProvider(cls, uri, providerOptions, flags=QgsDataProvider.ReadFlags()):
@@ -272,7 +268,7 @@ class StratoDataProvider(QgsVectorDataProvider):
             len = 0
             if v == "string":
                 data_type = QVariant.String
-                len = 255
+                len = constants.MAX_CHARACTERS_STRING_FIELD
             elif v == "integer":
                 data_type = QVariant.Int
             elif v == "float":
