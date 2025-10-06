@@ -68,12 +68,6 @@ def add_features(
             ):
                 feature["properties"][k] = None
 
-            # STRING型のフィールドを最大文字数に制限
-            if isinstance(feature["properties"][k], str):
-                feature["properties"][k] = feature["properties"][k][
-                    : constants.MAX_CHARACTERS_STRING_FIELD
-                ]
-
     ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
 
 
