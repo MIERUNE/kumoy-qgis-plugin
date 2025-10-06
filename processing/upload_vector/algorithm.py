@@ -66,9 +66,14 @@ def rename_field_with_refactor(
         if new_name is None:
             continue
 
+        # STRING型の場合は最大長を制限
+        length = field.length()
+        if field.type() == QVariant.String:
+            length = constants.MAX_CHARACTERS_STRING_FIELD
+
         mapping = {
             "expression": f'"{field_name}"',
-            "length": field.length(),
+            "length": length,
             "name": new_name,
             "precision": field.precision(),
             "type": field.type(),
