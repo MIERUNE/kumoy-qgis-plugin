@@ -429,17 +429,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 ).format(layer.featureCount() - filtered_count)
             )
 
-        feedback.pushInfo(self.tr("Refactoring attributes"))
-        current_layer = self._run_child_algorithm(
-            "native:refactorfields",
-            {
-                "INPUT": filtered_layer,
-                "FIELDS_MAPPING": mapping_list,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context,
-            feedback,
-        )
+        if filtered_layer.featureCount() == 0:
+            raise QgsProcessingException(
+                self.tr("No features remain after filtering invalid geometries")
+            )
+
+        current_layer = filtered_layer
 
         # Step 2: drop Z (keep M values untouched)
         if QgsWkbTypes.hasZ(current_layer.wkbType()):
@@ -456,7 +451,32 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
-        # Step 3: transform to EPSG:4326 when needed
+        # Step 3: repair geometries prior to other operations
+        feedback.pushInfo(self.tr("Repairing geometries"))
+        current_layer = self._run_child_algorithm(
+            "native:fixgeometries",
+            {
+                "INPUT": current_layer,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context,
+            feedback,
+        )
+
+        # Step 4: convert to singlepart if needed
+        if QgsWkbTypes.isMultiType(current_layer.wkbType()):
+            feedback.pushInfo(self.tr("Converting multipart to singlepart"))
+            current_layer = self._run_child_algorithm(
+                "native:multiparttosingleparts",
+                {
+                    "INPUT": current_layer,
+                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context,
+                feedback,
+            )
+
+        # Step 5: transform to EPSG:4326 when needed
         if current_layer.crs().authid() != "EPSG:4326":
             feedback.pushInfo(
                 self.tr("Reprojecting from {} to EPSG:4326").format(
@@ -474,24 +494,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
-        # Step 4: repair geometries
-        feedback.pushInfo(self.tr("Repairing geometries"))
+        feedback.pushInfo(self.tr("Refactoring attributes"))
         current_layer = self._run_child_algorithm(
-            "native:fixgeometries",
+            "native:refactorfields",
             {
                 "INPUT": current_layer,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context,
-            feedback,
-        )
-
-        # Step 5: convert to singlepart
-        feedback.pushInfo(self.tr("Converting multipart to singlepart"))
-        current_layer = self._run_child_algorithm(
-            "native:multiparttosingleparts",
-            {
-                "INPUT": current_layer,
+                "FIELDS_MAPPING": mapping_list,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context,
@@ -644,7 +652,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         cur_features = []
         accumulated_features = 0
         batch_size = 1000
-        QgsProject.instance().addMapLayer(valid_fields_layer)
+
         for f in valid_fields_layer.getFeatures():
             if len(cur_features) >= batch_size:
                 api.qgis_vector.add_features(vector_id, cur_features)
