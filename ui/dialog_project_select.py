@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtCore import Qt, QCoreApplication
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QComboBox,
@@ -53,6 +53,10 @@ class ProjectItemWidget(QWidget):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
+
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("ProjectItemWidget", message)
 
     def setup_ui(self):
         """Set up the project item UI"""
@@ -127,17 +131,17 @@ class ProjectItemWidget(QWidget):
 
             if delta.days == 0:
                 if delta.seconds < 3600:
-                    return f"{delta.seconds // 60} minutes ago"
+                    return self.tr("{} minutes ago").format(delta.seconds // 60)
                 else:
-                    return f"{delta.seconds // 3600} hours ago"
+                    return self.tr("{} hours ago").format(delta.seconds // 3600)
             elif delta.days == 1:
-                return "1 day ago"
+                return self.tr("1 day ago")
             elif delta.days < 30:
-                return f"{delta.days} days ago"
+                return self.tr("{} days ago").format(delta.days)
             elif delta.days < 365:
-                return f"{delta.days // 30} months ago"
+                return self.tr("{} months ago").format(delta.days // 30)
             else:
-                return f"{delta.days // 365} years ago"
+                return self.tr("{} years ago").format(delta.days // 365)
         except (ValueError, AttributeError):
             return date_string
 
@@ -146,17 +150,17 @@ class ProjectItemWidget(QWidget):
         menu = QMenu(self)
 
         # Open in Web action
-        open_web_action = menu.addAction("Open in Web UI")
+        open_web_action = menu.addAction(self.tr("Open in Web UI"))
         open_web_action.triggered.connect(self.open_in_web)
 
         # Edit action
-        edit_action = menu.addAction("Edit Project")
+        edit_action = menu.addAction(self.tr("Edit Project"))
         edit_action.triggered.connect(self.edit_project)
 
         menu.addSeparator()
 
         # Delete action
-        delete_action = menu.addAction("Delete Project")
+        delete_action = menu.addAction(self.tr("Delete Project"))
         delete_action.triggered.connect(self.delete_project)
 
         menu.exec_(self.mapToGlobal(position))
@@ -174,7 +178,9 @@ class ProjectItemWidget(QWidget):
             webbrowser.open(project_url)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error opening web browser: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                self.tr("Error opening web browser: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
             )
 
     def delete_project(self):
@@ -185,9 +191,11 @@ class ProjectItemWidget(QWidget):
         # Show confirmation dialog
         reply = QMessageBox.question(
             self.parent_dialog,
-            "Delete Project",
-            f"Are you sure you want to delete project '{self.project.name}'?\n"
-            "This action cannot be undone.",
+            self.tr("Delete Project"),
+            self.tr(
+                "Are you sure you want to delete project '{}'?\n"
+                "This action cannot be undone."
+            ).format(self.project.name),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -198,7 +206,9 @@ class ProjectItemWidget(QWidget):
                 api.project.delete_project(self.project.id)
 
                 QgsMessageLog.logMessage(
-                    f"Successfully deleted project '{self.project.name}'",
+                    self.tr("Successfully deleted project '{}'").format(
+                        self.project_name
+                    ),
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
@@ -212,15 +222,21 @@ class ProjectItemWidget(QWidget):
 
                 QMessageBox.information(
                     self.parent_dialog,
-                    "Project Deleted",
-                    f"Project '{self.project.name}' has been deleted successfully.",
+                    self.tr("Project Deleted"),
+                    self.tr("Project '{}' has been deleted successfully.").format(
+                        self.project.name
+                    ),
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Failed to delete project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                    self.tr("Failed to delete project: {}").format(str(e)),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
                 )
                 QMessageBox.critical(
-                    self.parent_dialog, "Error", f"Failed to delete project: {str(e)}"
+                    self.parent_dialog,
+                    self.tr("Error"),
+                    self.tr("Failed to delete project: {}").format(str(e)),
                 )
 
     def edit_project(self):
@@ -230,7 +246,10 @@ class ProjectItemWidget(QWidget):
 
         # Show input dialog with current project name
         new_name, ok = QInputDialog.getText(
-            self.parent_dialog, "Edit Project", "Project name:", text=self.project.name
+            self.parent_dialog,
+            self.tr("Edit Project"),
+            self.tr("Project name:"),
+            text=self.project.name,
         )
 
         if ok and new_name and new_name != self.project.name:
@@ -241,7 +260,9 @@ class ProjectItemWidget(QWidget):
                 )
 
                 QgsMessageLog.logMessage(
-                    f"Successfully updated project '{self.project.name}' to '{new_name}'",
+                    self.tr("Successfully updated project '{}' to '{}'").format(
+                        self.project.name, new_name
+                    ),
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
@@ -259,15 +280,21 @@ class ProjectItemWidget(QWidget):
 
                 QMessageBox.information(
                     self.parent_dialog,
-                    "Project Updated",
-                    f"Project has been renamed to '{new_name}' successfully.",
+                    self.tr("Project Updated"),
+                    self.tr("Project has been renamed to '{}' successfully.").format(
+                        new_name
+                    ),
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Failed to update project: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                    self.tr("Failed to update project: {}").format(str(e)),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
                 )
                 QMessageBox.critical(
-                    self.parent_dialog, "Error", f"Failed to update project: {str(e)}"
+                    self.parent_dialog,
+                    self.tr("Error"),
+                    self.tr("Failed to update project: {}").format(str(e)),
                 )
 
 
@@ -276,7 +303,7 @@ class ProjectSelectDialog(QDialog):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Select Project")
+        self.setWindowTitle(self.tr("Select Project"))
         self.resize(550, 600)
         self.setMinimumWidth(500)
         self.selected_project = None
@@ -288,6 +315,10 @@ class ProjectSelectDialog(QDialog):
         self.load_user_info()
         self.load_organizations()
         self.load_saved_selection()
+
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("ProjectSelectDialog", message)
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -317,7 +348,7 @@ class ProjectSelectDialog(QDialog):
     def _create_account_org_panel(self):
         account_org_layout = QGridLayout()
         # Account label
-        account_label = QLabel("Account")
+        account_label = QLabel(self.tr("Account"))
         account_org_layout.addWidget(account_label, 0, 0, 1, 2)
         # Avatar circle with initial + name
         avatar_name_layout = QHBoxLayout()
@@ -334,14 +365,14 @@ class ProjectSelectDialog(QDialog):
             }
         """)
         avatar_name_layout.addWidget(avatar_label)
-        user_name_label = QLabel("Loading...")
+        user_name_label = QLabel(self.tr("Loading..."))
         avatar_name_layout.addWidget(user_name_label)
         account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)
         # Organization label
-        org_label = QLabel("Organization")
+        org_label = QLabel(self.tr("Organization"))
         account_org_layout.addWidget(org_label, 0, 2)
         # "show details" link
-        details_toggle = QLabel("<a href='#'>Show details ▼</a>")
+        details_toggle = QLabel(self.tr("<a href='#'>Show details &#9660;</a>"))
         details_toggle.setAlignment(Qt.AlignRight)
         details_toggle.linkActivated.connect(self.toggle_details)
         account_org_layout.addWidget(details_toggle, 0, 3)
@@ -383,7 +414,7 @@ class ProjectSelectDialog(QDialog):
         )
         header_layout.addWidget(plan_role_label)
         # Organization Settings link
-        org_settings_button = QPushButton("Organization Settings")
+        org_settings_button = QPushButton(self.tr("Organization Settings"))
         org_settings_button.clicked.connect(self.open_organization_settings)
         header_layout.addWidget(org_settings_button)
 
@@ -474,18 +505,18 @@ class ProjectSelectDialog(QDialog):
         button_layout.setSpacing(8)
 
         # New Project button on the left
-        new_project_button = QPushButton("+ New Project")
+        new_project_button = QPushButton(self.tr("+ New Project"))
         new_project_button.clicked.connect(self.create_new_project)
         button_layout.addWidget(new_project_button)
 
         button_layout.addStretch()
 
         # Cancel and OK buttons
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton(self.tr("Cancel"))
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
 
-        ok_btn = QPushButton("OK")
+        ok_btn = QPushButton(self.tr("OK"))
         ok_btn.setEnabled(False)
         ok_btn.clicked.connect(self.accept)
         button_layout.addWidget(ok_btn)
@@ -503,9 +534,9 @@ class ProjectSelectDialog(QDialog):
             for org in organizations:
                 self.account_org_panel["org_combo"].addItem(org.name, org)
         except Exception as e:
-            msg = f"Error loading organizations: {e}"
+            msg = self.tr("Error loading organizations: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
@@ -525,9 +556,9 @@ class ProjectSelectDialog(QDialog):
             # Update usage display
             self.update_usage_display(org_detail)
         except Exception as e:
-            msg = f"Failed to load organization details. {str(e)}"
+            msg = self.tr("Failed to load organization details. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def load_user_info(self):
         """Load current user information"""
@@ -540,9 +571,9 @@ class ProjectSelectDialog(QDialog):
                 initial = user.name[0].upper()
                 self.account_org_panel["avatar_label"].setText(initial)
         except Exception as e:
-            msg = f"Failed to load user information. {str(e)}"
+            msg = self.tr("Failed to load user information. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
             # Fallback to default values
             self.account_org_panel["user_name_label"].setText("Anonymous")
             self.account_org_panel["avatar_label"].setText("")
@@ -554,11 +585,11 @@ class ProjectSelectDialog(QDialog):
 
         if self.details_visible:
             self.account_org_panel["details_toggle"].setText(
-                "<a href='#'>Hide details ▲</a>"
+                self.tr("<a href='#'>Hide details &#9650;</a>")
             )
         else:
             self.account_org_panel["details_toggle"].setText(
-                "<a href='#'>Show details ▼</a>"
+                self.tr("<a href='#'>Show details &#9660;</a>")
             )
 
     def open_organization_settings(self):
@@ -571,18 +602,17 @@ class ProjectSelectDialog(QDialog):
         try:
             webbrowser.open(settings_url)
         except Exception as e:
-            msg = f"Error opening web browser: {str(e)}"
+            msg = self.tr("Error opening web browser: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
         """Update the usage display with organization details"""
         # Update plan label
         self.org_details_panel["plan_role_label"].setText(
-            f"<div>\
-            <span>{org_detail.subscriptionPlan.capitalize()} Plan</span><br />\
-            <span>{org_detail.role.capitalize()}</span>\
-        </div>"
+            self.tr("<div><span>{} Plan</span><br /><span>{}</span></div>").format(
+                org_detail.subscriptionPlan.capitalize(), org_detail.role.capitalize()
+            )
         )
 
         # Get plan limits from API
@@ -590,9 +620,9 @@ class ProjectSelectDialog(QDialog):
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type)
         except Exception as e:
-            msg = f"Failed to fetch plan limits: {str(e)}"
+            msg = self.tr("Failed to fetch plan limits: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.warning(self, "Warning", msg)
+            QMessageBox.warning(self, self.tr("Warning"), msg)
 
             # Fallback to reasonable defaults if API fails
             plan_limits = api.plan.PlanLimits(
@@ -706,9 +736,9 @@ class ProjectSelectDialog(QDialog):
                 )
 
         except Exception as e:
-            msg = f"Failed to load projects: {str(e)}"
+            msg = self.tr("Failed to load projects: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def on_project_selected(self):
         """Handle project selection"""
@@ -748,7 +778,7 @@ class ProjectSelectDialog(QDialog):
             self._select_organization_by_id(org_id)
             self._select_project_by_id(project_id)
         except Exception as e:
-            msg = f"Failed to load saved selection. {str(e)}"
+            msg = self.tr("Failed to load saved selection. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
             QMessageBox.warning(self, "Warning", msg)
 
@@ -756,12 +786,16 @@ class ProjectSelectDialog(QDialog):
         """Create a new project in the selected organization"""
         if not (org := self.get_selected_organization()):
             QMessageBox.warning(
-                self, "No Organization Selected", "Please select an organization first."
+                self,
+                self.tr("No Organization Selected"),
+                self.tr("Please select an organization first."),
             )
             return
 
         project_name, ok = QInputDialog.getText(
-            self, "New Project", f"Enter project name for organization '{org.name}':"
+            self,
+            self.tr("New Project"),
+            self.tr("Enter project name for organization '{}':").format(org.name),
         )
         if not ok or not project_name:
             return
@@ -771,7 +805,7 @@ class ProjectSelectDialog(QDialog):
                 organization_id=org.id, name=project_name, description=""
             )
             QgsMessageLog.logMessage(
-                f"Successfully created project '{project_name}'",
+                self.tr("Successfully created project '{}'").format(project_name),
                 LOG_CATEGORY,
                 Qgis.Info,
             )
@@ -782,13 +816,15 @@ class ProjectSelectDialog(QDialog):
 
             QMessageBox.information(
                 self,
-                "Project Created",
-                f"Project '{project_name}' has been created successfully.",
+                self.tr("Project Created"),
+                self.tr("Project '{}' has been created successfully.").format(
+                    project_name
+                ),
             )
         except Exception as e:
-            msg = f"Failed to create project: {str(e)}"
+            msg = self.tr("Failed to create project: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, "Error", msg)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def _select_organization_by_id(self, org_id: str):
         """Select organization by ID in combo box"""

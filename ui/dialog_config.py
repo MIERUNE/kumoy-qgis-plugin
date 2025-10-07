@@ -104,7 +104,8 @@ class DialogConfig(QDialog):
         # Info label with HTML content
         version_and_credits_label = QLabel()
         version_and_credits_label.setText(
-            '<html>\
+            self.tr(
+                '<html>\
                 <head/>\
                 <body>\
                     <div>\
@@ -113,6 +114,7 @@ class DialogConfig(QDialog):
                     </div>\
                 </body>\
             </html>'
+            )
         )
         # padding
         version_and_credits_label.setContentsMargins(0, 20, 0, 40)
@@ -124,7 +126,7 @@ class DialogConfig(QDialog):
         # Collapsible group box for server config
         self.custom_server_config_group = QgsCollapsibleGroupBox()
         self.custom_server_config_group.setEnabled(True)
-        self.custom_server_config_group.setTitle("Custom Strato server config")
+        self.custom_server_config_group.setTitle(self.tr("Custom Strato server config"))
         self.custom_server_config_group.setCheckable(True)
         self.custom_server_config_group.setChecked(False)
         self.custom_server_config_group.setCollapsed(False)
@@ -135,7 +137,7 @@ class DialogConfig(QDialog):
 
         # Server URL row
         server_url_label = QLabel()
-        server_url_label.setText("Server URL")
+        server_url_label.setText(self.tr("Server URL"))
         gridLayout.addWidget(server_url_label, 1, 0)
 
         self.strato_server_url_input = QLineEdit()
@@ -152,7 +154,7 @@ class DialogConfig(QDialog):
 
         # Login buttons layout
         self.login_button = QPushButton()
-        self.login_button.setText("Login")
+        self.login_button.setText(self.tr("Login"))
         verticalLayout.addWidget(self.login_button)
 
     def tr(self, message):

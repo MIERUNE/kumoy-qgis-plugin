@@ -112,7 +112,9 @@ class StyledMapItem(QgsDataItem):
             styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                self.tr("Error loading map: {}").format(str(e)),
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
@@ -185,7 +187,7 @@ class StyledMapItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating map: {str(e)}",
+                self.tr("Error updating map: {}").format(str(e)),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -232,7 +234,9 @@ class StyledMapItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error saving map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                self.tr("Error saving map: {}").format(str(e)),
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
@@ -280,7 +284,7 @@ class StyledMapItem(QgsDataItem):
 
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting map: {str(e)}",
+                    self.tr("Error deleting map: {}").format(str(e)),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )

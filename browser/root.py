@@ -67,7 +67,7 @@ class RootCollection(QgsDataCollectionItem):
         id_token = get_settings().id_token
         if not id_token:
             # Login action
-            login_action = QAction("Login", parent)
+            login_action = QAction(self.tr("Login"), parent)
             login_action.triggered.connect(self.login)
             return [login_action]
 
@@ -80,7 +80,7 @@ class RootCollection(QgsDataCollectionItem):
         refresh_action.triggered.connect(self.refreshChildren)
 
         # Logout action
-        logout_action = QAction("Logout", parent)
+        logout_action = QAction(self.tr("Logout"), parent)
         logout_action.triggered.connect(self.logout)
 
         return [select_project_action, refresh_action, logout_action]
