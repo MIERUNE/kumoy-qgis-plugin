@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="ja_JP">
+<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
 <context>
     <name>DbRoot</name>
     <message>
@@ -138,7 +137,7 @@ Do you want to continue?</source>
     <message>
         <location filename="../browser/vector.py" line="559"/>
         <source>Failed to clear cache: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュクリアに失敗しました {}</translation>
     </message>
 </context>
 <context>
@@ -197,7 +196,7 @@ Do you want to continue?</source>
 <context>
     <name>DialogConfig</name>
     <message>
-        <location filename="../ui/dialog_config.py" line="171"/>
+        <location filename="../ui/dialog_config.py" line="173"/>
         <source>Logged in</source>
         <translation>ログイン済み</translation>
     </message>
@@ -219,12 +218,12 @@ Do you want to continue?</source>
         <translation type="obsolete">ログイン中: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="275"/>
+        <location filename="../ui/dialog_config.py" line="277"/>
         <source>Login Error</source>
         <translation>ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="191"/>
+        <location filename="../ui/dialog_config.py" line="193"/>
         <source>Authentication failed: {}</source>
         <translation>認証に失敗しました: {}</translation>
     </message>
@@ -239,22 +238,22 @@ Do you want to continue?</source>
         <translation type="obsolete">正常にログインしました！</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="231"/>
+        <location filename="../ui/dialog_config.py" line="233"/>
         <source>Logging in...</source>
         <translation>ログイン中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="239"/>
+        <location filename="../ui/dialog_config.py" line="241"/>
         <source>Failed to start authentication: {}</source>
         <translation>認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="260"/>
+        <location filename="../ui/dialog_config.py" line="262"/>
         <source>Waiting for browser authentication...</source>
         <translation>ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="275"/>
+        <location filename="../ui/dialog_config.py" line="277"/>
         <source>An error occurred during login: {}</source>
         <translation>ログイン中にエラーが発生しました: {}</translation>
     </message>
@@ -279,7 +278,7 @@ Do you want to continue?</source>
         <translation type="obsolete">ログアウト中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="313"/>
+        <location filename="../ui/dialog_config.py" line="315"/>
         <source>Server URL</source>
         <translation>サーバーURL</translation>
     </message>
@@ -294,12 +293,12 @@ Do you want to continue?</source>
         <translation type="obsolete">Cognito クライアントID</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="318"/>
+        <location filename="../ui/dialog_config.py" line="320"/>
         <source>Custom Server Configuration Error</source>
         <translation>カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="318"/>
+        <location filename="../ui/dialog_config.py" line="320"/>
         <source>The following settings are missing:
 {}
 
@@ -313,6 +312,21 @@ Please configure them before logging in.</source>
         <location filename="../ui/dialog_config.py" line="69"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_config.py" line="106"/>
+        <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
+        <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Stratoへようこそ&lt;/h2&gt;                        &lt;p&gt;&lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;株式会社MIERUNE.&lt;/span&gt;&lt;/a&gt;提供&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_config.py" line="129"/>
+        <source>Custom Strato server config</source>
+        <translation type="unfinished">カスタムSTRATOサーバー設定</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_config.py" line="157"/>
+        <source>Login</source>
+        <translation type="unfinished">ログイン</translation>
     </message>
 </context>
 <context>
@@ -396,11 +410,274 @@ open in Strato.</source>
     </message>
 </context>
 <context>
+    <name>ProjectItemWidget</name>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="137"/>
+        <source>{} minutes ago</source>
+        <translation type="unfinished">{}分前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="139"/>
+        <source>{} hours ago</source>
+        <translation type="unfinished">{}時間前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="141"/>
+        <source>1 day ago</source>
+        <translation type="unfinished">1日前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="143"/>
+        <source>{} days ago</source>
+        <translation type="unfinished">{}日前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="145"/>
+        <source>{} months ago</source>
+        <translation type="unfinished">{}ヶ月前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="147"/>
+        <source>{} years ago</source>
+        <translation type="unfinished">{}年前</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="156"/>
+        <source>Open in Web UI</source>
+        <translation type="unfinished">ウェブUIで開く</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="251"/>
+        <source>Edit Project</source>
+        <translation type="unfinished">プロジェクトを編集</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="195"/>
+        <source>Delete Project</source>
+        <translation type="unfinished">プロジェクトを削除</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="183"/>
+        <source>Error opening web browser: {}</source>
+        <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="195"/>
+        <source>Are you sure you want to delete project &apos;{}&apos;?
+This action cannot be undone.</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;を削除してもよろしいですか？
+この操作は取り消しできません。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="211"/>
+        <source>Successfully deleted project &apos;{}&apos;</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;は正常に削除されました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="226"/>
+        <source>Project Deleted</source>
+        <translation type="unfinished">プロジェクトの削除</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="226"/>
+        <source>Project &apos;{}&apos; has been deleted successfully.</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;は正常に削除されました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="239"/>
+        <source>Failed to delete project: {}</source>
+        <translation type="unfinished">プロジェクトの削除に失敗しました: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="297"/>
+        <source>Error</source>
+        <translation type="unfinished">エラー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="251"/>
+        <source>Project name:</source>
+        <translation type="unfinished">プロジェクト名:</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="265"/>
+        <source>Successfully updated project &apos;{}&apos; to &apos;{}&apos;</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;が &apos;{}&apos;に正常に更新されました</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="284"/>
+        <source>Project Updated</source>
+        <translation type="unfinished">プロジェクトが更新しました</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="284"/>
+        <source>Project has been renamed to &apos;{}&apos; successfully.</source>
+        <translation type="unfinished">プロジェクト名が「{}」に変更されました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="297"/>
+        <source>Failed to update project: {}</source>
+        <translation type="unfinished">プロジェクトの更新に失敗しました: {}</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectSelectDialog</name>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="309"/>
+        <source>Select Project</source>
+        <translation type="unfinished">プロジェクト選択</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="354"/>
+        <source>Account</source>
+        <translation type="unfinished">アカウント</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="371"/>
+        <source>Loading...</source>
+        <translation type="unfinished">処理中...</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="375"/>
+        <source>Organization</source>
+        <translation type="unfinished">オーガニゼーション</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="378"/>
+        <source>&lt;a href=&apos;#&apos;&gt;Show details &#xe2;&#x96;&#xbc;&lt;/a&gt;</source>
+        <translation type="obsolete">&lt;a href=&apos;#&apos;&gt;詳細を表示 â¼&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="420"/>
+        <source>Organization Settings</source>
+        <translation type="unfinished">オーガニゼーションの設定</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="511"/>
+        <source>+ New Project</source>
+        <translation type="unfinished">+ 新規プロジェクト</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="518"/>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="522"/>
+        <source>OK</source>
+        <translation type="unfinished">OK</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="540"/>
+        <source>Error loading organizations: {}</source>
+        <translation type="unfinished">オーガニゼーション読み込みエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="830"/>
+        <source>Error</source>
+        <translation type="unfinished">エラー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="562"/>
+        <source>Failed to load organization details. {}</source>
+        <translation type="unfinished">オーガニゼーション詳細の読み込みエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="577"/>
+        <source>Failed to load user information. {}</source>
+        <translation type="unfinished">ユーザー詳細の読み込みエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="590"/>
+        <source>&lt;a href=&apos;#&apos;&gt;Hide details &#xe2;&#x96;&#xb2;&lt;/a&gt;</source>
+        <translation type="obsolete">&lt;a href=&apos;#&apos;&gt;詳細を閉じる â²&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="608"/>
+        <source>Error opening web browser: {}</source>
+        <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="615"/>
+        <source>&lt;div&gt;&lt;span&gt;{} Plan&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</source>
+        <translation type="unfinished">&lt;div&gt;&lt;span&gt;{} プラン&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="626"/>
+        <source>Failed to fetch plan limits: {}</source>
+        <translation type="unfinished">プラン制限の取得に失敗しました: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="628"/>
+        <source>Warning</source>
+        <translation type="unfinished">注意</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="742"/>
+        <source>Failed to load projects: {}</source>
+        <translation type="unfinished">プロジェクト読み込みエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="784"/>
+        <source>Failed to load saved selection. {}</source>
+        <translation type="unfinished">保存された選択の読み込みに失敗しました。{}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="791"/>
+        <source>No Organization Selected</source>
+        <translation type="unfinished">オーガニゼーションが選択されていません</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="791"/>
+        <source>Please select an organization first.</source>
+        <translation type="unfinished">オーガニゼーションを選択してください。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="798"/>
+        <source>New Project</source>
+        <translation type="unfinished">新規プロジェクト</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="798"/>
+        <source>Enter project name for organization &apos;{}&apos;:</source>
+        <translation type="unfinished">オーガニゼーション&apos;{}&apos;のプロジェクト名を入力してください</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="810"/>
+        <source>Successfully created project &apos;{}&apos;</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;が正常に作成されました</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="820"/>
+        <source>Project Created</source>
+        <translation type="unfinished">プロジェクト作成されました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="820"/>
+        <source>Project &apos;{}&apos; has been created successfully.</source>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;が正常に作成されました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="828"/>
+        <source>Failed to create project: {}</source>
+        <translation type="unfinished">プロジェクトの作成に失敗しました: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="590"/>
+        <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
+        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="594"/>
+        <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
+        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+    </message>
+</context>
+<context>
     <name>RootCollection</name>
     <message>
-        <location filename="." line="0"/>
+        <location filename="../browser/root.py" line="70"/>
         <source>Login</source>
-        <translation type="obsolete">ログイン</translation>
+        <translation type="unfinished">ログイン</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="172"/>
@@ -501,7 +778,7 @@ open in Strato.</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="274"/>
+        <location filename="../browser/styledmap.py" line="278"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
@@ -511,7 +788,7 @@ open in Strato.</source>
         <translation type="obsolete">Map &apos;{}&apos;が正常に読み込まれました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="287"/>
+        <location filename="../browser/styledmap.py" line="291"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
@@ -521,32 +798,32 @@ open in Strato.</source>
         <translation type="obsolete">Map &apos;{}&apos;の読み込みに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="117"/>
+        <location filename="../browser/styledmap.py" line="119"/>
         <source>Error loading map: {}</source>
         <translation>Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="139"/>
+        <location filename="../browser/styledmap.py" line="141"/>
         <source>Edit Map</source>
         <translation>Map編集</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="148"/>
+        <location filename="../browser/styledmap.py" line="150"/>
         <source>Make Public</source>
         <translation>公開する</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="152"/>
+        <location filename="../browser/styledmap.py" line="154"/>
         <source>Name:</source>
         <translation>名前:</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="153"/>
+        <location filename="../browser/styledmap.py" line="155"/>
         <source>Public:</source>
         <translation>公開:</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="204"/>
+        <location filename="../browser/styledmap.py" line="206"/>
         <source>Map &apos;{}&apos; has been updated successfully.</source>
         <translation>Map &apos;{}&apos;が正常に更新されました。</translation>
     </message>
@@ -556,12 +833,12 @@ open in Strato.</source>
         <translation type="obsolete">更新に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="192"/>
+        <location filename="../browser/styledmap.py" line="194"/>
         <source>Error updating map: {}</source>
         <translation>更新エラー: {}</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="247"/>
+        <location filename="../browser/styledmap.py" line="251"/>
         <source>Map &apos;{}&apos; has been saved successfully.</source>
         <translation>Map &apos;{}&apos;が正常に保存されました。</translation>
     </message>
@@ -571,29 +848,29 @@ open in Strato.</source>
         <translation type="obsolete">保存に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="257"/>
+        <location filename="../browser/styledmap.py" line="261"/>
         <source>Delete Map</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="257"/>
+        <location filename="../browser/styledmap.py" line="261"/>
         <source>Are you sure you want to delete map &apos;{}&apos;?</source>
         <translation>Map &apos;{}&apos;を削除してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="274"/>
+        <location filename="../browser/styledmap.py" line="278"/>
         <source>Map &apos;{}&apos; has been deleted successfully.</source>
         <translation>Map &apos;{}&apos;が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="287"/>
+        <location filename="../browser/styledmap.py" line="291"/>
         <source>Failed to delete the map.</source>
         <translation>Mapの削除に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="242"/>
+        <location filename="../browser/styledmap.py" line="286"/>
         <source>Error deleting map: {}</source>
-        <translation type="obsolete">削除エラー: {}</translation>
+        <translation type="unfinished">削除エラー: {}</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="65"/>
@@ -616,17 +893,17 @@ open in Strato.</source>
         <translation type="unfinished">マップ &apos;{}&apos;を読み込んでもよろしいですか？現在のプロジェクトが置き換えられます。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="211"/>
+        <location filename="../browser/styledmap.py" line="213"/>
         <source>Save Map</source>
         <translation type="unfinished">マップを保存</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="211"/>
+        <location filename="../browser/styledmap.py" line="213"/>
         <source>Are you sure you want to overwrite the map &apos;{}&apos; with the current project state?</source>
         <translation type="unfinished">現在のプロジェクト状態でマップ &apos;{}&apos;を上書きしてもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="237"/>
+        <location filename="../browser/styledmap.py" line="241"/>
         <source>Error saving map: {}</source>
         <translation type="unfinished">Mapの保存エラー: {}</translation>
     </message>
@@ -644,27 +921,27 @@ open in Strato.</source>
         <translation type="obsolete">再読み込み</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="349"/>
+        <location filename="../browser/styledmap.py" line="353"/>
         <source>Add Map</source>
         <translation>Mapを追加</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="361"/>
+        <location filename="../browser/styledmap.py" line="365"/>
         <source>Name:</source>
         <translation>名前:</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="362"/>
+        <location filename="../browser/styledmap.py" line="366"/>
         <source>Public:</source>
         <translation>公開:</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="358"/>
+        <location filename="../browser/styledmap.py" line="362"/>
         <source>Make Public</source>
         <translation>公開する</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="407"/>
+        <location filename="../browser/styledmap.py" line="411"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
@@ -674,12 +951,12 @@ open in Strato.</source>
         <translation type="obsolete">プロジェクトが選択されていません。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="399"/>
+        <location filename="../browser/styledmap.py" line="403"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="399"/>
+        <location filename="../browser/styledmap.py" line="403"/>
         <source>Map &apos;{}&apos; has been created successfully.</source>
         <translation>Map &apos;{}&apos;が正常に作成されました。</translation>
     </message>
@@ -689,32 +966,32 @@ open in Strato.</source>
         <translation type="obsolete">Mapの作成に失敗しました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="417"/>
+        <location filename="../browser/styledmap.py" line="421"/>
         <source>No project selected</source>
         <translation>プロジェクトが選択されていません</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="423"/>
+        <location filename="../browser/styledmap.py" line="427"/>
         <source>No maps available.</source>
         <translation>利用可能なMapがありません。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="434"/>
+        <location filename="../browser/styledmap.py" line="438"/>
         <source>Error: {}</source>
         <translation>エラー: {}</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="314"/>
+        <location filename="../browser/styledmap.py" line="318"/>
         <source>Upload current map</source>
         <translation type="unfinished">現在のマップをアップロード</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="335"/>
+        <location filename="../browser/styledmap.py" line="339"/>
         <source>Cannot create new map. Your plan allows up to {} maps, but you have reached the limit.</source>
         <translation type="unfinished">新しいマップを作成できません。ご契約のプランでは最大{}マップまでですが、すでに上限に達しています。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="407"/>
+        <location filename="../browser/styledmap.py" line="411"/>
         <source>Error adding map: {}</source>
         <translation type="unfinished">マップの追加に失敗しました:</translation>
     </message>
