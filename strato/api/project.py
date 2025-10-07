@@ -9,10 +9,12 @@ class Project:
     id: str
     name: str
     description: str
-    createdAt: str = ""
-    updatedAt: str = ""
-    vectorCount: int = 0
-    mapCount: int = 0
+    createdAt: str
+    updatedAt: str
+    vectorCount: int
+    mapCount: int
+    storageUnitSum: float
+    thumbnailImageUrl: str
 
 
 def get_projects_by_organization(organization_id: str) -> List[Project]:
@@ -37,6 +39,8 @@ def get_projects_by_organization(organization_id: str) -> List[Project]:
                 updatedAt=project.get("updatedAt", ""),
                 vectorCount=project.get("vectorCount", 0),
                 mapCount=project.get("mapCount", 0),
+                storageUnitSum=project.get("storageUnitSum", 0.0),
+                thumbnailImageUrl=project.get("thumbnailImageUrl", ""),
             )
         )
 
@@ -51,6 +55,8 @@ class ProjectDetail:
     createdAt: str
     updatedAt: str
     organizationId: str
+    storageUnitSum: float
+    thumbnailImageUrl: str
 
 
 def get_project(project_id: str) -> ProjectDetail:
@@ -72,6 +78,8 @@ def get_project(project_id: str) -> ProjectDetail:
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organization", {}).get("id", ""),
+        storageUnitSum=response.get("storageUnitSum", 0.0),
+        thumbnailImageUrl=response.get("thumbnailImageUrl"),
     )
 
 
@@ -102,6 +110,8 @@ def create_project(organization_id: str, name: str, description: str) -> Project
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organizationId", ""),
+        storageUnitSum=response.get("storageUnitSum", 0.0),
+        thumbnailImageUrl=response.get("thumbnailImageUrl"),
     )
 
 
@@ -131,6 +141,8 @@ def update_project(project_id: str, name: str, description: str) -> ProjectDetai
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         organizationId=response.get("organizationId", ""),
+        storageUnitSum=response.get("storageUnitSum", 0.0),
+        thumbnailImageUrl=response.get("thumbnailImageUrl"),
     )
 
 
