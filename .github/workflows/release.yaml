@@ -4,7 +4,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: strato-plugin
+  PLUGIN_NAME: strato-plugin-${{ github.event.release.tag_name }}
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -23,11 +23,18 @@ jobs:
             -ve './.python-version' \
             -ve './README.md' \
             -ve './uv.lock' | xargs -I src cp --parents src ${{env.PLUGIN_NAME}}
+
+      - name: Write version to metadata.txt
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          sed -i "s/^version=.*/version=$VERSION/" ${{env.PLUGIN_NAME}}/metadata.txt
+          cat ${{env.PLUGIN_NAME}}/metadata.txt
+
       - name: Create Archive
         run: |
-          zip -r ${{env.PLUGIN_NAME}}-${{ github.event.release.tag_name }}.zip ./${{env.PLUGIN_NAME}}
+          zip -r ${{env.PLUGIN_NAME}}.zip ./${{env.PLUGIN_NAME}}
       - name: Upload release asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} ${{env.PLUGIN_NAME}}-${{ github.event.release.tag_name }}.zip#${{env.PLUGIN_NAME}}-${{ github.event.release.tag_name }}.zip --clobber
+          gh release upload ${{ github.event.release.tag_name }} ${{env.PLUGIN_NAME}}.zip#${{env.PLUGIN_NAME}}.zip --clobber

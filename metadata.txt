@@ -1,9 +1,9 @@
 [general]
 name=STRATO
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.40
 about=STRATO Plugin
 description=QGIS plugin for managing Strato projects
-version=1.0.0
+version=dev
 
 #Plugin main icon
 icon=imgs/icon.png
@@ -14,6 +14,6 @@ author=MIERUNE Inc.
 email=info@mierune.co.jp
 homepage=
 tracker=
-repository=https://github.com/strato-gis
+repository=https://github.com/MIERUNE/strato-qgis-plugin
 tags=
 category=
