@@ -29,6 +29,7 @@ from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 from ..version import QT_USER_ROLE
+from .remote_image_label import RemoteImageLabel
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -59,13 +60,9 @@ class ProjectItemWidget(QWidget):
         main_layout.setSpacing(12)
 
         # Thumbnail placeholder - map preview style
-        thumbnail_label = QLabel()
-        # Create a simple map-like thumbnail placeholder
-        pixmap = QPixmap(100, 60)
-        pixmap.fill(Qt.white)
-        thumbnail_label.setPixmap(pixmap)
-        thumbnail_label.setScaledContents(True)
-        thumbnail_label.adjustSize()
+        thumbnail_label = RemoteImageLabel(size=(100, 60))
+        # load thumbnail image if available
+        thumbnail_label.load(self.project.thumbnailImageUrl)
         thumbnail_label.setStyleSheet("""
             QLabel {
                 border: 1px solid #e0e0e0;
