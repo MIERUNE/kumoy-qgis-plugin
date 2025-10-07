@@ -12,6 +12,7 @@ from qgis.core import (
     QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
+    QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -460,18 +461,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             feedback,
         )
 
-        # Step 5: convert to singlepart when necessary
-        if QgsWkbTypes.isMultiType(current_layer.wkbType()):
-            feedback.pushInfo(self.tr("Converting multipart to singlepart"))
-            current_layer = self._run_child_algorithm(
-                "native:multiparttosingleparts",
-                {
-                    "INPUT": current_layer,
-                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context,
-                feedback,
-            )
+        # Step 5: convert to singlepart
+        feedback.pushInfo(self.tr("Converting multipart to singlepart"))
+        current_layer = self._run_child_algorithm(
+            "native:multiparttosingleparts",
+            {
+                "INPUT": current_layer,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context,
+            feedback,
+        )
 
         return current_layer
 
@@ -506,12 +506,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if not normalized_name:
                 continue
 
+            expression = field.name()
             length = field.length()
             if field.type() == QVariant.String:
+                # STRING型フィールドは255文字に制限
+                expression = f"coalesce(left(\"{field.name()}\", {constants.MAX_CHARACTERS_STRING_FIELD}), '')"
                 length = constants.MAX_CHARACTERS_STRING_FIELD
 
             mapping[field.name()] = {
-                "expression": f'"{field.name()}"',
+                "expression": expression,
                 "length": length,
                 "name": normalized_name,
                 "precision": field.precision(),
@@ -600,7 +603,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         cur_features = []
         accumulated_features = 0
         batch_size = 1000
-
+        QgsProject.instance().addMapLayer(valid_fields_layer)
         for f in valid_fields_layer.getFeatures():
             if len(cur_features) >= batch_size:
                 api.qgis_vector.add_features(vector_id, cur_features)
