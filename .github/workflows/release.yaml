@@ -4,7 +4,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: strato-plugin-${{ github.event.release.tag_name }}
+  PLUGIN_NAME: strato-plugin
 jobs:
   release:
     runs-on: ubuntu-latest
