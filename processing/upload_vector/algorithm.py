@@ -404,17 +404,30 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
-        feedback.pushInfo(self.tr("Filtering out features without geometry"))
+        geometry_filter_expr = self._build_geometry_filter_expression(layer)
+        feedback.pushInfo(
+            self.tr("Filtering features using expression: {}").format(
+                geometry_filter_expr
+            )
+        )
         filtered_layer = self._run_child_algorithm(
             "native:extractbyexpression",
             {
                 "INPUT": layer,
-                "EXPRESSION": "NOT is_empty_or_null($geometry)",
+                "EXPRESSION": geometry_filter_expr,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context,
             feedback,
         )
+
+        filtered_count = filtered_layer.featureCount()
+        if filtered_count < layer.featureCount():
+            feedback.pushInfo(
+                self.tr(
+                    "Filtered out {} features due to missing or incompatible geometries"
+                ).format(layer.featureCount() - filtered_count)
+            )
 
         feedback.pushInfo(self.tr("Refactoring attributes"))
         current_layer = self._run_child_algorithm(
@@ -540,6 +553,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         return mapping
+
+    def _build_geometry_filter_expression(self, layer: QgsVectorLayer) -> str:
+        geom_type = QgsWkbTypes.geometryType(layer.wkbType())
+        if geom_type == QgsWkbTypes.PointGeometry:
+            allowed_types = ["Point", "MultiPoint"]
+        elif geom_type == QgsWkbTypes.LineGeometry:
+            allowed_types = ["LineString", "MultiLineString"]
+        elif geom_type == QgsWkbTypes.PolygonGeometry:
+            allowed_types = ["Polygon", "MultiPolygon"]
+        else:
+            raise QgsProcessingException(
+                self.tr("Unsupported geometry type encountered during filtering")
+            )
+
+        allowed_expr = ", ".join(f"'{geom}'" for geom in allowed_types)
+        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) IN ({allowed_expr})"
 
     def _run_child_algorithm(
         self,
