@@ -404,11 +404,23 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
+        feedback.pushInfo(self.tr("Filtering out features without geometry"))
+        filtered_layer = self._run_child_algorithm(
+            "native:extractbyexpression",
+            {
+                "INPUT": layer,
+                "EXPRESSION": "NOT is_empty_or_null($geometry)",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context,
+            feedback,
+        )
+
         feedback.pushInfo(self.tr("Refactoring attributes"))
         current_layer = self._run_child_algorithm(
             "native:refactorfields",
             {
-                "INPUT": layer,
+                "INPUT": filtered_layer,
                 "FIELDS_MAPPING": mapping_list,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
