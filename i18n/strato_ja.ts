@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
 <context>
     <name>DbRoot</name>
     <message>
@@ -100,39 +101,39 @@
     <message>
         <location filename="../browser/vector.py" line="531"/>
         <source>Clear Cache</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュクリア</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="473"/>
         <source>Error adding vector: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタ追加エラー {}</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="512"/>
         <source>Error fetching vectors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタの取得エラー</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="515"/>
         <source>No vectors in this project</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクトにベクタが存在しません</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="531"/>
         <source>This will clear all local cache files. Cached data will be re-downloaded when you access vectors next time.
 
 Do you want to continue?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">すべてのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。\n\n続行してもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="547"/>
         <source>Cache cleared successfully</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュを削除しました</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="554"/>
         <source>Error clearing cache: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュクリアエラー {}</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="559"/>
@@ -311,7 +312,7 @@ Please configure them before logging in.</source>
     <message>
         <location filename="../ui/dialog_config.py" line="69"/>
         <source>Authentication</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">認証</translation>
     </message>
 </context>
 <context>
@@ -375,23 +376,23 @@ Please configure them before logging in.</source>
     <message>
         <location filename="../ui/dialog_config_login_success.py" line="39"/>
         <source>Authentication</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">認証</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config_login_success.py" line="57"/>
         <source>Login Successful!</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">正常にログインしました！</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config_login_success.py" line="66"/>
         <source>Next, please select your project to
 open in Strato.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">次に、Stratoで開きたいプロジェクトを選択してください。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_config_login_success.py" line="79"/>
         <source>Continue</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">続行</translation>
     </message>
 </context>
 <context>
@@ -454,27 +455,27 @@ open in Strato.</source>
     <message>
         <location filename="../browser/root.py" line="110"/>
         <source>Change Project</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクト変更</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="110"/>
         <source>Changing the project may result in loss of current editing state. Do you want to proceed?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクトを変更すると、現在の編集状態が失われる可能性があります。続行しますか？</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="157"/>
         <source>Project Changed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクトが変更しました</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="157"/>
         <source>QGIS project has been cleared due to project change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">QGISプロジェクトはプロジェクト変更により消去されました。</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="172"/>
         <source>You have unsaved changes in the current project. Logging out will clear the current project. Do you want to proceed?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">現在のプロジェクトに未保存の変更があります。ログアウトすると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
 </context>
 <context>
@@ -597,37 +598,37 @@ open in Strato.</source>
     <message>
         <location filename="../browser/styledmap.py" line="65"/>
         <source>Overwrite with current state</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">現在の状態で上書き</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="76"/>
         <source>Open Public Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">公開ページをブラウザで開く</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="99"/>
         <source>Load Map</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">マップを読み込む</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="99"/>
         <source>Are you sure you want to load the map &apos;{}&apos;? This will replace your current project.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">マップ &apos;{}&apos;を読み込んでもよろしいですか？現在のプロジェクトが置き換えられます。</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="211"/>
         <source>Save Map</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">マップを保存</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="211"/>
         <source>Are you sure you want to overwrite the map &apos;{}&apos; with the current project state?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">現在のプロジェクト状態でマップ &apos;{}&apos;を上書きしてもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="237"/>
         <source>Error saving map: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mapの保存エラー: {}</translation>
     </message>
 </context>
 <context>
@@ -705,17 +706,17 @@ open in Strato.</source>
     <message>
         <location filename="../browser/styledmap.py" line="314"/>
         <source>Upload current map</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">現在のマップをアップロード</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="335"/>
         <source>Cannot create new map. Your plan allows up to {} maps, but you have reached the limit.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">新しいマップを作成できません。ご契約のプランでは最大{}マップまでですが、すでに上限に達しています。</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="407"/>
         <source>Error adding map: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">マップの追加に失敗しました:</translation>
     </message>
 </context>
 <context>
@@ -898,67 +899,84 @@ The algorithm will:
 - Create a new vector layer in the selected project
 - Let you choose which attributes are uploaded
 Note: You must be logged in to Strato before using this tool.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタレイヤをSTRATOバックエンドにアップロードする
+
+使用手順:
+1. ドロップダウンからアップロードしたいベクタレイヤを選択
+2. 組織/プロジェクトリストから宛先プロジェクトを選択
+3. (任意) ベクタレイヤのカスタム名を入力、または空のままで元のレイヤ名を使用
+4. &apos;実行&apos;をクリックしてアップロードプロセスを開始
+
+アルゴリズムは以下を実行します:
+- PostgreSQL/PostGIS互換性のためのフィールド名の自動正規化（小文字、特殊文字の削除）
+- 処理前の無効なジオメトリの自動チェックと修正
+- マルチパートジオメトリのシングルパートへの変換
+- Z座標が存在する場合は削除
+- EPSG:4326への投影変換を一度に効率的に実行
+- 選択されたプロジェクトに新しいベクタレイヤを作成
+- アップロードする属性を選択可能
+
+注意: このツールを使用する前にSTRATOにログインする必要があります。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="254"/>
         <source>Attributes to upload</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アップロードする属性</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="336"/>
         <source>Invalid input layer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">無効な入力レイヤ</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="338"/>
         <source>Cannot upload a layer that is already stored in server.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">サーバーにすでに保存されているレイヤはアップロードできません。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="358"/>
         <source>Using {} of {} attributes for upload</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アップロードのために{}個の属性のうち{}個を使用しています</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="399"/>
         <source>No attributes available for upload. Select at least one attribute.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アップロード用の属性が選択されていません。少なくとも1つの属性を選択してください。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="429"/>
         <source>Failed to clean up incomplete vector layer: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">不完全なベクタレイヤのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="473"/>
         <source>Dropping Z coordinates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Z座標を削除</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="660"/>
         <source>Unsupported field type for field &apos;{}&apos;. Only string, integer, float, and boolean fields are supported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">フィールド &apos;{}&apos;は対応していない型です。文字列型、整数型、浮動小数点型、真偽値型のフィールドのみがサポートされています。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="672"/>
         <source>Field &apos;{}&apos; normalized to &apos;{}&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">フィールド &apos;{}&apos;は &apos;{}&apos;に正規化されました</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="695"/>
         <source>Created vector layer &apos;{}&apos; with ID: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタレイヤ &apos;{}&apos;がID: {}で作成されました</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="701"/>
         <source>Added attributes to vector layer &apos;{}&apos;: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタレイヤ &apos;{}&apos;に属性を追加しました: {}</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="742"/>
         <source>Upload complete: {} / {} features</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アップロード完了: {} / {} 個のフィーチャ</translation>
     </message>
 </context>
 <context>
@@ -1039,7 +1057,7 @@ Note: You must be logged in to Strato before using this tool.</source>
     <message>
         <location filename="../browser/vector.py" line="300"/>
         <source>Clear Cache</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュクリア</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="338"/>
@@ -1049,7 +1067,7 @@ Note: You must be logged in to Strato before using this tool.</source>
     <message>
         <location filename="../browser/vector.py" line="253"/>
         <source>Error updating vector: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタの更新に失敗しました: {}</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="300"/>
@@ -1057,12 +1075,12 @@ Note: You must be logged in to Strato before using this tool.</source>
 The cached data will be re-downloaded when you access it next time.
 
 Do you want to continue?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。\n\n続行してもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="317"/>
         <source>Cache cleared for vector &apos;{}&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタ &apos;{}&apos;のキャッシュが正常に消去されました</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="322"/>
@@ -1072,17 +1090,17 @@ Do you want to continue?</source>
     <message>
         <location filename="../browser/vector.py" line="322"/>
         <source>Cache cleared successfully for vector &apos;{}&apos;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタ &apos;{}&apos;のキャッシュが正常に消去されました</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="331"/>
         <source>Error clearing cache for vector &apos;{}&apos;: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタのキャッシュの消去に失敗しました: {}</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="338"/>
         <source>Failed to clear cache: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュの消去に失敗しました: {}</translation>
     </message>
 </context>
 </TS>
