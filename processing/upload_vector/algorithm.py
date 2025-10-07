@@ -575,7 +575,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 self.tr("Unsupported geometry type encountered during filtering")
             )
 
-        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) IN ('{allowed_type}')"
+        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) = '{allowed_type}'"
 
     def _run_child_algorithm(
         self,
