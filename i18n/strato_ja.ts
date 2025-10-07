@@ -539,7 +539,7 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="375"/>
         <source>Organization</source>
-        <translation type="unfinished">オーガニゼーション</translation>
+        <translation type="unfinished">組織</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="378"/>
@@ -549,7 +549,7 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="420"/>
         <source>Organization Settings</source>
-        <translation type="unfinished">オーガニゼーションの設定</translation>
+        <translation type="unfinished">組織設定</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="511"/>
@@ -569,7 +569,7 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="540"/>
         <source>Error loading organizations: {}</source>
-        <translation type="unfinished">オーガニゼーション読み込みエラー: {}</translation>
+        <translation type="unfinished">組織読み込みエラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="830"/>
@@ -579,7 +579,7 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="562"/>
         <source>Failed to load organization details. {}</source>
-        <translation type="unfinished">オーガニゼーション詳細の読み込みエラー: {}</translation>
+        <translation type="unfinished">組織詳細の読み込みエラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="577"/>
@@ -624,12 +624,12 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="791"/>
         <source>No Organization Selected</source>
-        <translation type="unfinished">オーガニゼーションが選択されていません</translation>
+        <translation type="unfinished">組織が選択されていません</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="791"/>
         <source>Please select an organization first.</source>
-        <translation type="unfinished">オーガニゼーションを選択してください。</translation>
+        <translation type="unfinished">組織を選択してください。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="798"/>
@@ -639,7 +639,7 @@ This action cannot be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="798"/>
         <source>Enter project name for organization &apos;{}&apos;:</source>
-        <translation type="unfinished">オーガニゼーション&apos;{}&apos;のプロジェクト名を入力してください</translation>
+        <translation type="unfinished">組織&apos;{}&apos;のプロジェクト名を入力してください</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="810"/>
