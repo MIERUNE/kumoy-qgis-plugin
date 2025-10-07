@@ -565,18 +565,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def _build_geometry_filter_expression(self, layer: QgsVectorLayer) -> str:
         geom_type = QgsWkbTypes.geometryType(layer.wkbType())
         if geom_type == QgsWkbTypes.PointGeometry:
-            allowed_types = ["Point", "MultiPoint"]
+            allowed_type = "Point"
         elif geom_type == QgsWkbTypes.LineGeometry:
-            allowed_types = ["LineString", "MultiLineString"]
+            allowed_type = "Line"
         elif geom_type == QgsWkbTypes.PolygonGeometry:
-            allowed_types = ["Polygon", "MultiPolygon"]
+            allowed_type = "Polygon"
         else:
             raise QgsProcessingException(
                 self.tr("Unsupported geometry type encountered during filtering")
             )
 
-        allowed_expr = ", ".join(f"'{geom}'" for geom in allowed_types)
-        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) IN ({allowed_expr})"
+        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) IN ('{allowed_type}')"
 
     def _run_child_algorithm(
         self,
