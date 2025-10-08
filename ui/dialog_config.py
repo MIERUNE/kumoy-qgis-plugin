@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.request
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
@@ -20,6 +21,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..settings_manager import get_settings, store_setting
+from ..strato import api
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 from ..version import exec_dialog
@@ -28,7 +30,7 @@ from .dialog_config_login_success import LoginSuccess
 
 def read_version():
     # read version from metadata.txt
-    version = "0.0.0"
+    version = "v0.0.0"
     try:
         metadata_path = os.path.join(os.path.dirname(__file__), "../metadata.txt")
         with open(metadata_path, "r") as f:
@@ -52,13 +54,6 @@ class DialogConfig(QDialog):
 
         # load saved server settings
         self.load_server_settings()
-
-        # Set up Supabase login tab connections
-        self.login_button.clicked.connect(self.login)
-
-        # Initialize auth manager
-        self.auth_manager = AuthManager(port=9248)
-
         self.update_login_status()
 
     def setupUi(self):
@@ -74,7 +69,7 @@ class DialogConfig(QDialog):
         verticalLayout = QVBoxLayout(self)
 
         version_label = QLabel()
-        version_label.setText(f"v{read_version()}")
+        version_label.setText(f"{read_version()}")
         version_label.setScaledContents(False)
         version_label.setAlignment(Qt.AlignRight)
         version_label.setOpenExternalLinks(True)
@@ -155,6 +150,7 @@ class DialogConfig(QDialog):
         # Login buttons layout
         self.login_button = QPushButton()
         self.login_button.setText(self.tr("Login"))
+        self.login_button.clicked.connect(self.login)
         verticalLayout.addWidget(self.login_button)
 
     def tr(self, message):
@@ -224,52 +220,25 @@ class DialogConfig(QDialog):
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
+        if not self.validate_custom_server_settings():
+            return
+        self.save_server_settings()
+
         try:
-            if not self.validate_custom_server_settings():
-                return
-            self.save_server_settings()
-
-            # Update status to show login is in progress
-            self.login_status_label.setText(self.tr("Logging in..."))
-            self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
-            self.login_button.setEnabled(False)
-
-            # Start the authentication process
-            success, result = self.auth_manager.authenticate()
-
-            if not success:
-                QMessageBox.warning(
-                    self,
-                    self.tr("Login Error"),
-                    self.tr("Failed to start authentication: {}").format(result),
-                )
-                # Reset status on failure
-                self.update_login_status()
-                self.login_button.setEnabled(True)
-                return
-
-            # Connect to auth_completed signal
-            self.auth_manager.auth_completed.connect(self.on_auth_completed)
-
-            # Open the authorization URL in the default browser
-            auth_url = result
-            QgsMessageLog.logMessage(
-                f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
+            # /api/_public/params エンドポイントからCognito設定を取得
+            api_config = api.config.get_api_config()
+            params_response = urllib.request.urlopen(
+                f"{api_config.SERVER_URL}/api/_public/params"
             )
-            webbrowser.open(auth_url)
+            params_data = json.loads(params_response.read().decode("utf-8"))
+            cognito_url = f"https://{params_data['cognitoDomain']}"
+            cognito_client_id = params_data["cognitoClientId"]
 
-            # Update status to indicate waiting for browser authentication
-            self.login_status_label.setText(
-                self.tr("Waiting for browser authentication...")
+            self.auth_manager = AuthManager(
+                cognito_url,
+                cognito_client_id,
+                port=9248,
             )
-            self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
-
-            # Start async authentication
-            QgsMessageLog.logMessage(
-                "Waiting for authentication to complete...", LOG_CATEGORY, Qgis.Info
-            )
-            self.auth_manager.start_async_auth()
-
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
@@ -282,6 +251,48 @@ class DialogConfig(QDialog):
             # Reset status and re-enable login button on error
             self.update_login_status()
             self.login_button.setEnabled(True)
+            return
+
+        # Update status to show login is in progress
+        self.login_status_label.setText(self.tr("Logging in..."))
+        self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
+        self.login_button.setEnabled(False)
+
+        # Start the authentication process
+        success, result = self.auth_manager.authenticate()
+
+        if not success:
+            QMessageBox.warning(
+                self,
+                self.tr("Login Error"),
+                self.tr("Failed to start authentication: {}").format(result),
+            )
+            # Reset status on failure
+            self.update_login_status()
+            self.login_button.setEnabled(True)
+            return
+
+        # Connect to auth_completed signal
+        self.auth_manager.auth_completed.connect(self.on_auth_completed)
+
+        # Open the authorization URL in the default browser
+        auth_url = result
+        QgsMessageLog.logMessage(
+            f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
+        )
+        webbrowser.open(auth_url)
+
+        # Update status to indicate waiting for browser authentication
+        self.login_status_label.setText(
+            self.tr("Waiting for browser authentication...")
+        )
+        self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
+
+        # Start async authentication
+        QgsMessageLog.logMessage(
+            "Waiting for authentication to complete...", LOG_CATEGORY, Qgis.Info
+        )
+        self.auth_manager.start_async_auth()
 
     def save_server_settings(self):
         """サーバー設定を保存する"""
@@ -309,20 +320,22 @@ class DialogConfig(QDialog):
         if not self.custom_server_config_group.isChecked():
             return True
 
-        # 必要な設定項目をチェック
-        missing_settings = []
-        if not self.strato_server_url_input.text().strip():
-            missing_settings.append(self.tr("Server URL"))
-
         # 未入力項目がある場合はメッセージボックスを表示
-        if missing_settings:
-            missing_text = ", ".join(missing_settings)
+        if self.strato_server_url_input.text().strip() == "":
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),
                 self.tr(
                     "The following settings are missing:\n{}\n\nPlease configure them before logging in."
-                ).format(missing_text),
+                ).format(self.tr("Server URL")),
+            )
+            return False
+
+        if not self.strato_server_url_input.text().startswith("http"):
+            QMessageBox.warning(
+                self,
+                self.tr("Custom Server Configuration Error"),
+                self.tr("The Server URL must start with http or https."),
             )
             return False
 

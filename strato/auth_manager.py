@@ -180,7 +180,7 @@ AUTH_HANDLER_REDIRECT_CANCELLED = None  # URL to redirect on error
 class AuthManager(QObject):
     auth_completed = pyqtSignal(bool, str)  # success, error_message
 
-    def __init__(self, port: int = 5000):
+    def __init__(self, cognito_url: str, cognito_client_id: str, port: int = 5000):
         """Initialize the Cognito authentication manager.
 
         Args:
@@ -199,18 +199,8 @@ class AuthManager(QObject):
         self.state = None
         self.auth_timer = None
         self.auth_start_time = None
-
-        # /api/_public/params エンドポイントからCognito設定を取得
-        try:
-            api_config = api.config.get_api_config()
-            params_response = urllib.request.urlopen(
-                f"{api_config.SERVER_URL}/api/_public/params"
-            )
-            params_data = json.loads(params_response.read().decode("utf-8"))
-            self.cognito_url = f"https://{params_data['cognitoDomain']}"
-            self.cognito_client_id = params_data["cognitoClientId"]
-        except Exception as e:
-            self.error = f"Error fetching Cognito configuration: {e}"
+        self.cognito_url = cognito_url
+        self.cognito_client_id = cognito_client_id
 
     def _generate_code_verifier(self) -> str:
         """Generate a code verifier for PKCE.
