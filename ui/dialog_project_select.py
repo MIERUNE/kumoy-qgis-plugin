@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import Qt, QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QComboBox,
@@ -524,6 +524,7 @@ class ProjectSelectDialog(QDialog):
         return {
             "layout": button_layout,
             "ok_btn": ok_btn,
+            "new_project_btn": new_project_button,
         }
 
     def load_organizations(self):
@@ -555,6 +556,11 @@ class ProjectSelectDialog(QDialog):
             org_detail = api.organization.get_organization(org.id)
             # Update usage display
             self.update_usage_display(org_detail)
+
+            if org_detail.role == "OWNER":
+                self.button_panel["new_project_btn"].setEnabled(True)
+            else:
+                self.button_panel["new_project_btn"].setEnabled(False)
         except Exception as e:
             msg = self.tr("Failed to load organization details. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
@@ -683,7 +689,7 @@ class ProjectSelectDialog(QDialog):
         widgets = self.org_details_panel["usage_widgets"][key]
         widgets["label"].setText(f"{used} / {limit}")
         widgets["progress"].setMaximum(limit)
-        widgets["progress"].setValue(used)
+        widgets["progress"].setValue(min(limit, used))
         self._set_progress_color(widgets["progress"], used, limit)
 
     def _set_progress_color(self, progress_bar: QProgressBar, used: int, limit: int):

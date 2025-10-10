@@ -57,6 +57,8 @@ class ProjectDetail:
     organizationId: str
     storageUnitSum: float
     thumbnailImageUrl: str
+    vectorCount: int
+    mapCount: int
 
 
 def get_project(project_id: str) -> ProjectDetail:
