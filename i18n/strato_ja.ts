@@ -143,52 +143,52 @@ Do you want to continue?</source>
 <context>
     <name>Dialog</name>
     <message>
-        <location filename="../ui/dialog_config.ui" line="20"/>
+        <location filename="../ui/dialog_account.ui" line="20"/>
         <source>Config</source>
         <translation type="obsolete">設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="89"/>
+        <location filename="../ui/dialog_account.ui" line="89"/>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation type="obsolete">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="105"/>
+        <location filename="../ui/dialog_account.ui" line="105"/>
         <source>Not logged in</source>
         <translation type="obsolete">未ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="131"/>
+        <location filename="../ui/dialog_account.ui" line="131"/>
         <source>Custom Strato server config</source>
         <translation type="obsolete">カスタムSTRATOサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="149"/>
+        <location filename="../ui/dialog_account.ui" line="149"/>
         <source>Cognit URL</source>
         <translation type="obsolete">Cognito URL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="156"/>
+        <location filename="../ui/dialog_account.ui" line="156"/>
         <source>Cognit Client ID</source>
         <translation type="obsolete">Cognito クライアントID</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="163"/>
+        <location filename="../ui/dialog_account.ui" line="163"/>
         <source>Server URL</source>
         <translation type="obsolete">サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="196"/>
+        <location filename="../ui/dialog_account.ui" line="196"/>
         <source>Login</source>
         <translation type="obsolete">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="206"/>
+        <location filename="../ui/dialog_account.ui" line="206"/>
         <source>Logout</source>
         <translation type="obsolete">ログアウト</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.ui" line="236"/>
+        <location filename="../ui/dialog_account.ui" line="236"/>
         <source>Close</source>
         <translation type="obsolete">閉じる</translation>
     </message>
@@ -196,109 +196,109 @@ Do you want to continue?</source>
 <context>
     <name>DialogConfig</name>
     <message>
-        <location filename="../ui/dialog_config.py" line="173"/>
+        <location filename="../ui/dialog_account.py" line="173"/>
         <source>Logged in</source>
         <translation>ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="97"/>
+        <location filename="../ui/dialog_account.py" line="97"/>
         <source>Not logged in</source>
         <translation type="obsolete">未ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="87"/>
+        <location filename="../ui/dialog_account.py" line="87"/>
         <source>Logged in as: {}
 {}</source>
         <translation type="obsolete">ログイン中: {}
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="91"/>
+        <location filename="../ui/dialog_account.py" line="91"/>
         <source>Logged in as: {}</source>
         <translation type="obsolete">ログイン中: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="277"/>
+        <location filename="../ui/dialog_account.py" line="277"/>
         <source>Login Error</source>
         <translation>ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="193"/>
+        <location filename="../ui/dialog_account.py" line="193"/>
         <source>Authentication failed: {}</source>
         <translation>認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="137"/>
+        <location filename="../ui/dialog_account.py" line="137"/>
         <source>Login Success</source>
         <translation type="obsolete">ログイン成功</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="137"/>
+        <location filename="../ui/dialog_account.py" line="137"/>
         <source>You have successfully logged in!</source>
         <translation type="obsolete">正常にログインしました！</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="233"/>
+        <location filename="../ui/dialog_account.py" line="233"/>
         <source>Logging in...</source>
         <translation>ログイン中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="241"/>
+        <location filename="../ui/dialog_account.py" line="241"/>
         <source>Failed to start authentication: {}</source>
         <translation>認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="262"/>
+        <location filename="../ui/dialog_account.py" line="262"/>
         <source>Waiting for browser authentication...</source>
         <translation>ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="277"/>
+        <location filename="../ui/dialog_account.py" line="277"/>
         <source>An error occurred during login: {}</source>
         <translation>ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="218"/>
+        <location filename="../ui/dialog_account.py" line="218"/>
         <source>Logout</source>
         <translation type="obsolete">ログアウト</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="218"/>
+        <location filename="../ui/dialog_account.py" line="218"/>
         <source>You have been logged out successfully.</source>
         <translation type="obsolete">正常にログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="234"/>
+        <location filename="../ui/dialog_account.py" line="234"/>
         <source>Logout Error</source>
         <translation type="obsolete">ログアウトエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="234"/>
+        <location filename="../ui/dialog_account.py" line="234"/>
         <source>An error occurred during logout: {}</source>
         <translation type="obsolete">ログアウト中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="315"/>
+        <location filename="../ui/dialog_account.py" line="315"/>
         <source>Server URL</source>
         <translation>サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="290"/>
+        <location filename="../ui/dialog_account.py" line="290"/>
         <source>Cognito URL</source>
         <translation type="obsolete">Cognito URL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="292"/>
+        <location filename="../ui/dialog_account.py" line="292"/>
         <source>Cognito Client ID</source>
         <translation type="obsolete">Cognito クライアントID</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="320"/>
+        <location filename="../ui/dialog_account.py" line="320"/>
         <source>Custom Server Configuration Error</source>
         <translation>カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="320"/>
+        <location filename="../ui/dialog_account.py" line="320"/>
         <source>The following settings are missing:
 {}
 
@@ -309,22 +309,22 @@ Please configure them before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="69"/>
+        <location filename="../ui/dialog_account.py" line="69"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="106"/>
+        <location filename="../ui/dialog_account.py" line="106"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Stratoへようこそ&lt;/h2&gt;                        &lt;p&gt;&lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;株式会社MIERUNE.&lt;/span&gt;&lt;/a&gt;提供&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="129"/>
+        <location filename="../ui/dialog_account.py" line="129"/>
         <source>Custom Strato server config</source>
         <translation type="unfinished">カスタムSTRATOサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config.py" line="157"/>
+        <location filename="../ui/dialog_account.py" line="157"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
@@ -388,23 +388,23 @@ Please configure them before logging in.</source>
 <context>
     <name>LoginSuccess</name>
     <message>
-        <location filename="../ui/dialog_config_login_success.py" line="39"/>
+        <location filename="../ui/dialog_account_login_success.py" line="39"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config_login_success.py" line="57"/>
+        <location filename="../ui/dialog_account_login_success.py" line="57"/>
         <source>Login Successful!</source>
         <translation type="unfinished">正常にログインしました！</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config_login_success.py" line="66"/>
+        <location filename="../ui/dialog_account_login_success.py" line="66"/>
         <source>Next, please select your project to
 open in Strato.</source>
         <translation type="unfinished">次に、Stratoで開きたいプロジェクトを選択してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_config_login_success.py" line="79"/>
+        <location filename="../ui/dialog_account_login_success.py" line="79"/>
         <source>Continue</source>
         <translation type="unfinished">続行</translation>
     </message>
