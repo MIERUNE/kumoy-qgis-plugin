@@ -1,7 +1,5 @@
 import json
 import os
-import urllib.error
-import urllib.request
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
@@ -13,15 +11,13 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
-    QSpacerItem,
     QVBoxLayout,
 )
 
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
-from .dialog_config import read_version
+from .dialog_login import read_version
 
 
 def _load_pixmap(icon_name: str) -> QPixmap:
@@ -226,18 +222,20 @@ class DialogAccount(QDialog):
             )
 
     def _logout(self) -> None:
-        confirmed = QMessageBox.question(
-            self,
-            self.tr("Logout"),
-            self.tr(
-                "You have unsaved changes in the current project. "
-                "Logging out will clear the current project. Do you want to proceed?"
-            ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if confirmed != QMessageBox.Yes:
-            return
+        if QgsProject.instance().isDirty():
+            confirmed = QMessageBox.question(
+                self,
+                self.tr("Logout"),
+                self.tr(
+                    "You have unsaved changes in the current project. "
+                    "Logging out will clear the current project. Do you want to proceed?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+
+            if confirmed != QMessageBox.Yes:
+                return
 
         QgsProject.instance().clear()
 

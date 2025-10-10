@@ -107,7 +107,7 @@ class RootCollection(QgsDataCollectionItem):
 
         # プロジェクトを変更すると、現在の編集状態が失われる可能性があるため、ダイアログで確認
         prev_project_id = get_settings().selected_project_id
-        if prev_project_id:
+        if prev_project_id and QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 None,
                 self.tr("Change Project"),
