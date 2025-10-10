@@ -25,7 +25,7 @@ from ..strato import api
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 from ..version import exec_dialog
-from .dialog_config_login_success import LoginSuccess
+from .dialog_login_success import LoginSuccess
 
 
 def read_version():
@@ -47,7 +47,7 @@ def read_version():
     return version
 
 
-class DialogConfig(QDialog):
+class DialogLogin(QDialog):
     def __init__(self):
         super().__init__()
         self.setupUi()

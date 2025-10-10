@@ -14,10 +14,11 @@ from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
 from ..imgs import IMGS_PATH
-from ..settings_manager import get_settings, store_setting
+from ..settings_manager import get_settings
 from ..strato import api
 from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
-from ..ui.dialog_config import DialogConfig
+from ..ui.dialog_account import DialogAccount
+from ..ui.dialog_login import DialogLogin
 from ..ui.dialog_project_select import ProjectSelectDialog
 from ..version import exec_dialog
 from .styledmap import StyledMapRoot
@@ -79,11 +80,11 @@ class RootCollection(QgsDataCollectionItem):
         refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refreshChildren)
 
-        # Logout action
-        logout_action = QAction(self.tr("Logout"), parent)
-        logout_action.triggered.connect(self.logout)
+        # Account action
+        account_action = QAction(self.tr("Account"), parent)
+        account_action.triggered.connect(self.account_settings)
 
-        return [select_project_action, refresh_action, logout_action]
+        return [select_project_action, refresh_action, account_action]
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
@@ -94,7 +95,7 @@ class RootCollection(QgsDataCollectionItem):
         """Login to STRATO"""
 
         # Show config dialog with Supabase login tab
-        dialog = DialogConfig()
+        dialog = DialogLogin()
         result = exec_dialog(dialog)
 
         if result:
@@ -166,44 +167,16 @@ class RootCollection(QgsDataCollectionItem):
                 f"Error selecting project: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
 
-    def logout(self):
-        """Logout from STRATO"""
-        # ログアウト時にはProjectをクリアするので、確認ダイアログを表示
-        confirmed = QMessageBox.question(
-            None,
-            self.tr("Logout"),
-            self.tr(
-                "You have unsaved changes in the current project. Logging out will clear the current project. Do you want to proceed?"
-            ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if confirmed != QMessageBox.Yes:
-            return
+    def account_settings(self):
+        """Show account settings dialog"""
+        dialog = DialogAccount()
+        should_logout = exec_dialog(dialog)
 
-        # Projectをクリア
-        QgsProject.instance().clear()
-
-        try:
-            # Clear tokens and selected project
-            store_setting("id_token", "")
-            store_setting("refresh_token", "")
-            store_setting("user_info", "")
-            store_setting("selected_project_id", "")
-            store_setting("selected_organization_id", "")
-
+        if should_logout:
             # Reset browser name
             self.setName(PLUGIN_NAME)
-
             # Refresh to update UI
             self.refresh()
-
-            QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error logging out: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
 
     def update_name_with_project(self):
         """Update the browser name to include the project name"""
