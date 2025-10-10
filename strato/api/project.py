@@ -82,6 +82,8 @@ def get_project(project_id: str) -> ProjectDetail:
         organizationId=response.get("organization", {}).get("id", ""),
         storageUnitSum=response.get("storageUnitSum", 0.0),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
+        vectorCount=response.get("vectorCount", 0),
+        mapCount=response.get("mapCount", 0),
     )
 
 
