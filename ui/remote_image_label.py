@@ -1,7 +1,14 @@
+import os
+
 from PyQt5.QtCore import QBuffer, QByteArray, Qt, QUrl
 from PyQt5.QtGui import QImage, QImageReader, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QLabel
+
+from ..imgs import PIN_ICON
+
+# icon
+placeholder_pixmap = PIN_ICON.pixmap(24, 24)
 
 
 class RemoteImageLabel(QLabel):
@@ -14,13 +21,13 @@ class RemoteImageLabel(QLabel):
         self._reply: QNetworkReply | None = None
 
     def load(self, url: str):
-        self.setText("Loading…")
+        self.setPixmap(placeholder_pixmap)
         self._reply = self.nam.get(QNetworkRequest(QUrl(url)))
         self._reply.finished.connect(self._on_finished)
 
     def _on_finished(self):
         if self._reply.error():
-            self.setText(f"Error: {self._reply.errorString()}")
+            self.setPixmap(placeholder_pixmap)
             self._reply.deleteLater()
             return
         data: QByteArray = self._reply.readAll()
@@ -32,7 +39,7 @@ class RemoteImageLabel(QLabel):
         reader.setAutoTransform(True)
         img = reader.read()
         if img.isNull():
-            self.setText("Decode failed")
+            self.setPixmap(placeholder_pixmap)
             return
         self._img = img
         self._apply_cover()

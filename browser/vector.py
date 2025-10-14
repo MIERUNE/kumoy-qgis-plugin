@@ -18,7 +18,6 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QComboBox,
@@ -31,7 +30,12 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..imgs import IMGS_PATH
+from ..imgs import (
+    BROWSER_FOLDER_ICON,
+    BROWSER_GEOMETRY_LINESTRING_ICON,
+    BROWSER_GEOMETRY_POINT_ICON,
+    BROWSER_GEOMETRY_POLYGON_ICON,
+)
 from ..settings_manager import get_settings, store_setting
 from ..strato import api, constants
 from ..strato.api.project_vector import (
@@ -66,16 +70,12 @@ class VectorItem(QgsDataItem):
         self.role = role
 
         # Set icon based on geometry type
-        icon_filename = "icon_vector.svg"  # Default icon
-
         if vector.type == "POINT":
-            icon_filename = "icon_point.svg"
+            self.setIcon(BROWSER_GEOMETRY_POINT_ICON)
         elif vector.type == "LINESTRING":
-            icon_filename = "icon_linestring.svg"
+            self.setIcon(BROWSER_GEOMETRY_LINESTRING_ICON)
         elif vector.type == "POLYGON":
-            icon_filename = "icon_polygon.svg"
-
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, icon_filename)))
+            self.setIcon(BROWSER_GEOMETRY_POLYGON_ICON)
 
         self.populate()
 
@@ -369,7 +369,7 @@ class DbRoot(QgsDataItem):
             path=path,
         )
 
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
+        self.setIcon(BROWSER_FOLDER_ICON)
 
         self.organization = organization
         self.project = project

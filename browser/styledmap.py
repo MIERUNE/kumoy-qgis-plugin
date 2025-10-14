@@ -10,7 +10,6 @@ from qgis.core import (
     QgsProject,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
@@ -23,7 +22,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ..imgs import IMGS_PATH
+from ..imgs import BROWSER_MAP_ICON
 from ..settings_manager import get_settings, store_setting
 from ..strato import api, constants
 from .utils import ErrorItem
@@ -51,7 +50,7 @@ class StyledMapItem(QgsDataItem):
         self.role = role
 
         # アイコン設定
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
+        self.setIcon(BROWSER_MAP_ICON)
 
         self.populate()
 
@@ -318,7 +317,7 @@ class StyledMapRoot(QgsDataItem):
             name,
             path,
         )
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
+        self.setIcon(BROWSER_MAP_ICON)
         self.populate()
 
         self.organization = organization
