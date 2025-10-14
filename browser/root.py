@@ -136,36 +136,40 @@ class RootCollection(QgsDataCollectionItem):
     def select_project(self):
         """Select a project to display"""
 
-        # プロジェクトを変更すると、現在の編集状態が失われる可能性があるため、ダイアログで確認
         prev_project_id = get_settings().selected_project_id
-        if prev_project_id and QgsProject.instance().isDirty():
-            confirmed = QMessageBox.question(
-                None,
-                self.tr("Change Project"),
-                self.tr(
-                    "Changing the project may result in loss of current editing state. Do you want to proceed?"
-                ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
-            )
-            if confirmed != QMessageBox.Yes:
-                return
 
         # Show project selection dialog
         dialog = ProjectSelectDialog()
         result = exec_dialog(dialog)
 
-        # Org/Projの選択状態が更新されたので、rootからツリーを更新
-        self.refreshChildren()
+        if not result:
+            return
 
-        if result:
-            # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
-            if prev_project_id != self.project_data.id:
+        if prev_project_id is None:
+            self.refreshChildren()
+        else:
+            if prev_project_id != get_settings().selected_project_id:
+                # Projectが変更されていて現在と異なるが選択された場合
+                # 確認ダイアログを表示したのちQGISプロジェクト全体をクリア
+                if QgsProject.instance().isDirty():
+                    confirmed = QMessageBox.question(
+                        None,
+                        self.tr("Change Project"),
+                        self.tr(
+                            "Changing the project may result in loss of current editing state. Do you want to proceed?"
+                        ),
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.No,
+                    )
+                    if confirmed != QMessageBox.Yes:
+                        return
+
                 QgsProject.instance().clear()
                 iface.messageBar().pushSuccess(
                     self.tr("Project Changed"),
                     self.tr("QGIS project has been cleared due to project change."),
                 )
+                self.refreshChildren()
 
     def account_settings(self):
         """Show account settings dialog"""
