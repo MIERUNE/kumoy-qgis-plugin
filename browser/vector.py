@@ -359,7 +359,7 @@ class DbRoot(QgsDataItem):
         name: str,
         path: str,
         organization: api.organization.OrganizationDetail,
-        project: api.project.ProjectDetailWithRole,
+        project: api.project.ProjectDetail,
     ):
         QgsDataItem.__init__(
             self,

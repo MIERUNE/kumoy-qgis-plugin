@@ -147,19 +147,20 @@ class RootCollection(QgsDataCollectionItem):
 
         # Show project selection dialog
         dialog = ProjectSelectDialog()
-        exec_dialog(dialog)
+        result = exec_dialog(dialog)
 
         # Org/Projの選択状態が更新されたので、rootからツリーを更新
         self.refresh()
         self.depopulate()
 
-        # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
-        if prev_project_id != self.project_data.id:
-            QgsProject.instance().clear()
-            iface.messageBar().pushSuccess(
-                self.tr("Project Changed"),
-                self.tr("QGIS project has been cleared due to project change."),
-            )
+        if result:
+            # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
+            if prev_project_id != self.project_data.id:
+                QgsProject.instance().clear()
+                iface.messageBar().pushSuccess(
+                    self.tr("Project Changed"),
+                    self.tr("QGIS project has been cleared due to project change."),
+                )
 
     def account_settings(self):
         """Show account settings dialog"""
@@ -168,9 +169,11 @@ class RootCollection(QgsDataCollectionItem):
 
         if should_logout:
             # Reset browser name
+            self.organization_data = None
+            self.project_data = None
             self.setName(PLUGIN_NAME)
             # Refresh to update UI
-            self.refresh()
+            self.refreshChildren()
 
     def createChildren(self):
         """Create child items for the root collection"""

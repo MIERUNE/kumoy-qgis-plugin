@@ -207,7 +207,7 @@ class ProjectItemWidget(QWidget):
 
                 QgsMessageLog.logMessage(
                     self.tr("Successfully deleted project '{}'").format(
-                        self.project_name
+                        self.project.name
                     ),
                     LOG_CATEGORY,
                     Qgis.Info,
