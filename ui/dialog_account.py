@@ -227,8 +227,8 @@ class DialogAccount(QDialog):
                 self,
                 self.tr("Logout"),
                 self.tr(
-                    "You have unsaved changes in the current project. "
-                    "Logging out will clear the current project. Do you want to proceed?"
+                    "You have unsaved changes. "
+                    "Logging out will clear your current project. Continue?"
                 ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,

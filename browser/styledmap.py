@@ -57,7 +57,7 @@ class StyledMapItem(QgsDataItem):
         actions = []
 
         # スタイルマップ適用アクション
-        apply_action = QAction(self.tr("Load to QGIS"), parent)
+        apply_action = QAction(self.tr("Load into QGIS"), parent)
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 

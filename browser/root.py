@@ -112,7 +112,7 @@ class RootCollection(QgsDataCollectionItem):
                 None,
                 self.tr("Change Project"),
                 self.tr(
-                    "Changing the project may result in loss of current editing state. Do you want to proceed?"
+                    "You have unsaved edits. Switching projects will discard them. Continue?"
                 ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
@@ -128,9 +128,7 @@ class RootCollection(QgsDataCollectionItem):
                 QMessageBox.warning(
                     None,
                     self.tr("Not Logged In"),
-                    self.tr(
-                        "You must be logged in to select a project. Please login first."
-                    ),
+                    self.tr("Please log in before selecting a project."),
                 )
                 return
 
@@ -158,7 +156,7 @@ class RootCollection(QgsDataCollectionItem):
                         iface.messageBar().pushSuccess(
                             self.tr("Project Changed"),
                             self.tr(
-                                "QGIS project has been cleared due to project change."
+                                "Your QGIS project was cleared because the active project changed."
                             ),
                         )
 
@@ -225,7 +223,8 @@ class RootCollection(QgsDataCollectionItem):
             if not project_id:
                 return [
                     ErrorItem(
-                        self, self.tr("No project selected. Please select a project.")
+                        self,
+                        self.tr("No project selected. Please choose one to continue."),
                     )
                 ]
 

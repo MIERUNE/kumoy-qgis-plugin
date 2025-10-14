@@ -121,7 +121,9 @@ class DialogLogin(QDialog):
         # Collapsible group box for server config
         self.custom_server_config_group = QgsCollapsibleGroupBox()
         self.custom_server_config_group.setEnabled(True)
-        self.custom_server_config_group.setTitle(self.tr("Custom Strato server config"))
+        self.custom_server_config_group.setTitle(
+            self.tr("Custom server configurationuration")
+        )
         self.custom_server_config_group.setCheckable(True)
         self.custom_server_config_group.setChecked(False)
         self.custom_server_config_group.setCollapsed(False)
@@ -246,7 +248,7 @@ class DialogLogin(QDialog):
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
-                self.tr("An error occurred during login: {}").format(str(e)),
+                self.tr("An error occurred while logging in: {}").format(str(e)),
             )
             # Reset status and re-enable login button on error
             self.update_login_status()
@@ -254,7 +256,7 @@ class DialogLogin(QDialog):
             return
 
         # Update status to show login is in progress
-        self.login_status_label.setText(self.tr("Logging in..."))
+        self.login_status_label.setText(self.tr("Signing you in..."))
         self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
         self.login_button.setEnabled(False)
 
@@ -326,7 +328,7 @@ class DialogLogin(QDialog):
                 self,
                 self.tr("Custom Server Configuration Error"),
                 self.tr(
-                    "The following settings are missing:\n{}\n\nPlease configure them before logging in."
+                    "Some required settings are missing:\n{}\n\nPlease update your configuration before logging in."
                 ).format(self.tr("Server URL")),
             )
             return False
