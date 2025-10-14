@@ -55,23 +55,22 @@ class SyncWorker(QThread):
 
 def parse_uri(
     uri: str,
-) -> tuple[str, str, str]:
+) -> tuple[str, str]:
     stratoProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
         constants.DATA_PROVIDER_KEY
     )
     parsed_uri = stratoProviderMetadata.decodeUri(uri)
 
-    endpoint = parsed_uri.get("endpoint", "")
     project_id = parsed_uri.get("project_id", "")
     vector_id = parsed_uri.get("vector_id", "")
 
     # check parsing results
-    if vector_id == "" or endpoint == "" or project_id == "":
+    if vector_id == "" or project_id == "":
         raise ValueError(
             "Invalid URI. 'endpoint', 'project_id' and 'vector_id' are required."
         )
 
-    return (endpoint, project_id, vector_id)
+    return (project_id, vector_id)
 
 
 class StratoDataProvider(QgsVectorDataProvider):
@@ -94,7 +93,7 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        _, self.project_id, self.vector_id = parse_uri(uri)
+        self.project_id, self.vector_id = parse_uri(uri)
 
         # local cache
         self._reload_vector()

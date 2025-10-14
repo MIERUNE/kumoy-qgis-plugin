@@ -1,7 +1,5 @@
-import os
-
 from PyQt5.QtCore import QBuffer, QByteArray, Qt, QUrl
-from PyQt5.QtGui import QImageReader, QPixmap
+from PyQt5.QtGui import QImage, QImageReader, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QLabel
 
@@ -11,21 +9,22 @@ class RemoteImageLabel(QLabel):
         super().__init__(parent)
         self.setAlignment(Qt.AlignCenter)
         self.setFixedSize(*size)
-        self._img = None
+        self._img: QImage | None = None
         self.nam = QNetworkAccessManager(self)
+        self._reply: QNetworkReply | None = None
 
     def load(self, url: str):
         self.setText("Loading…")
-        r = self.nam.get(QNetworkRequest(QUrl(url)))
-        r.finished.connect(lambda: self._on_finished(r))
+        self._reply = self.nam.get(QNetworkRequest(QUrl(url)))
+        self._reply.finished.connect(self._on_finished)
 
-    def _on_finished(self, r: QNetworkReply):
-        if r.error():
-            self.setText(f"Error: {r.errorString()}")
-            r.deleteLater()
+    def _on_finished(self):
+        if self._reply.error():
+            self.setText(f"Error: {self._reply.errorString()}")
+            self._reply.deleteLater()
             return
-        data: QByteArray = r.readAll()
-        r.deleteLater()
+        data: QByteArray = self._reply.readAll()
+        self._reply.deleteLater()
         buf = QBuffer()
         buf.setData(data)
         buf.open(QBuffer.ReadOnly)

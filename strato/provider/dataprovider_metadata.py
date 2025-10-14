@@ -31,8 +31,7 @@ class StratoProviderMetadata(QgsProviderMetadata):
         :param Dict[str, str] parts: Parts as returned by decodeUri
         :returns: URI as string
         """
-        endpoint = parts.get("endpoint", "")
         project_id = parts.get("project_id", "")
         vector_id = parts.get("vector_id", "")
-        uri = f"endpoint={endpoint};project_id={project_id};vector_id={vector_id}"
+        uri = f"project_id={project_id};vector_id={vector_id}"
         return uri

@@ -215,8 +215,7 @@ class DialogLogin(QDialog):
         success_dialog.exec_()
         # Update the UI
         self.update_login_status()
-        # Show project selection dialog if project is not selected after successful login
-        self.check_and_show_project_selection()
+        self.accept()
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""
@@ -340,33 +339,3 @@ class DialogLogin(QDialog):
             return False
 
         return True
-
-    def check_and_show_project_selection(self):
-        """Check if project is selected and show project selection dialog if needed"""
-        QgsMessageLog.logMessage(
-            "Project not selected, showing project selection dialog",
-            LOG_CATEGORY,
-            Qgis.Info,
-        )
-
-        # Close the config dialog first
-        self.accept()
-
-        # Import only when needed to avoid circular imports
-        from .dialog_project_select import ProjectSelectDialog
-
-        # Show project selection dialog
-        dialog = ProjectSelectDialog()
-        result = exec_dialog(dialog)
-
-        if not result:
-            return
-
-        if not dialog.selected_project:
-            return
-
-        QgsMessageLog.logMessage(
-            f"Project selected: {dialog.selected_project.name}",
-            LOG_CATEGORY,
-            Qgis.Info,
-        )
