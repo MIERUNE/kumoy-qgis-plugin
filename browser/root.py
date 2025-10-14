@@ -54,6 +54,12 @@ class RootCollection(QgsDataCollectionItem):
         self.organization_data = None
         self.project_data = None
 
+        self.load_organization_project()
+
+    def load_organization_project(self):
+        self.organization_data = None
+        self.project_data = None
+
         settings = get_settings()
         if (
             settings.id_token == ""
@@ -73,7 +79,7 @@ class RootCollection(QgsDataCollectionItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error initializing RootCollection: {str(e)}",
+                f"Error reloading organization/project data: {str(e)}",
                 LOG_CATEGORY,
                 Qgis.Warning,
             )
@@ -113,6 +119,7 @@ class RootCollection(QgsDataCollectionItem):
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
+        self.load_organization_project()
         self.refresh()
         self.depopulate()
 
@@ -124,8 +131,7 @@ class RootCollection(QgsDataCollectionItem):
         result = exec_dialog(dialog)
 
         if result:
-            # Refresh to show projects
-            self.refresh()
+            self.select_project()
 
     def select_project(self):
         """Select a project to display"""
@@ -150,8 +156,7 @@ class RootCollection(QgsDataCollectionItem):
         result = exec_dialog(dialog)
 
         # Org/Projの選択状態が更新されたので、rootからツリーを更新
-        self.refresh()
-        self.depopulate()
+        self.refreshChildren()
 
         if result:
             # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
