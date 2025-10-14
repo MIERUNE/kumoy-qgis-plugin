@@ -50,8 +50,31 @@ class RootCollection(QgsDataCollectionItem):
         QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
 
-        # Update name with project if available
-        self.update_name_with_project()
+        self.setName(PLUGIN_NAME)
+
+        settings = get_settings()
+        if (
+            settings.id_token == ""
+            or settings.selected_organization_id == ""
+            or settings.selected_project_id == ""
+        ):
+            return
+
+        # Get organization and project details
+        try:
+            self.organization_data = api.organization.get_organization(
+                settings.selected_organization_id
+            )
+            self.project_data = api.project.get_project(settings.selected_project_id)
+            self.setName(
+                f"{PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+            )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error initializing RootCollection: {str(e)}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -178,78 +201,30 @@ class RootCollection(QgsDataCollectionItem):
             # Refresh to update UI
             self.refresh()
 
-    def update_name_with_project(self):
-        """Update the browser name to include the project name"""
-        try:
-            # Check if user is logged in
-            id_token = get_settings().id_token
-            if not id_token:
-                self.setName(PLUGIN_NAME)
-                return
-
-            # Get selected organization and project ID
-            organization_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
-            if not project_id:
-                self.setName(PLUGIN_NAME)
-                return
-
-            # Get organization and project details
-            organization_data = api.organization.get_organization(organization_id)
-            project_data = api.project.get_project(project_id)
-
-            self.setName(
-                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
-            )
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error updating name with project: {str(e)}",
-                LOG_CATEGORY,
-                Qgis.Warning,
-            )
-            self.setName(PLUGIN_NAME)
-
     def createChildren(self):
         """Create child items for the root collection"""
-        try:
-            # Check if user is logged in
-            id_token = get_settings().id_token
-            if not id_token:
-                return []
+        # Update the browser name with project name
+        self.setName(
+            f"{PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+        )
 
-            # Get selected organization and project ID
-            organization_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
+        # Create vector root directly
+        children = []
+        vector_path = f"{self.path()}/vectors"
+        vector_root = DbRoot(
+            self,
+            "Vectors",
+            vector_path,
+            self.organization_data,
+            self.project_data,
+        )
+        children.append(vector_root)
 
-            if not project_id:
-                return [
-                    ErrorItem(
-                        self, self.tr("No project selected. Please select a project.")
-                    )
-                ]
+        # Create styled map root
+        styled_map_path = f"{self.path()}/styledmaps"
+        styled_map_root = StyledMapRoot(
+            self, "Maps", styled_map_path, self.organization_data, self.project_data
+        )
+        children.append(styled_map_root)
 
-            # Get organization and project details
-            organization_data = api.organization.get_organization(organization_id)
-            project_data = api.project.get_project(project_id)
-
-            # Update the browser name with project name
-            self.setName(
-                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
-            )
-
-            # Create vector root directly
-            children = []
-            vector_path = f"{self.path()}/vectors"
-            vector_root = DbRoot(self, "Vectors", vector_path)
-            children.append(vector_root)
-
-            # Create styled map root
-            styled_map_path = f"{self.path()}/styledmaps"
-            styled_map_root = StyledMapRoot(self, "Maps", styled_map_path)
-            children.append(styled_map_root)
-
-            return children
-
-        except Exception as e:
-            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+        return children

@@ -296,7 +296,14 @@ class StyledMapItem(QgsDataItem):
 class StyledMapRoot(QgsDataItem):
     """スタイルマップルートアイテム（ブラウザ用）"""
 
-    def __init__(self, parent, name, path):
+    def __init__(
+        self,
+        parent,
+        name: str,
+        path: str,
+        organization: api.organization.OrganizationDetail,
+        project: api.project.ProjectDetail,
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -306,6 +313,9 @@ class StyledMapRoot(QgsDataItem):
         )
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
         self.populate()
+
+        self.organization = organization
+        self.project = project
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -327,13 +337,9 @@ class StyledMapRoot(QgsDataItem):
         """新しいスタイルマップを追加する"""
 
         try:
-            organization_id = get_settings().selected_organization_id
-            organization = api.organization.get_organization(organization_id)
-            project_id = get_settings().selected_project_id
-
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(organization.subscriptionPlan)
-            current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            current_styled_maps = api.project_styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
                 QMessageBox.critical(
@@ -389,7 +395,7 @@ class StyledMapRoot(QgsDataItem):
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
-                project_id,
+                self.project.id,
                 api.project_styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,

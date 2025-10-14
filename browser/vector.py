@@ -55,8 +55,7 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
-        config = api.config.get_api_config()
-        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
+        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
 
         # Set icon based on geometry type
         icon_filename = "icon_vector.svg"  # Default icon
@@ -345,7 +344,14 @@ class VectorItem(QgsDataItem):
 class DbRoot(QgsDataItem):
     """Root item for vectors in a project"""
 
-    def __init__(self, parent, name: str, path: str):
+    def __init__(
+        self,
+        parent,
+        name: str,
+        path: str,
+        organization: api.organization.OrganizationDetail,
+        project: api.project.ProjectDetail,
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -355,6 +361,9 @@ class DbRoot(QgsDataItem):
         )
 
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
+
+        self.organization = organization
+        self.project = project
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -383,13 +392,9 @@ class DbRoot(QgsDataItem):
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            organization_id = get_settings().selected_organization_id
-            organization = api.organization.get_organization(organization_id)
-            project_id = get_settings().selected_project_id
-
             # check plan limits before creating vector
-            plan_limit = api.plan.get_plan_limits(organization.subscriptionPlan)
-            current_vectors = api.project_vector.get_vectors(project_id)
+            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            current_vectors = api.project_vector.get_vectors(self.project.id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
@@ -456,10 +461,10 @@ class DbRoot(QgsDataItem):
                 return
 
             options = AddVectorOptions(name=name, type=vector_type)
-            api.project_vector.add_vector(project_id, options)
+            api.project_vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
                 self.tr("Created new vector layer '{}' in project {}").format(
-                    name, project_id
+                    name, self.project.id
                 ),
                 constants.LOG_CATEGORY,
                 Qgis.Info,
