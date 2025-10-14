@@ -727,10 +727,8 @@ class ProjectSelectDialog(QDialog):
         """Format storage units with appropriate suffix"""
         if units < 1:
             return f"{units:.2f}SU"
-        elif units < 1000:
-            return f"{units:.0f}SU"
         else:
-            return f"{units / 1000:.1f}KSU"
+            return f"{units:.0f}SU"
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
