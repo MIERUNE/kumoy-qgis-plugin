@@ -312,10 +312,7 @@ class TestFieldNameNormalizer(unittest.TestCase):
 
         # Verify normalization messages
         self.assertTrue(
-            any(
-                "normalized for PostgreSQL compatibility" in msg
-                for msg in info_messages
-            )
+            any("adjusted for compatibility" in msg for msg in info_messages)
         )
         # Verify skip messages
         self.assertTrue(
