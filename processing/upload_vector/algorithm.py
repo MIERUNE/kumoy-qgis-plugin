@@ -12,7 +12,6 @@ from qgis.core import (
     QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
-    QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
 )

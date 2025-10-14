@@ -112,6 +112,67 @@ Continue?</source>
     </message>
 </context>
 <context>
+    <name>DialogAccount</name>
+    <message>
+        <location filename="../ui/dialog_account.py" line="51"/>
+        <source>Account</source>
+        <translation type="unfinished">アカウント</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="81"/>
+        <source>Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;MIERUNE Inc.&lt;/a&gt;</source>
+        <translatorcomment>翻訳不要</translatorcomment>
+        <translation type="unfinished">Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;MIERUNE Inc.&lt;/a&gt;</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="185"/>
+        <source>Unknown user</source>
+        <translation type="unfinished">不明なユーザー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="131"/>
+        <source>Account settings</source>
+        <translation type="unfinished">アカウント設定</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="154"/>
+        <source>Server configuration</source>
+        <translation type="unfinished">サーバー設定</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="251"/>
+        <source>Logout</source>
+        <translation type="unfinished">ログアウト</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="203"/>
+        <source>Server URL
+{}</source>
+        <translation type="unfinished">サーバーURL
+{}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="218"/>
+        <source>Error</source>
+        <translation type="unfinished">エラー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="218"/>
+        <source>Error opening web browser: {}</source>
+        <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="226"/>
+        <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
+        <translation type="unfinished">現在のプロジェクトに未保存の変更があります。ログアウトすると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_account.py" line="251"/>
+        <source>You have been logged out from STRATO.</source>
+        <translation type="unfinished">STRATOからログアウトしました。</translation>
+    </message>
+</context>
+<context>
     <name>DialogLogin</name>
     <message>
         <location filename="../ui/dialog_login.py" line="64"/>
