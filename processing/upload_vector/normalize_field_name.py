@@ -347,9 +347,7 @@ class FieldNameNormalizer:
         # Report renamed fields
         if tracked_renamed_fields and self.feedback:
             self.feedback.pushInfo(
-                self.tr(
-                    "The following field names were normalized for PostgreSQL compatibility:"
-                )
+                self.tr("The following field names were adjusted for compatibility:")
             )
             for renamed in tracked_renamed_fields:
                 self.feedback.pushInfo(f"  - {renamed}")

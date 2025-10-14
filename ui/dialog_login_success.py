@@ -54,7 +54,7 @@ class LoginSuccess(QDialog):
         main_layout.addLayout(checkmark_container)
 
         # Title label
-        title_label = QLabel(self.tr("Login Successful!"))
+        title_label = QLabel(self.tr("Welcome! You are now logged in."))
         title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
@@ -64,7 +64,7 @@ class LoginSuccess(QDialog):
 
         # Subtitle label
         subtitle_label = QLabel(
-            self.tr("Next, please select your project to\nopen in Strato.")
+            self.tr("Next, please select a project to open in Strato.")
         )
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_font = QFont()

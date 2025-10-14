@@ -115,7 +115,7 @@ class VectorItem(QgsDataItem):
             actions.append(delete_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -307,7 +307,7 @@ class VectorItem(QgsDataItem):
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Cache"),
+            self.tr("Clear Cache Data"),
             self.tr(
                 "This will clear the local cache for vector '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n\n"
@@ -383,7 +383,7 @@ class DbRoot(QgsDataItem):
 
         if self.project.role in ["ADMIN", "OWNER"]:
             # New vector action
-            new_vector_action = QAction(self.tr("New Vector"), parent)
+            new_vector_action = QAction(self.tr("Create Vector"), parent)
             new_vector_action.triggered.connect(self.new_vector)
             actions.append(new_vector_action)
 
@@ -393,7 +393,7 @@ class DbRoot(QgsDataItem):
             actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action = QAction(self.tr("Clear Cache data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -411,8 +411,8 @@ class DbRoot(QgsDataItem):
                     None,
                     self.tr("Error"),
                     self.tr(
-                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                        "but you have reached the limit."
+                        "You have reached your plan's limit of {} vector layers. "
+                        "Please delete one or upgrade your plan to continue."
                     ).format(plan_limit.maxVectors),
                 )
                 return
@@ -466,16 +466,16 @@ class DbRoot(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Vector name cannot be empty."),
+                    self.tr("Please enter a name for your vector layer."),
                 )
                 return
 
             options = AddVectorOptions(name=name, type=vector_type)
             api.project_vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
-                self.tr("Created new vector layer '{}' in project {}").format(
-                    name, self.project.id
-                ),
+                self.tr(
+                    "Successfully created vector layer '{}' in project '{}'"
+                ).format(name, self.project.id),
                 constants.LOG_CATEGORY,
                 Qgis.Info,
             )
@@ -520,14 +520,14 @@ class DbRoot(QgsDataItem):
             vectors = api.project_vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error fetching vectors: {str(e)}",
+                f"Error loading vectors: {str(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
-            return [ErrorItem(self, self.tr("Error fetching vectors"))]
+            return [ErrorItem(self, self.tr("Error loading vectors"))]
 
         if len(vectors) == 0:
-            return [ErrorItem(self, self.tr("No vectors in this project"))]
+            return [ErrorItem(self, self.tr("No vector layers found in this project"))]
 
         children = []
 
@@ -547,9 +547,9 @@ class DbRoot(QgsDataItem):
             None,
             self.tr("Clear Cache"),
             self.tr(
-                "This will clear all local cache files. "
-                "Cached data will be re-downloaded when you access vectors next time.\n\n"
-                "Do you want to continue?"
+                "This will clear all locally cached files. "
+                "Data will be re-downloaded next time you access vectors.\n\n"
+                "Continue?"
             ),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -560,7 +560,7 @@ class DbRoot(QgsDataItem):
                 # Get cache directory path
                 local_cache.clear_all()
                 QgsMessageLog.logMessage(
-                    self.tr("Cache cleared successfully"),
+                    self.tr("Cache cleared successfully!"),
                     constants.LOG_CATEGORY,
                     Qgis.Info,
                 )

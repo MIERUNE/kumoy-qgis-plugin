@@ -124,7 +124,7 @@ def get_auth_handler_response():
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
             </svg>
         </div>
-        <h1>Login Successful!</h1>
+        <h1>Welcome! You’re now logged in.</h1>
         <p class="message">You've signed in to Strato successfully. You'll be<br>redirected to your dashboard in <span id="countdown-num">3</span> <span id="countdown-seconds">seconds</span>...</p>
         <p class="redirect-link">If you're not redirected, click <a href="{website_url}">here</a>.</p>
     </div>

@@ -163,7 +163,7 @@ class ProjectItemWidget(QWidget):
         menu = QMenu(self)
 
         # Open in Web action
-        open_web_action = menu.addAction(self.tr("Open in Web UI"))
+        open_web_action = menu.addAction(self.tr("Open in Web App"))
         open_web_action.triggered.connect(self.open_in_web)
 
         # Edit action
@@ -207,7 +207,7 @@ class ProjectItemWidget(QWidget):
             self.tr("Delete Project"),
             self.tr(
                 "Are you sure you want to delete project '{}'?\n"
-                "This action cannot be undone."
+                "This action can't be undone."
             ).format(self.project.name),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -219,7 +219,7 @@ class ProjectItemWidget(QWidget):
                 api.project.delete_project(self.project.id)
 
                 QgsMessageLog.logMessage(
-                    self.tr("Successfully deleted project '{}'").format(
+                    self.tr("Project '{}' deleted successfully.").format(
                         self.project.name
                     ),
                     LOG_CATEGORY,
@@ -273,7 +273,7 @@ class ProjectItemWidget(QWidget):
                 )
 
                 QgsMessageLog.logMessage(
-                    self.tr("Successfully updated project '{}' to '{}'").format(
+                    self.tr("Project '{}' renamed to '{}' successfully").format(
                         self.project.name, new_name
                     ),
                     LOG_CATEGORY,
@@ -638,7 +638,7 @@ class ProjectSelectDialog(QDialog):
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type)
         except Exception as e:
-            msg = self.tr("Failed to fetch plan limits: {}").format(str(e))
+            msg = self.tr("Failed to retrieve plan limits: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.warning(self, self.tr("Warning"), msg)
 
@@ -811,7 +811,7 @@ class ProjectSelectDialog(QDialog):
         project_name, ok = QInputDialog.getText(
             self,
             self.tr("New Project"),
-            self.tr("Enter project name for organization '{}':").format(org.name),
+            self.tr("Enter a name for your new project in '{}':").format(org.name),
         )
         if not ok or not project_name:
             return
@@ -821,7 +821,7 @@ class ProjectSelectDialog(QDialog):
                 organization_id=org.id, name=project_name, description=""
             )
             QgsMessageLog.logMessage(
-                self.tr("Successfully created project '{}'").format(project_name),
+                self.tr("Project '{}' created successfully").format(project_name),
                 LOG_CATEGORY,
                 Qgis.Info,
             )

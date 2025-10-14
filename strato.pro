@@ -6,6 +6,7 @@ SOURCES = __init__.py \
           browser/styledmap.py \
           browser/vector.py \
           browser/utils.py \
+          ui/dialog_account.py \
           ui/dialog_login.py \
           ui/dialog_login_success.py \
           ui/dialog_layer_add.py \

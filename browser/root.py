@@ -155,7 +155,7 @@ class RootCollection(QgsDataCollectionItem):
                         None,
                         self.tr("Change Project"),
                         self.tr(
-                            "Changing the project may result in loss of current editing state. Do you want to proceed?"
+                            "You have unsaved edits. Switching projects will discard them. Continue?"
                         ),
                         QMessageBox.Yes | QMessageBox.No,
                         QMessageBox.No,
@@ -166,7 +166,9 @@ class RootCollection(QgsDataCollectionItem):
                 QgsProject.instance().clear()
                 iface.messageBar().pushSuccess(
                     self.tr("Project Changed"),
-                    self.tr("QGIS project has been cleared due to project change."),
+                    self.tr(
+                        "Your QGIS project was cleared because the active project changed."
+                    ),
                 )
                 self.refreshChildren()
 
