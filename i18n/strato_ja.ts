@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
 <context>
     <name>DbRoot</name>
     <message>
@@ -11,11 +12,6 @@
         <location filename="../browser/vector.py" line="391"/>
         <source>Upload Vector</source>
         <translation>アップロード</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="247"/>
-        <source>Refresh</source>
-        <translation type="obsolete">再読み込み</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="516"/>
@@ -43,39 +39,14 @@
         <translation>プロジェクトに空のベクタレイヤを作成します。</translation>
     </message>
     <message>
-        <location filename="." line="0"/>
-        <source>Please enter a name for your vector layer</source>
-        <translation type="obsolete">ベクタレイヤ名は空にできません</translation>
-    </message>
-    <message>
         <location filename="../browser/vector.py" line="475"/>
         <source>Successfully created vector layer &apos;{}&apos; in project &apos;{}&apos;</source>
         <translation>プロジェクト &apos;{}&apos; に新しいベクタレイヤ &apos;{}&apos; を作成しました</translation>
     </message>
     <message>
-        <location filename="." line="0"/>
-        <source>Failed to create vector layer &apos;{}&apos;</source>
-        <translation type="obsolete">&apos;{}&apos;の作成に失敗しました</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="364"/>
-        <source>Error creating vector: {}</source>
-        <translation type="obsolete">作成エラー: {}</translation>
-    </message>
-    <message>
         <location filename="../browser/vector.py" line="505"/>
         <source>Error uploading vector: {}</source>
         <translation>アップロードエラー: {}</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="402"/>
-        <source>No vectors available</source>
-        <translation type="obsolete">利用可能なベクタがありません</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="416"/>
-        <source>Error: {}</source>
-        <translation type="obsolete">エラー: {}</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="574"/>
@@ -93,16 +64,6 @@
         <translation>ベクタ名は空にできません。</translation>
     </message>
     <message>
-        <location filename="../browser/vector.py" line="356"/>
-        <source>Failed to create the vector layer &apos;{}&apos;.</source>
-        <translation type="obsolete">ベクタレイヤ「{}」の作成に失敗しました。</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="531"/>
-        <source>Clear Cache Data</source>
-        <translation type="obsolete">キャッシュクリア</translation>
-    </message>
-    <message>
         <location filename="../browser/vector.py" line="488"/>
         <source>Error adding vector: {}</source>
         <translation type="unfinished">ベクタ追加エラー {}</translation>
@@ -116,13 +77,6 @@
         <location filename="../browser/vector.py" line="530"/>
         <source>No vector layers found in this project</source>
         <translation type="unfinished">プロジェクトにベクタが存在しません</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="531"/>
-        <source>This will clear all local cache files. Cached data will be re-downloaded when you access vectors next time.
-
-Do you want to continue?</source>
-        <translation type="obsolete">すべてのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。\n\n続行してもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="562"/>
@@ -158,195 +112,6 @@ Continue?</source>
     </message>
 </context>
 <context>
-    <name>Dialog</name>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="20"/>
-        <source>Configuration</source>
-        <translation type="obsolete">設定</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="89"/>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="obsolete">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;div&gt;STRATO&lt;br /&gt;v0.0.0&lt;br /&gt;&lt;br /&gt;Powered by &lt;a href=&quot;https://develop.d1hkxct7k1njv6.amplifyapp.com/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="105"/>
-        <source>Not logged in</source>
-        <translation type="obsolete">未ログイン</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="131"/>
-        <source>Custom Strato server configurationuration</source>
-        <translation type="obsolete">カスタムSTRATOサーバー設定</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="149"/>
-        <source>Cognit URL</source>
-        <translation type="obsolete">Cognito URL</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="156"/>
-        <source>Cognit Client ID</source>
-        <translation type="obsolete">Cognito クライアントID</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="163"/>
-        <source>Server URL</source>
-        <translation type="obsolete">サーバーURL</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="196"/>
-        <source>Login</source>
-        <translation type="obsolete">ログイン</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="206"/>
-        <source>Logout</source>
-        <translation type="obsolete">ログアウト</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.ui" line="236"/>
-        <source>Close</source>
-        <translation type="obsolete">閉じる</translation>
-    </message>
-</context>
-<context>
-    <name>DialogConfig</name>
-    <message>
-        <location filename="../ui/dialog_account.py" line="173"/>
-        <source>Logged in</source>
-        <translation type="obsolete">ログイン済み</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="97"/>
-        <source>Not logged in</source>
-        <translation type="obsolete">未ログイン</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="87"/>
-        <source>Logged in as: {}
-{}</source>
-        <translation type="obsolete">ログイン中: {}
-{}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="91"/>
-        <source>Logged in as: {}</source>
-        <translation type="obsolete">ログイン中: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="277"/>
-        <source>Login Error</source>
-        <translation type="obsolete">ログインエラー</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="193"/>
-        <source>Authentication failed: {}</source>
-        <translation type="obsolete">認証に失敗しました: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="137"/>
-        <source>Login Successful</source>
-        <translation type="obsolete">ログイン成功</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="137"/>
-        <source>Welcome! You are now logged in.</source>
-        <translation type="obsolete">正常にログインしました！</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="233"/>
-        <source>Signing you in?</source>
-        <translation type="obsolete">ログイン中...</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="241"/>
-        <source>Failed to start authentication: {}</source>
-        <translation type="obsolete">認証の開始に失敗しました: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="262"/>
-        <source>Waiting for browser authentication...</source>
-        <translation type="obsolete">ブラウザでの認証を待機中...</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="277"/>
-        <source>An error occurred while logging in: {}</source>
-        <translation type="obsolete">ログイン中にエラーが発生しました: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="218"/>
-        <source>Logout</source>
-        <translation type="obsolete">ログアウト</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="218"/>
-        <source>You?ve been logged out successfully.</source>
-        <translation type="obsolete">正常にログアウトしました。</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="234"/>
-        <source>Logout Error</source>
-        <translation type="obsolete">ログアウトエラー</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="234"/>
-        <source>An error occurred while logging out: {}</source>
-        <translation type="obsolete">ログアウト中にエラーが発生しました: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="315"/>
-        <source>Server URL</source>
-        <translation type="obsolete">サーバーURL</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="290"/>
-        <source>Cognito URL</source>
-        <translation type="obsolete">Cognito URL</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="292"/>
-        <source>Cognito Client ID</source>
-        <translation type="obsolete">Cognito クライアントID</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="320"/>
-        <source>Custom Server Configuration Error</source>
-        <translation type="obsolete">カスタムサーバー設定エラー</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="320"/>
-        <source>Some required settings are missing:
-{}
-
-Please update your configuration before logging in.</source>
-        <translation type="obsolete">以下の設定が不足しています:
-{}
-
-ログインする前に設定してください。</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="69"/>
-        <source>Authentication</source>
-        <translation type="obsolete">認証</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="106"/>
-        <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
-        <translation type="obsolete">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Stratoへようこそ&lt;/h2&gt;                        &lt;p&gt;&lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;株式会社MIERUNE.&lt;/span&gt;&lt;/a&gt;提供&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="129"/>
-        <source>Custom Strato server configurationuration</source>
-        <translation type="obsolete">カスタムSTRATOサーバー設定</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_account.py" line="157"/>
-        <source>Login</source>
-        <translation type="obsolete">ログイン</translation>
-    </message>
-</context>
-<context>
     <name>DialogLogin</name>
     <message>
         <location filename="../ui/dialog_login.py" line="64"/>
@@ -357,11 +122,6 @@ Please update your configuration before logging in.</source>
         <location filename="../ui/dialog_login.py" line="101"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Stratoへようこそ&lt;/h2&gt;                        &lt;p&gt;&lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;株式会社MIERUNE.&lt;/span&gt;&lt;/a&gt;提供&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_login.py" line="124"/>
-        <source>Custom Strato server configurationuration</source>
-        <translation type="obsolete">カスタムSTRATOサーバー設定</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="324"/>
@@ -436,49 +196,6 @@ Please update your configuration before logging in.</source>
     </message>
 </context>
 <context>
-    <name>FeatureUploader</name>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="52"/>
-        <source>Uploading features...</source>
-        <translation type="obsolete">フィーチャをアップロード中...</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="58"/>
-        <source>No features to upload</source>
-        <translation type="obsolete">アップロードするフィーチャがありません</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="89"/>
-        <source>Error uploading features: {str(e)}</source>
-        <translation type="obsolete">フィーチャのアップロードエラー: {}</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="100"/>
-        <source>Setting up attribute schema...</source>
-        <translation type="obsolete">属性スキーマを設定中...</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="108"/>
-        <source>Failed to set attribute schema</source>
-        <translation type="obsolete">属性スキーマの設定に失敗しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="112"/>
-        <source>Attribute schema error: {str(e)}</source>
-        <translation type="obsolete">属性スキーマエラー: {}</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="155"/>
-        <source>Failed to upload features</source>
-        <translation type="obsolete">フィーチャのアップロードに失敗しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/feature_uploader.py" line="165"/>
-        <source>Progress: {self.uploaded_feature_count}/{total_features} features</source>
-        <translation type="obsolete">進行状況: {}/{} フィーチャ</translation>
-    </message>
-</context>
-<context>
     <name>FieldNameNormalizer</name>
     <message>
         <location filename="../processing/upload_vector/normalize_field_name.py" line="349"/>
@@ -499,11 +216,6 @@ Please update your configuration before logging in.</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account_login_success.py" line="57"/>
-        <source>Welcome! You?re now logged in.</source>
-        <translation type="obsolete">正常にログインしました！</translation>
-    </message>
-    <message>
         <location filename="../ui/dialog_login_success.py" line="66"/>
         <source>Next, please select a project to open in Strato.</source>
         <translation type="unfinished">次に、Stratoで開きたいプロジェクトを選択してください。</translation>
@@ -515,7 +227,7 @@ Please update your configuration before logging in.</source>
     </message>
     <message>
         <location filename="../ui/dialog_login_success.py" line="57"/>
-        <source>Welcome! You&#xe2;&#x80;&#x99;re now logged in.</source>
+        <source>Welcome! Youâre now logged in.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -577,11 +289,6 @@ Please update your configuration before logging in.</source>
 This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクト &apos;{}&apos;を削除してもよろしいですか？
 この操作は取り消しできません。</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_project_select.py" line="211"/>
-        <source>Successfully deleted project &apos;{}&apos;</source>
-        <translation type="obsolete">プロジェクト &apos;{}&apos;は正常に削除されました。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="223"/>
@@ -657,11 +364,6 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">組織</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="378"/>
-        <source>&lt;a href=&apos;#&apos;&gt;Show details &#xe2;&#x96;&#xbc;&lt;/a&gt;</source>
-        <translation type="obsolete">&lt;a href=&apos;#&apos;&gt;詳細を表示 â¼&lt;/a&gt;</translation>
-    </message>
-    <message>
         <location filename="../ui/dialog_project_select.py" line="417"/>
         <source>Organization Settings</source>
         <translation type="unfinished">組織設定</translation>
@@ -700,11 +402,6 @@ This action can&apos;t be undone.</source>
         <location filename="../ui/dialog_project_select.py" line="580"/>
         <source>Failed to load user information. {}</source>
         <translation type="unfinished">ユーザー詳細の読み込みエラー: {}</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_project_select.py" line="590"/>
-        <source>&lt;a href=&apos;#&apos;&gt;Hide details &#xe2;&#x96;&#xb2;&lt;/a&gt;</source>
-        <translation type="obsolete">&lt;a href=&apos;#&apos;&gt;詳細を閉じる â²&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="611"/>
@@ -795,11 +492,6 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../browser/root.py" line="172"/>
-        <source>Logout</source>
-        <translation type="obsolete">ログアウト</translation>
-    </message>
-    <message>
         <location filename="../browser/root.py" line="107"/>
         <source>Select Project</source>
         <translation>プロジェクト選択</translation>
@@ -810,49 +502,9 @@ This action can&apos;t be undone.</source>
         <translation>再読み込み</translation>
     </message>
     <message>
-        <location filename="../browser/root.py" line="128"/>
-        <source>Not Logged In</source>
-        <translation type="obsolete">未ログイン</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="128"/>
-        <source>Please log in before selecting a project.</source>
-        <translation type="obsolete">プロジェクトを選択するにはログインが必要です。まずログインしてください。</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="225"/>
-        <source>No project selected. Please choose one to continue.</source>
-        <translation type="obsolete">プロジェクトが選択されていません。プロジェクトを選択してください。</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="212"/>
-        <source>Project not found. Please select another project.</source>
-        <translation type="obsolete">プロジェクトが見つかりません。別のプロジェクトを選択してください。</translation>
-    </message>
-    <message>
-        <location filename="." line="0"/>
-        <source>Vectors</source>
-        <translation type="obsolete">ベクタ</translation>
-    </message>
-    <message>
-        <location filename="." line="0"/>
-        <source>Maps</source>
-        <translation type="obsolete">マップ</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="254"/>
-        <source>Error: {}</source>
-        <translation type="obsolete">エラー: {}</translation>
-    </message>
-    <message>
         <location filename="../browser/root.py" line="155"/>
         <source>Change Project</source>
         <translation type="unfinished">プロジェクト変更</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="111"/>
-        <source>You have unsaved edits. Switching projects will discard them. Continue?</source>
-        <translation type="obsolete">プロジェクトを変更すると、現在の編集状態が失われる可能性があります。続行しますか？</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="168"/>
@@ -863,11 +515,6 @@ This action can&apos;t be undone.</source>
         <location filename="../browser/root.py" line="168"/>
         <source>Your QGIS project was cleared because the active project changed.</source>
         <translation type="unfinished">QGISプロジェクトはプロジェクト変更により消去されました。</translation>
-    </message>
-    <message>
-        <location filename="../browser/root.py" line="172"/>
-        <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
-        <translation type="obsolete">現在のプロジェクトに未保存の変更があります。ログアウトすると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="115"/>
@@ -888,11 +535,6 @@ This action can&apos;t be undone.</source>
         <translation>QGISに読み込む</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="63"/>
-        <source>Save</source>
-        <translation type="obsolete">上書き保存</translation>
-    </message>
-    <message>
         <location filename="../browser/styledmap.py" line="77"/>
         <source>Edit Metadata</source>
         <translation>メタデータ編集</translation>
@@ -908,19 +550,9 @@ This action can&apos;t be undone.</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="85"/>
-        <source>Map &apos;{}&apos; has been loaded successfully.</source>
-        <translation type="obsolete">Map &apos;{}&apos;が正常に読み込まれました。</translation>
-    </message>
-    <message>
         <location filename="../browser/styledmap.py" line="298"/>
         <source>Error</source>
         <translation>エラー</translation>
-    </message>
-    <message>
-        <location filename="../browser/styledmap.py" line="92"/>
-        <source>Failed to load map &apos;{}&apos;.</source>
-        <translation type="obsolete">Map &apos;{}&apos;の読み込みに失敗しました。</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="126"/>
@@ -953,11 +585,6 @@ This action can&apos;t be undone.</source>
         <translation>Map &apos;{}&apos;が正常に更新されました。</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="166"/>
-        <source>Failed to update the map.</source>
-        <translation type="obsolete">更新に失敗しました。</translation>
-    </message>
-    <message>
         <location filename="../browser/styledmap.py" line="201"/>
         <source>Error updating map: {}</source>
         <translation>更新エラー: {}</translation>
@@ -966,11 +593,6 @@ This action can&apos;t be undone.</source>
         <location filename="../browser/styledmap.py" line="258"/>
         <source>Map &apos;{}&apos; has been saved successfully.</source>
         <translation>Map &apos;{}&apos;が正常に保存されました。</translation>
-    </message>
-    <message>
-        <location filename="../browser/styledmap.py" line="202"/>
-        <source>Failed to save the map.</source>
-        <translation type="obsolete">保存に失敗しました。</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="268"/>
@@ -1036,16 +658,6 @@ This action can&apos;t be undone.</source>
 <context>
     <name>StyledMapRoot</name>
     <message>
-        <location filename="../browser/styledmap.py" line="269"/>
-        <source>Save QGIS Map as New Map</source>
-        <translation type="obsolete">新規マップに保存</translation>
-    </message>
-    <message>
-        <location filename="../browser/styledmap.py" line="274"/>
-        <source>Refresh</source>
-        <translation type="obsolete">再読み込み</translation>
-    </message>
-    <message>
         <location filename="../browser/styledmap.py" line="366"/>
         <source>Add Map</source>
         <translation>Mapを追加</translation>
@@ -1071,11 +683,6 @@ This action can&apos;t be undone.</source>
         <translation>エラー</translation>
     </message>
     <message>
-        <location filename="../browser/styledmap.py" line="323"/>
-        <source>No project selected.</source>
-        <translation type="obsolete">プロジェクトが選択されていません。</translation>
-    </message>
-    <message>
         <location filename="../browser/styledmap.py" line="416"/>
         <source>Success</source>
         <translation>成功</translation>
@@ -1084,11 +691,6 @@ This action can&apos;t be undone.</source>
         <location filename="../browser/styledmap.py" line="416"/>
         <source>Map &apos;{}&apos; has been created successfully.</source>
         <translation>Map &apos;{}&apos;が正常に作成されました。</translation>
-    </message>
-    <message>
-        <location filename="../browser/styledmap.py" line="349"/>
-        <source>Failed to create the map.</source>
-        <translation type="obsolete">Mapの作成に失敗しました。</translation>
     </message>
     <message>
         <location filename="../browser/styledmap.py" line="434"/>
@@ -1129,45 +731,6 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">ベクタレイヤをSTRATOにアップロード</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="67"/>
-        <source>Upload a vector layer to the STRATO backend.
-
-User operation steps:
-1. Select the vector layer you want to upload from the dropdown
-2. Choose the destination project from Organization/Project list
-3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name
-4. Click &apos;Run&apos; to start the upload process
-
-The algorithm will:
-- Automatically normalize field names for PostgreSQL/PostGIS compatibility (lowercase, remove special characters)
-- Automatically check and fix invalid geometries before processing
-- Automatically convert multipart geometries to single parts and reproject to EPSG:4326 in one efficient step
-- Create a new vector layer in the selected project
-- Configure the attribute schema based on your layer&apos;s fields
-- Upload all features in chunkes (1000 features per chunk)
-- Show progress during the upload
-
-Note: You must be logged in to STRATO before using this tool.</source>
-        <translation type="obsolete">ベクターレイヤーをSTRATOバックエンドにアップロードします。
-
-使用手順:
-1. ドロップダウンからアップロードしたいベクターレイヤーを選択
-2. 組織/プロジェクトリストから宛先プロジェクトを選択
-3. (オプション) ベクターレイヤーのカスタム名を入力、または空のままで元のレイヤー名を使用
-4. &apos;実行&apos;をクリックしてアップロードプロセスを開始
-
-アルゴリズムは以下を実行します:
-- PostgreSQL/PostGIS互換性のためのフィールド名の自動正規化（小文字、特殊文字の削除）
-- 処理前の無効なジオメトリの自動チェックと修正
-- マルチパートジオメトリのシングルパートへの変換とEPSG:4326への投影変換を一度に効率的に実行
-- 選択されたプロジェクトに新しいベクターレイヤーを作成
-- レイヤーのフィールドに基づいた属性スキーマの設定
-- チャンク単位での全フィーチャのアップロード（チャンクあたり1000フィーチャ）
-- アップロード中の進行状況表示
-
-注意: このツールを使用する前にSTRATOにログインする必要があります。</translation>
-    </message>
-    <message>
         <location filename="../processing/upload_vector/algorithm.py" line="125"/>
         <source>Input vector layer</source>
         <translation type="unfinished">入力レイヤ</translation>
@@ -1203,19 +766,9 @@ Note: You must be logged in to STRATO before using this tool.</source>
         <translation type="unfinished">ベクタをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="254"/>
-        <source>Upload complete: {} features</source>
-        <translation type="obsolete">アップロード完了: {}個のフィーチャ</translation>
-    </message>
-    <message>
         <location filename="../processing/upload_vector/algorithm.py" line="341"/>
         <source>Cleaned up incomplete vector layer due to upload failure</source>
         <translation type="unfinished">アップロード失敗により不完全なベクタレイヤをクリーンアップしました</translation>
-    </message>
-    <message>
-        <location filename="../processing/algs/upload_vector_algorithm.py" line="271"/>
-        <source>Failed to clean up incomplete vector: {}</source>
-        <translation type="obsolete">不完全なベクタのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="268"/>
@@ -1228,11 +781,6 @@ Note: You must be logged in to STRATO before using this tool.</source>
         <translation type="unfinished">入力レイヤーの座標参照系が未定義または無効です。アップロード前にレイヤーに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="465"/>
-        <source>Checking and fixing invalid geometries</source>
-        <translation type="obsolete">無効なジオメトリのチェックと修正</translation>
-    </message>
-    <message>
         <location filename="../processing/upload_vector/algorithm.py" line="456"/>
         <source>Converting multipart to singlepart</source>
         <translation type="unfinished">マルチパートからシングルパートへの変換</translation>
@@ -1241,84 +789,6 @@ Note: You must be logged in to STRATO before using this tool.</source>
         <location filename="../processing/upload_vector/algorithm.py" line="469"/>
         <source>Reprojecting from {} to EPSG:4326</source>
         <translation type="unfinished">{}からEPSG:4326への投影変換</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="475"/>
-        <source>Processing layer: </source>
-        <translation type="obsolete">レイヤ処理中: </translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="494"/>
-        <source>Could not create temporary sink for processing</source>
-        <translation type="obsolete">処理用の一時シンクを作成できませんでした</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="603"/>
-        <source>Error processing feature</source>
-        <translation type="obsolete">フィーチャ処理中にエラーが発生しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="611"/>
-        <source>Geometry processing completed: {} features processed</source>
-        <translation type="obsolete">ジオメトリ処理完了: {}個のフィーチャを処理しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="617"/>
-        <source>Fixed {} invalid geometries</source>
-        <translation type="obsolete">{}個の無効なジオメトリを修正しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="621"/>
-        <source>Skipped {} features with unfixable geometries</source>
-        <translation type="obsolete">修正不可能なジオメトリを持つ{}個のフィーチャをスキップしました</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="627"/>
-        <source>Skipped {} features with wrong geometry type</source>
-        <translation type="obsolete">間違ったジオメトリタイプを持つ{}個のフィーチャをスキップしました</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="636"/>
-        <source>Could not retrieve processed layer</source>
-        <translation type="obsolete">処理済みレイヤを取得できませんでした</translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="183"/>
-        <source>Upload a vector layer to the Strato backend.
-
-User operation steps:
-1. Select the vector layer you want to upload from the dropdown
-2. Choose the destination project from Organization/Project list
-3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name
-4. Click &apos;Run&apos; to start the upload process
-
-The algorithm will:
-- Automatically normalize field names (lowercase, remove special characters)
-- Automatically check and fix invalid geometries before processing
-- Automatically convert multipart geometries to single parts
-- Drop Z coordinates if present
-- Reproject to EPSG:4326 if other CRS set
-- Create a new vector layer in the selected project
-- Let you choose which attributes are uploaded
-Note: You must be logged in to Strato before using this tool.</source>
-        <translation type="obsolete">ベクタレイヤをSTRATOバックエンドにアップロードする
-
-使用手順:
-1. ドロップダウンからアップロードしたいベクタレイヤを選択
-2. 組織/プロジェクトリストから宛先プロジェクトを選択
-3. (任意) ベクタレイヤのカスタム名を入力、または空のままで元のレイヤ名を使用
-4. &apos;実行&apos;をクリックしてアップロードプロセスを開始
-
-アルゴリズムは以下を実行します:
-- PostgreSQL/PostGIS互換性のためのフィールド名の自動正規化（小文字、特殊文字の削除）
-- 処理前の無効なジオメトリの自動チェックと修正
-- マルチパートジオメトリのシングルパートへの変換
-- Z座標が存在する場合は削除
-- EPSG:4326への投影変換を一度に効率的に実行
-- 選択されたプロジェクトに新しいベクタレイヤを作成
-- アップロードする属性を選択可能
-
-注意: このツールを使用する前にSTRATOにログインする必要があります。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="172"/>
@@ -1429,29 +899,6 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
     </message>
 </context>
 <context>
-    <name>VectorCreator</name>
-    <message>
-        <location filename="../processing/vector_creator.py" line="35"/>
-        <source>Creating {vector_type} layer in project {project_id}...</source>
-        <translation type="obsolete">プロジェクト {} に {} レイヤを作成中...</translation>
-    </message>
-    <message>
-        <location filename="../processing/vector_creator.py" line="46"/>
-        <source>Failed to create vector layer</source>
-        <translation type="obsolete">ベクタレイヤの作成に失敗しました</translation>
-    </message>
-    <message>
-        <location filename="../processing/vector_creator.py" line="50"/>
-        <source>Vector layer created: {vector_id}</source>
-        <translation type="obsolete">ベクタレイヤを作成しました： {}</translation>
-    </message>
-    <message>
-        <location filename="../processing/vector_creator.py" line="56"/>
-        <source>Error creating vector layer: {str(e)}</source>
-        <translation type="obsolete">ベクタレイヤ作成エラー： {}</translation>
-    </message>
-</context>
-<context>
     <name>VectorItem</name>
     <message>
         <location filename="../browser/vector.py" line="102"/>
@@ -1479,24 +926,9 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation>名前:</translation>
     </message>
     <message>
-        <location filename="../browser/vector.py" line="166"/>
-        <source>Failed to update vector</source>
-        <translation type="obsolete">更新に失敗しました</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="173"/>
-        <source>Error editing vector: {}</source>
-        <translation type="obsolete">編集エラー: {}</translation>
-    </message>
-    <message>
         <location filename="../browser/vector.py" line="275"/>
         <source>Are you sure you want to delete vector &apos;{}&apos;?</source>
         <translation>&apos;{}&apos;を削除してもよろしいですか？</translation>
-    </message>
-    <message>
-        <location filename="../browser/vector.py" line="203"/>
-        <source>Failed to delete vector</source>
-        <translation type="obsolete">削除に失敗しました</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="295"/>
