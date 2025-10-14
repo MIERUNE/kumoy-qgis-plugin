@@ -20,14 +20,6 @@ from ..strato.constants import LOG_CATEGORY
 from .dialog_login import read_version
 
 
-def _load_pixmap(icon_name: str) -> QPixmap:
-    """Load a pixmap from the imgs directory if available."""
-    icon_path = os.path.join(os.path.dirname(__file__), "../imgs", icon_name)
-    if os.path.exists(icon_path):
-        return QPixmap(icon_path)
-    return QPixmap()
-
-
 class DialogAccount(QDialog):
     """Dialog that shows the current STRATO account information."""
 
@@ -68,7 +60,9 @@ class DialogAccount(QDialog):
         icon_label = QLabel()
         icon_label.setFixedSize(24, 24)
         icon_label.setScaledContents(True)
-        icon_pixmap = _load_pixmap("icon.svg")
+        icon_pixmap = QPixmap(
+            os.path.join(os.path.dirname(__file__), "../imgs", "icon.svg")
+        )
         icon_label.setPixmap(icon_pixmap)
         # label
         product_label = QLabel("Strato")
