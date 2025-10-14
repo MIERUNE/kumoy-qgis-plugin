@@ -475,7 +475,7 @@ class DbRoot(QgsDataItem):
             QgsMessageLog.logMessage(
                 self.tr(
                     "Successfully created vector layer '{}' in project '{}'"
-                ).format(name, self.project_id),
+                ).format(name, self.project.id),
                 constants.LOG_CATEGORY,
                 Qgis.Info,
             )
