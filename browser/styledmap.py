@@ -1,6 +1,7 @@
 import os
 import tempfile
 import webbrowser
+from typing import Literal
 
 from qgis.core import (
     Qgis,
@@ -32,7 +33,11 @@ class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
 
     def __init__(
-        self, parent, path: str, styled_map: api.project_styledmap.StratoStyledMap
+        self,
+        parent,
+        path: str,
+        styled_map: api.project_styledmap.StratoStyledMap,
+        role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
             self,
@@ -43,6 +48,7 @@ class StyledMapItem(QgsDataItem):
         )
 
         self.styled_map = styled_map
+        self.role = role
 
         # アイコン設定
         self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
@@ -61,26 +67,27 @@ class StyledMapItem(QgsDataItem):
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
-        # スタイルマップ上書き保存アクション
-        save_action = QAction(self.tr("Overwrite with current state"), parent)
-        save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
-        actions.append(save_action)
+        if self.role in ["ADMIN", "OWNER"]:
+            # スタイルマップ上書き保存アクション
+            save_action = QAction(self.tr("Overwrite with current state"), parent)
+            save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
+            actions.append(save_action)
 
-        # スタイルマップ編集アクション
-        edit_action = QAction(self.tr("Edit Metadata"), parent)
-        edit_action.triggered.connect(self.update_metadata_styled_map)
-        actions.append(edit_action)
+            # スタイルマップ編集アクション
+            edit_action = QAction(self.tr("Edit Metadata"), parent)
+            edit_action.triggered.connect(self.update_metadata_styled_map)
+            actions.append(edit_action)
+
+            # スタイルマップ削除アクション
+            delete_action = QAction(self.tr("Delete"), parent)
+            delete_action.triggered.connect(self.delete_styled_map)
+            actions.append(delete_action)
 
         if self.styled_map.isPublic:
             # 公開マップの場合、公開ページを開くアクション
             open_public_action = QAction(self.tr("Open Public Page"), parent)
             open_public_action.triggered.connect(self.open_public_page)
             actions.append(open_public_action)
-
-        # スタイルマップ削除アクション
-        delete_action = QAction(self.tr("Delete"), parent)
-        delete_action.triggered.connect(self.delete_styled_map)
-        actions.append(delete_action)
 
         return actions
 
@@ -435,7 +442,7 @@ class StyledMapRoot(QgsDataItem):
             children = []
             for styled_map in styled_maps:
                 path = f"{self.path()}/{styled_map.id}"
-                child = StyledMapItem(self, path, styled_map)
+                child = StyledMapItem(self, path, styled_map, self.project.role)
                 children.append(child)
 
             return children

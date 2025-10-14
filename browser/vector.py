@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 from qgis import processing
 from qgis.core import (
@@ -45,7 +46,13 @@ from .utils import ErrorItem
 class VectorItem(QgsDataItem):
     """Vector layer item for browser"""
 
-    def __init__(self, parent, path: str, vector: StratoVector):
+    def __init__(
+        self,
+        parent,
+        path: str,
+        vector: StratoVector,
+        role: Literal["ADMIN", "OWNER", "MEMBER"],
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -56,6 +63,7 @@ class VectorItem(QgsDataItem):
 
         self.vector = vector
         self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
+        self.role = role
 
         # Set icon based on geometry type
         icon_filename = "icon_vector.svg"  # Default icon
@@ -95,15 +103,16 @@ class VectorItem(QgsDataItem):
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
-        # Edit vector action
-        edit_action = QAction(self.tr("Edit Vector"), parent)
-        edit_action.triggered.connect(self.edit_vector)
-        actions.append(edit_action)
+        if self.role in ["ADMIN", "OWNER"]:
+            # Edit vector action
+            edit_action = QAction(self.tr("Edit Vector"), parent)
+            edit_action.triggered.connect(self.edit_vector)
+            actions.append(edit_action)
 
-        # Delete vector action
-        delete_action = QAction(self.tr("Delete Vector"), parent)
-        delete_action.triggered.connect(self.delete_vector)
-        actions.append(delete_action)
+            # Delete vector action
+            delete_action = QAction(self.tr("Delete Vector"), parent)
+            delete_action.triggered.connect(self.delete_vector)
+            actions.append(delete_action)
 
         # Clear cache action
         clear_cache_action = QAction(self.tr("Clear Cache"), parent)
@@ -350,7 +359,7 @@ class DbRoot(QgsDataItem):
         name: str,
         path: str,
         organization: api.organization.OrganizationDetail,
-        project: api.project.ProjectDetail,
+        project: api.project.ProjectDetailWithRole,
     ):
         QgsDataItem.__init__(
             self,
@@ -372,15 +381,16 @@ class DbRoot(QgsDataItem):
     def actions(self, parent):
         actions = []
 
-        # New vector action
-        new_vector_action = QAction(self.tr("New Vector"), parent)
-        new_vector_action.triggered.connect(self.new_vector)
-        actions.append(new_vector_action)
+        if self.project.role in ["ADMIN", "OWNER"]:
+            # New vector action
+            new_vector_action = QAction(self.tr("New Vector"), parent)
+            new_vector_action.triggered.connect(self.new_vector)
+            actions.append(new_vector_action)
 
-        # Upload vector action
-        upload_vector_action = QAction(self.tr("Upload Vector"), parent)
-        upload_vector_action.triggered.connect(self.upload_vector)
-        actions.append(upload_vector_action)
+            # Upload vector action
+            upload_vector_action = QAction(self.tr("Upload Vector"), parent)
+            upload_vector_action.triggered.connect(self.upload_vector)
+            actions.append(upload_vector_action)
 
         # Clear cache action
         clear_cache_action = QAction(self.tr("Clear Cache"), parent)
@@ -524,7 +534,7 @@ class DbRoot(QgsDataItem):
         # Create VectorItem for each vector
         for idx, vector in enumerate(vectors):
             vector_path = f"{self.path()}/vector/{vector.id}"
-            vector_item = VectorItem(self, vector_path, vector)
+            vector_item = VectorItem(self, vector_path, vector, self.project.role)
             vector_item.setSortKey(idx)
             children.append(vector_item)
 

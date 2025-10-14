@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from .client import ApiClient
 
@@ -61,7 +61,12 @@ class ProjectDetail:
     mapCount: int
 
 
-def get_project(project_id: str) -> ProjectDetail:
+@dataclass
+class ProjectDetailWithRole(ProjectDetail):
+    role: Literal["ADMIN", "OWNER", "MEMBER"]
+
+
+def get_project(project_id: str) -> ProjectDetailWithRole:
     """
     Get details for a specific project
 
@@ -73,7 +78,7 @@ def get_project(project_id: str) -> ProjectDetail:
     """
     response = ApiClient.get(f"/project/{project_id}")
 
-    return ProjectDetail(
+    return ProjectDetailWithRole(
         id=response.get("id", ""),
         name=response.get("name", ""),
         description=response.get("description", ""),
@@ -84,6 +89,7 @@ def get_project(project_id: str) -> ProjectDetail:
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
         vectorCount=response.get("vectorCount", 0),
         mapCount=response.get("mapCount", 0),
+        role=response.get("role", "MEMBER"),
     )
 
 
