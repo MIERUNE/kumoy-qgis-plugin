@@ -1,15 +1,14 @@
 import os
 
 from PyQt5.QtCore import QBuffer, QByteArray, Qt, QUrl
-from PyQt5.QtGui import QIcon, QImage, QImageReader, QPixmap
+from PyQt5.QtGui import QImage, QImageReader, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QLabel
 
+from ..imgs import PIN_ICON
+
 # icon
-placeholder_icon = QIcon(
-    os.path.join(os.path.dirname(__file__), "../imgs", "icon_pin.svg")
-)
-placeholder_pixmap = placeholder_icon.pixmap(24, 24)
+placeholder_pixmap = PIN_ICON.pixmap(24, 24)
 
 
 class RemoteImageLabel(QLabel):
