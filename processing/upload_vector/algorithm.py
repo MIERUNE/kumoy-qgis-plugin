@@ -12,7 +12,6 @@ from qgis.core import (
     QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
-    QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -111,21 +110,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
-            "Upload a vector layer to the Strato backend.\n\n"
-            "User operation steps:\n"
-            "1. Select the vector layer you want to upload from the dropdown\n"
-            "2. Choose the destination project from Organization/Project list\n"
-            "3. (Optional) Enter a custom name for the vector layer, or leave empty to use the original layer name\n"
-            "4. Click 'Run' to start the upload process\n\n"
-            "The algorithm will:\n"
-            "- Automatically normalize field names (lowercase, remove special characters)\n"
-            "- Automatically check and fix invalid geometries before processing\n"
-            "- Automatically convert multipart geometries to single parts\n"
-            "- Drop Z coordinates if present\n"
-            "- Reproject to EPSG:4326 if other CRS set\n"
-            "- Create a new vector layer in the selected project\n"
-            "- Let you choose which attributes are uploaded\n"
-            "Note: You must be logged in to Strato before using this tool."
+            "Upload a vector layer to the STRATO cloud.\n\n"
+            "The Input Vector Layer dropdown shows vector layers in your current map. If no map is open, it will be empty."
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
