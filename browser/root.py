@@ -9,11 +9,10 @@ from qgis.core import (
     QgsProject,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ..imgs import IMGS_PATH
+from ..imgs import MAIN_ICON
 from ..settings_manager import get_settings
 from ..strato import api
 from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
@@ -47,7 +46,7 @@ class RootCollection(QgsDataCollectionItem):
     def __init__(self):
         # Initialize with default name, will update with project name later
         QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
+        self.setIcon(MAIN_ICON)
 
         self.setName(PLUGIN_NAME)
 

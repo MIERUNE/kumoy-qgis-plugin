@@ -5,7 +5,6 @@ from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QCoreApplication, Qt
-from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -24,7 +23,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..imgs import IMGS_PATH
+from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
@@ -81,10 +80,14 @@ class ProjectItemWidget(QWidget):
         # Project name
         name_label = QLabel(self.project.name)
         info_layout.addWidget(name_label)
-        # Last updated with clock icon
-        updated_text = self._format_relative_date(self.project.updatedAt)
-        updated_label = QLabel(f"🕐 {updated_text}")
-        info_layout.addWidget(updated_label)
+        # Last updated with icon
+        updated_hlayout = QHBoxLayout()
+        updated_icon_label = QLabel()
+        updated_icon_label.setPixmap(RELOAD_ICON.pixmap(16, 16))
+        updated_hlayout.addWidget(updated_icon_label)
+        updated_label = QLabel(self._format_relative_date(self.project.updatedAt))
+        updated_hlayout.addWidget(updated_label)
+        info_layout.addLayout(updated_hlayout)
 
         main_layout.addLayout(info_layout)
         main_layout.addStretch()
@@ -98,12 +101,22 @@ class ProjectItemWidget(QWidget):
         icons_layout.setSpacing(4)
 
         # Vector icon with count (using emoji for simplicity)
-        vector_label = QLabel(f"💾 {self.project.vectorCount}")
-        icons_layout.addWidget(vector_label)
+        vector_hlayout = QHBoxLayout()
+        vector_icon_label = QLabel()
+        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
+        vector_hlayout.addWidget(vector_icon_label)
+        vector_label = QLabel(str(self.project.vectorCount))
+        vector_hlayout.addWidget(vector_label)
+        icons_layout.addLayout(vector_hlayout)
 
         # Maps icon with count
-        maps_label = QLabel(f"📑 {self.project.mapCount}")
-        icons_layout.addWidget(maps_label)
+        maps_hlayout = QHBoxLayout()
+        maps_icon_label = QLabel()
+        maps_icon_label.setPixmap(MAP_ICON.pixmap(16, 16))
+        maps_hlayout.addWidget(maps_icon_label)
+        maps_label = QLabel(str(self.project.mapCount))
+        maps_hlayout.addWidget(maps_label)
+        icons_layout.addLayout(maps_hlayout)
 
         right_layout.addLayout(icons_layout)
         main_layout.addLayout(right_layout)
@@ -310,7 +323,6 @@ class ProjectSelectDialog(QDialog):
         self.current_org_id = None
         self.current_user = None
         self.details_visible = False
-        self.org_icon = QIcon(os.path.join(IMGS_PATH, "icon_organization.svg"))
         self.setup_ui()
         self.load_user_info()
         self.load_organizations()
@@ -715,10 +727,8 @@ class ProjectSelectDialog(QDialog):
         """Format storage units with appropriate suffix"""
         if units < 1:
             return f"{units:.2f}SU"
-        elif units < 1000:
-            return f"{units:.0f}SU"
         else:
-            return f"{units / 1000:.1f}KSU"
+            return f"{units:.0f}SU"
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
