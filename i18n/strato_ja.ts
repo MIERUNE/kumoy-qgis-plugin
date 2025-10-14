@@ -121,7 +121,7 @@ Continue?</source>
     <message>
         <location filename="../ui/dialog_login.py" line="101"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
-        <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Stratoへようこそ&lt;/h2&gt;                        &lt;p&gt;&lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;株式会社MIERUNE.&lt;/span&gt;&lt;/a&gt;提供&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
+        <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="324"/>
@@ -182,17 +182,17 @@ Please update your configuration before logging in.</source>
     <message>
         <location filename="../ui/dialog_login.py" line="334"/>
         <source>The Server URL must start with http or https.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="256"/>
         <source>Signing you in...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ログイン中...</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="124"/>
         <source>Custom server configuration</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">カスタムサーバー設定</translation>
     </message>
 </context>
 <context>
@@ -227,8 +227,8 @@ Please update your configuration before logging in.</source>
     </message>
     <message>
         <location filename="../ui/dialog_login_success.py" line="57"/>
-        <source>Welcome! Youâre now logged in.</source>
-        <translation type="unfinished"></translation>
+        <source>Welcome! You are now logged in.</source>
+        <translation type="unfinished">Welcome! You are now logged in.</translation>
     </message>
 </context>
 <context>
@@ -338,7 +338,7 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="223"/>
         <source>Project &apos;{}&apos; has been deleted successfully.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクト &apos;{}&apos;は正常に削除されました。</translation>
     </message>
 </context>
 <context>
@@ -376,7 +376,7 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="515"/>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="519"/>
@@ -519,12 +519,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../browser/root.py" line="115"/>
         <source>Account</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アカウント</translation>
     </message>
     <message>
         <location filename="../browser/root.py" line="155"/>
-        <source>Changing the project may result in loss of current editing state. Do you want to proceed?</source>
-        <translation type="unfinished"></translation>
+        <source>You have unsaved edits. Switching projects will discard them. Continue?</source>
+        <translation type="unfinished">未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
 </context>
 <context>
@@ -781,12 +781,12 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">入力レイヤーの座標参照系が未定義または無効です。アップロード前にレイヤーに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="456"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="454"/>
         <source>Converting multipart to singlepart</source>
         <translation type="unfinished">マルチパートからシングルパートへの変換</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="469"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="467"/>
         <source>Reprojecting from {} to EPSG:4326</source>
         <translation type="unfinished">{}からEPSG:4326への投影変換</translation>
     </message>
@@ -821,32 +821,32 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">不完全なベクタレイヤのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="429"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="427"/>
         <source>Dropping Z coordinates</source>
         <translation type="unfinished">Z座標を削除</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="518"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="516"/>
         <source>Unsupported field type for field &apos;{}&apos;. Only string, integer, float, and boolean fields are supported.</source>
         <translation type="unfinished">フィールド &apos;{}&apos;は対応していない型です。文字列型、整数型、浮動小数点型、真偽値型のフィールドのみがサポートされています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="545"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="543"/>
         <source>Field &apos;{}&apos; normalized to &apos;{}&apos;</source>
         <translation type="unfinished">フィールド &apos;{}&apos;は &apos;{}&apos;に正規化されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="619"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="617"/>
         <source>Created vector layer &apos;{}&apos; with ID: {}</source>
         <translation type="unfinished">ベクタレイヤ &apos;{}&apos;がID: {}で作成されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="625"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="623"/>
         <source>Added attributes to vector layer &apos;{}&apos;: {}</source>
         <translation type="unfinished">ベクタレイヤ &apos;{}&apos;に属性を追加しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="666"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="664"/>
         <source>Upload complete: {} / {} features</source>
         <translation type="unfinished">アップロード完了: {} / {} 個のフィーチャ</translation>
     </message>
@@ -855,47 +855,49 @@ This action can&apos;t be undone.</source>
         <source>Upload a vector layer to the STRATO cloud.
 
 The Input Vector Layer dropdown shows vector layers in your current map. If no map is open, it will be empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタレイヤをSTRATOクラウドにアップロードします。
+
+入力ベクタレイヤのドロップダウンには、現在のQGISプロジェクトのベクタレイヤが表示されます。マップが開いていない場合は空になります。</translation>
+    </message>
+    <message>
+        <location filename="../processing/upload_vector/algorithm.py" line="394"/>
+        <source>Filtering features using expression: {}</source>
+        <translation type="unfinished">次の式でフィーチャをフィルタリング中: {}</translation>
+    </message>
+    <message>
+        <location filename="../processing/upload_vector/algorithm.py" line="419"/>
+        <source>No features remain after filtering invalid geometries</source>
+        <translation type="unfinished"> 無効なジオメトリをフィルタリングした結果、地物が残りませんでした。</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="389"/>
-        <source>Refactor mapping could not be constructed from selected fields.</source>
-        <translation type="unfinished"></translation>
+        <source>Could not create the field mapping using the selected fields.</source>
+        <translation type="unfinished">選択された属性からフィールドマッピングを作成できませんでした。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="396"/>
-        <source>Filtering features using expression: {}</source>
-        <translation type="unfinished"></translation>
+        <location filename="../processing/upload_vector/algorithm.py" line="412"/>
+        <source>Removed {} features with missing or incompatible geometries.</source>
+        <translation type="unfinished">{}個の地物は、ジオメトリが存在しないか互換性がないため削除されました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="414"/>
-        <source>Filtered out {} features due to missing or incompatible geometries</source>
-        <translation type="unfinished"></translation>
+        <location filename="../processing/upload_vector/algorithm.py" line="441"/>
+        <source>Repairing geometries...</source>
+        <translation type="unfinished">ジオメトリを修復中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="421"/>
-        <source>No features remain after filtering invalid geometries</source>
-        <translation type="unfinished"></translation>
+        <location filename="../processing/upload_vector/algorithm.py" line="483"/>
+        <source>Refactoring attributes...</source>
+        <translation type="unfinished">属性を処理中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="443"/>
-        <source>Repairing geometries</source>
-        <translation type="unfinished"></translation>
+        <location filename="../processing/upload_vector/algorithm.py" line="560"/>
+        <source>Filtering failed due to an unsupported geometry type.</source>
+        <translation type="unfinished">ジオメトリタイプがサポートされていないため、フィルタリングに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="485"/>
-        <source>Refactoring attributes</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="562"/>
-        <source>Unsupported geometry type encountered during filtering</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="598"/>
-        <source>Processing step &apos;{}&apos; failed to produce a valid layer</source>
-        <translation type="unfinished"></translation>
+        <location filename="../processing/upload_vector/algorithm.py" line="596"/>
+        <source>The &apos;{}&apos; processing step failed to create a valid layer.</source>
+        <translation type="unfinished">処理ステップ「{}」で有効なレイヤを作成できませんでした。</translation>
     </message>
 </context>
 <context>

@@ -54,7 +54,7 @@ class LoginSuccess(QDialog):
         main_layout.addLayout(checkmark_container)
 
         # Title label
-        title_label = QLabel(self.tr("Welcome! You’re now logged in."))
+        title_label = QLabel(self.tr("Welcome! You are now logged in."))
         title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)

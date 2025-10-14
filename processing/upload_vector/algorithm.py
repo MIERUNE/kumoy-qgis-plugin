@@ -387,9 +387,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         if not mapping_list:
             raise QgsProcessingException(
-                self.tr(
-                    "Refactor mapping could not be constructed from selected fields."
-                )
+                self.tr("Could not create the field mapping using the selected fields.")
             )
 
         geometry_filter_expr = self._build_geometry_filter_expression(layer)
@@ -413,7 +411,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         if filtered_count < layer.featureCount():
             feedback.pushInfo(
                 self.tr(
-                    "Filtered out {} features due to missing or incompatible geometries"
+                    "Removed {} features with missing or incompatible geometries."
                 ).format(layer.featureCount() - filtered_count)
             )
 
@@ -440,7 +438,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         # Step 3: repair geometries prior to other operations
-        feedback.pushInfo(self.tr("Repairing geometries"))
+        feedback.pushInfo(self.tr("Repairing geometries..."))
         current_layer = self._run_child_algorithm(
             "native:fixgeometries",
             {
@@ -482,7 +480,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
-        feedback.pushInfo(self.tr("Refactoring attributes"))
+        feedback.pushInfo(self.tr("Refactoring attributes..."))
         current_layer = self._run_child_algorithm(
             "native:refactorfields",
             {
@@ -560,7 +558,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             allowed_type = "Polygon"
         else:
             raise QgsProcessingException(
-                self.tr("Unsupported geometry type encountered during filtering")
+                self.tr("Filtering failed due to an unsupported geometry type.")
             )
 
         return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) = '{allowed_type}'"
@@ -596,7 +594,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 return layer
 
         raise QgsProcessingException(
-            self.tr("Processing step '{}' failed to produce a valid layer").format(
+            self.tr("The '{}' processing step failed to create a valid layer.").format(
                 algorithm_id
             )
         )
