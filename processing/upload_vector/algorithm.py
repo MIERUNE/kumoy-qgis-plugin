@@ -176,6 +176,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 type=QgsProcessingParameterField.Any,
                 optional=True,
                 allowMultiple=True,
+                defaultValue=[],
             )
         )
 
