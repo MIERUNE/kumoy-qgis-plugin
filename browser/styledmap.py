@@ -485,14 +485,9 @@ def load_project_from_xml(xml_string: str) -> bool:
         tmp.write(xml_string)
         tmp_path = tmp.name
 
-        project = QgsProject.instance()
-        res = project.read(tmp_path)
-        return res
+        iface.addProject(tmp_path)
 
-    project = QgsProject.instance()
-    res = project.read(tmp_path)
     delete_tempfile(tmp_path)
-    return res
 
 
 def delete_tempfile(tmp_path: str):
