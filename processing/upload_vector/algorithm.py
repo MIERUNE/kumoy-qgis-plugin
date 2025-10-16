@@ -61,7 +61,9 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
     for field in valid_fields_layer.fields():
         # Map QGIS field types to our supported types
         field_type = "string"  # Default to string
-        if field.type() == QVariant.Int:
+        if (
+            field.type() == QVariant.Int or field.type() == QVariant.LongLong
+        ):  # LongLong is for 64-bit integers
             field_type = "integer"
         elif field.type() == QVariant.Double:
             field_type = "float"
