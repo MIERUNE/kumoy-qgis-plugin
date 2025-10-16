@@ -107,7 +107,9 @@
         <source>This will clear all locally cached files. Data will be re-downloaded next time you access vectors.
 
 Continue?</source>
-        <translation type="unfinished">すべてのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。\n\n続行してもよろしいですか？</translation>
+        <translation type="unfinished">すべてのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。
+
+続行してもよろしいですか？</translation>
     </message>
 </context>
 <context>
@@ -1024,7 +1026,9 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
 The cached data will be re-downloaded when you access it next time.
 
 Do you want to continue?</source>
-        <translation type="unfinished">ベクタのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。\n\n続行してもよろしいですか？</translation>
+        <translation type="unfinished">ベクタのローカルキャッシュファイルを消去します。キャッシュデータは次回ベクタにアクセスする際に再ダウンロードされます。
+
+続行してもよろしいですか？</translation>
     </message>
     <message>
         <location filename="../browser/vector.py" line="325"/>

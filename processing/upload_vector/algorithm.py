@@ -264,6 +264,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 parameters, context, layer
             )
 
+            # クリーニング前のレイヤーで地物数チェック
+            layer_feature_count = layer.featureCount()
+            if layer_feature_count > plan_limits.maxVectorFeatures:
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} features, "
+                        "but your plan allows up to {} features per vector."
+                    ).format(layer_feature_count, plan_limits.maxVectorFeatures)
+                )
+
             # Determine geometry type
             geometry_type = _get_geometry_type(layer)
             if geometry_type is None:
@@ -280,6 +290,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         len(selected_fields), layer.fields().count()
                     )
                 )
+            if len(selected_fields) > plan_limits.maxVectorAttributes:
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} attributes, "
+                        "but your plan allows up to {} attributes per vector."
+                    ).format(len(selected_fields), plan_limits.maxVectorAttributes)
+                )
 
             field_mapping = self._build_field_mapping(
                 layer,
@@ -294,7 +311,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
-            # Check feature count limit
+            # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
             proc_feature_count = processed_layer.featureCount()
             if proc_feature_count > plan_limits.maxVectorFeatures:
                 raise QgsProcessingException(
@@ -302,24 +319,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "Cannot upload vector. The layer has {} features, "
                         "but your plan allows up to {} features per vector."
                     ).format(proc_feature_count, plan_limits.maxVectorFeatures)
-                )
-
-            # Check attribute count limit after normalization
-            proc_layer_field_count = processed_layer.fields().count()
-            if proc_layer_field_count > plan_limits.maxVectorAttributes:
-                raise QgsProcessingException(
-                    self.tr(
-                        "Cannot upload vector. The layer has {} attributes, "
-                        "but your plan allows up to {} attributes per vector."
-                    ).format(proc_layer_field_count, plan_limits.maxVectorAttributes)
-                )
-
-            # Normalize field names
-            if processed_layer.fields().isEmpty():
-                raise QgsProcessingException(
-                    self.tr(
-                        "No attributes available for upload. Select at least one attribute."
-                    )
                 )
 
             # Create attribute dictionary
@@ -524,7 +523,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
                 continue
 
-            normalized_name = normalize_field_name(field.name())
+            current_names = [
+                m["name"] for m in mapping.values()
+            ]  # ここまでに正規化済みのフィールド名
+            normalized_name = normalize_field_name(field.name(), current_names)
             if not normalized_name:
                 continue
 
