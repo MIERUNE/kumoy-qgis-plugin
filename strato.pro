@@ -9,7 +9,6 @@ SOURCES = __init__.py \
           ui/dialog_account.py \
           ui/dialog_login.py \
           ui/dialog_login_success.py \
-          ui/dialog_layer_add.py \
           ui/dialog_project_select.py \
           settings_manager.py \
           strato/auth_manager.py \
