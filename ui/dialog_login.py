@@ -245,16 +245,19 @@ class DialogLogin(QDialog):
             )
             # Explicit network error
             if isinstance(e, URLError):
-                msg = self.tr("Failed to connect due to a network error.\n{}").format(
-                    str(e)
+                QMessageBox.critical(
+                    self,
+                    self.tr("Login Error"),
+                    self.tr("Failed to connect due to a network error.\n{}").format(
+                        str(e)
+                    ),
                 )
             else:
-                msg = str(e)
-            QMessageBox.critical(
-                self,
-                self.tr("Login Error"),
-                self.tr("An error occurred while logging in: {}").format(msg),
-            )
+                QMessageBox.critical(
+                    self,
+                    self.tr("Login Error"),
+                    self.tr("An error occurred while logging in: {}").format(str(e)),
+                )
             # Reset status and re-enable login button on error
             self.update_login_status()
             self.login_button.setEnabled(True)
