@@ -524,7 +524,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
                 continue
 
-            normalized_name = normalize_field_name(field.name())
+            current_names = [
+                m["name"] for m in mapping.values()
+            ]  # ここまでに正規化済みのフィールド名
+            normalized_name = normalize_field_name(field.name(), current_names)
             if not normalized_name:
                 continue
 
