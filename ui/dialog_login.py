@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+from urllib.error import URLError
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
@@ -242,10 +243,17 @@ class DialogLogin(QDialog):
             QgsMessageLog.logMessage(
                 f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
             )
+            # Explicit network error
+            if isinstance(e, URLError):
+                msg = self.tr("Failed to connect due to a network error.\n{}").format(
+                    str(e)
+                )
+            else:
+                msg = str(e)
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
-                self.tr("An error occurred while logging in: {}").format(str(e)),
+                self.tr("An error occurred while logging in: {}").format(msg),
             )
             # Reset status and re-enable login button on error
             self.update_login_status()
