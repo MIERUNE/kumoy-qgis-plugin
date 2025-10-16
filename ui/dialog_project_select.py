@@ -566,17 +566,19 @@ class ProjectSelectDialog(QDialog):
             self.current_org_id = org.id
             # Fetch organization details
             org_detail = api.organization.get_organization(org.id)
-            # Update usage display
-            self.update_usage_display(org_detail)
-
-            if org_detail.role == "OWNER":
-                self.button_panel["new_project_btn"].setEnabled(True)
-            else:
-                self.button_panel["new_project_btn"].setEnabled(False)
         except Exception as e:
             msg = self.tr("Failed to load organization details. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(self, self.tr("Error"), msg)
+            return
+
+        # Update usage display
+        self.update_usage_display(org_detail)
+
+        if org_detail.role == "OWNER":
+            self.button_panel["new_project_btn"].setEnabled(True)
+        else:
+            self.button_panel["new_project_btn"].setEnabled(False)
 
     def load_user_info(self):
         """Load current user information"""
