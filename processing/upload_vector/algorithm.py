@@ -512,7 +512,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if field.type() not in [
                 QVariant.String,
                 QVariant.Int,
-                QVariant.LongLong, # LongLong is for 64-bit integers
+                QVariant.LongLong,  # LongLong is for 64-bit integers
                 QVariant.Double,
                 QVariant.Bool,
             ]:
