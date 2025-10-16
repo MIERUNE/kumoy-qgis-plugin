@@ -156,7 +156,7 @@ class DialogLogin(QDialog):
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("DialogConfig", message)
+        return QCoreApplication.translate("DialogLogin", message)
 
     def closeEvent(self, event):
         self.save_server_settings()
