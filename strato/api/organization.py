@@ -44,7 +44,7 @@ class OrganizationUsage:
     vectors: int
     styledMaps: int
     organizationMembers: int
-    usedStorageUnits: int
+    usedStorageUnits: float
 
 
 @dataclass

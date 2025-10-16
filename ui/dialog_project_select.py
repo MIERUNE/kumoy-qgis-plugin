@@ -1,3 +1,4 @@
+import math
 import os
 import webbrowser
 from datetime import datetime
@@ -675,17 +676,15 @@ class ProjectSelectDialog(QDialog):
             used = org_detail.usage.usedStorageUnits
             total = org_detail.storageUnits
             # Format storage units with appropriate suffix
-            used_str = self._format_storage_units(used)
-            total_str = self._format_storage_units(total)
             self.org_details_panel["usage_widgets"]["storage"]["label"].setText(
-                f"{used_str} / {total_str}"
+                f"{used:.2f}SU / {total:.0f}SU"
             )
             if total > 0:
                 self.org_details_panel["usage_widgets"]["storage"][
                     "progress"
                 ].setMaximum(total)
                 self.org_details_panel["usage_widgets"]["storage"]["progress"].setValue(
-                    used
+                    math.ceil(used)
                 )
                 self._set_progress_color(
                     self.org_details_panel["usage_widgets"]["storage"]["progress"],
@@ -724,13 +723,6 @@ class ProjectSelectDialog(QDialog):
                 border-radius: 3px;
             }}
         """)
-
-    def _format_storage_units(self, units: float) -> str:
-        """Format storage units with appropriate suffix"""
-        if units < 1:
-            return f"{units:.2f}SU"
-        else:
-            return f"{units:.0f}SU"
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
