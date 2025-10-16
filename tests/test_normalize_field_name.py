@@ -1,18 +1,17 @@
 import importlib.util
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 # Load normalize_field_name without importing the heavy QGIS package tree.
 MODULE_PATH = (
-    Path(__file__)
-    .resolve()
-    .parent.parent
+    Path(__file__).resolve().parent.parent
     / "processing"
     / "upload_vector"
     / "normalize_field_name.py"
 )
-spec = importlib.util.spec_from_file_location("normalize_field_name_module", MODULE_PATH)
+spec = importlib.util.spec_from_file_location(
+    "normalize_field_name_module", MODULE_PATH
+)
 normalize_field_name_module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(normalize_field_name_module)
