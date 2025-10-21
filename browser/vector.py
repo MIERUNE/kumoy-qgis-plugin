@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 from qgis import processing
 from qgis.core import (
@@ -6,11 +7,17 @@ from qgis.core import (
     QgsDataItem,
     QgsFields,
     QgsMessageLog,
+    QgsMimeDataUtils,
     QgsProject,
+    QgsSimpleFillSymbolLayer,
+    QgsSimpleLineSymbolLayer,
+    QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSymbol,
+    QgsUnitTypes,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QComboBox,
@@ -23,7 +30,12 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..imgs import IMGS_PATH
+from ..imgs import (
+    BROWSER_FOLDER_ICON,
+    BROWSER_GEOMETRY_LINESTRING_ICON,
+    BROWSER_GEOMETRY_POINT_ICON,
+    BROWSER_GEOMETRY_POLYGON_ICON,
+)
 from ..settings_manager import get_settings, store_setting
 from ..strato import api, constants
 from ..strato.api.project_vector import (
@@ -38,7 +50,13 @@ from .utils import ErrorItem
 class VectorItem(QgsDataItem):
     """Vector layer item for browser"""
 
-    def __init__(self, parent, path: str, vector: StratoVector):
+    def __init__(
+        self,
+        parent,
+        path: str,
+        vector: StratoVector,
+        role: Literal["ADMIN", "OWNER", "MEMBER"],
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -48,24 +66,34 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
+        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
+        self.role = role
 
         # Set icon based on geometry type
-        icon_filename = "icon_vector.svg"  # Default icon
-
         if vector.type == "POINT":
-            icon_filename = "icon_point.svg"
+            self.setIcon(BROWSER_GEOMETRY_POINT_ICON)
         elif vector.type == "LINESTRING":
-            icon_filename = "icon_linestring.svg"
+            self.setIcon(BROWSER_GEOMETRY_LINESTRING_ICON)
         elif vector.type == "POLYGON":
-            icon_filename = "icon_polygon.svg"
-
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, icon_filename)))
+            self.setIcon(BROWSER_GEOMETRY_POLYGON_ICON)
 
         self.populate()
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("VectorItem", message)
+
+    def hasDragEnabled(self):
+        return True
+
+    def mimeUris(self):
+        # ドラッグドロップされた際にレイヤーを適切に追加するための実装
+        u = QgsMimeDataUtils.Uri()
+        u.layerType = "vector"
+        u.providerKey = constants.DATA_PROVIDER_KEY
+        u.name = self.vector.name
+        u.uri = self.vector_uri
+        return [u]
 
     def actions(self, parent):
         actions = []
@@ -75,18 +103,19 @@ class VectorItem(QgsDataItem):
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
-        # Edit vector action
-        edit_action = QAction(self.tr("Edit Vector"), parent)
-        edit_action.triggered.connect(self.edit_vector)
-        actions.append(edit_action)
+        if self.role in ["ADMIN", "OWNER"]:
+            # Edit vector action
+            edit_action = QAction(self.tr("Edit Vector"), parent)
+            edit_action.triggered.connect(self.edit_vector)
+            actions.append(edit_action)
 
-        # Delete vector action
-        delete_action = QAction(self.tr("Delete Vector"), parent)
-        delete_action.triggered.connect(self.delete_vector)
-        actions.append(delete_action)
+            # Delete vector action
+            delete_action = QAction(self.tr("Delete Vector"), parent)
+            delete_action.triggered.connect(self.delete_vector)
+            actions.append(delete_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -99,12 +128,10 @@ class VectorItem(QgsDataItem):
 
     def add_to_map(self):
         """Add vector layer to QGIS map"""
-        config = api.config.get_api_config()
-        # Create URI
-        uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};endpoint={config.SERVER_URL}"
         # Create layer
-        layer_name = f"{constants.PLUGIN_NAME} - {self.vector.name}"
-        layer = QgsVectorLayer(uri, layer_name, "strato")
+        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
+        # Set pixel-based styling
+        self._set_pixel_based_style(layer)
 
         if layer.isValid():
             # strato_idをread-onlyに設定
@@ -120,8 +147,62 @@ class VectorItem(QgsDataItem):
             QgsProject.instance().addMapLayer(layer)
         else:
             QgsMessageLog.logMessage(
-                f"Layer is invalid: {uri}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Layer is invalid: {self.vector_uri}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
+
+    def _set_pixel_based_style(self, layer):
+        """Set pixel-based styling for the layer"""
+        # Create symbol based on geometry type
+        if self.vector.type == "POINT":
+            # Create point symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                marker_layer = symbol.symbolLayer(0)
+                if isinstance(marker_layer, QgsSimpleMarkerSymbolLayer):
+                    # Set size in pixels
+                    marker_layer.setSize(5.0)
+                    marker_layer.setSizeUnit(QgsUnitTypes.RenderPixels)
+                    # Set stroke width in pixels
+                    marker_layer.setStrokeWidth(1.0)
+                    marker_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
+                    # offset
+                    marker_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        elif self.vector.type == "LINESTRING":
+            # Create line symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                line_layer = symbol.symbolLayer(0)
+                if isinstance(line_layer, QgsSimpleLineSymbolLayer):
+                    # Set line width in pixels
+                    line_layer.setWidth(2.0)
+                    line_layer.setWidthUnit(QgsUnitTypes.RenderPixels)
+                    # Set line offset in pixels
+                    line_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        elif self.vector.type == "POLYGON":
+            # Create polygon symbol with pixel units
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            if symbol and symbol.symbolLayerCount() > 0:
+                fill_layer = symbol.symbolLayer(0)
+                if isinstance(fill_layer, QgsSimpleFillSymbolLayer):
+                    # Set stroke width in pixels
+                    fill_layer.setStrokeWidth(1.0)
+                    fill_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
+                    # Set offset in pixels
+                    fill_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
+
+        else:
+            # Use default symbol for unknown types
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+
+        # Apply the symbol to the layer
+        if symbol:
+            renderer = QgsSingleSymbolRenderer(symbol)
+            layer.setRenderer(renderer)
+            layer.triggerRepaint()
 
     def handleDoubleClick(self):
         """Handle double-click event by adding the vector layer to the map"""
@@ -226,7 +307,7 @@ class VectorItem(QgsDataItem):
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Cache"),
+            self.tr("Clear Cache Data"),
             self.tr(
                 "This will clear the local cache for vector '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n\n"
@@ -272,7 +353,14 @@ class VectorItem(QgsDataItem):
 class DbRoot(QgsDataItem):
     """Root item for vectors in a project"""
 
-    def __init__(self, parent, name: str, path: str):
+    def __init__(
+        self,
+        parent,
+        name: str,
+        path: str,
+        organization: api.organization.OrganizationDetail,
+        project: api.project.ProjectDetail,
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -281,7 +369,10 @@ class DbRoot(QgsDataItem):
             path=path,
         )
 
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_folder.svg")))
+        self.setIcon(BROWSER_FOLDER_ICON)
+
+        self.organization = organization
+        self.project = project
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -290,46 +381,38 @@ class DbRoot(QgsDataItem):
     def actions(self, parent):
         actions = []
 
-        # New vector action
-        new_vector_action = QAction(self.tr("New Vector"), parent)
-        new_vector_action.triggered.connect(self.new_vector)
-        actions.append(new_vector_action)
+        if self.project.role in ["ADMIN", "OWNER"]:
+            # New vector action
+            new_vector_action = QAction(self.tr("Create Vector"), parent)
+            new_vector_action.triggered.connect(self.new_vector)
+            actions.append(new_vector_action)
 
-        # Upload vector action
-        upload_vector_action = QAction(self.tr("Upload Vector"), parent)
-        upload_vector_action.triggered.connect(self.upload_vector)
-        actions.append(upload_vector_action)
+            # Upload vector action
+            upload_vector_action = QAction(self.tr("Upload Vector"), parent)
+            upload_vector_action.triggered.connect(self.upload_vector)
+            actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache"), parent)
+        clear_cache_action = QAction(self.tr("Clear Cache data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
-
-        # Refresh action
-        refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refresh)
-        actions.append(refresh_action)
 
         return actions
 
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            organization_id = get_settings().selected_organization_id
-            organization = api.organization.get_organization(organization_id)
-            project_id = get_settings().selected_project_id
-
             # check plan limits before creating vector
-            plan_limit = api.plan.get_plan_limits(organization.subscriptionPlan)
-            current_vectors = api.project_vector.get_vectors(project_id)
+            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            current_vectors = api.project_vector.get_vectors(self.project.id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
                     self.tr(
-                        "Cannot create new vector layer. Your plan allows up to {} vectors, "
-                        "but you have reached the limit."
+                        "You have reached your plan's limit of {} vector layers. "
+                        "Please delete one or upgrade your plan to continue."
                     ).format(plan_limit.maxVectors),
                 )
                 return
@@ -383,16 +466,16 @@ class DbRoot(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Vector name cannot be empty."),
+                    self.tr("Please enter a name for your vector layer."),
                 )
                 return
 
             options = AddVectorOptions(name=name, type=vector_type)
-            api.project_vector.add_vector(project_id, options)
+            api.project_vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
-                self.tr("Created new vector layer '{}' in project {}").format(
-                    name, project_id
-                ),
+                self.tr(
+                    "Successfully created vector layer '{}' in project '{}'"
+                ).format(name, self.project.id),
                 constants.LOG_CATEGORY,
                 Qgis.Info,
             )
@@ -437,18 +520,21 @@ class DbRoot(QgsDataItem):
             vectors = api.project_vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error fetching vectors: {str(e)}",
+                f"Error loading vectors: {str(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
-            return [ErrorItem(self, self.tr("Error fetching vectors"))]
+            return [ErrorItem(self, self.tr("Error loading vectors"))]
+
+        if len(vectors) == 0:
+            return [ErrorItem(self, self.tr("No vector layers found in this project"))]
 
         children = []
 
         # Create VectorItem for each vector
         for idx, vector in enumerate(vectors):
             vector_path = f"{self.path()}/vector/{vector.id}"
-            vector_item = VectorItem(self, vector_path, vector)
+            vector_item = VectorItem(self, vector_path, vector, self.project.role)
             vector_item.setSortKey(idx)
             children.append(vector_item)
 
@@ -461,9 +547,9 @@ class DbRoot(QgsDataItem):
             None,
             self.tr("Clear Cache"),
             self.tr(
-                "This will clear all local cache files. "
-                "Cached data will be re-downloaded when you access vectors next time.\n\n"
-                "Do you want to continue?"
+                "This will clear all locally cached files. "
+                "Data will be re-downloaded next time you access vectors.\n\n"
+                "Continue?"
             ),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -474,7 +560,7 @@ class DbRoot(QgsDataItem):
                 # Get cache directory path
                 local_cache.clear_all()
                 QgsMessageLog.logMessage(
-                    self.tr("Cache cleared successfully"),
+                    self.tr("Cache cleared successfully!"),
                     constants.LOG_CATEGORY,
                     Qgis.Info,
                 )

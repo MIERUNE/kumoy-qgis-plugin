@@ -9,19 +9,18 @@ from qgis.core import (
     QgsProject,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ..imgs import IMGS_PATH
-from ..settings_manager import get_settings, store_setting
+from ..imgs import MAIN_ICON
+from ..settings_manager import get_settings
 from ..strato import api
 from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
-from ..ui.dialog_config import DialogConfig
+from ..ui.dialog_account import DialogAccount
+from ..ui.dialog_login import DialogLogin
 from ..ui.dialog_project_select import ProjectSelectDialog
 from ..version import exec_dialog
 from .styledmap import StyledMapRoot
-from .utils import ErrorItem
 from .vector import DbRoot
 
 
@@ -47,20 +46,59 @@ class RootCollection(QgsDataCollectionItem):
     def __init__(self):
         # Initialize with default name, will update with project name later
         QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon.svg")))
+        self.setIcon(MAIN_ICON)
 
-        # Update name with project if available
-        self.update_name_with_project()
+        self.setName(PLUGIN_NAME)
+
+        self.organization_data = None
+        self.project_data = None
+
+        self.load_organization_project()
+
+    def load_organization_project(self):
+        self.organization_data = None
+        self.project_data = None
+
+        settings = get_settings()
+        if (
+            settings.id_token == ""
+            or settings.selected_organization_id == ""
+            or settings.selected_project_id == ""
+        ):
+            return
+
+        # Get organization and project details
+        try:
+            self.organization_data = api.organization.get_organization(
+                settings.selected_organization_id
+            )
+            self.project_data = api.project.get_project(settings.selected_project_id)
+            self.setName(
+                f"{PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+            )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error reloading organization/project data: {str(e)}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("RootCollection", message)
 
+    def handleDoubleClick(self):
+        # 非ログイン時ならログイン画面を開く
+        if not get_settings().id_token:
+            self.login()
+
+        return False  # デフォルトのダブルクリック動作を実行
+
     def actions(self, parent):
         id_token = get_settings().id_token
         if not id_token:
             # Login action
-            login_action = QAction("Login", parent)
+            login_action = QAction(self.tr("Login"), parent)
             login_action.triggered.connect(self.login)
             return [login_action]
 
@@ -72,14 +110,15 @@ class RootCollection(QgsDataCollectionItem):
         refresh_action = QAction(self.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refreshChildren)
 
-        # Logout action
-        logout_action = QAction("Logout", parent)
-        logout_action.triggered.connect(self.logout)
+        # Account action
+        account_action = QAction(self.tr("Account"), parent)
+        account_action.triggered.connect(self.account_settings)
 
-        return [select_project_action, refresh_action, logout_action]
+        return [select_project_action, refresh_action, account_action]
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
+        self.load_organization_project()
         self.refresh()
         self.depopulate()
 
@@ -87,182 +126,88 @@ class RootCollection(QgsDataCollectionItem):
         """Login to STRATO"""
 
         # Show config dialog with Supabase login tab
-        dialog = DialogConfig()
+        dialog = DialogLogin()
         result = exec_dialog(dialog)
 
         if result:
-            # Refresh to show projects
-            self.refresh()
+            self.select_project()
 
     def select_project(self):
         """Select a project to display"""
 
-        # プロジェクトを変更すると、現在の編集状態が失われる可能性があるため、ダイアログで確認
         prev_project_id = get_settings().selected_project_id
-        if prev_project_id:
-            confirmed = QMessageBox.question(
-                None,
-                self.tr("Change Project"),
-                self.tr(
-                    "Changing the project may result in loss of current editing state. Do you want to proceed?"
-                ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
-            )
-            if confirmed != QMessageBox.Yes:
-                return
 
-        try:
-            # Check if user is logged in
-            id_token = get_settings().id_token
+        # Show project selection dialog
+        dialog = ProjectSelectDialog()
+        result = exec_dialog(dialog)
 
-            if not id_token:
-                QMessageBox.warning(
-                    None,
-                    self.tr("Not Logged In"),
+        if not result:
+            return
+
+        if prev_project_id is None:
+            self.refreshChildren()
+        else:
+            if prev_project_id != get_settings().selected_project_id:
+                # Projectが変更されていて現在と異なるが選択された場合
+                # 確認ダイアログを表示したのちQGISプロジェクト全体をクリア
+                if QgsProject.instance().isDirty():
+                    confirmed = QMessageBox.question(
+                        None,
+                        self.tr("Change Project"),
+                        self.tr(
+                            "You have unsaved edits. Switching projects will discard them. Continue?"
+                        ),
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.No,
+                    )
+                    if confirmed != QMessageBox.Yes:
+                        return
+
+                QgsProject.instance().clear()
+                iface.messageBar().pushSuccess(
+                    self.tr("Project Changed"),
                     self.tr(
-                        "You must be logged in to select a project. Please login first."
+                        "Your QGIS project was cleared because the active project changed."
                     ),
                 )
-                return
+                self.refreshChildren()
 
-            # Show project selection dialog
-            dialog = ProjectSelectDialog()
-            result = exec_dialog(dialog)
+    def account_settings(self):
+        """Show account settings dialog"""
+        dialog = DialogAccount()
+        should_logout = exec_dialog(dialog)
 
-            if result:
-                # Get selected project
-                organization = dialog.get_selected_organization()
-                project = dialog.get_selected_project()
-                if project:
-                    QgsMessageLog.logMessage(
-                        f"Selected project: {project.name}", LOG_CATEGORY, Qgis.Info
-                    )
-                    # Update browser name with project name
-                    self.setName(f"{PLUGIN_NAME}: {project.name}({organization.name})")
-                    # Refresh to show the selected project
-                    self.depopulate()
-                    self.refresh()
-
-                    # 現在と異なるが選択された場合、QGISプロジェクト全体をクリア
-                    if prev_project_id != project.id:
-                        QgsProject.instance().clear()
-                        iface.messageBar().pushSuccess(
-                            self.tr("Project Changed"),
-                            self.tr(
-                                "QGIS project has been cleared due to project change."
-                            ),
-                        )
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error selecting project: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
-
-    def logout(self):
-        """Logout from STRATO"""
-        try:
-            # Clear tokens and selected project
-            store_setting("id_token", "")
-            store_setting("refresh_token", "")
-            store_setting("user_info", "")
-            store_setting("selected_project_id", "")
-            store_setting("selected_organization_id", "")
-
+        if should_logout:
             # Reset browser name
+            self.organization_data = None
+            self.project_data = None
             self.setName(PLUGIN_NAME)
-
             # Refresh to update UI
-            self.refresh()
-
-            QgsMessageLog.logMessage("Logged out successfully", LOG_CATEGORY, Qgis.Info)
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error logging out: {str(e)}", LOG_CATEGORY, Qgis.Critical
-            )
-
-    def update_name_with_project(self):
-        """Update the browser name to include the project name"""
-        try:
-            # Check if user is logged in
-            id_token = get_settings().id_token
-            if not id_token:
-                self.setName(PLUGIN_NAME)
-                return
-
-            # Get selected organization and project ID
-            organization_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
-            if not project_id:
-                self.setName(PLUGIN_NAME)
-                return
-
-            # Get organization and project details
-            organization_data = api.organization.get_organization(organization_id)
-            project_data = api.project.get_project(project_id)
-
-            self.setName(
-                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
-            )
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error updating name with project: {str(e)}",
-                LOG_CATEGORY,
-                Qgis.Warning,
-            )
-            self.setName(PLUGIN_NAME)
+            self.refreshChildren()
 
     def createChildren(self):
         """Create child items for the root collection"""
-        try:
-            # Check if user is logged in
-            id_token = get_settings().id_token
+        # Create vector root directly
+        children = []
 
-            if not id_token:
-                return [ErrorItem(self, self.tr("Not Logged In"))]
-
-            # Get selected organization and project ID
-            organization_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
-
-            if not project_id:
-                return [
-                    ErrorItem(
-                        self, self.tr("No project selected. Please select a project.")
-                    )
-                ]
-
-            # Get organization and project details
-            organization_data = api.organization.get_organization(organization_id)
-            project_data = api.project.get_project(project_id)
-
-            if not project_data:
-                return [
-                    ErrorItem(
-                        self,
-                        self.tr("Project not found. Please select another project."),
-                    )
-                ]
-
-            # Update the browser name with project name
-            self.setName(
-                f"{PLUGIN_NAME}: {project_data.name}({organization_data.name})"
-            )
-
-            # Create vector root directly
-            children = []
-            vector_path = f"{self.path()}/vectors"
-            vector_root = DbRoot(self, "Vectors", vector_path)
-            children.append(vector_root)
-
-            # Create styled map root
-            styled_map_path = f"{self.path()}/styledmaps"
-            styled_map_root = StyledMapRoot(self, "Maps", styled_map_path)
-            children.append(styled_map_root)
-
+        if self.organization_data is None or self.project_data is None:
             return children
 
-        except Exception as e:
-            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+        vector_path = f"{self.path()}/vectors"
+        vector_root = DbRoot(
+            self,
+            "Vectors",
+            vector_path,
+            self.organization_data,
+            self.project_data,
+        )
+        children.append(vector_root)
+
+        # Create styled map root
+        styled_map_path = f"{self.path()}/styledmaps"
+        styled_map_root = StyledMapRoot(
+            self, "Maps", styled_map_path, self.organization_data, self.project_data
+        )
+        children.append(styled_map_root)
+
+        return children

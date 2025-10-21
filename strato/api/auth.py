@@ -22,13 +22,21 @@ def refresh_token(refresh_token: str) -> Optional[Dict]:
     config = api_config.get_api_config()
 
     try:
+        # /api/_public/params エンドポイントからCognito設定を取得
+        params_response = urllib.request.urlopen(
+            f"{config.SERVER_URL}/api/_public/params"
+        )
+        params_data = json.loads(params_response.read().decode("utf-8"))
+        cognito_domain = params_data.get("cognitoDomain")
+        cognito_client_id = params_data.get("cognitoClientId")
+
         # Cognitoのトークンエンドポイントを使用
-        token_url = f"{config.COGNITO_URL}/oauth2/token"
+        token_url = f"https://{cognito_domain}/oauth2/token"
 
         # リクエストデータを準備
         data = {
             "grant_type": "refresh_token",
-            "client_id": config.COGNITO_CLIENT_ID,
+            "client_id": cognito_client_id,
             "refresh_token": refresh_token,
         }
         encoded_data = urllib.parse.urlencode(data).encode("utf-8")

@@ -1,9 +1,8 @@
 import os
 
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
-from qgis.PyQt.QtGui import QIcon
 
-from ..imgs import IMGS_PATH
+from ..imgs import WARNING_ICON
 from ..strato.constants import LOG_CATEGORY
 
 
@@ -15,7 +14,7 @@ class ErrorItem(QgsDataItem):
             self, QgsDataItem.Custom, parent=parent, name=message, path=""
         )
 
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "mIconWarning.svg")))
+        self.setIcon(WARNING_ICON)
         QgsMessageLog.logMessage(
             f"Error item created: {message}", LOG_CATEGORY, Qgis.Warning
         )

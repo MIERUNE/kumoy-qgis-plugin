@@ -1,6 +1,7 @@
 import os
 import tempfile
 import webbrowser
+from typing import Literal
 
 from qgis.core import (
     Qgis,
@@ -9,7 +10,6 @@ from qgis.core import (
     QgsProject,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
@@ -22,7 +22,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ..imgs import IMGS_PATH
+from ..imgs import BROWSER_MAP_ICON
 from ..settings_manager import get_settings, store_setting
 from ..strato import api, constants
 from .utils import ErrorItem
@@ -32,7 +32,11 @@ class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
 
     def __init__(
-        self, parent, path: str, styled_map: api.project_styledmap.StratoStyledMap
+        self,
+        parent,
+        path: str,
+        styled_map: api.project_styledmap.StratoStyledMap,
+        role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
             self,
@@ -43,9 +47,10 @@ class StyledMapItem(QgsDataItem):
         )
 
         self.styled_map = styled_map
+        self.role = role
 
         # アイコン設定
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
+        self.setIcon(BROWSER_MAP_ICON)
 
         self.populate()
 
@@ -57,30 +62,31 @@ class StyledMapItem(QgsDataItem):
         actions = []
 
         # スタイルマップ適用アクション
-        apply_action = QAction(self.tr("Load to QGIS"), parent)
+        apply_action = QAction(self.tr("Load into QGIS"), parent)
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
-        # スタイルマップ上書き保存アクション
-        save_action = QAction(self.tr("Overwrite with current state"), parent)
-        save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
-        actions.append(save_action)
+        if self.role in ["ADMIN", "OWNER"]:
+            # スタイルマップ上書き保存アクション
+            save_action = QAction(self.tr("Overwrite with current state"), parent)
+            save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
+            actions.append(save_action)
 
-        # スタイルマップ編集アクション
-        edit_action = QAction(self.tr("Edit Metadata"), parent)
-        edit_action.triggered.connect(self.update_metadata_styled_map)
-        actions.append(edit_action)
+            # スタイルマップ編集アクション
+            edit_action = QAction(self.tr("Edit Metadata"), parent)
+            edit_action.triggered.connect(self.update_metadata_styled_map)
+            actions.append(edit_action)
+
+            # スタイルマップ削除アクション
+            delete_action = QAction(self.tr("Delete"), parent)
+            delete_action.triggered.connect(self.delete_styled_map)
+            actions.append(delete_action)
 
         if self.styled_map.isPublic:
             # 公開マップの場合、公開ページを開くアクション
             open_public_action = QAction(self.tr("Open Public Page"), parent)
             open_public_action.triggered.connect(self.open_public_page)
             actions.append(open_public_action)
-
-        # スタイルマップ削除アクション
-        delete_action = QAction(self.tr("Delete"), parent)
-        delete_action.triggered.connect(self.delete_styled_map)
-        actions.append(delete_action)
 
         return actions
 
@@ -108,8 +114,24 @@ class StyledMapItem(QgsDataItem):
             if confirm != QMessageBox.Yes:
                 return
 
+        try:
+            styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                self.tr("Error loading map: {}").format(str(e)),
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error loading map: {}").format(str(e)),
+            )
+            return
+
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(self.styled_map.qgisproject)
+        load_project_from_xml(styled_map_detail.qgisproject)
+
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
 
@@ -171,7 +193,7 @@ class StyledMapItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating map: {str(e)}",
+                self.tr("Error updating map: {}").format(str(e)),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -218,7 +240,9 @@ class StyledMapItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error saving map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                self.tr("Error saving map: {}").format(str(e)),
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
@@ -266,7 +290,7 @@ class StyledMapItem(QgsDataItem):
 
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting map: {str(e)}",
+                    self.tr("Error deleting map: {}").format(str(e)),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
@@ -278,7 +302,14 @@ class StyledMapItem(QgsDataItem):
 class StyledMapRoot(QgsDataItem):
     """スタイルマップルートアイテム（ブラウザ用）"""
 
-    def __init__(self, parent, name, path):
+    def __init__(
+        self,
+        parent,
+        name: str,
+        path: str,
+        organization: api.organization.OrganizationDetail,
+        project: api.project.ProjectDetail,
+    ):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -286,8 +317,11 @@ class StyledMapRoot(QgsDataItem):
             name,
             path,
         )
-        self.setIcon(QIcon(os.path.join(IMGS_PATH, "icon_style.svg")))
+        self.setIcon(BROWSER_MAP_ICON)
         self.populate()
+
+        self.organization = organization
+        self.project = project
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -297,7 +331,7 @@ class StyledMapRoot(QgsDataItem):
         actions = []
 
         # Map新規作成
-        new_action = QAction(self.tr("Add new Map with current state"), parent)
+        new_action = QAction(self.tr("Upload current map"), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
 
@@ -309,13 +343,9 @@ class StyledMapRoot(QgsDataItem):
         """新しいスタイルマップを追加する"""
 
         try:
-            organization_id = get_settings().selected_organization_id
-            organization = api.organization.get_organization(organization_id)
-            project_id = get_settings().selected_project_id
-
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(organization.subscriptionPlan)
-            current_styled_maps = api.project_styledmap.get_styled_maps(project_id)
+            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            current_styled_maps = api.project_styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
                 QMessageBox.critical(
@@ -371,7 +401,7 @@ class StyledMapRoot(QgsDataItem):
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
-                project_id,
+                self.project.id,
                 api.project_styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,
@@ -411,7 +441,7 @@ class StyledMapRoot(QgsDataItem):
             children = []
             for styled_map in styled_maps:
                 path = f"{self.path()}/{styled_map.id}"
-                child = StyledMapItem(self, path, styled_map)
+                child = StyledMapItem(self, path, styled_map, self.project.role)
                 children.append(child)
 
             return children
@@ -429,20 +459,20 @@ def get_qgisproject_str() -> str:
     project = QgsProject.instance()
     project.write(tmp_path)
 
-    # ファイルサイズをチェック
-    SIZE_LIMIT = 1 * 1024 * 1024  # 1MB
-    actual_size = os.path.getsize(tmp_path)
-    if actual_size > SIZE_LIMIT:
-        err = f"Project file size is too large. Limit is {SIZE_LIMIT} bytes. your: {actual_size} bytes"
+    with open(tmp_path, "r", encoding="utf-8") as f:
+        qgs_str = f.read()
+
+    # 文字数制限チェック
+    LENGTH_LIMIT = 3000000  # 300万文字
+    actual_length = len(qgs_str)
+    if actual_length > LENGTH_LIMIT:
+        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
         QgsMessageLog.logMessage(
             err,
             constants.LOG_CATEGORY,
             Qgis.Warning,
         )
         raise Exception(err)
-
-    with open(tmp_path, "r", encoding="utf-8") as f:
-        qgs_str = f.read()
 
     delete_tempfile(tmp_path)
     return qgs_str
@@ -455,14 +485,9 @@ def load_project_from_xml(xml_string: str) -> bool:
         tmp.write(xml_string)
         tmp_path = tmp.name
 
-        project = QgsProject.instance()
-        res = project.read(tmp_path)
-        return res
+        iface.addProject(tmp_path)
 
-    project = QgsProject.instance()
-    res = project.read(tmp_path)
     delete_tempfile(tmp_path)
-    return res
 
 
 def delete_tempfile(tmp_path: str):

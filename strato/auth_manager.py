@@ -28,42 +28,80 @@ def get_auth_handler_response():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Authentication Successful</title>
+    <title>Login Successful</title>
     <style>
         body {{
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-            background-color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }}
         .container {{
             background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 60px 40px;
             max-width: 500px;
-            margin: 0 auto;
+            text-align: center;
         }}
-        h1.success {{
-            color: #4CAF50;
+        .checkmark-circle {{
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #5CB85C;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
         }}
-        p {{
+        .checkmark {{
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }}
+        h1 {{
+            color: #1a1a1a;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+        }}
+        .message {{
             font-size: 16px;
+            color: #666;
             line-height: 1.5;
+            margin: 0 0 24px 0;
         }}
-        .countdown {{
+        .redirect-link {{
+            font-size: 14px;
+            color: #999;
+        }}
+        .redirect-link a {{
+            color: #007bff;
+            text-decoration: underline;
+        }}
+        .redirect-link a:hover {{
+            color: #0056b3;
+        }}
+        #countdown-num {{
             font-weight: bold;
-            color: #2196F3;
         }}
     </style>
     <script>
         let countdown = 3;
-        let countdownElement;
-        
+        let countdownNumElement;
+        let countdownSecondsElement;
+
         function updateCountdown() {{
-            if (countdownElement) {{
-                countdownElement.textContent = countdown;
+            if (countdownNumElement) {{
+                countdownNumElement.textContent = countdown;
             }}
+            if (countdownSecondsElement) {{
+                countdownSecondsElement.textContent = countdown === 1 ? 'second' : 'seconds';
+            }}
+
             if (countdown <= 0) {{
                 window.location.href = '{website_url}';
             }} else {{
@@ -71,18 +109,24 @@ def get_auth_handler_response():
                 setTimeout(updateCountdown, 1000);
             }}
         }}
-        
+
         window.onload = function() {{
-            countdownElement = document.getElementById('countdown');
+            countdownNumElement = document.getElementById('countdown-num');
+            countdownSecondsElement = document.getElementById('countdown-seconds');
             updateCountdown();
         }};
     </script>
 </head>
 <body>
     <div class="container">
-        <h1 class="success">Authentication Successful</h1>
-        <p id="status">Authentication completed. Redirecting to website in <span id="countdown" class="countdown">3</span> seconds...</p>
-        <p>Please close this window and return to the {constants.PLUGIN_NAME} QGIS plugin if the redirect doesn't work.</p>
+        <div class="checkmark-circle">
+            <svg class="checkmark" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+            </svg>
+        </div>
+        <h1>Welcome! You’re now logged in.</h1>
+        <p class="message">You've signed in to Strato successfully. You'll be<br>redirected to your dashboard in <span id="countdown-num">3</span> <span id="countdown-seconds">seconds</span>...</p>
+        <p class="redirect-link">If you're not redirected, click <a href="{website_url}">here</a>.</p>
     </div>
 </body>
 </html>
@@ -136,7 +180,7 @@ AUTH_HANDLER_REDIRECT_CANCELLED = None  # URL to redirect on error
 class AuthManager(QObject):
     auth_completed = pyqtSignal(bool, str)  # success, error_message
 
-    def __init__(self, port: int = 5000):
+    def __init__(self, cognito_url: str, cognito_client_id: str, port: int = 5000):
         """Initialize the Cognito authentication manager.
 
         Args:
@@ -155,6 +199,8 @@ class AuthManager(QObject):
         self.state = None
         self.auth_timer = None
         self.auth_start_time = None
+        self.cognito_url = cognito_url
+        self.cognito_client_id = cognito_client_id
 
     def _generate_code_verifier(self) -> str:
         """Generate a code verifier for PKCE.
@@ -199,6 +245,7 @@ class AuthManager(QObject):
         Returns:
             True if server started successfully, False otherwise
         """
+
         try:
             self.server = HTTPServer(("localhost", self.port), _Handler)
             self.server.id_token = None
@@ -209,10 +256,9 @@ class AuthManager(QObject):
             self.server.auth_code = None
             self.server.state = None
             self.server.redirect_url = REDIRECT_URL
-            # 利用するエンドポイント設定
-            api_config = api.config.get_api_config()
-            self.server.cognito_url = api_config.COGNITO_URL
-            self.server.client_id = api_config.COGNITO_CLIENT_ID
+            self.server.cognito_url = self.cognito_url
+            self.server.client_id = self.cognito_client_id
+
             self.server.code_verifier = self.code_verifier
             self.server.expected_state = self.state
 
@@ -303,11 +349,10 @@ class AuthManager(QObject):
         if not self.start_local_server():
             return False, f"Failed to start local server: {self.error}"
 
-        api_config = api.config.get_api_config()
         # Get authorization URL with the same state parameter
         auth_url = (
-            f"{api_config.COGNITO_URL}/oauth2/authorize?"
-            f"client_id={api_config.COGNITO_CLIENT_ID}&"
+            f"{self.cognito_url}/oauth2/authorize?"
+            f"client_id={self.cognito_client_id}&"
             f"redirect_uri={REDIRECT_URL}&"
             f"response_type=code&"
             f"scope=openid+email+profile&"

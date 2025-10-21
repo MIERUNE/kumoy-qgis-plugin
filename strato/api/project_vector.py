@@ -15,7 +15,7 @@ class StratoVector:
 
 # extends StratoVector
 @dataclass
-class StratoVectorReturnValue(StratoVector):
+class StratoVectorDetail(StratoVector):
     extent: List[float]
     count: int
     columns: Dict[str, str]
@@ -50,7 +50,7 @@ def get_vectors(project_id: str) -> List[StratoVector]:
     return vectors
 
 
-def get_vector(project_id: str, vector_id: str) -> StratoVectorReturnValue:
+def get_vector(project_id: str, vector_id: str) -> StratoVectorDetail:
     """
     Get details for a specific vector
 
@@ -59,11 +59,11 @@ def get_vector(project_id: str, vector_id: str) -> StratoVectorReturnValue:
         vector_id: Vector ID
 
     Returns:
-        StratoVectorReturnValue object or None if not found
+        StratoVectorDetail object or None if not found
     """
     response = ApiClient.get(f"/vector/{vector_id}")
 
-    return StratoVectorReturnValue(
+    return StratoVectorDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         uri=response.get("uri", ""),

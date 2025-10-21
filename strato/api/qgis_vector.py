@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from qgis.core import QgsFeature
 from qgis.PyQt.QtCore import QVariant
 
+from .. import constants
 from .client import ApiClient
 
 
@@ -57,10 +58,10 @@ def add_features(
         if "strato_id" in feature["properties"]:
             del feature["properties"]["strato_id"]
 
-    # HACK: replace QVariant of properties with None
-    # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
     for feature in _features:
         for k in feature["properties"]:
+            # HACK: replace QVariant of properties with None
+            # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
             if (
                 isinstance(feature["properties"][k], QVariant)
                 and feature["properties"][k].isNull()
