@@ -140,7 +140,7 @@ class RootCollection(QgsDataCollectionItem):
                 None,
                 self.tr("Change Project"),
                 self.tr(
-                    "Switching projects will discard the current map state, Continue?"
+                    "Switching projects will discard the current map state. Continue?"
                 ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
