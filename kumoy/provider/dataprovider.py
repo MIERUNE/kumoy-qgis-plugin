@@ -320,9 +320,26 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
-        if self.kumoy_vector is None:
+        if not self.cached_layer:
             return 0
-        return self.kumoy_vector.count
+
+        if not self._subset_string:
+            try:
+                return self.cached_layer.featureCount()
+            except Exception:
+                return self.kumoy_vector.count
+
+        request = QgsFeatureRequest()
+        request.setFilterExpression(self._subset_string)
+        iterator = self.cached_layer.getFeatures(request)
+        count = 0
+        try:
+            for _ in iterator:
+                count += 1
+        finally:
+            iterator.close()
+
+        return count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
