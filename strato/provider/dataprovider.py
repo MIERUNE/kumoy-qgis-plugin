@@ -109,7 +109,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Int,
                     typeDesc="Integer",
                     subType=QVariant.Int,
-                    typeName="INTEGER",
+                    typeName="",
                     minLen=0,  # Not applicable for integers
                     maxLen=0,  # Not applicable for integers
                     minPrec=0,  # Not applicable for integers
@@ -120,7 +120,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Double,
                     typeDesc="Double Precision",
                     subType=QVariant.Double,
-                    typeName="DOUBLE PRECISION",
+                    typeName="",
                     minLen=0,  # Not applicable for floats
                     maxLen=0,  # Not applicable for floats
                     minPrec=0,  # Variable precision
@@ -131,7 +131,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Bool,
                     typeDesc="Boolean",
                     subType=QVariant.Bool,
-                    typeName="BOOLEAN",
+                    typeName="",
                     minLen=0,  # Not applicable for boolean
                     maxLen=0,  # Not applicable for boolean
                     minPrec=0,  # Not applicable for boolean
@@ -142,7 +142,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.String,
                     typeDesc="Varchar",
                     subType=QVariant.String,
-                    typeName="VARCHAR",
+                    typeName="",
                     minLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Minimum length for our system
                     maxLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Maximum length for our system
                     minPrec=0,  # Not applicable for varchar
@@ -448,9 +448,9 @@ class StratoDataProvider(QgsVectorDataProvider):
                 vector_id=self.strato_vector.id, attributes=attr_dict
             )
         except Exception:
-            self._reload_vector()
             return False
 
+        self._reload_vector()
         return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -463,7 +463,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                 vector_id=self.strato_vector.id, attribute_names=attribute_names
             )
         except Exception:
-            self._reload_vector()
             return False
 
+        self._reload_vector()
         return True
