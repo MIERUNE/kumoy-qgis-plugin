@@ -302,6 +302,23 @@ class VectorItem(QgsDataItem):
             # Refresh parent to show updated list
             self.parent().refresh()
 
+            # remove vector layer from QGIS project if loaded
+            for layer in QgsProject.instance().mapLayers().values():
+                if (
+                    layer.providerType() == "strato"
+                    and layer.dataProvider().vector_id == self.vector.id
+                ):
+                    QgsProject.instance().removeMapLayer(layer.id())
+
+            # Clear cache for this vector
+            local_cache.clear(self.vector.id)
+
+            QMessageBox.information(
+                None,
+                self.tr("Success"),
+                self.tr("Vector '{}' deleted successfully.").format(self.vector.name),
+            )
+
     def clear_cache(self):
         """Clear cache for this specific vector"""
         # Show confirmation dialog
