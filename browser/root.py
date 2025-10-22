@@ -134,6 +134,20 @@ class RootCollection(QgsDataCollectionItem):
 
     def select_project(self):
         """Select a project to display"""
+        # Warn if current project has unsaved changes
+        if QgsProject.instance().isDirty() and (
+            QMessageBox.question(
+                None,
+                self.tr("Change Project"),
+                self.tr(
+                    "Switching projects will discard the current map state, Continue?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            != QMessageBox.Yes
+        ):
+            return
 
         prev_project_id = get_settings().selected_project_id
 
@@ -144,33 +158,16 @@ class RootCollection(QgsDataCollectionItem):
         if not result:
             return
 
-        if prev_project_id is None:
+        # 同一のProjectを選択していない場合はプロジェクトをクリアする
+        if prev_project_id != get_settings().selected_project_id:
+            QgsProject.instance().clear()
+            iface.messageBar().pushSuccess(
+                self.tr("Project Changed"),
+                self.tr(
+                    "Your QGIS project was cleared because the active project changed."
+                ),
+            )
             self.refreshChildren()
-        else:
-            if prev_project_id != get_settings().selected_project_id:
-                # Projectが変更されていて現在と異なるが選択された場合
-                # 確認ダイアログを表示したのちQGISプロジェクト全体をクリア
-                if QgsProject.instance().isDirty():
-                    confirmed = QMessageBox.question(
-                        None,
-                        self.tr("Change Project"),
-                        self.tr(
-                            "You have unsaved edits. Switching projects will discard them. Continue?"
-                        ),
-                        QMessageBox.Yes | QMessageBox.No,
-                        QMessageBox.No,
-                    )
-                    if confirmed != QMessageBox.Yes:
-                        return
-
-                QgsProject.instance().clear()
-                iface.messageBar().pushSuccess(
-                    self.tr("Project Changed"),
-                    self.tr(
-                        "Your QGIS project was cleared because the active project changed."
-                    ),
-                )
-                self.refreshChildren()
 
     def account_settings(self):
         """Show account settings dialog"""
