@@ -112,9 +112,7 @@ def _create_new_cache(
     return updated_at
 
 
-def _update_existing_cache(
-    cache_file: str, vector_id: str, fields: QgsFields, diff: dict
-) -> str:
+def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> str:
     """
     既存のキャッシュファイルを更新する
 
@@ -122,13 +120,7 @@ def _update_existing_cache(
         updated_at: 最終更新日時
     """
 
-    if vector_id in LAYER_CACHE:
-        vlayer = LAYER_CACHE[vector_id]
-    else:
-        # キャッシュファイルが存在する場合は、QgsVectorLayerを作成してキャッシュを読み込む
-        LAYER_CACHE[vector_id] = QgsVectorLayer(cache_file, "temp", "ogr")
-        vlayer = LAYER_CACHE[vector_id]
-
+    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
     vlayer.startEditing()
 
     # サーバーに存在しないカラムをキャッシュから削除
@@ -207,7 +199,7 @@ def sync_local_cache(
     if last_updated is None and os.path.exists(cache_file):
         # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
         # 不整合が生じているので既存ファイルを削除する
-        os.remove(cache_file)
+        clear(vector_id)
     if last_updated is not None and not os.path.exists(cache_file):
         # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
         # 不整合が生じているので最終更新日時を削除する
@@ -220,7 +212,7 @@ def sync_local_cache(
             # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
             # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-            updated_at = _update_existing_cache(cache_file, vector_id, fields, diff)
+            updated_at = _update_existing_cache(cache_file, fields, diff)
         except api.error.AppError as e:
             if e.error == "MAX_DIFF_COUNT_EXCEEDED":
                 # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
@@ -229,7 +221,7 @@ def sync_local_cache(
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
-                os.remove(cache_file)
+                clear(vector_id)
                 updated_at = _create_new_cache(
                     cache_file, vector_id, fields, geometry_type
                 )
@@ -242,18 +234,13 @@ def sync_local_cache(
     store_last_updated(vector_id, updated_at)
 
 
-LAYER_CACHE = {}
-
-
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
-    if vector_id not in LAYER_CACHE:
-        LAYER_CACHE[vector_id] = QgsVectorLayer(cache_file, "cache", "ogr")
+    layer = QgsVectorLayer(cache_file, "cache", "ogr")
 
-    layer = LAYER_CACHE[vector_id]
     if layer.isValid():
         return layer
     else:
@@ -270,13 +257,8 @@ def clear_all():
     for filename in os.listdir(cache_dir):
         file_path = os.path.join(cache_dir, filename)
         os.unlink(file_path)
-
-    global LAYER_CACHE
-    for vector_id in list(LAYER_CACHE.keys()):
-        del LAYER_CACHE[vector_id]
-        delete_last_updated(vector_id)
-
-    LAYER_CACHE.clear()
+        project_id = filename.split(".gpkg")[0]
+        delete_last_updated(project_id)
 
 
 def clear(vector_id: str):
@@ -296,11 +278,6 @@ def clear(vector_id: str):
         os.unlink(gpkg_wal_file)
     if os.path.exists(gpkg_journal_file):
         os.unlink(gpkg_journal_file)
-
-    # Remove from in-memory cache
-    global LAYER_CACHE
-    if vector_id in LAYER_CACHE:
-        del LAYER_CACHE[vector_id]
 
     # Delete last updated timestamp
     delete_last_updated(vector_id)
