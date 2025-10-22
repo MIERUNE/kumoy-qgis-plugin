@@ -109,7 +109,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Int,
                     typeDesc="Integer",
                     subType=QVariant.Int,
-                    typeName="",
+                    typeName="INTEGER",
                     minLen=0,  # Not applicable for integers
                     maxLen=0,  # Not applicable for integers
                     minPrec=0,  # Not applicable for integers
@@ -120,7 +120,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Double,
                     typeDesc="Double Precision",
                     subType=QVariant.Double,
-                    typeName="",
+                    typeName="DOUBLE PRECISION",
                     minLen=0,  # Not applicable for floats
                     maxLen=0,  # Not applicable for floats
                     minPrec=0,  # Variable precision
@@ -131,7 +131,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.Bool,
                     typeDesc="Boolean",
                     subType=QVariant.Bool,
-                    typeName="",
+                    typeName="BOOLEAN",
                     minLen=0,  # Not applicable for boolean
                     maxLen=0,  # Not applicable for boolean
                     minPrec=0,  # Not applicable for boolean
@@ -142,7 +142,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                     type=QVariant.String,
                     typeDesc="Varchar",
                     subType=QVariant.String,
-                    typeName="",
+                    typeName="VARCHAR",
                     minLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Minimum length for our system
                     maxLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Maximum length for our system
                     minPrec=0,  # Not applicable for varchar
