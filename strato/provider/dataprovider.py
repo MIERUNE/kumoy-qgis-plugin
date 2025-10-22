@@ -448,9 +448,9 @@ class StratoDataProvider(QgsVectorDataProvider):
                 vector_id=self.strato_vector.id, attributes=attr_dict
             )
         except Exception:
-            self._reload_vector()
             return False
 
+        self._reload_vector()
         return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -463,7 +463,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                 vector_id=self.strato_vector.id, attribute_names=attribute_names
             )
         except Exception:
-            self._reload_vector()
             return False
 
+        self._reload_vector()
         return True
