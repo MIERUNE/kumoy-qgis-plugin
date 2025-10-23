@@ -17,7 +17,7 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QEventLoop, Qt, QThread, QVariant, pyqtSignal
-from qgis.PyQt.QtWidgets import QProgressDialog
+from qgis.PyQt.QtWidgets import QProgressDialog, QMessageBox
 
 from .. import api, constants
 from . import local_cache
@@ -63,6 +63,7 @@ def parse_uri(
 
     project_id = parsed_uri.get("project_id", "")
     vector_id = parsed_uri.get("vector_id", "")
+    vector_name = parsed_uri.get("vector_name", "")
 
     # check parsing results
     if vector_id == "" or project_id == "":
@@ -70,7 +71,7 @@ def parse_uri(
             "Invalid URI. 'endpoint', 'project_id' and 'vector_id' are required."
         )
 
-    return (project_id, vector_id)
+    return (project_id, vector_id, vector_name)
 
 
 class StratoDataProvider(QgsVectorDataProvider):
@@ -93,10 +94,15 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        self.project_id, self.vector_id = parse_uri(uri)
+        self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
+        self.strato_vector = None
         self._reload_vector()
+
+        if self.strato_vector is None:
+            return
+
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
 
         self._is_valid = True
@@ -153,9 +159,20 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     def _reload_vector(self):
         """Refresh local cache"""
-        self.strato_vector = api.project_vector.get_vector(
-            self.project_id, self.vector_id
-        )
+        try:
+            self.strato_vector = api.project_vector.get_vector(
+                self.project_id, self.vector_id
+            )
+        except Exception as e:
+            if e.args[0] == "Not Found":
+                QMessageBox.information(
+                    None,
+                    "Vector not found",
+                    f"The following vector does not exist: {self.vector_name}",
+                )
+                return
+            else:
+                raise e
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
@@ -236,6 +253,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return StratoFeatureSource(self)
 
     def wkbType(self) -> QgsWkbTypes:
+        if self.strato_vector is None:
+            return QgsWkbTypes.Unknown
         if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
         elif self.strato_vector.type == "LINESTRING":
@@ -255,11 +274,15 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
+        if self.strato_vector is None:
+            return 0
         return self.strato_vector.count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
         fs.append(QgsField("strato_id", QVariant.Int))
+        if self.strato_vector is None:
+            return fs
         for column in self.strato_vector.columns:
             k = column["name"]
             v = column["type"]
@@ -283,6 +306,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return fs
 
     def extent(self) -> QgsRectangle:
+        if self.strato_vector is None:
+            return QgsRectangle()
         extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
         return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
 
@@ -294,6 +319,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return self._is_valid
 
     def geometryType(self) -> QgsWkbTypes:
+        if self.strato_vector is None:
+            return QgsWkbTypes.Unknown
         if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
         elif self.strato_vector.type == "LINESTRING":
@@ -310,6 +337,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return False
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
+        if self.strato_vector is None:
+            return QgsVectorDataProvider.NoCapabilities
         role = self.strato_vector.role
 
         if role == "OWNER" or role == "ADMIN":
