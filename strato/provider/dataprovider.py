@@ -17,7 +17,7 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QEventLoop, Qt, QThread, QVariant, pyqtSignal
-from qgis.PyQt.QtWidgets import QProgressDialog
+from qgis.PyQt.QtWidgets import QProgressDialog, QMessageBox
 
 from .. import api, constants
 from . import local_cache
@@ -63,6 +63,7 @@ def parse_uri(
 
     project_id = parsed_uri.get("project_id", "")
     vector_id = parsed_uri.get("vector_id", "")
+    vector_name = parsed_uri.get("vector_name", "")
 
     # check parsing results
     if vector_id == "" or project_id == "":
@@ -70,7 +71,7 @@ def parse_uri(
             "Invalid URI. 'endpoint', 'project_id' and 'vector_id' are required."
         )
 
-    return (project_id, vector_id)
+    return (project_id, vector_id, vector_name)
 
 
 class StratoDataProvider(QgsVectorDataProvider):
@@ -93,13 +94,13 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        self.project_id, self.vector_id = parse_uri(uri)
+        self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
+        self.strato_vector = None
         self._reload_vector()
 
-        # Strato vector not found case, let invalid and stop
-        if not hasattr(self, "strato_vector") or self.strato_vector is None:
+        if self.strato_vector is None:
             return
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
@@ -163,9 +164,12 @@ class StratoDataProvider(QgsVectorDataProvider):
                 self.project_id, self.vector_id
             )
         except Exception as e:
-            # Don't raise error when not found and let QGIS warns missing layer
             if e.args[0] == "Not Found":
-                self.strato_vector = None
+                QMessageBox.information(
+                    None,
+                    "Vector not found",
+                    f"The following vector does not exist: {self.vector_name}",
+                )
                 return
             else:
                 raise e
