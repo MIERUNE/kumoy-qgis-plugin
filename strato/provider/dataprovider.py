@@ -97,9 +97,9 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         # local cache
         self._reload_vector()
-        
+
         # Strato vector not found case, let invalid and stop
-        if not hasattr(self, 'strato_vector') or self.strato_vector is None:
+        if not hasattr(self, "strato_vector") or self.strato_vector is None:
             return
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
