@@ -97,6 +97,11 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         # local cache
         self._reload_vector()
+        
+        # Strato vector not found case, let invalid and stop
+        if not hasattr(self, 'strato_vector') or self.strato_vector is None:
+            return
+
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
 
         self._is_valid = True
@@ -153,9 +158,17 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     def _reload_vector(self):
         """Refresh local cache"""
-        self.strato_vector = api.project_vector.get_vector(
-            self.project_id, self.vector_id
-        )
+        try:
+            self.strato_vector = api.project_vector.get_vector(
+                self.project_id, self.vector_id
+            )
+        except Exception as e:
+            # Don't raise error when not found and let QGIS warns missing layer
+            if e.args[0] == "Not Found":
+                self.strato_vector = None
+                return
+            else:
+                raise e
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
@@ -236,6 +249,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return StratoFeatureSource(self)
 
     def wkbType(self) -> QgsWkbTypes:
+        if self.strato_vector is None:
+            return QgsWkbTypes.Unknown
         if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
         elif self.strato_vector.type == "LINESTRING":
@@ -255,11 +270,15 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
+        if self.strato_vector is None:
+            return 0
         return self.strato_vector.count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
         fs.append(QgsField("strato_id", QVariant.Int))
+        if self.strato_vector is None:
+            return fs
         for column in self.strato_vector.columns:
             k = column["name"]
             v = column["type"]
@@ -283,6 +302,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return fs
 
     def extent(self) -> QgsRectangle:
+        if self.strato_vector is None:
+            return QgsRectangle()
         extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
         return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
 
@@ -294,6 +315,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return self._is_valid
 
     def geometryType(self) -> QgsWkbTypes:
+        if self.strato_vector is None:
+            return QgsWkbTypes.Unknown
         if self.strato_vector.type == "POINT":
             return QgsWkbTypes.Point
         elif self.strato_vector.type == "LINESTRING":
@@ -310,6 +333,8 @@ class StratoDataProvider(QgsVectorDataProvider):
         return False
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
+        if self.strato_vector is None:
+            return QgsVectorDataProvider.NoCapabilities
         role = self.strato_vector.role
 
         if role == "OWNER" or role == "ADMIN":
