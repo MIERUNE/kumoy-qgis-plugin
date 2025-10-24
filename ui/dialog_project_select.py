@@ -49,7 +49,6 @@ class ProjectItemWidget(QWidget):
         super().__init__()
         self.project = project
         self.parent_dialog = parent_dialog
-        # self.setMinimumHeight(80)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
@@ -322,7 +321,6 @@ class ProjectSelectDialog(QDialog):
         self.setMinimumWidth(500)
         self.selected_project = None
         self.current_org_id = None
-        self.current_user = None
         self.details_visible = False
         self.setup_ui()
         self.load_user_info()
@@ -554,9 +552,10 @@ class ProjectSelectDialog(QDialog):
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
-        if index >= 0 and (
-            org_data := self.account_org_panel["org_combo"].itemData(index)
-        ):
+        # 組織の選択が変更されたら、プロジェクト選択状態を初期化
+        self.project_section["project_list"].setCurrentItem(None)
+        org_data = self.account_org_panel["org_combo"].itemData(index)
+        if org_data:
             self.load_organization_detail(org_data)
             self.load_projects(org_data)
 
