@@ -767,15 +767,11 @@ class ProjectSelectDialog(QDialog):
 
     def accept(self):
         """Handle dialog acceptance"""
-        if self.selected_project:
-            self.save_selection()
-            super().accept()
-
-    def save_selection(self):
-        """Save the current selection to settings"""
-        if self.selected_project and (org := self.get_selected_organization()):
+        org = self.get_selected_organization()
+        if org and self.selected_project:
             store_setting("selected_organization_id", org.id)
             store_setting("selected_project_id", self.selected_project.id)
+        super().accept()
 
     def load_saved_selection(self):
         """Load previously saved selection"""
