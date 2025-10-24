@@ -322,6 +322,7 @@ class ProjectSelectDialog(QDialog):
         self.setMinimumWidth(500)
         self.selected_project = None
         self.current_org_id = None
+        self.previous_org_id = None
         self.current_user = None
         self.details_visible = False
         self.setup_ui()
@@ -557,6 +558,12 @@ class ProjectSelectDialog(QDialog):
         if index >= 0 and (
             org_data := self.account_org_panel["org_combo"].itemData(index)
         ):
+            # Only clear selection if organization actually changed
+            if self.previous_org_id is not None and self.previous_org_id != org_data.id:
+                self.selected_project = None
+                self.button_panel["ok_btn"].setEnabled(False)
+
+            self.previous_org_id = org_data.id
             self.load_organization_detail(org_data)
             self.load_projects(org_data)
 
@@ -727,7 +734,11 @@ class ProjectSelectDialog(QDialog):
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
         try:
+            # Clear the project list and reset selection
             self.project_section["project_list"].clear()
+            self.selected_project = None
+            self.button_panel["ok_btn"].setEnabled(False)
+
             projects = api.project.get_projects_by_organization(org.id)
 
             for project_item in projects:
