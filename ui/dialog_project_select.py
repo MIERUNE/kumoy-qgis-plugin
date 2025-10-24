@@ -42,275 +42,6 @@ def _get_usage_color(percentage: float) -> str:
     return "#8bc34a"  # Green
 
 
-class ProjectItemWidget(QWidget):
-    """Custom widget for displaying project information in a card-like layout"""
-
-    def __init__(self, project: api.project.ProjectDetail, parent_dialog=None):
-        super().__init__()
-        self.project = project
-        self.parent_dialog = parent_dialog
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
-        self.setup_ui()
-
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("ProjectItemWidget", message)
-
-    def setup_ui(self):
-        """Set up the project item UI"""
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(12)
-
-        # Thumbnail placeholder - map preview style
-        thumbnail_label = RemoteImageLabel(size=(100, 60))
-        # load thumbnail image if available
-        thumbnail_label.load(self.project.thumbnailImageUrl)
-        thumbnail_label.setStyleSheet("""
-            QLabel {
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-            }
-        """)
-        main_layout.addWidget(thumbnail_label)
-
-        # Project info layout
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(2)
-        # Project name
-        name_label = QLabel(self.project.name)
-        info_layout.addWidget(name_label)
-        # Last updated with icon
-        updated_hlayout = QHBoxLayout()
-        updated_icon_label = QLabel()
-        updated_icon_label.setPixmap(RELOAD_ICON.pixmap(16, 16))
-        updated_hlayout.addWidget(updated_icon_label)
-        updated_label = QLabel(self._format_relative_date(self.project.updatedAt))
-        updated_hlayout.addWidget(updated_label)
-        info_layout.addLayout(updated_hlayout)
-
-        main_layout.addLayout(info_layout)
-        main_layout.addStretch()
-
-        # Right side icons and size
-        right_layout = QVBoxLayout()
-        right_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
-
-        # Icons row
-        icons_layout = QHBoxLayout()
-        icons_layout.setSpacing(4)
-
-        # Vector icon with count (using emoji for simplicity)
-        vector_hlayout = QHBoxLayout()
-        vector_icon_label = QLabel()
-        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
-        vector_hlayout.addWidget(vector_icon_label)
-        vector_label = QLabel(str(self.project.vectorCount))
-        vector_hlayout.addWidget(vector_label)
-        icons_layout.addLayout(vector_hlayout)
-
-        # Maps icon with count
-        maps_hlayout = QHBoxLayout()
-        maps_icon_label = QLabel()
-        maps_icon_label.setPixmap(MAP_ICON.pixmap(16, 16))
-        maps_hlayout.addWidget(maps_icon_label)
-        maps_label = QLabel(str(self.project.mapCount))
-        maps_hlayout.addWidget(maps_label)
-        icons_layout.addLayout(maps_hlayout)
-
-        right_layout.addLayout(icons_layout)
-        main_layout.addLayout(right_layout)
-
-        self.setLayout(main_layout)
-
-    def _format_date(self, date_string: str) -> str:
-        """Format ISO date string to readable format"""
-        if not date_string:
-            return "Never"
-        try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d %H:%M")
-        except (ValueError, AttributeError):
-            return date_string
-
-    def _format_relative_date(self, date_string: str) -> str:
-        """Format date as relative time (e.g., '1 day ago')"""
-        if not date_string:
-            return "Never"
-        try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
-            now = datetime.now(dt.tzinfo)
-            delta = now - dt
-
-            if delta.days == 0:
-                if delta.seconds < 3600:
-                    return self.tr("{} minutes ago").format(delta.seconds // 60)
-                else:
-                    return self.tr("{} hours ago").format(delta.seconds // 3600)
-            elif delta.days == 1:
-                return self.tr("1 day ago")
-            elif delta.days < 30:
-                return self.tr("{} days ago").format(delta.days)
-            elif delta.days < 365:
-                return self.tr("{} months ago").format(delta.days // 30)
-            else:
-                return self.tr("{} years ago").format(delta.days // 365)
-        except (ValueError, AttributeError):
-            return date_string
-
-    def show_context_menu(self, position):
-        """Show context menu for project item"""
-        menu = QMenu(self)
-
-        # Open in Web action
-        open_web_action = menu.addAction(self.tr("Open in Web App"))
-        open_web_action.triggered.connect(self.open_in_web)
-
-        # Edit action
-        edit_action = menu.addAction(self.tr("Edit Project"))
-        edit_action.triggered.connect(self.edit_project)
-
-        menu.addSeparator()
-
-        # Delete action
-        delete_action = menu.addAction(self.tr("Delete Project"))
-        delete_action.triggered.connect(self.delete_project)
-
-        menu.exec_(self.mapToGlobal(position))
-
-    def open_in_web(self):
-        """Open project in web browser"""
-        if not self.project:
-            return
-
-        config = api.config.get_api_config()
-        base_url = config.SERVER_URL.replace("/api", "")
-        project_url = f"{base_url}/projects/{self.project.id}"
-
-        try:
-            webbrowser.open(project_url)
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Error opening web browser: {}").format(str(e)),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-
-    def delete_project(self):
-        """Delete project with confirmation"""
-        if not self.project or not self.parent_dialog:
-            return
-
-        # Show confirmation dialog
-        reply = QMessageBox.question(
-            self.parent_dialog,
-            self.tr("Delete Project"),
-            self.tr(
-                "Are you sure you want to delete project '{}'?\n"
-                "This action can't be undone."
-            ).format(self.project.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-
-        if reply == QMessageBox.Yes:
-            try:
-                # Call API to delete project
-                api.project.delete_project(self.project.id)
-
-                QgsMessageLog.logMessage(
-                    self.tr("Project '{}' deleted successfully.").format(
-                        self.project.name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-
-                # Refresh the project list
-                if self.parent_dialog:
-                    org = self.parent_dialog.get_selected_organization()
-                    if org:
-                        self.parent_dialog.load_organization_detail(org)
-                        self.parent_dialog.load_projects(org)
-
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Deleted"),
-                    self.tr("Project '{}' has been deleted successfully.").format(
-                        self.project.name
-                    ),
-                )
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    self.tr("Failed to delete project: {}").format(str(e)),
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    self.parent_dialog,
-                    self.tr("Error"),
-                    self.tr("Failed to delete project: {}").format(str(e)),
-                )
-
-    def edit_project(self):
-        """Edit project metadata"""
-        if not self.project or not self.parent_dialog:
-            return
-
-        # Show input dialog with current project name
-        new_name, ok = QInputDialog.getText(
-            self.parent_dialog,
-            self.tr("Edit Project"),
-            self.tr("Project name:"),
-            text=self.project.name,
-        )
-
-        if ok and new_name and new_name != self.project.name:
-            try:
-                # Call API to update project
-                updated_project = api.project.update_project(
-                    project_id=self.project.id, name=new_name, description=""
-                )
-
-                QgsMessageLog.logMessage(
-                    self.tr("Project '{}' renamed to '{}' successfully").format(
-                        self.project.name, new_name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-
-                # Update the current project data
-                self.project = updated_project
-
-                # Refresh the project list
-                if self.parent_dialog:
-                    org = self.parent_dialog.get_selected_organization()
-                    if org:
-                        self.parent_dialog.load_projects(org)
-                        # Re-select the updated project
-                        self.parent_dialog._select_project_by_id(self.project.id)
-
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Updated"),
-                    self.tr("Project has been renamed to '{}' successfully.").format(
-                        new_name
-                    ),
-                )
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    self.tr("Failed to update project: {}").format(str(e)),
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    self.parent_dialog,
-                    self.tr("Error"),
-                    self.tr("Failed to update project: {}").format(str(e)),
-                )
-
-
 class ProjectSelectDialog(QDialog):
     """Dialog for selecting projects from organizations"""
 
@@ -749,6 +480,10 @@ class ProjectSelectDialog(QDialog):
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
+    def handle_project_deleted(self):
+        """Handle cleanup after a project has been deleted"""
+        self.project_section["project_list"].setCurrentItem(None)
+
     def on_project_selected(self):
         """Handle project selection"""
         current_item = self.project_section["project_list"].currentItem()
@@ -851,3 +586,274 @@ class ProjectSelectDialog(QDialog):
             ):
                 self.project_section["project_list"].setCurrentItem(item)
                 break
+
+
+class ProjectItemWidget(QWidget):
+    """Custom widget for displaying project information in a card-like layout"""
+
+    def __init__(
+        self, project: api.project.ProjectDetail, parent_dialog: ProjectSelectDialog
+    ):
+        super().__init__()
+        self.project = project
+        self.parent_dialog = parent_dialog
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+        self.setup_ui()
+
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("ProjectItemWidget", message)
+
+    def setup_ui(self):
+        """Set up the project item UI"""
+        main_layout = QHBoxLayout()
+        main_layout.setSpacing(12)
+
+        # Thumbnail placeholder - map preview style
+        thumbnail_label = RemoteImageLabel(size=(100, 60))
+        # load thumbnail image if available
+        thumbnail_label.load(self.project.thumbnailImageUrl)
+        thumbnail_label.setStyleSheet("""
+            QLabel {
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+            }
+        """)
+        main_layout.addWidget(thumbnail_label)
+
+        # Project info layout
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+        # Project name
+        name_label = QLabel(self.project.name)
+        info_layout.addWidget(name_label)
+        # Last updated with icon
+        updated_hlayout = QHBoxLayout()
+        updated_icon_label = QLabel()
+        updated_icon_label.setPixmap(RELOAD_ICON.pixmap(16, 16))
+        updated_hlayout.addWidget(updated_icon_label)
+        updated_label = QLabel(self._format_relative_date(self.project.updatedAt))
+        updated_hlayout.addWidget(updated_label)
+        info_layout.addLayout(updated_hlayout)
+
+        main_layout.addLayout(info_layout)
+        main_layout.addStretch()
+
+        # Right side icons and size
+        right_layout = QVBoxLayout()
+        right_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
+
+        # Icons row
+        icons_layout = QHBoxLayout()
+        icons_layout.setSpacing(4)
+
+        # Vector icon with count (using emoji for simplicity)
+        vector_hlayout = QHBoxLayout()
+        vector_icon_label = QLabel()
+        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
+        vector_hlayout.addWidget(vector_icon_label)
+        vector_label = QLabel(str(self.project.vectorCount))
+        vector_hlayout.addWidget(vector_label)
+        icons_layout.addLayout(vector_hlayout)
+
+        # Maps icon with count
+        maps_hlayout = QHBoxLayout()
+        maps_icon_label = QLabel()
+        maps_icon_label.setPixmap(MAP_ICON.pixmap(16, 16))
+        maps_hlayout.addWidget(maps_icon_label)
+        maps_label = QLabel(str(self.project.mapCount))
+        maps_hlayout.addWidget(maps_label)
+        icons_layout.addLayout(maps_hlayout)
+
+        right_layout.addLayout(icons_layout)
+        main_layout.addLayout(right_layout)
+
+        self.setLayout(main_layout)
+
+    def _format_date(self, date_string: str) -> str:
+        """Format ISO date string to readable format"""
+        if not date_string:
+            return "Never"
+        try:
+            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, AttributeError):
+            return date_string
+
+    def _format_relative_date(self, date_string: str) -> str:
+        """Format date as relative time (e.g., '1 day ago')"""
+        if not date_string:
+            return "Never"
+        try:
+            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            now = datetime.now(dt.tzinfo)
+            delta = now - dt
+
+            if delta.days == 0:
+                if delta.seconds < 3600:
+                    return self.tr("{} minutes ago").format(delta.seconds // 60)
+                else:
+                    return self.tr("{} hours ago").format(delta.seconds // 3600)
+            elif delta.days == 1:
+                return self.tr("1 day ago")
+            elif delta.days < 30:
+                return self.tr("{} days ago").format(delta.days)
+            elif delta.days < 365:
+                return self.tr("{} months ago").format(delta.days // 30)
+            else:
+                return self.tr("{} years ago").format(delta.days // 365)
+        except (ValueError, AttributeError):
+            return date_string
+
+    def show_context_menu(self, position):
+        """Show context menu for project item"""
+        menu = QMenu(self)
+
+        # Open in Web action
+        open_web_action = menu.addAction(self.tr("Open in Web App"))
+        open_web_action.triggered.connect(self.open_in_web)
+
+        # Edit action
+        edit_action = menu.addAction(self.tr("Edit Project"))
+        edit_action.triggered.connect(self.edit_project)
+
+        menu.addSeparator()
+
+        # Delete action
+        delete_action = menu.addAction(self.tr("Delete Project"))
+        delete_action.triggered.connect(self.delete_project)
+
+        menu.exec_(self.mapToGlobal(position))
+
+    def open_in_web(self):
+        """Open project in web browser"""
+        if not self.project:
+            return
+
+        config = api.config.get_api_config()
+        base_url = config.SERVER_URL.replace("/api", "")
+        project_url = f"{base_url}/projects/{self.project.id}"
+
+        try:
+            webbrowser.open(project_url)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                self.tr("Error opening web browser: {}").format(str(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+
+    def delete_project(self):
+        """Delete project with confirmation"""
+        if not self.project or not self.parent_dialog:
+            return
+
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self.parent_dialog,
+            self.tr("Delete Project"),
+            self.tr(
+                "Are you sure you want to delete project '{}'?\n"
+                "This action can't be undone."
+            ).format(self.project.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Call API to delete project
+                api.project.delete_project(self.project.id)
+
+                QgsMessageLog.logMessage(
+                    self.tr("Project '{}' deleted successfully.").format(
+                        self.project.name
+                    ),
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                self.parent_dialog.handle_project_deleted()
+                # Refresh the project list
+                org = self.parent_dialog.get_selected_organization()
+                if org:
+                    self.parent_dialog.load_organization_detail(org)
+                    self.parent_dialog.load_projects(org)
+
+                QMessageBox.information(
+                    self.parent_dialog,
+                    self.tr("Project Deleted"),
+                    self.tr("Project '{}' has been deleted successfully.").format(
+                        self.project.name
+                    ),
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    self.tr("Failed to delete project: {}").format(str(e)),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
+                )
+                QMessageBox.critical(
+                    self.parent_dialog,
+                    self.tr("Error"),
+                    self.tr("Failed to delete project: {}").format(str(e)),
+                )
+
+    def edit_project(self):
+        """Edit project metadata"""
+        if not self.project or not self.parent_dialog:
+            return
+
+        # Show input dialog with current project name
+        new_name, ok = QInputDialog.getText(
+            self.parent_dialog,
+            self.tr("Edit Project"),
+            self.tr("Project name:"),
+            text=self.project.name,
+        )
+
+        if ok and new_name and new_name != self.project.name:
+            try:
+                # Call API to update project
+                updated_project = api.project.update_project(
+                    project_id=self.project.id, name=new_name, description=""
+                )
+
+                QgsMessageLog.logMessage(
+                    self.tr("Project '{}' renamed to '{}' successfully").format(
+                        self.project.name, new_name
+                    ),
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+                # Update the current project data
+                self.project = updated_project
+
+                # Refresh the project list
+                if self.parent_dialog:
+                    org = self.parent_dialog.get_selected_organization()
+                    if org:
+                        self.parent_dialog.load_projects(org)
+                        # Re-select the updated project
+                        self.parent_dialog._select_project_by_id(self.project.id)
+
+                QMessageBox.information(
+                    self.parent_dialog,
+                    self.tr("Project Updated"),
+                    self.tr("Project has been renamed to '{}' successfully.").format(
+                        new_name
+                    ),
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    self.tr("Failed to update project: {}").format(str(e)),
+                    LOG_CATEGORY,
+                    Qgis.Critical,
+                )
+                QMessageBox.critical(
+                    self.parent_dialog,
+                    self.tr("Error"),
+                    self.tr("Failed to update project: {}").format(str(e)),
+                )
