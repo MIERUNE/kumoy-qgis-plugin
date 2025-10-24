@@ -232,6 +232,7 @@ class ProjectItemWidget(QWidget):
                     if org:
                         self.parent_dialog.load_organization_detail(org)
                         self.parent_dialog.load_projects(org)
+                        self.parent_dialog.handle_project_deleted(self.project.id)
 
                 QMessageBox.information(
                     self.parent_dialog,
@@ -748,6 +749,17 @@ class ProjectSelectDialog(QDialog):
             msg = self.tr("Failed to load projects: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
+
+    def handle_project_deleted(self, deleted_project_id: str):
+        """Handle cleanup after a project has been deleted"""
+        self.project_section["project_list"].setCurrentItem(None)
+        self.project_section["project_list"].clearSelection()
+        self.selected_project = None
+        self.button_panel["ok_btn"].setEnabled(False)
+
+        settings = get_settings()
+        if settings.selected_project_id == deleted_project_id:
+            store_setting("selected_project_id", "")
 
     def on_project_selected(self):
         """Handle project selection"""
