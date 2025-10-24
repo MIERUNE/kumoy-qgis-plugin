@@ -53,6 +53,8 @@ class RootCollection(QgsDataCollectionItem):
         self.organization_data = None
         self.project_data = None
 
+        self.project_select_dialog = None
+
         self.load_organization_project()
 
     def load_organization_project(self):
@@ -151,9 +153,14 @@ class RootCollection(QgsDataCollectionItem):
 
         prev_project_id = get_settings().selected_project_id
 
-        # Show project selection dialog
-        dialog = ProjectSelectDialog()
-        result = exec_dialog(dialog)
+        # プロジェクト選択ダイアログは初回時のみ生成、それ以降は再利用する
+        if self.project_select_dialog is None:
+            self.project_select_dialog = ProjectSelectDialog()
+        else:
+            self.project_select_dialog.load_user_info()
+            self.project_select_dialog.load_organizations()
+            self.project_select_dialog.load_saved_selection()
+        result = exec_dialog(self.project_select_dialog)
 
         if not result:
             return
