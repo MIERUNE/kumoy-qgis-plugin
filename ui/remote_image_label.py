@@ -1,9 +1,9 @@
 import os
 
-from PyQt5.QtCore import QBuffer, QByteArray, Qt, QUrl, QRect
-from PyQt5.QtGui import QImage, QImageReader, QPixmap, QRegion
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QLabel
+from qgis.PyQt.QtCore import QBuffer, QByteArray, Qt, QUrl, QRect
+from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
+from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtWidgets import QLabel
 
 from ..imgs import PIN_ICON
 
