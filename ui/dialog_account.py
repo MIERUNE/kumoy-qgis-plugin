@@ -18,6 +18,7 @@ from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 from .dialog_login import read_version
+from .remote_image_label import RemoteImageLabel
 
 
 class DialogAccount(QDialog):
@@ -100,19 +101,9 @@ class DialogAccount(QDialog):
         profile_layout.setContentsMargins(0, 0, 0, 0)
         profile_layout.setAlignment(Qt.AlignCenter)
 
-        # Avatar circle with initial + name
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(64, 64)
+        # Avatar circle with image or initial + name
+        self.avatar_label = RemoteImageLabel(size=(64, 64), circular=True)
         self.avatar_label.setAlignment(Qt.AlignCenter)
-        self.avatar_label.setStyleSheet("""
-            QLabel {
-                background-color: #4559F0;
-                color: white;
-                border-radius: 32px;
-                border: 1px solid #373737;
-                font-size: 30px;
-            }
-        """)
 
         self.name_label = QLabel(self.tr("Unknown user"))
         self.name_label.setAlignment(Qt.AlignCenter)
@@ -168,6 +159,7 @@ class DialogAccount(QDialog):
     def _load_user_info(self) -> None:
         settings = get_settings()
         user_info = settings.user_info or {}
+
         if isinstance(user_info, str):
             try:
                 user_info = json.loads(user_info)
