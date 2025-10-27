@@ -1,5 +1,3 @@
-import os
-
 from qgis.PyQt.QtCore import QBuffer, QByteArray, Qt, QUrl, QRect
 from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest

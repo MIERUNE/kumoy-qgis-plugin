@@ -1,5 +1,4 @@
 import math
-import os
 import webbrowser
 from datetime import datetime
 from typing import Optional
