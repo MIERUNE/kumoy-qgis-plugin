@@ -92,21 +92,10 @@ class ProjectSelectDialog(QDialog):
         # Account label
         account_label = QLabel(self.tr("Account"))
         account_org_layout.addWidget(account_label, 0, 0, 1, 2)
+        # Avatar and user name
         avatar_name_layout = QHBoxLayout()
-
-        avatar_label = RemoteImageLabel(size=(32, 32))
+        avatar_label = RemoteImageLabel(size=(32, 32), circular=True)
         avatar_label.setAlignment(Qt.AlignCenter)
-        avatar_label.setStyleSheet(
-            """
-            QLabel {
-                background-color: #9c27b0;
-                color: white;
-                border-radius: 16px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-        """
-        )
         avatar_name_layout.addWidget(avatar_label)
         user_name_label = QLabel(self.tr("Loading..."))
         avatar_name_layout.addWidget(user_name_label)
