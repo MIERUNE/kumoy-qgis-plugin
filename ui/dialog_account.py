@@ -1,4 +1,3 @@
-import json
 import os
 import webbrowser
 
@@ -14,7 +13,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..settings_manager import get_settings, store_setting
+from ..settings_manager import store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 from .dialog_login import read_version
@@ -157,30 +156,21 @@ class DialogAccount(QDialog):
         main_layout.addWidget(self.logout_button)
 
     def _load_user_info(self) -> None:
-        settings = get_settings()
-        user_info = settings.user_info or {}
+        self.user_info = api.user.get_me()
 
-        if isinstance(user_info, str):
-            try:
-                user_info = json.loads(user_info)
-            except (json.JSONDecodeError, TypeError):
-                user_info = {}
-
-        self.user_info = user_info if isinstance(user_info, dict) else {}
-
-        name = (
-            self.user_info.get("name")
-            or f"{self.user_info.get('given_name', '')} {self.user_info.get('family_name', '')}".strip()
-            or self.user_info.get("email")
-            or self.tr("Unknown user")
-        )
-        email = self.user_info.get("email", "")
+        name = self.user_info.name or self.user_info.email or self.tr("Unknown user")
+        email = self.user_info.email or ""
 
         self.name_label.setText(name)
         self.email_label.setText(email)
 
-        initials = self._create_initials(name)
-        self.avatar_label.setText(initials)
+        if self.user_info.avatarImage:
+            config = api.config.get_api_config()
+            avatar_url = config.SERVER_URL + self.user_info.avatarImage
+            self.avatar_label.load(avatar_url)
+        else:
+            initials = self._create_initials(name)
+            self.avatar_label.setText(initials)
 
     def _load_server_config(self) -> None:
         config = api.config.get_api_config()
