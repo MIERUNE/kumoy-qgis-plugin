@@ -19,30 +19,49 @@ normalize_field_name = normalize_field_name_module.normalize_field_name
 
 
 class TestNormalizeFieldName(unittest.TestCase):
-    def test_basic_transformation(self):
-        result = normalize_field_name("Field Name", current_names=[])
+    def test_strips_leading_and_trailing_whitespace(self):
+        result = normalize_field_name("  field_name  ", current_names=[])
         self.assertEqual(result, "field_name")
 
-    def test_special_characters_become_underscores(self):
-        result = normalize_field_name("My Field!", current_names=[])
-        self.assertEqual(result, "my_field_")
+    def test_returns_original_when_unique(self):
+        result = normalize_field_name("Field Name", current_names=["Other"])
+        self.assertEqual(result, "Field Name")
 
-    def test_reserved_keyword_gets_suffix(self):
-        result = normalize_field_name("Select", current_names=[])
-        self.assertEqual(result, "select_")
+    def test_adds_suffix_when_duplicate(self):
+        result = normalize_field_name("field", current_names=["field"])
+        self.assertEqual(result, "field_1")
 
     def test_trims_to_maximum_length(self):
         long_name = "a" * 80
         result = normalize_field_name(long_name, current_names=[])
         self.assertEqual(result, "a" * 63)
 
-    def test_leading_digits_removed(self):
-        result = normalize_field_name("123_field", current_names=[])
-        self.assertEqual(result, "_field")
+    def test_suffix_increments_until_unique(self):
+        current_names = ["field", "field_1", "field_2"]
+        result = normalize_field_name("field", current_names=current_names)
+        self.assertEqual(result, "field_3")
 
-    def test_fallback_when_name_becomes_empty(self):
-        result = normalize_field_name("123", current_names=["field", "field_1"])
-        self.assertEqual(result, "field_2")
+    def test_suffix_reaches_two_digits(self):
+        existing = ["field"] + [f"field_{i}" for i in range(1, 10)]
+        result = normalize_field_name("field", current_names=existing)
+        self.assertEqual(result, "field_10")
+
+    def test_suffix_respects_max_length(self):
+        base = "a" * 63
+        result = normalize_field_name(base, current_names=[base])
+        self.assertEqual(result, "a" * 61 + "_1")
+
+    def test_suffix_continues_after_truncated_match(self):
+        base = "a" * 63
+        current_names = [base, "a" * 61 + "_1"]
+        result = normalize_field_name(base, current_names=current_names)
+        self.assertEqual(result, "a" * 61 + "_2")
+
+    def test_suffix_truncates_again_when_length_grows(self):
+        base = "a" * 63
+        current_names = [base] + ["a" * 61 + f"_{i}" for i in range(1, 10)]
+        result = normalize_field_name(base, current_names=current_names)
+        self.assertEqual(result, "a" * 60 + "_10")
 
 
 if __name__ == "__main__":
