@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtCore import QCoreApplication, Qt, QRect
+from qgis.PyQt.QtGui import QRegion
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -93,9 +94,33 @@ class ProjectSelectDialog(QDialog):
         account_org_layout.addWidget(account_label, 0, 0, 1, 2)
         # Avatar and user name
         avatar_name_layout = QHBoxLayout()
-        avatar_label = RemoteImageLabel(size=(32, 32), circular=True)
+        avatar_label = RemoteImageLabel(size=(32, 32))
         avatar_label.setAlignment(Qt.AlignCenter)
+        # Set avatar as circular
+
+        radius = min(avatar_label.width(), avatar_label.height()) // 2
+        avatar_label.setStyleSheet(
+            f"""
+            RemoteImageLabel {{
+                background-color: #9c27b0;
+                color: white;
+                border-radius: {radius}px;
+                font-weight: bold;
+                font-size: 14px;
+                border: none;
+            }}
+        """
+        )
+        size = min(avatar_label.width(), avatar_label.height())
+        x = (avatar_label.width() - size) // 2
+        y = (avatar_label.height() - size) // 2
+
+        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
+        avatar_label.setMask(region)
+
         avatar_name_layout.addWidget(avatar_label)
+
+        # User name label
         user_name_label = QLabel(self.tr("Loading..."))
         avatar_name_layout.addWidget(user_name_label)
         account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)

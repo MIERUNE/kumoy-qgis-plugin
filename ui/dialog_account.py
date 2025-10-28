@@ -2,8 +2,8 @@ import os
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication, Qt
-from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtCore import QCoreApplication, Qt, QRect
+from qgis.PyQt.QtGui import QPixmap, QRegion
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -100,10 +100,31 @@ class DialogAccount(QDialog):
         profile_layout.setContentsMargins(0, 0, 0, 0)
         profile_layout.setAlignment(Qt.AlignCenter)
 
-        # Avatar circle with image or initial + name
-        self.avatar_label = RemoteImageLabel(size=(64, 64), circular=True)
+        # Avatar with image or initial + name
+        self.avatar_label = RemoteImageLabel(size=(64, 64))
         self.avatar_label.setAlignment(Qt.AlignCenter)
+        # Set avatar as circular
+        radius = min(self.avatar_label.width(), self.avatar_label.height()) // 2
+        self.avatar_label.setStyleSheet(
+            f"""
+            RemoteImageLabel {{
+                background-color: #9c27b0;
+                color: white;
+                border-radius: {radius}px;
+                font-weight: bold;
+                font-size: 14px;
+                border: none;
+            }}
+        """
+        )
+        size = min(self.avatar_label.width(), self.avatar_label.height())
+        x = (self.avatar_label.width() - size) // 2
+        y = (self.avatar_label.height() - size) // 2
 
+        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
+        self.avatar_label.setMask(region)
+
+        # Name label
         self.name_label = QLabel(self.tr("Unknown user"))
         self.name_label.setAlignment(Qt.AlignCenter)
         self.name_label.setStyleSheet("font-size: 18px; font-weight: 600;")
