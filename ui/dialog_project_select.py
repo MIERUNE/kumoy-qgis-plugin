@@ -4,8 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication, Qt, QRect
-from qgis.PyQt.QtGui import QRegion
+from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -95,28 +94,8 @@ class ProjectSelectDialog(QDialog):
         # Avatar and user name
         avatar_name_layout = QHBoxLayout()
         avatar_label = RemoteImageLabel(size=(32, 32))
+        avatar_label.set_circular_mask()
         avatar_label.setAlignment(Qt.AlignCenter)
-        # Set avatar as circular
-
-        radius = min(avatar_label.width(), avatar_label.height()) // 2
-        avatar_label.setStyleSheet(
-            f"""
-            RemoteImageLabel {{
-                background-color: #9c27b0;
-                color: white;
-                border-radius: {radius}px;
-                font-weight: bold;
-                font-size: 14px;
-                border: none;
-            }}
-        """
-        )
-        size = min(avatar_label.width(), avatar_label.height())
-        x = (avatar_label.width() - size) // 2
-        y = (avatar_label.height() - size) // 2
-
-        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
-        avatar_label.setMask(region)
 
         avatar_name_layout.addWidget(avatar_label)
 
