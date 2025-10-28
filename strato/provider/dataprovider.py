@@ -16,7 +16,14 @@ from qgis.core import (
     QgsVectorDataProvider,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QEventLoop, Qt, QThread, QVariant, pyqtSignal
+from qgis.PyQt.QtCore import (
+    QEventLoop,
+    Qt,
+    QThread,
+    QVariant,
+    QCoreApplication,
+    pyqtSignal,
+)
 from qgis.PyQt.QtWidgets import QProgressDialog, QMessageBox
 
 from .. import api, constants
@@ -157,6 +164,10 @@ class StratoDataProvider(QgsVectorDataProvider):
             ]
         )
 
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("StratoDataProvider", message)
+
     def _reload_vector(self):
         """Refresh local cache"""
         try:
@@ -167,8 +178,10 @@ class StratoDataProvider(QgsVectorDataProvider):
             if e.args[0] == "Not Found":
                 QMessageBox.information(
                     None,
-                    "Vector not found",
-                    f"The following vector does not exist: {self.vector_name}",
+                    self.tr("Vector not found"),
+                    self.tr("The following vector does not exist: {}").format(
+                        self.vector_name
+                    ),
                 )
                 return
             else:
@@ -176,9 +189,12 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
-            f"Syncing: {self.strato_vector.name}", "Cancel", 0, 0
+            self.tr("Syncing: {}").format(self.strato_vector.name),
+            self.tr("Cancel"),
+            0,
+            0,
         )
-        progress.setWindowTitle("Data Sync")
+        progress.setWindowTitle(self.tr("Data Sync"))
         progress.setWindowModality(Qt.ApplicationModal)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setValue(100)  # Set to middle to show indeterminate progress
@@ -226,11 +242,11 @@ class StratoDataProvider(QgsVectorDataProvider):
         # Handle results
         if sync_cancelled:
             # キャンセル時はレイヤーを追加したくないので例外を投げる
-            raise Exception("Sync cancelled by user")
+            raise Exception(self.tr("Sync cancelled by user"))
         elif sync_error:
             # Log error but continue with existing cached data
             QgsMessageLog.logMessage(
-                f"Sync error: {sync_error}", "STRATO", Qgis.Warning
+                self.tr("Sync error: {}").format(sync_error), "STRATO", Qgis.Warning
             )
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
