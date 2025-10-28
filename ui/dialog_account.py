@@ -1,4 +1,3 @@
-import json
 import os
 import webbrowser
 
@@ -14,10 +13,11 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..settings_manager import get_settings, store_setting
+from ..settings_manager import store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
 from .dialog_login import read_version
+from .remote_image_label import RemoteImageLabel
 
 
 class DialogAccount(QDialog):
@@ -100,20 +100,12 @@ class DialogAccount(QDialog):
         profile_layout.setContentsMargins(0, 0, 0, 0)
         profile_layout.setAlignment(Qt.AlignCenter)
 
-        # Avatar circle with initial + name
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(64, 64)
+        # Avatar with image or initial + name
+        self.avatar_label = RemoteImageLabel(size=(64, 64))
+        self.avatar_label.set_circular_mask()
         self.avatar_label.setAlignment(Qt.AlignCenter)
-        self.avatar_label.setStyleSheet("""
-            QLabel {
-                background-color: #4559F0;
-                color: white;
-                border-radius: 32px;
-                border: 1px solid #373737;
-                font-size: 30px;
-            }
-        """)
 
+        # Name label
         self.name_label = QLabel(self.tr("Unknown user"))
         self.name_label.setAlignment(Qt.AlignCenter)
         self.name_label.setStyleSheet("font-size: 18px; font-weight: 600;")
@@ -166,29 +158,21 @@ class DialogAccount(QDialog):
         main_layout.addWidget(self.logout_button)
 
     def _load_user_info(self) -> None:
-        settings = get_settings()
-        user_info = settings.user_info or {}
-        if isinstance(user_info, str):
-            try:
-                user_info = json.loads(user_info)
-            except (json.JSONDecodeError, TypeError):
-                user_info = {}
+        self.user_info = api.user.get_me()
 
-        self.user_info = user_info if isinstance(user_info, dict) else {}
-
-        name = (
-            self.user_info.get("name")
-            or f"{self.user_info.get('given_name', '')} {self.user_info.get('family_name', '')}".strip()
-            or self.user_info.get("email")
-            or self.tr("Unknown user")
-        )
-        email = self.user_info.get("email", "")
+        name = self.user_info.name or self.user_info.email or self.tr("Unknown user")
+        email = self.user_info.email or ""
 
         self.name_label.setText(name)
         self.email_label.setText(email)
 
-        initials = self._create_initials(name)
-        self.avatar_label.setText(initials)
+        if self.user_info.avatarImage:
+            config = api.config.get_api_config()
+            avatar_url = config.SERVER_URL + self.user_info.avatarImage
+            self.avatar_label.load(avatar_url)
+        else:
+            initials = self._create_initials(name)
+            self.avatar_label.setText(initials)
 
     def _load_server_config(self) -> None:
         config = api.config.get_api_config()

@@ -1,5 +1,4 @@
 import math
-import os
 import webbrowser
 from datetime import datetime
 from typing import Optional
@@ -92,21 +91,15 @@ class ProjectSelectDialog(QDialog):
         # Account label
         account_label = QLabel(self.tr("Account"))
         account_org_layout.addWidget(account_label, 0, 0, 1, 2)
-        # Avatar circle with initial + name
+        # Avatar and user name
         avatar_name_layout = QHBoxLayout()
-        avatar_label = QLabel()
-        avatar_label.setFixedSize(32, 32)
+        avatar_label = RemoteImageLabel(size=(32, 32))
+        avatar_label.set_circular_mask()
         avatar_label.setAlignment(Qt.AlignCenter)
-        avatar_label.setStyleSheet("""
-            QLabel {
-                background-color: #9c27b0;
-                color: white;
-                border-radius: 16px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-        """)
+
         avatar_name_layout.addWidget(avatar_label)
+
+        # User name label
         user_name_label = QLabel(self.tr("Loading..."))
         avatar_name_layout.addWidget(user_name_label)
         account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)
@@ -121,14 +114,16 @@ class ProjectSelectDialog(QDialog):
         # Organization selector
         org_combo = QComboBox()
         org_combo.setMinimumHeight(32)
-        org_combo.setStyleSheet("""
+        org_combo.setStyleSheet(
+            """
             QComboBox {
                 border: 1px solid #ced4da;
                 border-radius: 4px;
                 padding: 4px 8px;
                 font-size: 12px;
             }
-        """)
+        """
+        )
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
         account_org_layout.addWidget(org_combo, 1, 2, 1, 2)
 
@@ -192,7 +187,8 @@ class ProjectSelectDialog(QDialog):
             progress_bar.setTextVisible(False)
             progress_bar.setMinimumHeight(6)
             progress_bar.setMaximumHeight(6)
-            progress_bar.setStyleSheet("""
+            progress_bar.setStyleSheet(
+                """
                 QProgressBar {
                     border: none;
                     border-radius: 3px;
@@ -202,7 +198,8 @@ class ProjectSelectDialog(QDialog):
                     background-color: #8bc34a;
                     border-radius: 3px;
                 }
-            """)
+            """
+            )
             row_layout.addWidget(progress_bar, 1)  # Stretch factor 1
 
             usage_widgets[key] = {"label": usage_text, "progress": progress_bar}
@@ -221,7 +218,8 @@ class ProjectSelectDialog(QDialog):
         # Project list
         project_list = QListWidget()
         project_list.setSpacing(6)
-        project_list.setStyleSheet("""
+        project_list.setStyleSheet(
+            """
             QListWidget {
                 border-radius: 6px;
                 padding: 8px;
@@ -237,7 +235,8 @@ class ProjectSelectDialog(QDialog):
             QListWidget::item:hover {
                 background-color: rgba(255, 255, 255, 0.2);
             }
-        """)
+        """
+        )
         project_list.itemSelectionChanged.connect(self.on_project_selected)
         return {"project_list": project_list}
 
@@ -317,8 +316,13 @@ class ProjectSelectDialog(QDialog):
             user = api.user.get_me()
 
             self.account_org_panel["user_name_label"].setText(user.name)
-            # Set avatar initial
-            if len(user.name) > 0:
+
+            # Set avatar image if available
+            if user.avatarImage:
+                avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
+                self.account_org_panel["avatar_label"].load(avatar_url)
+            # if no image, set avatar initial
+            elif len(user.name) > 0:
                 initial = user.name[0].upper()
                 self.account_org_panel["avatar_label"].setText(initial)
         except Exception as e:
@@ -442,7 +446,8 @@ class ProjectSelectDialog(QDialog):
         # Determine color based on usage percentage
         color = _get_usage_color(percentage)
 
-        progress_bar.setStyleSheet(f"""
+        progress_bar.setStyleSheet(
+            f"""
             QProgressBar {{
                 border: none;
                 border-radius: 3px;
@@ -452,7 +457,8 @@ class ProjectSelectDialog(QDialog):
                 background-color: {color};
                 border-radius: 3px;
             }}
-        """)
+        """
+        )
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
@@ -614,12 +620,14 @@ class ProjectItemWidget(QWidget):
         thumbnail_label = RemoteImageLabel(size=(100, 60))
         # load thumbnail image if available
         thumbnail_label.load(self.project.thumbnailImageUrl)
-        thumbnail_label.setStyleSheet("""
+        thumbnail_label.setStyleSheet(
+            """
             QLabel {
                 border: 1px solid #e0e0e0;
                 border-radius: 4px;
             }
-        """)
+        """
+        )
         main_layout.addWidget(thumbnail_label)
 
         # Project info layout

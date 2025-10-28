@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 from .client import ApiClient
 
@@ -10,6 +10,7 @@ class User:
     name: str
     email: str
     authId: str
+    avatarImage: str
     createdAt: str
     updatedAt: str
 
@@ -27,6 +28,7 @@ def get_me() -> Optional[User]:
         name=response.get("name", ""),
         email=response.get("email", ""),
         authId=response.get("authId", ""),
+        avatarImage=response.get("avatarImage", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )

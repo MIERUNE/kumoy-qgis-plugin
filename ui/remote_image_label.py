@@ -1,9 +1,7 @@
-import os
-
-from PyQt5.QtCore import QBuffer, QByteArray, Qt, QUrl
-from PyQt5.QtGui import QImage, QImageReader, QPixmap
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QLabel
+from qgis.PyQt.QtCore import QBuffer, QByteArray, Qt, QUrl, QRect
+from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
+from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtWidgets import QLabel
 
 from ..imgs import PIN_ICON
 
@@ -61,3 +59,24 @@ class RemoteImageLabel(QLabel):
         px.setDevicePixelRatio(dpr)
         # setScaledContents(False) のまま、中央アライメントでラベルが余分を切り落とす
         self.setPixmap(px)
+
+    def set_circular_mask(self):
+        radius = min(self.width(), self.height()) // 2
+        self.setStyleSheet(
+            f"""
+            RemoteImageLabel {{
+                background-color: #9c27b0;
+                color: white;
+                border-radius: {radius}px;
+                font-weight: bold;
+                font-size: 14px;
+                border: none;
+            }}
+        """
+        )
+        size = min(self.width(), self.height())
+        x = (self.width() - size) // 2
+        y = (self.height() - size) // 2
+
+        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
+        self.setMask(region)
