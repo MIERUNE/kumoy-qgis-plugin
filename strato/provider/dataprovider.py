@@ -17,14 +17,14 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
+    QCoreApplication,
     QEventLoop,
     Qt,
     QThread,
     QVariant,
-    QCoreApplication,
     pyqtSignal,
 )
-from qgis.PyQt.QtWidgets import QProgressDialog, QMessageBox
+from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
 from .. import api, constants
 from . import local_cache
@@ -92,7 +92,6 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        self._extent = QgsRectangle()
         self.filter_where_clause = None
 
         # store arguments
@@ -114,6 +113,7 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self._is_valid = True
 
+        self.updateExtents()
         # Set native types based on PostgreSQL data type constraints
         self.setNativeTypes(
             [
@@ -326,10 +326,6 @@ class StratoDataProvider(QgsVectorDataProvider):
             return QgsRectangle()
         extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
         return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
-
-    def updateExtents(self) -> None:
-        """Update extent"""
-        return self._extent.setMinimal()
 
     def isValid(self) -> bool:
         return self._is_valid
