@@ -92,8 +92,6 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        self.filter_where_clause = None
-
         # store arguments
         self._uri = uri
         self._provider_options = providerOptions
@@ -250,7 +248,6 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
         self.clearMinMaxCache()
-        self.updateExtents()
 
     @classmethod
     def providerKey(cls) -> str:
