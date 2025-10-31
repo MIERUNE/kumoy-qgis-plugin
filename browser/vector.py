@@ -130,6 +130,8 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         # Create layer
         layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
+        layer.extent()  # HACK: to ensure extent is calculated - Issue #224
+
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
 

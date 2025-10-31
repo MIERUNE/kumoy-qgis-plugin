@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from qgis.core import (
     Qgis,
@@ -17,14 +17,14 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
+    QCoreApplication,
     QEventLoop,
     Qt,
     QThread,
     QVariant,
-    QCoreApplication,
     pyqtSignal,
 )
-from qgis.PyQt.QtWidgets import QProgressDialog, QMessageBox
+from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
 from .. import api, constants
 from . import local_cache
@@ -92,9 +92,6 @@ class StratoDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
-        self._extent = QgsRectangle()
-        self.filter_where_clause = None
-
         # store arguments
         self._uri = uri
         self._provider_options = providerOptions
@@ -104,7 +101,7 @@ class StratoDataProvider(QgsVectorDataProvider):
         self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
-        self.strato_vector = None
+        self.strato_vector: Optional[api.project_vector.StratoVectorDetail] = None
         self._reload_vector()
 
         if self.strato_vector is None:
@@ -251,7 +248,6 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
         self.clearMinMaxCache()
-        self.updateExtents()
 
     @classmethod
     def providerKey(cls) -> str:
@@ -324,12 +320,7 @@ class StratoDataProvider(QgsVectorDataProvider):
     def extent(self) -> QgsRectangle:
         if self.strato_vector is None:
             return QgsRectangle()
-        extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
-        return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
-
-    def updateExtents(self) -> None:
-        """Update extent"""
-        return self._extent.setMinimal()
+        return QgsRectangle(*self.strato_vector.extent)
 
     def isValid(self) -> bool:
         return self._is_valid
