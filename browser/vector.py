@@ -1,4 +1,3 @@
-import os
 from typing import Literal
 
 from qgis import processing
@@ -17,6 +16,7 @@ from qgis.core import (
     QgsUnitTypes,
     QgsVectorLayer,
 )
+from qgis.utils import iface
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
@@ -325,6 +325,9 @@ class VectorItem(QgsDataItem):
                         self.tr("Error"),
                         self.tr("Error deleting vector: {}").format(str(e)),
                     )
+
+            # Avoid deleted layer to remain on map
+            iface.mapCanvas().refresh()
 
             QMessageBox.information(
                 None,
