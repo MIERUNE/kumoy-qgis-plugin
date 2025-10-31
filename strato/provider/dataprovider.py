@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from qgis.core import (
     Qgis,
@@ -103,7 +103,7 @@ class StratoDataProvider(QgsVectorDataProvider):
         self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
-        self.strato_vector = None
+        self.strato_vector: Optional[api.project_vector.StratoVectorDetail] = None
         self._reload_vector()
 
         if self.strato_vector is None:
@@ -113,7 +113,6 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self._is_valid = True
 
-        self.updateExtents()
         # Set native types based on PostgreSQL data type constraints
         self.setNativeTypes(
             [
@@ -324,8 +323,7 @@ class StratoDataProvider(QgsVectorDataProvider):
     def extent(self) -> QgsRectangle:
         if self.strato_vector is None:
             return QgsRectangle()
-        extent = self.strato_vector.extent  # [xmin, ymin, xmax, ymax]
-        return QgsRectangle(extent[0], extent[1], extent[2], extent[3])
+        return QgsRectangle(*self.strato_vector.extent)
 
     def isValid(self) -> bool:
         return self._is_valid
