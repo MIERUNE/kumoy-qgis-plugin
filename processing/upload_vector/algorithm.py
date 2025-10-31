@@ -530,7 +530,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if not normalized_name:
                 continue
 
-            expression = field.name()
+            expression = f'"{field.name()}"'
             length = field.length()
             if field.type() == QVariant.String:
                 # STRING型フィールドは255文字に制限
