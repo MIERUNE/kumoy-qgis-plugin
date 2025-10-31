@@ -313,7 +313,18 @@ class VectorItem(QgsDataItem):
                     QgsProject.instance().removeMapLayer(layer.id())
 
             # Clear cache for this vector
-            local_cache.clear(self.vector.id)
+            try:
+                local_cache.clear(self.vector.id)
+            except Exception as e:
+                if hasattr(e, "errno") and e.errno == 13:
+                    # Ignore premission denied error
+                    pass
+                else:
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr("Error deleting vector: {}").format(str(e)),
+                    )
 
             QMessageBox.information(
                 None,
