@@ -284,18 +284,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
             )
 
+            fields_count = layer.fields().count()
+
             if selected_fields:
                 feedback.pushInfo(
                     self.tr("Using {} of {} attributes for upload").format(
-                        len(selected_fields), layer.fields().count()
+                        len(selected_fields), fields_count
                     )
                 )
-            if len(selected_fields) > plan_limits.maxVectorAttributes:
+                fields_count = len(selected_fields)
+
+            if fields_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
                         "Cannot upload vector. The layer has {} attributes, "
                         "but your plan allows up to {} attributes per vector."
-                    ).format(len(selected_fields), plan_limits.maxVectorAttributes)
+                    ).format(fields_count, plan_limits.maxVectorAttributes)
                 )
 
             field_mapping = self._build_field_mapping(
