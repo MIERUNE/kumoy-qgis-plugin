@@ -290,6 +290,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         len(selected_fields), layer.fields().count()
                     )
                 )
+            print("selected fields:", len(selected_fields))  # --- IGNORE ---
             if len(selected_fields) > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
