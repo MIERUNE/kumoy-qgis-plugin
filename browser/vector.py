@@ -316,8 +316,13 @@ class VectorItem(QgsDataItem):
             try:
                 local_cache.clear(self.vector.id)
             except Exception as e:
-                if hasattr(e, "errno") and e.errno == 13:
-                    # Ignore premission denied error
+                if hasattr(e, "errno") and (e.errno == 13 or e.errno == 32):
+                    # Ignore Permission denied errors on Windows
+                    QgsMessageLog.logMessage(
+                        self.tr("Ignored Permission denied error: {}").format(str(e)),
+                        constants.LOG_CATEGORY,
+                        Qgis.Info,
+                    )
                     pass
                 else:
                     QMessageBox.critical(
