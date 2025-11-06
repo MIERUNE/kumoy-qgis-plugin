@@ -304,7 +304,7 @@ class StratoDataProvider(QgsVectorDataProvider):
                 data_type = QVariant.String
                 len = constants.MAX_CHARACTERS_STRING_FIELD
             elif v == "integer":
-                data_type = QVariant.Int
+                data_type = QVariant.LongLong
             elif v == "float":
                 data_type = QVariant.Double
             else:
@@ -468,7 +468,7 @@ class StratoDataProvider(QgsVectorDataProvider):
         for field in attributes:
             # Map QGIS field types to our supported types
             field_type = "string"  # Default to string
-            if field.type() == QVariant.Int:
+            if field.type() == QVariant.LongLong:
                 field_type = "integer"
             elif field.type() == QVariant.Double:
                 field_type = "float"
