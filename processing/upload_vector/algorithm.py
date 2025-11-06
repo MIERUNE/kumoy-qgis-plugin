@@ -290,7 +290,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         len(selected_fields), layer.fields().count()
                     )
                 )
-            print("selected fields:", len(selected_fields))  # --- IGNORE ---
+
             if len(selected_fields) > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
@@ -325,9 +325,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Create attribute dictionary
             attr_dict = _create_attribute_dict(processed_layer)
 
-            # Create vector and add attributes
-            vector = self._create_vector_and_attributes(
-                project_id, vector_name, geometry_type, attr_dict, feedback
+            # Create vector
+            vector = self._create_vector(
+                project_id, vector_name, geometry_type, feedback
+            )
+
+            # Add attributes to vector
+            api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
+            feedback.pushInfo(
+                self.tr("Added attributes to vector layer '{}': {}").format(
+                    vector_name, ", ".join(attr_dict.keys())
+                )
             )
 
             # Upload features
@@ -605,15 +613,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-    def _create_vector_and_attributes(
+    def _create_vector(
         self,
         project_id: str,
         vector_name: str,
         vector_type: str,
-        attr_dict: Dict[str, str],
         feedback: QgsProcessingFeedback,
     ):
-        """Create vector in STRATO and add attributes"""
+        """Create vector in STRATO and return its info"""
         # Create vector
         options = api.project_vector.AddVectorOptions(
             name=vector_name,
@@ -625,12 +632,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 vector_name, vector.id
             )
         )
-        api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
-        feedback.pushInfo(
-            self.tr("Added attributes to vector layer '{}': {}").format(
-                vector_name, ", ".join(attr_dict.keys())
-            )
-        )
+
         return vector
 
     def _upload_features(
