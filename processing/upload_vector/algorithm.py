@@ -325,8 +325,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             attr_dict = _create_attribute_dict(processed_layer)
 
             # Create vector
-            vector = self._create_vector(
-                project_id, vector_name, geometry_type, feedback
+            options = api.project_vector.AddVectorOptions(
+                name=vector_name,
+                type=geometry_type,
+            )
+            vector = api.project_vector.add_vector(project_id, options)
+            feedback.pushInfo(
+                self.tr("Created vector layer '{}' with ID: {}").format(
+                    vector_name, vector.id
+                )
             )
 
             # Add attributes to vector
@@ -611,28 +618,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 algorithm_id
             )
         )
-
-    def _create_vector(
-        self,
-        project_id: str,
-        vector_name: str,
-        vector_type: str,
-        feedback: QgsProcessingFeedback,
-    ):
-        """Create vector in STRATO and return its info"""
-        # Create vector
-        options = api.project_vector.AddVectorOptions(
-            name=vector_name,
-            type=vector_type,
-        )
-        vector = api.project_vector.add_vector(project_id, options)
-        feedback.pushInfo(
-            self.tr("Created vector layer '{}' with ID: {}").format(
-                vector_name, vector.id
-            )
-        )
-
-        return vector
 
     def _upload_features(
         self,
