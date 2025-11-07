@@ -1,4 +1,3 @@
-import os
 from typing import Literal
 
 from qgis import processing
@@ -17,6 +16,7 @@ from qgis.core import (
     QgsUnitTypes,
     QgsVectorLayer,
 )
+from qgis.utils import iface
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
@@ -313,7 +313,26 @@ class VectorItem(QgsDataItem):
                     QgsProject.instance().removeMapLayer(layer.id())
 
             # Clear cache for this vector
-            local_cache.clear(self.vector.id)
+            try:
+                local_cache.clear(self.vector.id)
+            except Exception as e:
+                if hasattr(e, "errno") and (e.errno == 13 or e.errno == 32):
+                    # Ignore Permission denied errors on Windows
+                    QgsMessageLog.logMessage(
+                        self.tr("Ignored Permission denied error: {}").format(str(e)),
+                        constants.LOG_CATEGORY,
+                        Qgis.Info,
+                    )
+                    pass
+                else:
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr("Error deleting vector: {}").format(str(e)),
+                    )
+
+            # Avoid deleted layer to remain on map
+            iface.mapCanvas().refresh()
 
             QMessageBox.information(
                 None,
