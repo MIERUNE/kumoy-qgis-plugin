@@ -177,7 +177,7 @@ class DialogAccount(QDialog):
     def _load_server_config(self) -> None:
         config = api.config.get_api_config()
         self.server_url = config.SERVER_URL
-        self.account_settings_url = self.server_url.rstrip("/") + "/dashboard"
+        self.account_settings_url = self.server_url.rstrip("/") + "/organization"
         self.server_url_label.setText(self.tr("Server URL\n{}").format(self.server_url))
 
     def _create_initials(self, name: str) -> str:

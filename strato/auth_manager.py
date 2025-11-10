@@ -22,7 +22,7 @@ REDIRECT_URL = "http://localhost:9248/callback"
 def get_auth_handler_response():
     """Generate the authentication success response with redirect to website."""
     api_config = api.config.get_api_config()
-    website_url = api_config.SERVER_URL + "/dashboard"
+    website_url = api_config.SERVER_URL + "/organization"
 
     return f"""
 <!DOCTYPE html>

@@ -352,7 +352,7 @@ class ProjectSelectDialog(QDialog):
         if not self.current_org_id:
             return
 
-        settings_url = f"{api.config.get_api_config().SERVER_URL}/organization?id={self.current_org_id}"
+        settings_url = f"{api.config.get_api_config().SERVER_URL}/organization/{self.current_org_id}/setting"
 
         try:
             webbrowser.open(settings_url)
@@ -468,7 +468,7 @@ class ProjectSelectDialog(QDialog):
 
             for project_item in projects:
                 # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self)
+                item_widget = ProjectItemWidget(project_item, self.current_org_id, self)
 
                 # Create list item
                 list_item = QListWidgetItem(self.project_section["project_list"])
@@ -598,10 +598,14 @@ class ProjectItemWidget(QWidget):
     """Custom widget for displaying project information in a card-like layout"""
 
     def __init__(
-        self, project: api.project.ProjectDetail, parent_dialog: ProjectSelectDialog
+        self,
+        project: api.project.ProjectsInOrganization,
+        organization_id: str,
+        parent_dialog: ProjectSelectDialog,
     ):
         super().__init__()
         self.project = project
+        self.organization_id = organization_id
         self.parent_dialog = parent_dialog
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
@@ -740,8 +744,10 @@ class ProjectItemWidget(QWidget):
             return
 
         config = api.config.get_api_config()
-        base_url = config.SERVER_URL.replace("/api", "")
-        project_url = f"{base_url}/projects/{self.project.id}"
+        base_url = config.SERVER_URL.rstrip("/")
+        project_url = (
+            f"{base_url}/organization/{self.organization_id}/project/{self.project.id}"
+        )
 
         try:
             webbrowser.open(project_url)
