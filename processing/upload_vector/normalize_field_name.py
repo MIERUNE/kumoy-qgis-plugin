@@ -5,10 +5,18 @@ def normalize_field_name(name: str, current_names: list[str]) -> str:
     """
     カラム名の正規化
     - 先頭と末尾の空白を削除
+    - 改行コードをアンダースコアに置換
     - 最大文字列長にカット
     - カット後に重複していたら連番を付与
     """
     normalized = name.strip()
+
+    # 改行コードをアンダースコアに置換
+    # Windowsの改行コードを先に処理
+    normalized = normalized.replace("\r\n", "_")
+    # 残りのケースを処理（1文字の場合）
+    normalized = normalized.replace("\n", "_")
+    normalized = normalized.replace("\r", "_")
 
     # 最大文字数制限
     if len(normalized) > MAX_FIELD_LENGTH:
