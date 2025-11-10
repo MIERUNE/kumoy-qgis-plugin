@@ -116,9 +116,9 @@ class StratoDataProvider(QgsVectorDataProvider):
             [
                 # INTEGER: 4-byte signed integer (-2147483648 to +2147483647)
                 QgsVectorDataProvider.NativeType(
-                    type=QVariant.Int,
+                    type=QVariant.LongLong,
                     typeDesc="Integer",
-                    subType=QVariant.Int,
+                    subType=QVariant.LongLong,
                     typeName="INTEGER",
                     minLen=0,  # Not applicable for integers
                     maxLen=0,  # Not applicable for integers
@@ -292,7 +292,7 @@ class StratoDataProvider(QgsVectorDataProvider):
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
-        fs.append(QgsField("strato_id", QVariant.Int))
+        fs.append(QgsField("strato_id", QVariant.LongLong))
         if self.strato_vector is None:
             return fs
         for column in self.strato_vector.columns:
