@@ -4,7 +4,7 @@ class AppError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 class ValidateError(Exception):
@@ -13,7 +13,7 @@ class ValidateError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 class NotFoundError(Exception):
@@ -22,7 +22,7 @@ class NotFoundError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 class UnauthorizedError(Exception):
@@ -31,7 +31,7 @@ class UnauthorizedError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 class QuotaExceededError(Exception):
@@ -40,7 +40,7 @@ class QuotaExceededError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 class ConflictError(Exception):
@@ -49,7 +49,7 @@ class ConflictError(Exception):
     def __init__(self, message: str, error: str = ""):
         self.message = message
         self.error = error
-        super().__init__(message)
+        super().__init__(f"{message} : {error}")
 
 
 def raise_error(error: dict):
@@ -79,7 +79,7 @@ def raise_error(error: dict):
         raise NotFoundError(message, error.get("error", ""))
     elif message == "Unauthorized":
         raise UnauthorizedError(message, error.get("error", ""))
-    elif message == "Quota Exceeded":
+    elif message == "Quota exceeded":
         raise QuotaExceededError(message, error.get("error", ""))
     elif message == "Conflict":
         raise ConflictError(message, error.get("error", ""))
