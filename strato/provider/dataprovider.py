@@ -15,6 +15,7 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
+    NULL,
 )
 from qgis.PyQt.QtCore import (
     QCoreApplication,
@@ -420,7 +421,12 @@ class StratoDataProvider(QgsVectorDataProvider):
                 if field_name == "strato_id":
                     # Skip strato_id as it is not a valid field for update
                     continue
-                properties[field_name] = value
+
+                # Handle QGIS NULL values
+                if value == NULL:
+                    properties[field_name] = None
+                else:
+                    properties[field_name] = value
 
             attribute_items.append(
                 {"strato_id": int(feature_id), "properties": properties}
