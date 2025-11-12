@@ -527,6 +527,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if allowed_fields is not None and field.name() not in allowed_fields:
                 continue
 
+            if field.name().startswith(constants.RESERVED_FIELD_NAME_PREFIX):
+                feedback.pushWarning(
+                    self.tr("Skipping reserved field name '{}'").format(field.name())
+                )
+                continue
+
             if field.type() not in [
                 QVariant.String,
                 QVariant.Int,
