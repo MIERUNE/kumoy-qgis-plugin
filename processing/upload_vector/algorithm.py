@@ -21,7 +21,6 @@ import processing
 
 from ...settings_manager import get_settings
 from ...strato import api, constants
-from ...strato.api.error_handler import api_guard
 from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
@@ -249,119 +248,110 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Process the algorithm"""
         vector = None
 
-        def report_user_message(message: str) -> None:
-            feedback.reportError(message)
-
         try:
-            with api_guard(
-                notify_user=report_user_message,
-                rethrow_as=QgsProcessingException,
-            ):
-                # Get input layer
-                # 入力レイヤーのproviderチェック
-                layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
-                if layer is None:
-                    raise QgsProcessingException(self.tr("Invalid input layer"))
-                if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
-                    raise QgsProcessingException(
-                        self.tr(
-                            "Cannot upload a layer that is already stored in server."
-                        )
-                    )
-
-                # Get project information and validate
-                project_id, vector_name, plan_limits = (
-                    self._get_project_info_and_validate(parameters, context, layer)
+            # Get input layer
+            # 入力レイヤーのproviderチェック
+            layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
+            if layer is None:
+                raise QgsProcessingException(self.tr("Invalid input layer"))
+            if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
+                raise QgsProcessingException(
+                    self.tr("Cannot upload a layer that is already stored in server.")
                 )
 
-                # クリーニング前のレイヤーで地物数チェック
-                layer_feature_count = layer.featureCount()
-                if layer_feature_count > plan_limits.maxVectorFeatures:
-                    raise QgsProcessingException(
-                        self.tr(
-                            "Cannot upload vector. The layer has {} features, "
-                            "but your plan allows up to {} features per vector."
-                        ).format(layer_feature_count, plan_limits.maxVectorFeatures)
-                    )
+            # Get project information and validate
+            project_id, vector_name, plan_limits = self._get_project_info_and_validate(
+                parameters, context, layer
+            )
 
-                # Determine geometry type
-                geometry_type = _get_geometry_type(layer)
-                if geometry_type is None:
-                    raise QgsProcessingException(self.tr("Unsupported geometry type"))
-
-                # Process layer: convert to singlepart and reproject in one step
-                selected_fields = set(
-                    self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
+            # クリーニング前のレイヤーで地物数チェック
+            layer_feature_count = layer.featureCount()
+            if layer_feature_count > plan_limits.maxVectorFeatures:
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} features, "
+                        "but your plan allows up to {} features per vector."
+                    ).format(layer_feature_count, plan_limits.maxVectorFeatures)
                 )
 
-                fields_count = layer.fields().count()
+            # Determine geometry type
+            geometry_type = _get_geometry_type(layer)
+            if geometry_type is None:
+                raise QgsProcessingException(self.tr("Unsupported geometry type"))
 
-                if selected_fields:
-                    feedback.pushInfo(
-                        self.tr("Using {} of {} attributes for upload").format(
-                            len(selected_fields), fields_count
-                        )
-                    )
-                    fields_count = len(selected_fields)
+            # Process layer: convert to singlepart and reproject in one step
+            selected_fields = set(
+                self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
+            )
 
-                if fields_count > plan_limits.maxVectorAttributes:
-                    raise QgsProcessingException(
-                        self.tr(
-                            "Cannot upload vector. The layer has {} attributes, "
-                            "but your plan allows up to {} attributes per vector."
-                        ).format(fields_count, plan_limits.maxVectorAttributes)
-                    )
+            fields_count = layer.fields().count()
 
-                field_mapping = self._build_field_mapping(
-                    layer,
-                    feedback,
-                    selected_fields if selected_fields else None,
-                )
-
-                processed_layer = self._process_layer_geometry(
-                    layer,
-                    field_mapping,
-                    context,
-                    feedback,
-                )
-
-                # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
-                proc_feature_count = processed_layer.featureCount()
-                if proc_feature_count > plan_limits.maxVectorFeatures:
-                    raise QgsProcessingException(
-                        self.tr(
-                            "Cannot upload vector. The layer has {} features, "
-                            "but your plan allows up to {} features per vector."
-                        ).format(proc_feature_count, plan_limits.maxVectorFeatures)
-                    )
-
-                # Create attribute dictionary
-                attr_dict = _create_attribute_dict(processed_layer)
-
-                # Create vector
-                options = api.project_vector.AddVectorOptions(
-                    name=vector_name,
-                    type=geometry_type,
-                )
-                vector = api.project_vector.add_vector(project_id, options)
+            if selected_fields:
                 feedback.pushInfo(
-                    self.tr("Created vector layer '{}' with ID: {}").format(
-                        vector_name, vector.id
+                    self.tr("Using {} of {} attributes for upload").format(
+                        len(selected_fields), fields_count
                     )
                 )
+                fields_count = len(selected_fields)
 
-                # Add attributes to vector
-                api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
-                feedback.pushInfo(
-                    self.tr("Added attributes to vector layer '{}': {}").format(
-                        vector_name, ", ".join(attr_dict.keys())
-                    )
+            if fields_count > plan_limits.maxVectorAttributes:
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} attributes, "
+                        "but your plan allows up to {} attributes per vector."
+                    ).format(fields_count, plan_limits.maxVectorAttributes)
                 )
 
-                # Upload features
-                self._upload_features(vector.id, processed_layer, feedback)
+            field_mapping = self._build_field_mapping(
+                layer,
+                feedback,
+                selected_fields if selected_fields else None,
+            )
 
-                return {"VECTOR_ID": vector.id}
+            processed_layer = self._process_layer_geometry(
+                layer,
+                field_mapping,
+                context,
+                feedback,
+            )
+
+            # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
+            proc_feature_count = processed_layer.featureCount()
+            if proc_feature_count > plan_limits.maxVectorFeatures:
+                raise QgsProcessingException(
+                    self.tr(
+                        "Cannot upload vector. The layer has {} features, "
+                        "but your plan allows up to {} features per vector."
+                    ).format(proc_feature_count, plan_limits.maxVectorFeatures)
+                )
+
+            # Create attribute dictionary
+            attr_dict = _create_attribute_dict(processed_layer)
+
+            # Create vector
+            options = api.project_vector.AddVectorOptions(
+                name=vector_name,
+                type=geometry_type,
+            )
+            vector = api.project_vector.add_vector(project_id, options)
+            feedback.pushInfo(
+                self.tr("Created vector layer '{}' with ID: {}").format(
+                    vector_name, vector.id
+                )
+            )
+
+            # Add attributes to vector
+            api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
+            feedback.pushInfo(
+                self.tr("Added attributes to vector layer '{}': {}").format(
+                    vector_name, ", ".join(attr_dict.keys())
+                )
+            )
+
+            # Upload features
+            self._upload_features(vector.id, processed_layer, feedback)
+
+            return {"VECTOR_ID": vector.id}
 
         except Exception as e:
             # If vector was created but upload failed, delete it

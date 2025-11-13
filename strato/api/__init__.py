@@ -1,5 +1,4 @@
 from . import (
-    auth,
     config,
     error,
     layer,
