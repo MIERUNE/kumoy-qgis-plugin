@@ -24,6 +24,7 @@ import processing
 
 from ...settings_manager import get_settings
 from ...strato import api, constants
+from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
 
@@ -134,6 +135,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         try:
+            if get_token() is None:
+                # 未ログイン
+                return
+
             # Get all organizations first
             organizations = api.organization.get_organizations()
             project_options = []
