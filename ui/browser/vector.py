@@ -324,7 +324,9 @@ class VectorItem(QgsDataItem):
                 if hasattr(e, "errno") and (e.errno == 13 or e.errno == 32):
                     # Ignore Permission denied errors on Windows
                     QgsMessageLog.logMessage(
-                        self.tr("Ignored Permission denied error: {}").format(format_api_error(e)),
+                        self.tr("Ignored Permission denied error: {}").format(
+                            format_api_error(e)
+                        ),
                         constants.LOG_CATEGORY,
                         Qgis.Info,
                     )
@@ -333,7 +335,9 @@ class VectorItem(QgsDataItem):
                     QMessageBox.critical(
                         None,
                         self.tr("Error"),
-                        self.tr("Error deleting vector: {}").format(format_api_error(e)),
+                        self.tr("Error deleting vector: {}").format(
+                            format_api_error(e)
+                        ),
                     )
 
             # Avoid deleted layer to remain on map
@@ -526,7 +530,9 @@ class DbRoot(QgsDataItem):
             self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding vector: {format_api_error(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error adding vector: {format_api_error(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
