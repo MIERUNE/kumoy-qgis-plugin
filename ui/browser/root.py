@@ -18,6 +18,7 @@ from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
+from .utils import ErrorItem
 from .vector import DbRoot
 
 
@@ -51,6 +52,7 @@ class RootCollection(QgsDataCollectionItem):
 
         self.organization_data = None
         self.project_data = None
+        self._api_error: bool = False
 
         self.project_select_dialog = None
 
@@ -77,12 +79,14 @@ class RootCollection(QgsDataCollectionItem):
             self.setName(
                 f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
             )
+            self._api_error = False
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error reloading organization/project data: {str(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Warning,
             )
+            self._api_error = True
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -153,12 +157,19 @@ class RootCollection(QgsDataCollectionItem):
         prev_project_id = get_settings().selected_project_id
 
         # プロジェクト選択ダイアログは初回時のみ生成、それ以降は再利用する
-        if self.project_select_dialog is None:
-            self.project_select_dialog = ProjectSelectDialog()
-        else:
-            self.project_select_dialog.load_user_info()
-            self.project_select_dialog.load_organizations()
-            self.project_select_dialog.load_saved_selection()
+        try:
+            if self.project_select_dialog is None:
+                self.project_select_dialog = ProjectSelectDialog()
+            else:
+                self.project_select_dialog.load_user_info()
+                self.project_select_dialog.load_organizations()
+                self.project_select_dialog.load_saved_selection()
+        except Exception as e:
+            msg = self.tr("Error loading project selection dialog: {}").format(str(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+            return
+
         result = exec_dialog(self.project_select_dialog)
 
         if not result:
@@ -193,8 +204,13 @@ class RootCollection(QgsDataCollectionItem):
         # Create vector root directly
         children = []
 
-        if self.organization_data is None or self.project_data is None:
-            return children
+        if self._api_error:
+            return [
+                ErrorItem(
+                    self,
+                    self.tr("Error loading organization/project data."),
+                )
+            ]
 
         vector_path = f"{self.path()}/vectors"
         vector_root = DbRoot(

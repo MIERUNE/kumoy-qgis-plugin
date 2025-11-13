@@ -525,21 +525,13 @@ class DbRoot(QgsDataItem):
             )
 
     def upload_vector(self):
-        """QGISアクティブレイヤーの地物をサーバーへアップロード"""
-        try:
-            # Execute with dialog
-            result = processing.execAlgorithmDialog("strato:uploadvector")
+        """processingを利用してベクターレイヤーをアップロード"""
+        # Execute with dialog
+        result = processing.execAlgorithmDialog("strato:uploadvector")
 
-            # After dialog closes, refresh if needed
-            if result:
-                self.refresh()
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Error uploading vector: {}").format(str(e)),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
+        # After dialog closes, refresh if needed
+        if result:
+            self.refresh()
 
     def createChildren(self):
         """Create child items for vectors in project"""

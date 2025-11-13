@@ -270,15 +270,10 @@ class ProjectSelectDialog(QDialog):
 
     def load_organizations(self):
         """Load organizations into the combo box"""
-        try:
-            self.account_org_panel["org_combo"].clear()
-            organizations = api.organization.get_organizations()
-            for org in organizations:
-                self.account_org_panel["org_combo"].addItem(org.name, org)
-        except Exception as e:
-            msg = self.tr("Error loading organizations: {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+        self.account_org_panel["org_combo"].clear()
+        organizations = api.organization.get_organizations()
+        for org in organizations:
+            self.account_org_panel["org_combo"].addItem(org.name, org)
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
@@ -312,26 +307,18 @@ class ProjectSelectDialog(QDialog):
 
     def load_user_info(self):
         """Load current user information"""
-        try:
-            user = api.user.get_me()
+        user = api.user.get_me()
 
-            self.account_org_panel["user_name_label"].setText(user.name)
+        self.account_org_panel["user_name_label"].setText(user.name)
 
-            # Set avatar image if available
-            if user.avatarImage:
-                avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
-                self.account_org_panel["avatar_label"].load(avatar_url)
-            # if no image, set avatar initial
-            elif len(user.name) > 0:
-                initial = user.name[0].upper()
-                self.account_org_panel["avatar_label"].setText(initial)
-        except Exception as e:
-            msg = self.tr("Failed to load user information. {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, self.tr("Error"), msg)
-            # Fallback to default values
-            self.account_org_panel["user_name_label"].setText("Anonymous")
-            self.account_org_panel["avatar_label"].setText("")
+        # Set avatar image if available
+        if user.avatarImage:
+            avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
+            self.account_org_panel["avatar_label"].load(avatar_url)
+        # if no image, set avatar initial
+        elif len(user.name) > 0:
+            initial = user.name[0].upper()
+            self.account_org_panel["avatar_label"].setText(initial)
 
     def toggle_details(self):
         """Toggle visibility of usage details panel"""
@@ -516,17 +503,12 @@ class ProjectSelectDialog(QDialog):
 
     def load_saved_selection(self):
         """Load previously saved selection"""
-        try:
-            org_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
-            if not org_id or not project_id:
-                return
-            self._select_organization_by_id(org_id)
-            self._select_project_by_id(project_id)
-        except Exception as e:
-            msg = self.tr("Failed to load saved selection. {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.warning(self, "Warning", msg)
+        org_id = get_settings().selected_organization_id
+        project_id = get_settings().selected_project_id
+        if not org_id or not project_id:
+            return
+        self._select_organization_by_id(org_id)
+        self._select_project_by_id(project_id)
 
     def create_new_project(self):
         """Create a new project in the selected organization"""

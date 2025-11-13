@@ -426,28 +426,24 @@ class StyledMapRoot(QgsDataItem):
 
     def createChildren(self):
         """子アイテムを作成する"""
-        try:
-            project_id = get_settings().selected_project_id
+        project_id = get_settings().selected_project_id
 
-            if not project_id:
-                return [ErrorItem(self, self.tr("No project selected"))]
+        if not project_id:
+            return [ErrorItem(self, self.tr("No project selected"))]
 
-            # プロジェクトのスタイルマップを取得
-            styled_maps = api.project_styledmap.get_styled_maps(project_id)
+        # プロジェクトのスタイルマップを取得
+        styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
-            if not styled_maps:
-                return [ErrorItem(self, self.tr("No maps available."))]
+        if not styled_maps:
+            return [ErrorItem(self, self.tr("No maps available."))]
 
-            children = []
-            for styled_map in styled_maps:
-                path = f"{self.path()}/{styled_map.id}"
-                child = StyledMapItem(self, path, styled_map, self.project.role)
-                children.append(child)
+        children = []
+        for styled_map in styled_maps:
+            path = f"{self.path()}/{styled_map.id}"
+            child = StyledMapItem(self, path, styled_map, self.project.role)
+            children.append(child)
 
-            return children
-
-        except Exception as e:
-            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+        return children
 
 
 def get_qgisproject_str() -> str:
