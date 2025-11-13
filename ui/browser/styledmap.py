@@ -353,6 +353,19 @@ class StyledMapRoot(QgsDataItem):
         return actions
 
     def add_empty_map(self):
+        if QgsProject.instance().isDirty():
+            confirm = QMessageBox.question(
+                None,
+                self.tr("Create Empty Map"),
+                self.tr(
+                    "Creating an empty map will clear your current project. Do you want to proceed?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if confirm != QMessageBox.Yes:
+                return
+
         self.add_styled_map(clear=True)
 
     def add_styled_map(
