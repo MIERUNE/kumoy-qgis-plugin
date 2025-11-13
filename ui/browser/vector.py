@@ -1,3 +1,4 @@
+import errno
 from typing import Literal
 
 from qgis import processing
@@ -310,21 +311,20 @@ class VectorItem(QgsDataItem):
             # Clear cache for this vector
             try:
                 local_cache.clear(self.vector.id)
+            except (PermissionError, FileNotFoundError) as e:
+                # Ignore Permission denied or file not found errors
+                QgsMessageLog.logMessage(
+                    self.tr("Ignored file access error: {}").format(str(e)),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                pass
             except Exception as e:
-                if hasattr(e, "errno") and (e.errno == 13 or e.errno == 32):
-                    # Ignore Permission denied errors on Windows
-                    QgsMessageLog.logMessage(
-                        self.tr("Ignored Permission denied error: {}").format(str(e)),
-                        constants.LOG_CATEGORY,
-                        Qgis.Info,
-                    )
-                    pass
-                else:
-                    QMessageBox.critical(
-                        None,
-                        self.tr("Error"),
-                        self.tr("Error deleting vector: {}").format(str(e)),
-                    )
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr("Error deleting vector: {}").format(str(e)),
+                )
 
             # Avoid deleted layer to remain on map
             iface.mapCanvas().refresh()
