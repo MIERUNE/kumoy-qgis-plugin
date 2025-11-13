@@ -3,10 +3,11 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Dict, Optional
+from urllib.error import HTTPError
 
 from ..settings_manager import get_settings, store_setting
 from .api import config as api_config
-from .api.error import raise_error
+from .api.error import format_api_error, raise_error
 
 
 def _refresh_token(refresh_token: str) -> Optional[Dict]:
@@ -61,12 +62,12 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
                 "expires_in": response_data.get("expires_in"),
                 "token_type": response_data.get("token_type"),
             }
-    except urllib.error.HTTPError as e:
+    except HTTPError as e:
         # HTTPエラーの詳細を出力
         error_body = e.read().decode("utf-8")
         raise_error(json.loads(error_body))
     except Exception as e:
-        print(f"Error occurred during Cognito token refresh: {str(e)}")
+        print(f"Error occurred during Cognito token refresh: {format_api_error(e)}")
         return None
 
 
@@ -94,7 +95,7 @@ def _is_token_valid(expires_at: str) -> bool:
         # Check if the token is still valid with buffer
         return current_time < (expiration_time - timedelta(seconds=buffer_seconds))
     except Exception as e:
-        print(f"Error checking token validity: {str(e)}")
+        print(f"Error checking token validity: {format_api_error(e)}")
         return False
 
 
@@ -121,7 +122,7 @@ def _save_token_to_cache(auth_response: Dict) -> None:
             expiration_datetime = datetime.fromtimestamp(expires_at)
             store_setting("token_expires_at", expiration_datetime.isoformat())
     except Exception as e:
-        print(f"Error saving token to cache: {str(e)}")
+        print(f"Error saving token to cache: {format_api_error(e)}")
 
 
 def get_token() -> Optional[str]:

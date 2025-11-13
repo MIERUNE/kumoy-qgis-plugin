@@ -25,6 +25,7 @@ from qgis.utils import iface
 from ...imgs import BROWSER_MAP_ICON
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from .utils import ErrorItem
 
 
@@ -117,15 +118,16 @@ class StyledMapItem(QgsDataItem):
         try:
             styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(str(e)),
+                self.tr("Error loading map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error loading map: {}").format(str(e)),
+                self.tr("Error loading map: {}").format(error_text),
             )
             return
 
@@ -192,15 +194,16 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error updating map: {}").format(str(e)),
+                self.tr("Error updating map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error updating map: {}").format(str(e)),
+                self.tr("Error updating map: {}").format(error_text),
             )
             return
 
@@ -239,13 +242,16 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(str(e)),
+                self.tr("Error saving map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
+                None,
+                self.tr("Error"),
+                self.tr("Error saving map: {}").format(error_text),
             )
             return
 
@@ -289,8 +295,9 @@ class StyledMapItem(QgsDataItem):
                 )
 
             except Exception as e:
+                error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
-                    self.tr("Error deleting map: {}").format(str(e)),
+                    self.tr("Error deleting map: {}").format(error_text),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
@@ -417,11 +424,16 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Map '{}' has been created successfully.").format(name),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error adding map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error adding map: {error_text}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error adding map: {}").format(str(e))
+                None,
+                self.tr("Error"),
+                self.tr("Error adding map: {}").format(error_text),
             )
 
     def createChildren(self):

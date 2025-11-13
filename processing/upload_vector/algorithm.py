@@ -24,6 +24,7 @@ import processing
 
 from ...settings_manager import get_settings
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
@@ -152,7 +153,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     project_ids.append(project.id)
 
         except Exception as e:
-            msg = self.tr("Error Initializing Processing: {}").format(str(e))
+            msg = self.tr("Error Initializing Processing: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
             iface.messageBar().pushMessage(
                 constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10

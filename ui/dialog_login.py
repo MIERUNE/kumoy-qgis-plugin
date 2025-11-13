@@ -23,6 +23,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.error import format_api_error
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 from .dialog_login_success import LoginSuccess
@@ -242,9 +243,9 @@ class DialogLogin(QDialog):
             error_body = e.read().decode("utf-8")
             try:
                 error_data = json.loads(error_body)
-                error_message = error_data.get("message", str(e))
+                error_message = error_data.get("error", format_api_error(e))
             except Exception:
-                error_message = str(e)
+                error_message = format_api_error(e)
             QgsMessageLog.logMessage(
                 f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
             )
@@ -256,15 +257,17 @@ class DialogLogin(QDialog):
                     str(error_message)
                 ),
             )
+            return
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
             # Explicit network error
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
-                self.tr("An error occurred while logging in: {}").format(str(e)),
+                self.tr("An error occurred while logging in: {}").format(error_text),
             )
 
             # Reset status and re-enable login button on error

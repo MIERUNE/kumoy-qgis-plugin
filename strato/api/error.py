@@ -97,3 +97,24 @@ def raise_error(error: dict):
         raise UnderMaintenanceError(message, error.get("error", ""))
     else:
         raise Exception(error)
+
+
+def format_api_error(exception: Exception) -> str:
+    """Return a readable string that prefers custom API error details."""
+
+    parts = []
+
+    message = getattr(exception, "message", None)
+    if message:
+        parts.append(str(message))
+
+    detail = getattr(exception, "error", None)
+    if detail:
+        detail_str = str(detail)
+        if detail_str not in parts:
+            parts.append(detail_str)
+
+    if parts:
+        return " - ".join(parts)
+
+    return str(exception)

@@ -14,6 +14,7 @@ from ...imgs import MAIN_ICON
 from ...pyqt_version import exec_dialog
 from ...settings_manager import get_settings
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
@@ -59,7 +60,9 @@ class RootCollection(QgsDataCollectionItem):
         try:
             self.load_organization_project()
         except Exception as e:
-            msg = self.tr("Error loading organization/project data: {}").format(str(e))
+            msg = self.tr("Error loading organization/project data: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
 
     def load_organization_project(self):
@@ -121,7 +124,9 @@ class RootCollection(QgsDataCollectionItem):
         try:
             self.load_organization_project()
         except Exception as e:
-            msg = self.tr("Error loading organization/project data: {}").format(str(e))
+            msg = self.tr("Error loading organization/project data: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(None, self.tr("Error"), msg)
 
@@ -166,7 +171,9 @@ class RootCollection(QgsDataCollectionItem):
                 self.project_select_dialog.load_organizations()
                 self.project_select_dialog.load_saved_selection()
         except Exception as e:
-            msg = self.tr("Error loading project selection dialog: {}").format(str(e))
+            msg = self.tr("Error loading project selection dialog: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(None, self.tr("Error"), msg)
             return
@@ -196,7 +203,9 @@ class RootCollection(QgsDataCollectionItem):
                 self.account_setting_dialog._load_user_info()
                 self.account_setting_dialog._load_server_config()
         except Exception as e:
-            msg = self.tr("Error loading account settings dialog: {}").format(str(e))
+            msg = self.tr("Error loading account settings dialog: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(None, self.tr("Error"), msg)
             return

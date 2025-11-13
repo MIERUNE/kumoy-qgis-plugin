@@ -27,6 +27,7 @@ from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..pyqt_version import QT_USER_ROLE
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.error import format_api_error
 from ..strato.constants import LOG_CATEGORY
 from .remote_image_label import RemoteImageLabel
 
@@ -292,7 +293,9 @@ class ProjectSelectDialog(QDialog):
             # Fetch organization details
             org_detail = api.organization.get_organization(org.id)
         except Exception as e:
-            msg = self.tr("Failed to load organization details. {}").format(str(e))
+            msg = self.tr("Failed to load organization details. {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(self, self.tr("Error"), msg)
             return
@@ -344,7 +347,9 @@ class ProjectSelectDialog(QDialog):
         try:
             webbrowser.open(settings_url)
         except Exception as e:
-            msg = self.tr("Error opening web browser: {}").format(str(e))
+            msg = self.tr("Error opening web browser: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -362,7 +367,9 @@ class ProjectSelectDialog(QDialog):
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type)
         except Exception as e:
-            msg = self.tr("Failed to retrieve plan limits: {}").format(str(e))
+            msg = self.tr("Failed to retrieve plan limits: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.warning(self, self.tr("Warning"), msg)
 
@@ -469,7 +476,9 @@ class ProjectSelectDialog(QDialog):
                 )
 
         except Exception as e:
-            msg = self.tr("Failed to load projects: {}").format(str(e))
+            msg = self.tr("Failed to load projects: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -550,7 +559,9 @@ class ProjectSelectDialog(QDialog):
                 ),
             )
         except Exception as e:
-            msg = self.tr("Failed to create project: {}").format(str(e))
+            msg = self.tr("Failed to create project: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -735,7 +746,9 @@ class ProjectItemWidget(QWidget):
             webbrowser.open(project_url)
         except Exception as e:
             QgsMessageLog.logMessage(
-                self.tr("Error opening web browser: {}").format(str(e)),
+                self.tr("Error opening web browser: {}").format(
+                    format_api_error(e)
+                ),
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -786,14 +799,18 @@ class ProjectItemWidget(QWidget):
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Failed to delete project: {}").format(str(e)),
+                    self.tr("Failed to delete project: {}").format(
+                        format_api_error(e)
+                    ),
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     self.parent_dialog,
                     self.tr("Error"),
-                    self.tr("Failed to delete project: {}").format(str(e)),
+                    self.tr("Failed to delete project: {}").format(
+                        format_api_error(e)
+                    ),
                 )
 
     def edit_project(self):
@@ -844,12 +861,16 @@ class ProjectItemWidget(QWidget):
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Failed to update project: {}").format(str(e)),
+                    self.tr("Failed to update project: {}").format(
+                        format_api_error(e)
+                    ),
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     self.parent_dialog,
                     self.tr("Error"),
-                    self.tr("Failed to update project: {}").format(str(e)),
+                    self.tr("Failed to update project: {}").format(
+                        format_api_error(e)
+                    ),
                 )

@@ -38,6 +38,7 @@ from ...imgs import (
 )
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from ...strato.provider import local_cache
 from .utils import ErrorItem
 
@@ -127,7 +128,7 @@ class VectorItem(QgsDataItem):
             # memo: Strato Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
             api.project_vector.get_vector(self.vector.projectId, self.vector.id)
         except Exception as e:
-            msg = self.tr("Error fetching vector: {}").format(str(e))
+            msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(None, self.tr("Error"), msg)
             return
@@ -260,14 +261,14 @@ class VectorItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating vector: {str(e)}",
+                f"Error updating vector: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error updating vector: {}").format(str(e)),
+                self.tr("Error updating vector: {}").format(format_api_error(e)),
             )
             return
 
@@ -294,14 +295,14 @@ class VectorItem(QgsDataItem):
                 api.project_vector.delete_vector(self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting vector: {str(e)}",
+                    f"Error deleting vector: {format_api_error(e)}",
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Error deleting vector: {}").format(str(e)),
+                    self.tr("Error deleting vector: {}").format(format_api_error(e)),
                 )
                 return
 
@@ -323,7 +324,7 @@ class VectorItem(QgsDataItem):
                 if hasattr(e, "errno") and (e.errno == 13 or e.errno == 32):
                     # Ignore Permission denied errors on Windows
                     QgsMessageLog.logMessage(
-                        self.tr("Ignored Permission denied error: {}").format(str(e)),
+                        self.tr("Ignored Permission denied error: {}").format(format_api_error(e)),
                         constants.LOG_CATEGORY,
                         Qgis.Info,
                     )
@@ -332,7 +333,7 @@ class VectorItem(QgsDataItem):
                     QMessageBox.critical(
                         None,
                         self.tr("Error"),
-                        self.tr("Error deleting vector: {}").format(str(e)),
+                        self.tr("Error deleting vector: {}").format(format_api_error(e)),
                     )
 
             # Avoid deleted layer to remain on map
@@ -380,7 +381,7 @@ class VectorItem(QgsDataItem):
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Error clearing cache for vector '{}': {}").format(
-                        self.vector.name, str(e)
+                        self.vector.name, format_api_error(e)
                     ),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
@@ -388,7 +389,7 @@ class VectorItem(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to clear cache: {}").format(str(e)),
+                    self.tr("Failed to clear cache: {}").format(format_api_error(e)),
                 )
 
 
@@ -525,12 +526,12 @@ class DbRoot(QgsDataItem):
             self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding vector: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error adding vector: {format_api_error(e)}", constants.LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error adding vector: {}").format(str(e)),
+                self.tr("Error adding vector: {}").format(format_api_error(e)),
             )
 
     def upload_vector(self):
@@ -554,7 +555,7 @@ class DbRoot(QgsDataItem):
             vectors = api.project_vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading vectors: {str(e)}",
+                f"Error loading vectors: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -601,12 +602,12 @@ class DbRoot(QgsDataItem):
 
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Error clearing cache: {}").format(str(e)),
+                    self.tr("Error clearing cache: {}").format(format_api_error(e)),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to clear cache: {}").format(str(e)),
+                    self.tr("Failed to clear cache: {}").format(format_api_error(e)),
                 )
