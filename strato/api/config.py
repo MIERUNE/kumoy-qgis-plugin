@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 
-from settings_manager import get_settings
+from ...settings_manager import get_settings
 
 # テスト環境
 DEFAULT_SERVER_URL: str = "https://d2bpnuu07dui2w.cloudfront.net"
