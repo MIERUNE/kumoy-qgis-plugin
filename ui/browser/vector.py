@@ -1,4 +1,3 @@
-import errno
 from typing import Literal
 
 from qgis import processing
@@ -311,8 +310,8 @@ class VectorItem(QgsDataItem):
             # Clear cache for this vector
             try:
                 local_cache.clear(self.vector.id)
-            except (PermissionError, FileNotFoundError) as e:
-                # Ignore Permission denied or file not found errors
+            except PermissionError as e:
+                # Ignore Permission denied errors
                 QgsMessageLog.logMessage(
                     self.tr("Ignored file access error: {}").format(str(e)),
                     constants.LOG_CATEGORY,
@@ -366,6 +365,22 @@ class VectorItem(QgsDataItem):
                     self.tr("Cache cleared successfully for vector '{}'.").format(
                         self.vector.name
                     ),
+                )
+
+            except PermissionError as e:
+                # Warn Permission denied error
+                QgsMessageLog.logMessage(
+                    self.tr("Permission denied error: {}").format(str(e)),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                QMessageBox.warning(
+                    None,
+                    self.tr("Cache Warning"),
+                    self.tr(
+                        "Failed to clear cache for vector {}\n"
+                        "Please try again while vector is not open after restarting QGIS\n{}"
+                    ).format(self.vector.name, str(e)),
                 )
 
             except Exception as e:
