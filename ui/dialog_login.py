@@ -239,24 +239,25 @@ class DialogLogin(QDialog):
                 port=9248,
             )
         except Exception as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("message", str(e))
+            except Exception:
+                error_message = str(e)
+
             QgsMessageLog.logMessage(
-                f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
+                f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
             )
             # Explicit network error
-            if isinstance(e, URLError):
-                QMessageBox.critical(
-                    self,
-                    self.tr("Login Error"),
-                    self.tr("Failed to connect due to a network error.\n{}").format(
-                        str(e)
-                    ),
-                )
-            else:
-                QMessageBox.critical(
-                    self,
-                    self.tr("Login Error"),
-                    self.tr("An error occurred while logging in: {}").format(str(e)),
-                )
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                self.tr("An error occurred while logging in: {}").format(
+                    str(error_message)
+                ),
+            )
+
             # Reset status and re-enable login button on error
             self.update_login_status()
             self.login_button.setEnabled(True)
