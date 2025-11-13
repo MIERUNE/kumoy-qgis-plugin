@@ -24,10 +24,10 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
+from ..pyqt_version import QT_USER_ROLE
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
-from ..version import QT_USER_ROLE
 from .remote_image_label import RemoteImageLabel
 
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
 
-from strato import constants
+from .strato import constants
 
 
 @dataclass

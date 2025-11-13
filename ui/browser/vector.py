@@ -16,7 +16,6 @@ from qgis.core import (
     QgsUnitTypes,
     QgsVectorLayer,
 )
-from qgis.utils import iface
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
@@ -29,21 +28,17 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
     QVBoxLayout,
 )
+from qgis.utils import iface
 
-from ..imgs import (
+from ...imgs import (
     BROWSER_FOLDER_ICON,
     BROWSER_GEOMETRY_LINESTRING_ICON,
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
-from ..settings_manager import get_settings, store_setting
-from ..strato import api, constants
-from ..strato.api.project_vector import (
-    AddVectorOptions,
-    StratoVector,
-    UpdateVectorOptions,
-)
-from ..strato.provider import local_cache
+from ...settings_manager import get_settings, store_setting
+from ...strato import api, constants
+from ...strato.provider import local_cache
 from .utils import ErrorItem
 
 
@@ -54,7 +49,7 @@ class VectorItem(QgsDataItem):
         self,
         parent,
         path: str,
-        vector: StratoVector,
+        vector: api.project_vector.StratoVector,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -252,7 +247,7 @@ class VectorItem(QgsDataItem):
             updated_vector = api.project_vector.update_vector(
                 self.vector.projectId,
                 self.vector.id,
-                UpdateVectorOptions(name=new_name),
+                api.project_vector.UpdateVectorOptions(name=new_name),
             )
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -508,7 +503,7 @@ class DbRoot(QgsDataItem):
                 )
                 return
 
-            options = AddVectorOptions(name=name, type=vector_type)
+            options = api.project_vector.AddVectorOptions(name=name, type=vector_type)
             api.project_vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
                 self.tr(
