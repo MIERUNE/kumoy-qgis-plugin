@@ -309,15 +309,17 @@ class VectorItem(QgsDataItem):
 
             # Clear cache for this vector
             try:
-                local_cache.clear(self.vector.id)
-            except PermissionError as e:
-                # Ignore Permission denied errors
-                QgsMessageLog.logMessage(
-                    self.tr("Ignored file access error: {}").format(str(e)),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                pass
+                cache_cleared = local_cache.clear(self.vector.id)
+
+                if not cache_cleared:
+                    iface.messageBar().pushMessage(
+                        self.tr("Failed"),
+                        self.tr(
+                            "Cache could not be cleared completely for vector '{}'. "
+                            "Please try again while vector is not open after restarting QGIS"
+                        ).format(self.vector.name),
+                    )
+
             except Exception as e:
                 QMessageBox.critical(
                     None,
@@ -328,8 +330,7 @@ class VectorItem(QgsDataItem):
             # Avoid deleted layer to remain on map
             iface.mapCanvas().refresh()
 
-            QMessageBox.information(
-                None,
+            iface.messageBar().pushSuccess(
                 self.tr("Success"),
                 self.tr("Vector '{}' deleted successfully.").format(self.vector.name),
             )
@@ -352,36 +353,30 @@ class VectorItem(QgsDataItem):
         if confirm == QMessageBox.Yes:
             try:
                 # Clear cache for this specific vector
-                local_cache.clear(self.vector.id)
+                cache_cleared = local_cache.clear(self.vector.id)
 
-                QgsMessageLog.logMessage(
-                    self.tr("Cache cleared for vector '{}'").format(self.vector.name),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                QMessageBox.information(
-                    None,
-                    self.tr("Success"),
-                    self.tr("Cache cleared successfully for vector '{}'.").format(
-                        self.vector.name
-                    ),
-                )
-
-            except PermissionError as e:
-                # Warn Permission denied error
-                QgsMessageLog.logMessage(
-                    self.tr("Permission denied error: {}").format(str(e)),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                QMessageBox.warning(
-                    None,
-                    self.tr("Cache Warning"),
-                    self.tr(
-                        "Failed to clear cache for vector {}\n"
-                        "Please try again while vector is not open after restarting QGIS\n{}"
-                    ).format(self.vector.name, str(e)),
-                )
+                if cache_cleared:
+                    QgsMessageLog.logMessage(
+                        self.tr("Cache cleared for vector '{}'").format(
+                            self.vector.name
+                        ),
+                        constants.LOG_CATEGORY,
+                        Qgis.Info,
+                    )
+                    iface.messageBar().pushSuccess(
+                        self.tr("Success"),
+                        self.tr("Cache cleared successfully for vector '{}'.").format(
+                            self.vector.name
+                        ),
+                    )
+                else:
+                    iface.messageBar().pushMessage(
+                        self.tr("Cache Clear Failed"),
+                        self.tr(
+                            "Cache could not be cleared for vector '{}'. "
+                            "Please try again while vector is not open after restarting QGIS"
+                        ).format(self.vector.name),
+                    )
 
             except Exception as e:
                 QgsMessageLog.logMessage(
@@ -606,12 +601,26 @@ class DbRoot(QgsDataItem):
         if confirm == QMessageBox.Yes:
             try:
                 # Get cache directory path
-                local_cache.clear_all()
-                QgsMessageLog.logMessage(
-                    self.tr("Cache cleared successfully!"),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+                cache_cleared = local_cache.clear_all()
+
+                if cache_cleared:
+                    QgsMessageLog.logMessage(
+                        self.tr("All cache files cleared successfully."),
+                        constants.LOG_CATEGORY,
+                        Qgis.Info,
+                    )
+                    iface.messageBar().pushSuccess(
+                        self.tr("Success"),
+                        self.tr("All cache files have been cleared successfully."),
+                    )
+                else:
+                    iface.messageBar().pushMessage(
+                        self.tr("Cache Clear Failed"),
+                        self.tr(
+                            "Some cache files could not be cleared. "
+                            "Please try again after closing QGIS or ensure no files are locked."
+                        ),
+                    )
 
             except Exception as e:
                 QgsMessageLog.logMessage(

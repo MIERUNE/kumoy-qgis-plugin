@@ -250,9 +250,12 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
         return None
 
 
-def clear_all():
-    """Clear cached GPKG files"""
+def clear_all() -> bool:
+    """Clear all cached GPKG files. Returns True if all files were deleted successfully."""
+
     cache_dir = _get_cache_dir()
+    success = True
+
     # Remove all files in cache directory
     for filename in os.listdir(cache_dir):
         file_path = os.path.join(cache_dir, filename)
@@ -267,26 +270,43 @@ def clear_all():
                 LOG_CATEGORY,
                 Qgis.Info,
             )
-            continue
+            success = False  # Flag unsucceed deletion
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Unexpected error for {file_path}: {e}",
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            success = False  # Flag unsucceed
+
+        return success
 
 
-def clear(vector_id: str):
-    """Clear cache for a specific vector."""
+def clear(vector_id: str) -> bool:
+    """Clear cache for a specific vector.
+    Returns True if all files were deleted successfully, False otherwise.
+    """
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
     gpkg_shm_file = f"{cache_file}-shm"
     gpkg_wal_file = f"{cache_file}-wal"
     gpkg_journal_file = f"{cache_file}-journal"
 
+    files_to_remove = [cache_file, gpkg_shm_file, gpkg_wal_file, gpkg_journal_file]
+    success = True
+
     # Remove cache file if it exists
-    if os.path.exists(cache_file):
-        os.unlink(cache_file)
-    if os.path.exists(gpkg_shm_file):
-        os.unlink(gpkg_shm_file)
-    if os.path.exists(gpkg_wal_file):
-        os.unlink(gpkg_wal_file)
-    if os.path.exists(gpkg_journal_file):
-        os.unlink(gpkg_journal_file)
+    for f in files_to_remove:
+        if os.path.exists(f):
+            try:
+                os.unlink(f)
+            except PermissionError as e:
+                QgsMessageLog.logMessage(
+                    f"Ignored file access error for {f}: {e}", LOG_CATEGORY, Qgis.Info
+                )
+                success = False  # Flag unsucceed deletion
 
     # Delete last updated timestamp
     delete_last_updated(vector_id)
+
+    return success
