@@ -25,6 +25,7 @@ from qgis.utils import iface
 from ...imgs import BROWSER_MAP_ICON
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from .utils import ErrorItem
 
 
@@ -117,15 +118,16 @@ class StyledMapItem(QgsDataItem):
         try:
             styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(str(e)),
+                self.tr("Error loading map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error loading map: {}").format(str(e)),
+                self.tr("Error loading map: {}").format(error_text),
             )
             return
 
@@ -192,15 +194,16 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error updating map: {}").format(str(e)),
+                self.tr("Error updating map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error updating map: {}").format(str(e)),
+                self.tr("Error updating map: {}").format(error_text),
             )
             return
 
@@ -239,13 +242,16 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(str(e)),
+                self.tr("Error saving map: {}").format(error_text),
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error saving map: {}").format(str(e))
+                None,
+                self.tr("Error"),
+                self.tr("Error saving map: {}").format(error_text),
             )
             return
 
@@ -289,8 +295,9 @@ class StyledMapItem(QgsDataItem):
                 )
 
             except Exception as e:
+                error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
-                    self.tr("Error deleting map: {}").format(str(e)),
+                    self.tr("Error deleting map: {}").format(error_text),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
@@ -417,37 +424,38 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Map '{}' has been created successfully.").format(name),
             )
         except Exception as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error adding map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error adding map: {error_text}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
-                None, self.tr("Error"), self.tr("Error adding map: {}").format(str(e))
+                None,
+                self.tr("Error"),
+                self.tr("Error adding map: {}").format(error_text),
             )
 
     def createChildren(self):
         """子アイテムを作成する"""
-        try:
-            project_id = get_settings().selected_project_id
+        project_id = get_settings().selected_project_id
 
-            if not project_id:
-                return [ErrorItem(self, self.tr("No project selected"))]
+        if not project_id:
+            return [ErrorItem(self, self.tr("No project selected"))]
 
-            # プロジェクトのスタイルマップを取得
-            styled_maps = api.project_styledmap.get_styled_maps(project_id)
+        # プロジェクトのスタイルマップを取得
+        styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
-            if not styled_maps:
-                return [ErrorItem(self, self.tr("No maps available."))]
+        if not styled_maps:
+            return [ErrorItem(self, self.tr("No maps available."))]
 
-            children = []
-            for styled_map in styled_maps:
-                path = f"{self.path()}/{styled_map.id}"
-                child = StyledMapItem(self, path, styled_map, self.project.role)
-                children.append(child)
+        children = []
+        for styled_map in styled_maps:
+            path = f"{self.path()}/{styled_map.id}"
+            child = StyledMapItem(self, path, styled_map, self.project.role)
+            children.append(child)
 
-            return children
-
-        except Exception as e:
-            return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
+        return children
 
 
 def get_qgisproject_str() -> str:

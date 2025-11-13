@@ -38,6 +38,7 @@ from ...imgs import (
 )
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from ...strato.provider import local_cache
 from .utils import ErrorItem
 
@@ -123,6 +124,15 @@ class VectorItem(QgsDataItem):
 
     def add_to_map(self):
         """Add vector layer to QGIS map"""
+        try:
+            # memo: Strato Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
+            api.project_vector.get_vector(self.vector.projectId, self.vector.id)
+        except Exception as e:
+            msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+            return
+
         # Create layer
         layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
         layer.extent()  # HACK: to ensure extent is calculated - Issue #224
@@ -251,14 +261,14 @@ class VectorItem(QgsDataItem):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error updating vector: {str(e)}",
+                f"Error updating vector: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error updating vector: {}").format(str(e)),
+                self.tr("Error updating vector: {}").format(format_api_error(e)),
             )
             return
 
@@ -285,14 +295,14 @@ class VectorItem(QgsDataItem):
                 api.project_vector.delete_vector(self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Error deleting vector: {str(e)}",
+                    f"Error deleting vector: {format_api_error(e)}",
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Error deleting vector: {}").format(str(e)),
+                    self.tr("Error deleting vector: {}").format(format_api_error(e)),
                 )
                 return
 
@@ -381,7 +391,7 @@ class VectorItem(QgsDataItem):
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Error clearing cache for vector '{}': {}").format(
-                        self.vector.name, str(e)
+                        self.vector.name, format_api_error(e)
                     ),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
@@ -389,7 +399,7 @@ class VectorItem(QgsDataItem):
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to clear cache: {}").format(str(e)),
+                    self.tr("Failed to clear cache: {}").format(format_api_error(e)),
                 )
 
 
@@ -526,30 +536,24 @@ class DbRoot(QgsDataItem):
             self.refresh()
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding vector: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
+                f"Error adding vector: {format_api_error(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error adding vector: {}").format(str(e)),
+                self.tr("Error adding vector: {}").format(format_api_error(e)),
             )
 
     def upload_vector(self):
-        """QGISアクティブレイヤーの地物をサーバーへアップロード"""
-        try:
-            # Execute with dialog
-            result = processing.execAlgorithmDialog("strato:uploadvector")
+        """processingを利用してベクターレイヤーをアップロード"""
+        # Execute with dialog
+        result = processing.execAlgorithmDialog("strato:uploadvector")
 
-            # After dialog closes, refresh if needed
-            if result:
-                self.refresh()
-
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Error uploading vector: {}").format(str(e)),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
+        # After dialog closes, refresh if needed
+        if result:
+            self.refresh()
 
     def createChildren(self):
         """Create child items for vectors in project"""
@@ -563,7 +567,7 @@ class DbRoot(QgsDataItem):
             vectors = api.project_vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading vectors: {str(e)}",
+                f"Error loading vectors: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -624,12 +628,12 @@ class DbRoot(QgsDataItem):
 
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Error clearing cache: {}").format(str(e)),
+                    self.tr("Error clearing cache: {}").format(format_api_error(e)),
                     constants.LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     None,
                     self.tr("Error"),
-                    self.tr("Failed to clear cache: {}").format(str(e)),
+                    self.tr("Failed to clear cache: {}").format(format_api_error(e)),
                 )

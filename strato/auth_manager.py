@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 from qgis.PyQt.QtCore import QObject, QTimer, pyqtSignal
 
 from . import api
+from .api.error import format_api_error
 
 # OAuth2 Configuration Constants
 REDIRECT_URL = "http://localhost:9248/callback"
@@ -268,7 +269,7 @@ class AuthManager(QObject):
             self.server_thread.start()
             return True
         except Exception as e:
-            self.error = str(e)
+            self.error = format_api_error(e)
             return False
 
     def stop_local_server(self):
@@ -493,8 +494,9 @@ class _Handler(BaseHTTPRequestHandler):
                                 print(f"Error decoding JWT payload: {e}")
 
             except Exception as e:
-                self.server.error = f"Error exchanging code for tokens: {str(e)}"
-                print(f"Token exchange error: {e}")
+                error_text = format_api_error(e)
+                self.server.error = f"Error exchanging code for tokens: {error_text}"
+                print(f"Token exchange error: {error_text}")
 
         # トークンが設定された場合、wait_for_callbackがトークンを検出できるように少し待機
         if hasattr(self.server, "id_token") and self.server.id_token:
