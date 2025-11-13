@@ -2,7 +2,7 @@ import json
 import os
 import urllib.request
 import webbrowser
-from urllib.error import URLError
+from urllib.error import HTTPError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
@@ -238,14 +238,13 @@ class DialogLogin(QDialog):
                 cognito_client_id,
                 port=9248,
             )
-        except Exception as e:
+        except HTTPError as e:
             error_body = e.read().decode("utf-8")
             try:
                 error_data = json.loads(error_body)
                 error_message = error_data.get("message", str(e))
             except Exception:
                 error_message = str(e)
-
             QgsMessageLog.logMessage(
                 f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
             )
@@ -256,6 +255,16 @@ class DialogLogin(QDialog):
                 self.tr("An error occurred while logging in: {}").format(
                     str(error_message)
                 ),
+            )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error during login: {str(e)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit network error
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                self.tr("An error occurred while logging in: {}").format(str(e)),
             )
 
             # Reset status and re-enable login button on error
