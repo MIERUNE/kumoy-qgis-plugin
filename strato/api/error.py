@@ -1,3 +1,12 @@
+from qgis.PyQt.QtCore import QCoreApplication
+
+
+def _tr(message: str) -> str:
+    """Translate API error strings lazily via Qt."""
+
+    return QCoreApplication.translate("StratoApiError", message)
+
+
 class AppError(Exception):
     """Custom exception for API errors"""
 
@@ -52,13 +61,27 @@ class ConflictError(Exception):
         super().__init__(message)
 
 
-class UnderMaintenanceError(Exception):
+class UserFacingApiError(Exception):
+    """API errors that should be surfaced to end users."""
+
+    def __init__(self, message: str, error: str = "", user_message: str = ""):
+        self.message = message
+        self.error = error
+        self.user_message = user_message or message
+        super().__init__(message)
+
+
+class UnderMaintenanceError(UserFacingApiError):
     """Exception for under maintenance errors"""
 
     def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(message)
+        super().__init__(
+            message,
+            error,
+            _tr(
+                "STRATO is currently undergoing maintenance. Please try again in a few minutes."
+            ),
+        )
 
 
 def raise_error(error: dict):

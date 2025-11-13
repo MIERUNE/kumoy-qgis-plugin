@@ -38,8 +38,9 @@ from ...imgs import (
 )
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
+from ...strato.api.error_handler import UserFacingAbort, api_guard
 from ...strato.provider import local_cache
-from .utils import ErrorItem
+from .utils import ErrorItem, notify_browser_error
 
 
 class VectorItem(QgsDataItem):
@@ -244,11 +245,17 @@ class VectorItem(QgsDataItem):
 
         # Update vector
         try:
-            updated_vector = api.project_vector.update_vector(
-                self.vector.projectId,
-                self.vector.id,
-                api.project_vector.UpdateVectorOptions(name=new_name),
-            )
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                updated_vector = api.project_vector.update_vector(
+                    self.vector.projectId,
+                    self.vector.id,
+                    api.project_vector.UpdateVectorOptions(name=new_name),
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error updating vector: {str(e)}",
@@ -282,7 +289,13 @@ class VectorItem(QgsDataItem):
         if confirm == QMessageBox.Yes:
             # Delete vector
             try:
-                api.project_vector.delete_vector(self.vector.id)
+                with api_guard(
+                    notify_user=notify_browser_error,
+                    rethrow_as=UserFacingAbort,
+                ):
+                    api.project_vector.delete_vector(self.vector.id)
+            except UserFacingAbort:
+                return
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {str(e)}",
@@ -435,85 +448,97 @@ class DbRoot(QgsDataItem):
     def new_vector(self):
         """Create a new vector layer in the project"""
         try:
-            # check plan limits before creating vector
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_vectors = api.project_vector.get_vectors(self.project.id)
-            upload_vector_count = len(current_vectors) + 1
-            if upload_vector_count > plan_limit.maxVectors:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                # check plan limits before creating vector
+                plan_limit = api.plan.get_plan_limits(
+                    self.organization.subscriptionPlan
+                )
+                current_vectors = api.project_vector.get_vectors(self.project.id)
+                upload_vector_count = len(current_vectors) + 1
+                if upload_vector_count > plan_limit.maxVectors:
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr(
+                            "You have reached your plan's limit of {} vector layers. "
+                            "Please delete one or upgrade your plan to continue."
+                        ).format(plan_limit.maxVectors),
+                    )
+                    return
+
+                dialog = QDialog()
+                dialog.setWindowTitle(self.tr("Create New Vector Layer"))
+                dialog.resize(400, 200)
+
+                # Create layout
+                layout = QVBoxLayout()
+                form_layout = QFormLayout()
+
+                # Name field
+                name_field = QLineEdit()
+                name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
+                form_layout.addRow(self.tr("Name:"), name_field)
+
+                # Type field
+                type_field = QComboBox()
+                type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
+                form_layout.addRow(self.tr("Geometry Type:"), type_field)
+
+                # Add description
+                description = QLabel(
+                    self.tr("This will create an empty vector layer in the project.")
+                )
+                description.setWordWrap(True)
+
+                # Buttons
+                button_box = QDialogButtonBox(
+                    QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+                )
+                button_box.accepted.connect(dialog.accept)
+                button_box.rejected.connect(dialog.reject)
+
+                # Add to layout
+                layout.addLayout(form_layout)
+                layout.addWidget(description)
+                layout.addWidget(button_box)
+                dialog.setLayout(layout)
+
+                # Show dialog
+                result = dialog.exec_()
+
+                if not result:
+                    return  # User canceled
+
+                # Get values
+                name = name_field.text()
+                vector_type = type_field.currentText()
+
+                if not name:
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr("Please enter a name for your vector layer."),
+                    )
+                    return
+
+                options = api.project_vector.AddVectorOptions(
+                    name=name, type=vector_type
+                )
+                api.project_vector.add_vector(self.project.id, options)
+                QgsMessageLog.logMessage(
                     self.tr(
-                        "You have reached your plan's limit of {} vector layers. "
-                        "Please delete one or upgrade your plan to continue."
-                    ).format(plan_limit.maxVectors),
+                        "Successfully created vector layer '{}' in project '{}'"
+                    ).format(name, self.project.id),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
                 )
-                return
-
-            dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Create New Vector Layer"))
-            dialog.resize(400, 200)
-
-            # Create layout
-            layout = QVBoxLayout()
-            form_layout = QFormLayout()
-
-            # Name field
-            name_field = QLineEdit()
-            name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
-            form_layout.addRow(self.tr("Name:"), name_field)
-
-            # Type field
-            type_field = QComboBox()
-            type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-            form_layout.addRow(self.tr("Geometry Type:"), type_field)
-
-            # Add description
-            description = QLabel(
-                self.tr("This will create an empty vector layer in the project.")
-            )
-            description.setWordWrap(True)
-
-            # Buttons
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-
-            # Add to layout
-            layout.addLayout(form_layout)
-            layout.addWidget(description)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
-
-            # Show dialog
-            result = dialog.exec_()
-
-            if not result:
-                return  # User canceled
-
-            # Get values
-            name = name_field.text()
-            vector_type = type_field.currentText()
-
-            if not name:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Please enter a name for your vector layer."),
-                )
-                return
-
-            options = api.project_vector.AddVectorOptions(name=name, type=vector_type)
-            api.project_vector.add_vector(self.project.id, options)
-            QgsMessageLog.logMessage(
-                self.tr(
-                    "Successfully created vector layer '{}' in project '{}'"
-                ).format(name, self.project.id),
-                constants.LOG_CATEGORY,
-                Qgis.Info,
-            )
-            # Refresh to show new vector
-            self.refresh()
+                # Refresh to show new vector
+                self.refresh()
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error adding vector: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
@@ -550,7 +575,13 @@ class DbRoot(QgsDataItem):
 
         # Get vectors for this project
         try:
-            vectors = api.project_vector.get_vectors(project_id)
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                vectors = api.project_vector.get_vectors(project_id)
+        except UserFacingAbort:
+            return [ErrorItem(self, self.tr("STRATO is temporarily unavailable"))]
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading vectors: {str(e)}",

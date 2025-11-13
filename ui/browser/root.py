@@ -14,6 +14,7 @@ from ...imgs import MAIN_ICON
 from ...pyqt_version import exec_dialog
 from ...settings_manager import get_settings
 from ...strato import api, constants
+from ...strato.api.error_handler import UserFacingAbort, api_guard
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
@@ -70,19 +71,33 @@ class RootCollection(QgsDataCollectionItem):
 
         # Get organization and project details
         try:
-            self.organization_data = api.organization.get_organization(
-                settings.selected_organization_id
-            )
-            self.project_data = api.project.get_project(settings.selected_project_id)
-            self.setName(
-                f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
-            )
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                self.organization_data = api.organization.get_organization(
+                    settings.selected_organization_id
+                )
+                self.project_data = api.project.get_project(
+                    settings.selected_project_id
+                )
+                self.setName(
+                    f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error reloading organization/project data: {str(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Warning,
             )
+
+    def _notify_user_facing_error(self, message: str) -> None:
+        iface.messageBar().pushCritical(
+            self.tr("STRATO Maintenance"),
+            message,
+        )
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""

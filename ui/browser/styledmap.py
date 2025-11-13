@@ -25,7 +25,8 @@ from qgis.utils import iface
 from ...imgs import BROWSER_MAP_ICON
 from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
-from .utils import ErrorItem
+from ...strato.api.error_handler import UserFacingAbort, api_guard
+from .utils import ErrorItem, notify_browser_error
 
 
 class StyledMapItem(QgsDataItem):
@@ -115,7 +116,15 @@ class StyledMapItem(QgsDataItem):
                 return
 
         try:
-            styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                styled_map_detail = api.project_styledmap.get_styled_map(
+                    self.styled_map.id
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Error loading map: {}").format(str(e)),
@@ -183,14 +192,20 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
-                self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
-                    name=new_name,
-                    isPublic=new_is_public,
-                ),
-            )
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                # スタイルマップ上書き保存
+                updated_styled_map = api.project_styledmap.update_styled_map(
+                    self.styled_map.id,
+                    api.project_styledmap.UpdateStyledMapOptions(
+                        name=new_name,
+                        isPublic=new_is_public,
+                    ),
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Error updating map: {}").format(str(e)),
@@ -232,12 +247,18 @@ class StyledMapItem(QgsDataItem):
             new_qgisproject = get_qgisproject_str()
 
             # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
-                self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
-            )
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                updated_styled_map = api.project_styledmap.update_styled_map(
+                    self.styled_map.id,
+                    api.project_styledmap.UpdateStyledMapOptions(
+                        qgisproject=new_qgisproject,
+                    ),
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Error saving map: {}").format(str(e)),
@@ -277,9 +298,12 @@ class StyledMapItem(QgsDataItem):
         if confirm == QMessageBox.Yes:
             # スタイルマップ削除
             try:
-                api.project_styledmap.delete_styled_map(self.styled_map.id)
+                with api_guard(
+                    notify_user=notify_browser_error,
+                    rethrow_as=UserFacingAbort,
+                ):
+                    api.project_styledmap.delete_styled_map(self.styled_map.id)
 
-                # 親アイテムを上書き保存して最新のリストを表示
                 self.parent().refresh()
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
@@ -287,6 +311,8 @@ class StyledMapItem(QgsDataItem):
                         self.styled_map.name
                     ),
                 )
+            except UserFacingAbort:
+                return
 
             except Exception as e:
                 QgsMessageLog.logMessage(
@@ -343,22 +369,30 @@ class StyledMapRoot(QgsDataItem):
         """新しいスタイルマップを追加する"""
 
         try:
-            # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_styled_maps = api.project_styledmap.get_styled_maps(self.project.id)
-            current_styled_map_count = len(current_styled_maps) + 1
-            if current_styled_map_count > plan_limit.maxStyledMaps:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr(
-                        "Cannot create new map. Your plan allows up to {} maps, "
-                        "but you have reached the limit."
-                    ).format(plan_limit.maxStyledMaps),
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                # Check plan limits before creating styled map
+                plan_limit = api.plan.get_plan_limits(
+                    self.organization.subscriptionPlan
                 )
-                return
+                current_styled_maps = api.project_styledmap.get_styled_maps(
+                    self.project.id
+                )
+                current_styled_map_count = len(current_styled_maps) + 1
+                if current_styled_map_count > plan_limit.maxStyledMaps:
+                    QMessageBox.critical(
+                        None,
+                        self.tr("Error"),
+                        self.tr(
+                            "Cannot create new map. Your plan allows up to {} maps, "
+                            "but you have reached the limit."
+                        ).format(plan_limit.maxStyledMaps),
+                    )
+                    return
 
-            qgisproject = get_qgisproject_str()
+                qgisproject = get_qgisproject_str()
 
             # ダイアログ作成
             dialog = QDialog()
@@ -399,23 +433,25 @@ class StyledMapRoot(QgsDataItem):
             if not name:
                 return
 
-            # スタイルマップ作成
-            new_styled_map = api.project_styledmap.add_styled_map(
-                self.project.id,
-                api.project_styledmap.AddStyledMapOptions(
-                    name=name,
-                    qgisproject=qgisproject,
-                ),
-            )
+                # スタイルマップ作成
+                new_styled_map = api.project_styledmap.add_styled_map(
+                    self.project.id,
+                    api.project_styledmap.AddStyledMapOptions(
+                        name=name,
+                        qgisproject=qgisproject,
+                    ),
+                )
 
-            # 保存完了後のUI更新
-            QgsProject.instance().setTitle(new_styled_map.name)
-            QgsProject.instance().setDirty(False)
-            self.refresh()
-            iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("Map '{}' has been created successfully.").format(name),
-            )
+                # 保存完了後のUI更新
+                QgsProject.instance().setTitle(new_styled_map.name)
+                QgsProject.instance().setDirty(False)
+                self.refresh()
+                iface.messageBar().pushSuccess(
+                    self.tr("Success"),
+                    self.tr("Map '{}' has been created successfully.").format(name),
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error adding map: {str(e)}", constants.LOG_CATEGORY, Qgis.Critical
@@ -433,7 +469,11 @@ class StyledMapRoot(QgsDataItem):
                 return [ErrorItem(self, self.tr("No project selected"))]
 
             # プロジェクトのスタイルマップを取得
-            styled_maps = api.project_styledmap.get_styled_maps(project_id)
+            with api_guard(
+                notify_user=notify_browser_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                styled_maps = api.project_styledmap.get_styled_maps(project_id)
 
             if not styled_maps:
                 return [ErrorItem(self, self.tr("No maps available."))]
@@ -446,6 +486,8 @@ class StyledMapRoot(QgsDataItem):
 
             return children
 
+        except UserFacingAbort:
+            return [ErrorItem(self, self.tr("STRATO is temporarily unavailable"))]
         except Exception as e:
             return [ErrorItem(self, self.tr("Error: {}").format(str(e)))]
 

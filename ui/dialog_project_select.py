@@ -27,6 +27,7 @@ from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..pyqt_version import QT_USER_ROLE
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.error_handler import UserFacingAbort, api_guard
 from ..strato.constants import LOG_CATEGORY
 from .remote_image_label import RemoteImageLabel
 
@@ -85,6 +86,13 @@ class ProjectSelectDialog(QDialog):
         layout.addLayout(self.button_panel["layout"])
 
         self.setLayout(layout)
+
+    def _notify_user_facing_error(self, message: str) -> None:
+        QMessageBox.warning(
+            self,
+            self.tr("STRATO Maintenance"),
+            message,
+        )
 
     def _create_account_org_panel(self):
         account_org_layout = QGridLayout()
@@ -271,10 +279,16 @@ class ProjectSelectDialog(QDialog):
     def load_organizations(self):
         """Load organizations into the combo box"""
         try:
-            self.account_org_panel["org_combo"].clear()
-            organizations = api.organization.get_organizations()
-            for org in organizations:
-                self.account_org_panel["org_combo"].addItem(org.name, org)
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                self.account_org_panel["org_combo"].clear()
+                organizations = api.organization.get_organizations()
+                for org in organizations:
+                    self.account_org_panel["org_combo"].addItem(org.name, org)
+        except UserFacingAbort:
+            return
         except Exception as e:
             msg = self.tr("Error loading organizations: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
@@ -292,10 +306,16 @@ class ProjectSelectDialog(QDialog):
     def load_organization_detail(self, org: api.organization.Organization):
         """Load and display organization detail including usage"""
         try:
-            # Store current organization ID
-            self.current_org_id = org.id
-            # Fetch organization details
-            org_detail = api.organization.get_organization(org.id)
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                # Store current organization ID
+                self.current_org_id = org.id
+                # Fetch organization details
+                org_detail = api.organization.get_organization(org.id)
+        except UserFacingAbort:
+            return
         except Exception as e:
             msg = self.tr("Failed to load organization details. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
@@ -313,18 +333,26 @@ class ProjectSelectDialog(QDialog):
     def load_user_info(self):
         """Load current user information"""
         try:
-            user = api.user.get_me()
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                user = api.user.get_me()
 
-            self.account_org_panel["user_name_label"].setText(user.name)
+                self.account_org_panel["user_name_label"].setText(user.name)
 
-            # Set avatar image if available
-            if user.avatarImage:
-                avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
-                self.account_org_panel["avatar_label"].load(avatar_url)
-            # if no image, set avatar initial
-            elif len(user.name) > 0:
-                initial = user.name[0].upper()
-                self.account_org_panel["avatar_label"].setText(initial)
+                # Set avatar image if available
+                if user.avatarImage:
+                    avatar_url = (
+                        api.config.get_api_config().SERVER_URL + user.avatarImage
+                    )
+                    self.account_org_panel["avatar_label"].load(avatar_url)
+                # if no image, set avatar initial
+                elif len(user.name) > 0:
+                    initial = user.name[0].upper()
+                    self.account_org_panel["avatar_label"].setText(initial)
+        except UserFacingAbort:
+            return
         except Exception as e:
             msg = self.tr("Failed to load user information. {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
@@ -372,8 +400,14 @@ class ProjectSelectDialog(QDialog):
 
         # Get plan limits from API
         try:
-            plan_type = org_detail.subscriptionPlan
-            plan_limits = api.plan.get_plan_limits(plan_type)
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                plan_type = org_detail.subscriptionPlan
+                plan_limits = api.plan.get_plan_limits(plan_type)
+        except UserFacingAbort:
+            return
         except Exception as e:
             msg = self.tr("Failed to retrieve plan limits: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
@@ -463,23 +497,31 @@ class ProjectSelectDialog(QDialog):
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
         try:
-            self.project_section["project_list"].clear()
-            projects = api.project.get_projects_by_organization(org.id)
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                self.project_section["project_list"].clear()
+                projects = api.project.get_projects_by_organization(org.id)
 
-            for project_item in projects:
-                # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self.current_org_id, self)
+                for project_item in projects:
+                    # Create custom widget
+                    item_widget = ProjectItemWidget(
+                        project_item, self.current_org_id, self
+                    )
 
-                # Create list item
-                list_item = QListWidgetItem(self.project_section["project_list"])
-                list_item.setSizeHint(item_widget.sizeHint())
-                list_item.setData(QT_USER_ROLE, project_item)
+                    # Create list item
+                    list_item = QListWidgetItem(self.project_section["project_list"])
+                    list_item.setSizeHint(item_widget.sizeHint())
+                    list_item.setData(QT_USER_ROLE, project_item)
 
-                # Set the custom widget
-                self.project_section["project_list"].addItem(list_item)
-                self.project_section["project_list"].setItemWidget(
-                    list_item, item_widget
-                )
+                    # Set the custom widget
+                    self.project_section["project_list"].addItem(list_item)
+                    self.project_section["project_list"].setItemWidget(
+                        list_item, item_widget
+                    )
+        except UserFacingAbort:
+            return
 
         except Exception as e:
             msg = self.tr("Failed to load projects: {}").format(str(e))
@@ -547,26 +589,34 @@ class ProjectSelectDialog(QDialog):
             return
 
         try:
-            new_project = api.project.create_project(
-                organization_id=org.id, name=project_name, description=""
-            )
-            QgsMessageLog.logMessage(
-                self.tr("Project '{}' created successfully").format(project_name),
-                LOG_CATEGORY,
-                Qgis.Info,
-            )
-            # refresh project list and select the new project
-            self.load_organization_detail(org)
-            self.load_projects(org)
-            self._select_project_by_id(new_project.id)
+            with api_guard(
+                notify_user=self._notify_user_facing_error,
+                rethrow_as=UserFacingAbort,
+            ):
+                new_project = api.project.create_project(
+                    organization_id=org.id, name=project_name, description=""
+                )
+                QgsMessageLog.logMessage(
+                    self.tr("Project '{}' created successfully").format(
+                        project_name
+                    ),
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                # refresh project list and select the new project
+                self.load_organization_detail(org)
+                self.load_projects(org)
+                self._select_project_by_id(new_project.id)
 
-            QMessageBox.information(
-                self,
-                self.tr("Project Created"),
-                self.tr("Project '{}' has been created successfully.").format(
-                    project_name
-                ),
-            )
+                QMessageBox.information(
+                    self,
+                    self.tr("Project Created"),
+                    self.tr("Project '{}' has been created successfully.").format(
+                        project_name
+                    ),
+                )
+        except UserFacingAbort:
+            return
         except Exception as e:
             msg = self.tr("Failed to create project: {}").format(str(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
@@ -777,31 +827,37 @@ class ProjectItemWidget(QWidget):
 
         if reply == QMessageBox.Yes:
             try:
-                # Call API to delete project
-                api.project.delete_project(self.project.id)
+                with api_guard(
+                    notify_user=self.parent_dialog._notify_user_facing_error,
+                    rethrow_as=UserFacingAbort,
+                ):
+                    # Call API to delete project
+                    api.project.delete_project(self.project.id)
 
-                QgsMessageLog.logMessage(
-                    self.tr("Project '{}' deleted successfully.").format(
-                        self.project.name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
+                    QgsMessageLog.logMessage(
+                        self.tr("Project '{}' deleted successfully.").format(
+                            self.project.name
+                        ),
+                        LOG_CATEGORY,
+                        Qgis.Info,
+                    )
 
-                self.parent_dialog.handle_project_deleted()
-                # Refresh the project list
-                org = self.parent_dialog.get_selected_organization()
-                if org:
-                    self.parent_dialog.load_organization_detail(org)
-                    self.parent_dialog.load_projects(org)
+                    self.parent_dialog.handle_project_deleted()
+                    # Refresh the project list
+                    org = self.parent_dialog.get_selected_organization()
+                    if org:
+                        self.parent_dialog.load_organization_detail(org)
+                        self.parent_dialog.load_projects(org)
 
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Deleted"),
-                    self.tr("Project '{}' has been deleted successfully.").format(
-                        self.project.name
-                    ),
-                )
+                    QMessageBox.information(
+                        self.parent_dialog,
+                        self.tr("Project Deleted"),
+                        self.tr("Project '{}' has been deleted successfully.").format(
+                            self.project.name
+                        ),
+                    )
+            except UserFacingAbort:
+                return
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Failed to delete project: {}").format(str(e)),
@@ -829,37 +885,43 @@ class ProjectItemWidget(QWidget):
 
         if ok and new_name and new_name != self.project.name:
             try:
-                # Call API to update project
-                updated_project = api.project.update_project(
-                    project_id=self.project.id, name=new_name, description=""
-                )
+                with api_guard(
+                    notify_user=self.parent_dialog._notify_user_facing_error,
+                    rethrow_as=UserFacingAbort,
+                ):
+                    # Call API to update project
+                    updated_project = api.project.update_project(
+                        project_id=self.project.id, name=new_name, description=""
+                    )
 
-                QgsMessageLog.logMessage(
-                    self.tr("Project '{}' renamed to '{}' successfully").format(
-                        self.project.name, new_name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
+                    QgsMessageLog.logMessage(
+                        self.tr("Project '{}' renamed to '{}' successfully").format(
+                            self.project.name, new_name
+                        ),
+                        LOG_CATEGORY,
+                        Qgis.Info,
+                    )
 
-                # Update the current project data
-                self.project = updated_project
+                    # Update the current project data
+                    self.project = updated_project
 
-                # Refresh the project list
-                if self.parent_dialog:
-                    org = self.parent_dialog.get_selected_organization()
-                    if org:
-                        self.parent_dialog.load_projects(org)
-                        # Re-select the updated project
-                        self.parent_dialog._select_project_by_id(self.project.id)
+                    # Refresh the project list
+                    if self.parent_dialog:
+                        org = self.parent_dialog.get_selected_organization()
+                        if org:
+                            self.parent_dialog.load_projects(org)
+                            # Re-select the updated project
+                            self.parent_dialog._select_project_by_id(self.project.id)
 
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Updated"),
-                    self.tr("Project has been renamed to '{}' successfully.").format(
-                        new_name
-                    ),
-                )
+                    QMessageBox.information(
+                        self.parent_dialog,
+                        self.tr("Project Updated"),
+                        self.tr(
+                            "Project has been renamed to '{}' successfully."
+                        ).format(new_name),
+                    )
+            except UserFacingAbort:
+                return
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Failed to update project: {}").format(str(e)),
