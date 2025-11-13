@@ -256,9 +256,18 @@ def clear_all():
     # Remove all files in cache directory
     for filename in os.listdir(cache_dir):
         file_path = os.path.join(cache_dir, filename)
-        os.unlink(file_path)
-        project_id = filename.split(".gpkg")[0]
-        delete_last_updated(project_id)
+        try:
+            os.unlink(file_path)
+            project_id = filename.split(".gpkg")[0]
+            delete_last_updated(project_id)
+        except PermissionError as e:
+            # Ignore Permission denied error and continue
+            QgsMessageLog.logMessage(
+                f"Ignored file access error: {e}",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
+            continue
 
 
 def clear(vector_id: str):
