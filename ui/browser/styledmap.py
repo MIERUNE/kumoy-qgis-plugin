@@ -22,9 +22,9 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ..imgs import BROWSER_MAP_ICON
-from ..settings_manager import get_settings, store_setting
-from ..strato import api, constants
+from ...imgs import BROWSER_MAP_ICON
+from ...settings_manager import get_settings, store_setting
+from ...strato import api, constants
 from .utils import ErrorItem
 
 

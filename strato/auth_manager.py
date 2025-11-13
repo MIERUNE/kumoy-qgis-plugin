@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from qgis.PyQt.QtCore import QObject, QTimer, pyqtSignal
 
-from . import api, constants
+from . import api
 
 # OAuth2 Configuration Constants
 REDIRECT_URL = "http://localhost:9248/callback"

@@ -52,6 +52,15 @@ class ConflictError(Exception):
         super().__init__(f"{message} : {error}")
 
 
+class UnderMaintenanceError(Exception):
+    """Exception for under maintenance errors"""
+
+    def __init__(self, message: str, error: str = ""):
+        self.message = message
+        self.error = error
+        super().__init__(message)
+
+
 def raise_error(error: dict):
     """
     APIのエラーレスポンスを受け取り、適切な例外を発生させる
@@ -66,6 +75,7 @@ def raise_error(error: dict):
         UnauthorizedError: _description_
         QuotaExceededError: _description_
         ConflictError: _description_
+        UnderMaintenanceError: _description_
         Exception: _description_
     """
 
@@ -83,5 +93,7 @@ def raise_error(error: dict):
         raise QuotaExceededError(message, error.get("error", ""))
     elif message == "Conflict":
         raise ConflictError(message, error.get("error", ""))
+    elif message == "Under Maintenance":
+        raise UnderMaintenanceError(message, error.get("error", ""))
     else:
         raise Exception(error)

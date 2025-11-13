@@ -1,5 +1,3 @@
-import os
-
 from qgis.core import (
     Qgis,
     QgsDataCollectionItem,
@@ -12,14 +10,13 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ..imgs import MAIN_ICON
-from ..settings_manager import get_settings
-from ..strato import api
-from ..strato.constants import BROWSER_ROOT_PATH, LOG_CATEGORY, PLUGIN_NAME
-from ..ui.dialog_account import DialogAccount
-from ..ui.dialog_login import DialogLogin
-from ..ui.dialog_project_select import ProjectSelectDialog
-from ..version import exec_dialog
+from ...imgs import MAIN_ICON
+from ...pyqt_version import exec_dialog
+from ...settings_manager import get_settings
+from ...strato import api, constants
+from ...ui.dialog_account import DialogAccount
+from ...ui.dialog_login import DialogLogin
+from ...ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
 from .vector import DbRoot
 
@@ -31,7 +28,7 @@ class DataItemProvider(QgsDataItemProvider):
         QgsDataItemProvider.__init__(self)
 
     def name(self):
-        return PLUGIN_NAME
+        return constants.PLUGIN_NAME
 
     def capabilities(self):
         return QgsDataProvider.Net
@@ -45,10 +42,12 @@ class RootCollection(QgsDataCollectionItem):
 
     def __init__(self):
         # Initialize with default name, will update with project name later
-        QgsDataCollectionItem.__init__(self, None, PLUGIN_NAME, BROWSER_ROOT_PATH)
+        QgsDataCollectionItem.__init__(
+            self, None, constants.PLUGIN_NAME, constants.BROWSER_ROOT_PATH
+        )
         self.setIcon(MAIN_ICON)
 
-        self.setName(PLUGIN_NAME)
+        self.setName(constants.PLUGIN_NAME)
 
         self.organization_data = None
         self.project_data = None
@@ -76,12 +75,12 @@ class RootCollection(QgsDataCollectionItem):
             )
             self.project_data = api.project.get_project(settings.selected_project_id)
             self.setName(
-                f"{PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+                f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
             )
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error reloading organization/project data: {str(e)}",
-                LOG_CATEGORY,
+                constants.LOG_CATEGORY,
                 Qgis.Warning,
             )
 
@@ -185,7 +184,7 @@ class RootCollection(QgsDataCollectionItem):
             # Reset browser name
             self.organization_data = None
             self.project_data = None
-            self.setName(PLUGIN_NAME)
+            self.setName(constants.PLUGIN_NAME)
             # Refresh to update UI
             self.refreshChildren()
 

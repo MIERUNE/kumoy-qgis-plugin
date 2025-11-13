@@ -4,10 +4,10 @@ from qgis.core import QgsApplication, QgsProviderRegistry
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
-from .browser.root import DataItemProvider
 from .processing.provider import StratoProcessingProvider
 from .strato.constants import PLUGIN_NAME
 from .strato.provider.dataprovider_metadata import StratoProviderMetadata
+from .ui.browser.root import DataItemProvider
 
 
 class StratoPlugin:

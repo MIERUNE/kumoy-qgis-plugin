@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
-from settings_manager import get_settings, store_setting
-
+from ..settings_manager import get_settings, store_setting
 from .api.auth import refresh_token
 
 

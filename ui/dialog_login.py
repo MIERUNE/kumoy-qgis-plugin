@@ -1,8 +1,8 @@
 import json
 import os
 import urllib.request
-from urllib.error import URLError
 import webbrowser
+from urllib.error import URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
@@ -25,7 +25,6 @@ from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
-from ..version import exec_dialog
 from .dialog_login_success import LoginSuccess
 
 
