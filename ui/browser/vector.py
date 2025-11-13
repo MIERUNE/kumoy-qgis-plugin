@@ -397,7 +397,7 @@ class VectorItem(QgsDataItem):
                 )
 
 
-class DbRoot(QgsDataItem):
+class VectorRoot(QgsDataItem):
     """Root item for vectors in a project"""
 
     def __init__(
