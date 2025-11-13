@@ -125,9 +125,7 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         try:
             # memo: Strato Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
-            vector = api.project_vector.get_vector(
-                self.vector.projectId, self.vector.id
-            )
+            api.project_vector.get_vector(self.vector.projectId, self.vector.id)
         except Exception as e:
             msg = self.tr("Error fetching vector: {}").format(str(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
@@ -135,7 +133,7 @@ class VectorItem(QgsDataItem):
             return
 
         # Create layer
-        layer = QgsVectorLayer(vector.uri, vector.name, "strato")
+        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
         layer.extent()  # HACK: to ensure extent is calculated - Issue #224
 
         # Set pixel-based styling
