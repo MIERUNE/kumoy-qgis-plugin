@@ -28,6 +28,7 @@ from qgis.PyQt.QtCore import (
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
 from .. import api, constants
+from ..api.error import format_api_error
 from . import local_cache
 from .feature_iterator import StratoFeatureIterator
 from .feature_source import StratoFeatureSource
@@ -58,7 +59,7 @@ class SyncWorker(QThread):
             )
             self.finished.emit()
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(format_api_error(e))
 
 
 def parse_uri(

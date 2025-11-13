@@ -14,10 +14,12 @@ from ...imgs import MAIN_ICON
 from ...pyqt_version import exec_dialog
 from ...settings_manager import get_settings
 from ...strato import api, constants
+from ...strato.api.error import format_api_error
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
+from .utils import ErrorItem
 from .vector import DbRoot
 
 
@@ -53,8 +55,15 @@ class RootCollection(QgsDataCollectionItem):
         self.project_data = None
 
         self.project_select_dialog = None
+        self.account_setting_dialog = None
 
-        self.load_organization_project()
+        try:
+            self.load_organization_project()
+        except Exception as e:
+            msg = self.tr("Error loading organization/project data: {}").format(
+                format_api_error(e)
+            )
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
 
     def load_organization_project(self):
         self.organization_data = None
@@ -69,20 +78,13 @@ class RootCollection(QgsDataCollectionItem):
             return
 
         # Get organization and project details
-        try:
-            self.organization_data = api.organization.get_organization(
-                settings.selected_organization_id
-            )
-            self.project_data = api.project.get_project(settings.selected_project_id)
-            self.setName(
-                f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
-            )
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error reloading organization/project data: {str(e)}",
-                constants.LOG_CATEGORY,
-                Qgis.Warning,
-            )
+        self.organization_data = api.organization.get_organization(
+            settings.selected_organization_id
+        )
+        self.project_data = api.project.get_project(settings.selected_project_id)
+        self.setName(
+            f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+        )
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -119,7 +121,15 @@ class RootCollection(QgsDataCollectionItem):
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
-        self.load_organization_project()
+        try:
+            self.load_organization_project()
+        except Exception as e:
+            msg = self.tr("Error loading organization/project data: {}").format(
+                format_api_error(e)
+            )
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+
         self.refresh()
         self.depopulate()
 
@@ -153,12 +163,21 @@ class RootCollection(QgsDataCollectionItem):
         prev_project_id = get_settings().selected_project_id
 
         # プロジェクト選択ダイアログは初回時のみ生成、それ以降は再利用する
-        if self.project_select_dialog is None:
-            self.project_select_dialog = ProjectSelectDialog()
-        else:
-            self.project_select_dialog.load_user_info()
-            self.project_select_dialog.load_organizations()
-            self.project_select_dialog.load_saved_selection()
+        try:
+            if self.project_select_dialog is None:
+                self.project_select_dialog = ProjectSelectDialog()
+            else:
+                self.project_select_dialog.load_user_info()
+                self.project_select_dialog.load_organizations()
+                self.project_select_dialog.load_saved_selection()
+        except Exception as e:
+            msg = self.tr("Error loading project selection dialog: {}").format(
+                format_api_error(e)
+            )
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+            return
+
         result = exec_dialog(self.project_select_dialog)
 
         if not result:
@@ -177,8 +196,21 @@ class RootCollection(QgsDataCollectionItem):
 
     def account_settings(self):
         """Show account settings dialog"""
-        dialog = DialogAccount()
-        should_logout = exec_dialog(dialog)
+        try:
+            if self.account_setting_dialog is None:
+                self.account_setting_dialog = DialogAccount()
+            else:
+                self.account_setting_dialog._load_user_info()
+                self.account_setting_dialog._load_server_config()
+        except Exception as e:
+            msg = self.tr("Error loading account settings dialog: {}").format(
+                format_api_error(e)
+            )
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+            return
+
+        should_logout = exec_dialog(self.account_setting_dialog)
 
         if should_logout:
             # Reset browser name
@@ -194,7 +226,12 @@ class RootCollection(QgsDataCollectionItem):
         children = []
 
         if self.organization_data is None or self.project_data is None:
-            return children
+            return [
+                ErrorItem(
+                    self,
+                    self.tr("Error loading organization/project data."),
+                )
+            ]
 
         vector_path = f"{self.path()}/vectors"
         vector_root = DbRoot(

@@ -17,6 +17,7 @@ def handle_blocking_reply(content: QByteArray) -> dict:
     text = str(content.data(), "utf-8")
     if not text.strip():
         return {}
+
     return json.loads(text)
 
 

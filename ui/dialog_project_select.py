@@ -27,6 +27,7 @@ from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..pyqt_version import QT_USER_ROLE
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
+from ..strato.api.error import format_api_error
 from ..strato.constants import LOG_CATEGORY
 from .remote_image_label import RemoteImageLabel
 
@@ -270,15 +271,10 @@ class ProjectSelectDialog(QDialog):
 
     def load_organizations(self):
         """Load organizations into the combo box"""
-        try:
-            self.account_org_panel["org_combo"].clear()
-            organizations = api.organization.get_organizations()
-            for org in organizations:
-                self.account_org_panel["org_combo"].addItem(org.name, org)
-        except Exception as e:
-            msg = self.tr("Error loading organizations: {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+        self.account_org_panel["org_combo"].clear()
+        organizations = api.organization.get_organizations()
+        for org in organizations:
+            self.account_org_panel["org_combo"].addItem(org.name, org)
 
     def on_organization_changed(self, index):
         """Handle organization selection change"""
@@ -297,7 +293,9 @@ class ProjectSelectDialog(QDialog):
             # Fetch organization details
             org_detail = api.organization.get_organization(org.id)
         except Exception as e:
-            msg = self.tr("Failed to load organization details. {}").format(str(e))
+            msg = self.tr("Failed to load organization details. {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(self, self.tr("Error"), msg)
             return
@@ -312,26 +310,18 @@ class ProjectSelectDialog(QDialog):
 
     def load_user_info(self):
         """Load current user information"""
-        try:
-            user = api.user.get_me()
+        user = api.user.get_me()
 
-            self.account_org_panel["user_name_label"].setText(user.name)
+        self.account_org_panel["user_name_label"].setText(user.name)
 
-            # Set avatar image if available
-            if user.avatarImage:
-                avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
-                self.account_org_panel["avatar_label"].load(avatar_url)
-            # if no image, set avatar initial
-            elif len(user.name) > 0:
-                initial = user.name[0].upper()
-                self.account_org_panel["avatar_label"].setText(initial)
-        except Exception as e:
-            msg = self.tr("Failed to load user information. {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, self.tr("Error"), msg)
-            # Fallback to default values
-            self.account_org_panel["user_name_label"].setText("Anonymous")
-            self.account_org_panel["avatar_label"].setText("")
+        # Set avatar image if available
+        if user.avatarImage:
+            avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
+            self.account_org_panel["avatar_label"].load(avatar_url)
+        # if no image, set avatar initial
+        elif len(user.name) > 0:
+            initial = user.name[0].upper()
+            self.account_org_panel["avatar_label"].setText(initial)
 
     def toggle_details(self):
         """Toggle visibility of usage details panel"""
@@ -357,7 +347,7 @@ class ProjectSelectDialog(QDialog):
         try:
             webbrowser.open(settings_url)
         except Exception as e:
-            msg = self.tr("Error opening web browser: {}").format(str(e))
+            msg = self.tr("Error opening web browser: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -375,7 +365,9 @@ class ProjectSelectDialog(QDialog):
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type)
         except Exception as e:
-            msg = self.tr("Failed to retrieve plan limits: {}").format(str(e))
+            msg = self.tr("Failed to retrieve plan limits: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.warning(self, self.tr("Warning"), msg)
 
@@ -482,7 +474,7 @@ class ProjectSelectDialog(QDialog):
                 )
 
         except Exception as e:
-            msg = self.tr("Failed to load projects: {}").format(str(e))
+            msg = self.tr("Failed to load projects: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -516,17 +508,12 @@ class ProjectSelectDialog(QDialog):
 
     def load_saved_selection(self):
         """Load previously saved selection"""
-        try:
-            org_id = get_settings().selected_organization_id
-            project_id = get_settings().selected_project_id
-            if not org_id or not project_id:
-                return
-            self._select_organization_by_id(org_id)
-            self._select_project_by_id(project_id)
-        except Exception as e:
-            msg = self.tr("Failed to load saved selection. {}").format(str(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.warning(self, "Warning", msg)
+        org_id = get_settings().selected_organization_id
+        project_id = get_settings().selected_project_id
+        if not org_id or not project_id:
+            return
+        self._select_organization_by_id(org_id)
+        self._select_project_by_id(project_id)
 
     def create_new_project(self):
         """Create a new project in the selected organization"""
@@ -568,7 +555,7 @@ class ProjectSelectDialog(QDialog):
                 ),
             )
         except Exception as e:
-            msg = self.tr("Failed to create project: {}").format(str(e))
+            msg = self.tr("Failed to create project: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
@@ -753,7 +740,7 @@ class ProjectItemWidget(QWidget):
             webbrowser.open(project_url)
         except Exception as e:
             QgsMessageLog.logMessage(
-                self.tr("Error opening web browser: {}").format(str(e)),
+                self.tr("Error opening web browser: {}").format(format_api_error(e)),
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -804,14 +791,14 @@ class ProjectItemWidget(QWidget):
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Failed to delete project: {}").format(str(e)),
+                    self.tr("Failed to delete project: {}").format(format_api_error(e)),
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     self.parent_dialog,
                     self.tr("Error"),
-                    self.tr("Failed to delete project: {}").format(str(e)),
+                    self.tr("Failed to delete project: {}").format(format_api_error(e)),
                 )
 
     def edit_project(self):
@@ -862,12 +849,12 @@ class ProjectItemWidget(QWidget):
                 )
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    self.tr("Failed to update project: {}").format(str(e)),
+                    self.tr("Failed to update project: {}").format(format_api_error(e)),
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
                     self.parent_dialog,
                     self.tr("Error"),
-                    self.tr("Failed to update project: {}").format(str(e)),
+                    self.tr("Failed to update project: {}").format(format_api_error(e)),
                 )
