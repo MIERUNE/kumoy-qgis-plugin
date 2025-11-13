@@ -1,7 +1,9 @@
 from typing import Any, Dict, Optional, Set
 
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
+    QgsMessageLog,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
@@ -16,12 +18,12 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.utils import iface
 
 import processing
 
 from ...settings_manager import get_settings
 from ...strato import api, constants
-from ...strato.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
 
@@ -131,13 +133,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Get available projects
         try:
-            token = get_token()
-        except Exception:
-            token = None
-
-        if token:
             # Get all organizations first
             organizations = api.organization.get_organizations()
             project_options = []
@@ -150,8 +146,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     project_options.append(f"{org.name} / {project.name}")
                     project_ids.append(project.id)
 
-            self.project_map = dict(zip(project_options, project_ids))
+        except Exception as e:
+            msg = self.tr("Error Initializing Processing: {}").format(str(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
+            iface.messageBar().pushMessage(
+                constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
+            )
+            return
 
+        self.project_map = dict(zip(project_options, project_ids))
         default_project_index = 0
         selected_project_id = get_settings().selected_project_id
         if selected_project_id and self.project_map:

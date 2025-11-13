@@ -50,16 +50,9 @@ def get_vectors(project_id: str) -> List[StratoVector]:
     return vectors
 
 
-def get_vector(project_id: str, vector_id: str) -> StratoVectorDetail:
+def get_vector(project_id: str, vector_id: str):
     """
     Get details for a specific vector
-
-    Args:
-        project_id: Project ID
-        vector_id: Vector ID
-
-    Returns:
-        StratoVectorDetail object or None if not found
     """
     response = ApiClient.get(f"/vector/{vector_id}")
 
