@@ -52,11 +52,15 @@ class RootCollection(QgsDataCollectionItem):
 
         self.organization_data = None
         self.project_data = None
-        self._api_error: bool = False
 
         self.project_select_dialog = None
+        self.account_setting_dialog = None
 
-        self.load_organization_project()
+        try:
+            self.load_organization_project()
+        except Exception as e:
+            msg = self.tr("Error loading organization/project data: {}").format(str(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
 
     def load_organization_project(self):
         self.organization_data = None
@@ -71,22 +75,13 @@ class RootCollection(QgsDataCollectionItem):
             return
 
         # Get organization and project details
-        try:
-            self.organization_data = api.organization.get_organization(
-                settings.selected_organization_id
-            )
-            self.project_data = api.project.get_project(settings.selected_project_id)
-            self.setName(
-                f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
-            )
-            self._api_error = False
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error reloading organization/project data: {str(e)}",
-                constants.LOG_CATEGORY,
-                Qgis.Warning,
-            )
-            self._api_error = True
+        self.organization_data = api.organization.get_organization(
+            settings.selected_organization_id
+        )
+        self.project_data = api.project.get_project(settings.selected_project_id)
+        self.setName(
+            f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
+        )
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
@@ -123,7 +118,13 @@ class RootCollection(QgsDataCollectionItem):
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
-        self.load_organization_project()
+        try:
+            self.load_organization_project()
+        except Exception as e:
+            msg = self.tr("Error loading organization/project data: {}").format(str(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+
         self.refresh()
         self.depopulate()
 
@@ -188,8 +189,19 @@ class RootCollection(QgsDataCollectionItem):
 
     def account_settings(self):
         """Show account settings dialog"""
-        dialog = DialogAccount()
-        should_logout = exec_dialog(dialog)
+        try:
+            if self.account_setting_dialog is None:
+                self.account_setting_dialog = DialogAccount()
+            else:
+                self.account_setting_dialog._load_user_info()
+                self.account_setting_dialog._load_server_config()
+        except Exception as e:
+            msg = self.tr("Error loading account settings dialog: {}").format(str(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
+            QMessageBox.critical(None, self.tr("Error"), msg)
+            return
+
+        should_logout = exec_dialog(self.account_setting_dialog)
 
         if should_logout:
             # Reset browser name
@@ -204,7 +216,7 @@ class RootCollection(QgsDataCollectionItem):
         # Create vector root directly
         children = []
 
-        if self._api_error:
+        if self.organization_data is None or self.project_data is None:
             return [
                 ErrorItem(
                     self,

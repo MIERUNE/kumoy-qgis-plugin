@@ -132,7 +132,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         # Get available projects
-        token = get_token()
+        try:
+            token = get_token()
+        except Exception:
+            token = None
+
         if token:
             # Get all organizations first
             organizations = api.organization.get_organizations()
