@@ -279,7 +279,7 @@ def clear_all() -> bool:
             )
             success = False  # Flag unsucceed
 
-        return success
+    return success
 
 
 def clear(vector_id: str) -> bool:
