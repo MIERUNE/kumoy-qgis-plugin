@@ -12,7 +12,7 @@ from qgis.utils import iface
 
 from ...imgs import MAIN_ICON
 from ...pyqt_version import exec_dialog
-from ...settings_manager import get_settings
+from ...settings_manager import get_settings, store_setting
 from ...strato import api, constants
 from ...strato.api.error import format_api_error
 from ...ui.dialog_account import DialogAccount
@@ -117,7 +117,11 @@ class RootCollection(QgsDataCollectionItem):
         account_action = QAction(self.tr("Account"), parent)
         account_action.triggered.connect(self.account_settings)
 
-        return [select_project_action, refresh_action, account_action]
+        # Logout action
+        logout_action = QAction(self.tr("Logout"), parent)
+        logout_action.triggered.connect(self.logout)
+
+        return [select_project_action, refresh_action, account_action, logout_action]
 
     def refreshChildren(self):
         """Refresh the children of the root collection"""
@@ -251,3 +255,39 @@ class RootCollection(QgsDataCollectionItem):
         children.append(styled_map_root)
 
         return children
+
+    def logout(self):
+        """Logout from STRATO"""
+        if QgsProject.instance().isDirty():
+            confirmed = QMessageBox.question(
+                None,
+                self.tr("Logout"),
+                self.tr(
+                    "You have unsaved changes. "
+                    "Logging out will clear your current project. Continue?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+
+            if confirmed != QMessageBox.Yes:
+                return
+
+        QgsProject.instance().clear()
+
+        # Clear stored settings
+        store_setting("id_token", "")
+        store_setting("refresh_token", "")
+        store_setting("user_info", "")
+        store_setting("selected_project_id", "")
+        store_setting("selected_organization_id", "")
+
+        QgsMessageLog.logMessage(
+            "Logged out via browser root", constants.LOG_CATEGORY, Qgis.Info
+        )
+        QMessageBox.information(
+            None,
+            self.tr("Logout"),
+            self.tr("You have been logged out from STRATO."),
+        )
+        self.refreshChildren()
