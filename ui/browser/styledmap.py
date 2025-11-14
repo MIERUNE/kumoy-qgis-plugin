@@ -341,7 +341,7 @@ class StyledMapRoot(QgsDataItem):
             return actions
 
         # 空のMapを作成する
-        empty_map_action = QAction(self.tr("Create Empty Map"), parent)
+        empty_map_action = QAction(self.tr("Create new map"), parent)
         empty_map_action.triggered.connect(self.add_empty_map)
         actions.append(empty_map_action)
 
