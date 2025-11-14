@@ -346,7 +346,7 @@ class StyledMapRoot(QgsDataItem):
         actions.append(empty_map_action)
 
         # 現在のQGISプロジェクトを保存する
-        new_action = QAction(self.tr("Save Current Map"), parent)
+        new_action = QAction(self.tr("Save current map as..."), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
 
