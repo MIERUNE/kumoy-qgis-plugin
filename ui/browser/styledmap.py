@@ -358,7 +358,7 @@ class StyledMapRoot(QgsDataItem):
                 None,
                 self.tr("Create Empty Map"),
                 self.tr(
-                    "Creating an empty map will clear your current project. Do you want to proceed?"
+                    "Creating an new map will clear your current project. Continue?"
                 ),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
