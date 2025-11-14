@@ -200,7 +200,6 @@ class DialogAccount(QDialog):
             )
 
     def _logout(self) -> None:
-
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 self,
