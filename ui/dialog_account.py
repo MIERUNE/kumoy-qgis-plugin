@@ -154,7 +154,7 @@ class DialogAccount(QDialog):
         self.logout_button = QPushButton(self.tr("Logout"))
         self.logout_button.setMinimumHeight(28)
         self.logout_button.setCursor(Qt.PointingHandCursor)
-        self.logout_button.clicked.connect(self._handle_logout)
+        self.logout_button.clicked.connect(self._logout)
         main_layout.addWidget(self.logout_button)
 
     def _load_user_info(self) -> None:
@@ -199,9 +199,37 @@ class DialogAccount(QDialog):
                 self.tr("Error opening web browser: {}").format(str(exc)),
             )
 
-    def _handle_logout(self) -> None:
-        from .browser.root import RootCollection
+    def _logout(self) -> None:
 
-        root = RootCollection()
-        root.logout()
+        if QgsProject.instance().isDirty():
+            confirmed = QMessageBox.question(
+                self,
+                self.tr("Logout"),
+                self.tr(
+                    "You have unsaved changes. "
+                    "Logging out will clear your current project. Continue?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+
+            if confirmed != QMessageBox.Yes:
+                return
+
+        QgsProject.instance().clear()
+
+        store_setting("id_token", "")
+        store_setting("refresh_token", "")
+        store_setting("user_info", "")
+        store_setting("selected_project_id", "")
+        store_setting("selected_organization_id", "")
+
+        QgsMessageLog.logMessage(
+            "Logged out via account dialog", LOG_CATEGORY, Qgis.Info
+        )
+        QMessageBox.information(
+            self,
+            self.tr("Logout"),
+            self.tr("You have been logged out from STRATO."),
+        )
         self.accept()
