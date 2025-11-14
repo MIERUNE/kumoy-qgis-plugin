@@ -308,7 +308,13 @@ def clear(vector_id: str) -> bool:
                     f"Ignored file access error for {f}: {e}", LOG_CATEGORY, Qgis.Info
                 )
                 success = False  # Flag unsucceed deletion
-
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Unexpected error for {f}: {e}",
+                    LOG_CATEGORY,
+                    Qgis.Critical,
+                )
+            success = False  # Flag unsucceed
     # Delete last updated timestamp
     delete_last_updated(vector_id)
 
