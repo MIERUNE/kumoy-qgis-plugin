@@ -337,15 +337,40 @@ class StyledMapRoot(QgsDataItem):
     def actions(self, parent):
         actions = []
 
-        # Map新規作成
-        new_action = QAction(self.tr("Upload current map"), parent)
+        if self.project.role not in ["ADMIN", "OWNER"]:
+            return actions
+
+        # 空のMapを作成する
+        empty_map_action = QAction(self.tr("Create new map"), parent)
+        empty_map_action.triggered.connect(self.add_empty_map)
+        actions.append(empty_map_action)
+
+        # 現在のQGISプロジェクトを保存する
+        new_action = QAction(self.tr("Save current map as..."), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
 
         return actions
 
+    def add_empty_map(self):
+        if QgsProject.instance().isDirty():
+            confirm = QMessageBox.question(
+                None,
+                self.tr("Create Empty Map"),
+                self.tr(
+                    "Creating an new map will clear your current project. Continue?"
+                ),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if confirm != QMessageBox.Yes:
+                return
+
+        self.add_styled_map(clear=True)
+
     def add_styled_map(
         self,
+        clear=False,
     ):
         """新しいスタイルマップを追加する"""
 
@@ -364,8 +389,6 @@ class StyledMapRoot(QgsDataItem):
                     ).format(plan_limit.maxStyledMaps),
                 )
                 return
-
-            qgisproject = get_qgisproject_str()
 
             # ダイアログ作成
             dialog = QDialog()
@@ -405,6 +428,12 @@ class StyledMapRoot(QgsDataItem):
 
             if not name:
                 return
+
+            if clear:
+                # 空のQGISプロジェクトを作成
+                QgsProject.instance().clear()
+
+            qgisproject = get_qgisproject_str()
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(

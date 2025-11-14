@@ -20,7 +20,7 @@ from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
-from .vector import DbRoot
+from .vector import VectorRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
@@ -234,7 +234,7 @@ class RootCollection(QgsDataCollectionItem):
             ]
 
         vector_path = f"{self.path()}/vectors"
-        vector_root = DbRoot(
+        vector_root = VectorRoot(
             self,
             "Vectors",
             vector_path,
