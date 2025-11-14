@@ -261,9 +261,7 @@ def clear_all() -> bool:
         file_path = os.path.join(cache_dir, filename)
         try:
             os.unlink(file_path)
-            if filename.endswith(".gpkg") and not filename.endswith(
-                ("-wal", "-shm", "-journal")
-            ):
+            if filename.endswith(".gpkg"):
                 project_id = filename.split(".gpkg")[0]
                 delete_last_updated(project_id)
         except PermissionError as e:
