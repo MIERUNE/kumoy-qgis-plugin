@@ -356,7 +356,7 @@ class StyledMapRoot(QgsDataItem):
         if QgsProject.instance().isDirty():
             confirm = QMessageBox.question(
                 None,
-                self.tr("Create Empty Map"),
+                self.tr("Create new Map"),
                 self.tr(
                     "Creating an new map will clear your current project. Continue?"
                 ),
