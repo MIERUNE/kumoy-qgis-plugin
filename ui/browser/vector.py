@@ -405,7 +405,7 @@ class VectorRoot(QgsDataItem):
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("DbRoot", message)
+        return QCoreApplication.translate("VectorRoot", message)
 
     def actions(self, parent):
         actions = []
