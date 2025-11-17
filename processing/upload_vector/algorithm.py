@@ -131,7 +131,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
                 self.tr("Input vector layer"),
-                [QgsProcessing.TypeVector],
+                [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
 
