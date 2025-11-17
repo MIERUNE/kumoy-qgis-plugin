@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
 <context>
     <name>DialogAccount</name>
     <message>
@@ -450,12 +451,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/browser/root.py" line="131"/>
         <source>Error loading organization/project data: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">組織/プロジェクトデータの読み込みエラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="288"/>
         <source>Logout</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="214"/>
@@ -465,27 +466,27 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/browser/root.py" line="178"/>
         <source>Error loading project selection dialog: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロジェクト選択ダイアログの読み込みエラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="210"/>
         <source>Error loading account settings dialog: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">アカウント設定ダイアログの読み込みエラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="234"/>
         <source>Error loading organization/project data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">組織/プロジェクトデータの読み込みエラー。</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="262"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="288"/>
         <source>You have been logged out from STRATO.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ログアウトしました。</translation>
     </message>
 </context>
 <context>
@@ -709,27 +710,27 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/browser/styledmap.py" line="462"/>
         <source>Error adding map: {}</source>
-        <translation type="unfinished">マップの追加に失敗しました:</translation>
+        <translation type="unfinished">マップの追加に失敗しました:{}</translation>
     </message>
     <message>
         <location filename="../ui/browser/styledmap.py" line="344"/>
         <source>Create new map</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">新規マップを作成</translation>
     </message>
     <message>
         <location filename="../ui/browser/styledmap.py" line="349"/>
         <source>Save current map as...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../ui/browser/styledmap.py" line="357"/>
-        <source>Create Empty Map</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">現在のマップに名前を付けて保存...</translation>
     </message>
     <message>
         <location filename="../ui/browser/styledmap.py" line="357"/>
         <source>Creating an new map will clear your current project. Continue?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">新規マップを作成すると現在のプロジェクトの内容が消去されます。続行しますか？</translation>
+    </message>
+    <message>
+        <location filename="../ui/browser/styledmap.py" line="357"/>
+        <source>Create new Map</source>
+        <translation type="unfinished">新規マップを作成</translation>
     </message>
 </context>
 <context>
@@ -911,12 +912,12 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="156"/>
         <source>Error Initializing Processing: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プロセシングの初期化エラー: {}</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="546"/>
         <source>Skipping reserved field name &apos;{}&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">予約されたフィールド名&apos;{}&apos;をスキップします</translation>
     </message>
 </context>
 <context>
@@ -994,7 +995,7 @@ Do you want to continue?</source>
     <message>
         <location filename="../ui/browser/vector.py" line="366"/>
         <source>Cache cleared successfully for vector &apos;{}&apos;.</source>
-        <translation type="unfinished">ベクタ &apos;{}&apos;のキャッシュが正常に消去されました</translation>
+        <translation type="unfinished">ベクタ &apos;{}&apos;のキャッシュが正常に消去されました。</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="336"/>
@@ -1004,27 +1005,27 @@ Do you want to continue?</source>
     <message>
         <location filename="../ui/browser/vector.py" line="131"/>
         <source>Error fetching vector: {}</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタの取得エラー: {}</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="325"/>
         <source>Failed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">失敗</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="325"/>
         <source>Cache could not be cleared completely for vector &apos;{}&apos;. Please try again while vector is not open after restarting QGIS</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタ&apos;{}&apos;のキャッシュを完全にクリアできませんでした。QGISを再起動後、ベクタを開いていない状態で再度お試しください</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="373"/>
         <source>Cache Clear Failed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">失敗</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="373"/>
         <source>Cache could not be cleared for vector &apos;{}&apos;. Please try again while vector is not open after restarting QGIS</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ベクタ&apos;{}&apos;のキャッシュを完全にクリアできませんでした。QGISを再起動後、ベクタを開いていない状態で再度お試しください</translation>
     </message>
 </context>
 <context>
@@ -1121,7 +1122,7 @@ Continue?</source>
     <message>
         <location filename="../ui/browser/vector.py" line="586"/>
         <source>All cache files cleared successfully.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュが正常に削除されました。</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="591"/>
@@ -1131,17 +1132,17 @@ Continue?</source>
     <message>
         <location filename="../ui/browser/vector.py" line="591"/>
         <source>All cache files have been cleared successfully.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">キャッシュが正常に削除されました。</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="596"/>
         <source>Cache Clear Failed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">失敗</translation>
     </message>
     <message>
         <location filename="../ui/browser/vector.py" line="596"/>
         <source>Some cache files could not be cleared. Please try again after closing QGIS or ensure no files are locked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">一部のキャッシュファイルをクリアできませんでした。QGISを再起動後、再度試すか、ロックされているファイルがないことを確認してください。</translation>
     </message>
 </context>
 </TS>
