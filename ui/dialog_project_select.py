@@ -610,7 +610,7 @@ class ProjectItemWidget(QWidget):
         # Thumbnail placeholder - map preview style
         thumbnail_label = RemoteImageLabel(size=(100, 60))
         # load thumbnail image if available
-        thumbnail_label.load(self.project.thumbnailImageUrl)
+        thumbnail_label.load(f"{self.project.thumbnailImageUrl}&w=320&h=180")
         thumbnail_label.setStyleSheet(
             """
             QLabel {
