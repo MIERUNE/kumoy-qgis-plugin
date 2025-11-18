@@ -29,8 +29,11 @@ def init_sentry():
         pass
 
 
-def capture_exception(e: Exception):
+def capture_exception(e: Exception, context: dict = {}):
     try:
-        sentry_sdk.capture_exception(e)
+        with sentry_sdk.push_scope() as scope:
+            for k, v in context.items():
+                scope.set_extra(k, v)
+            sentry_sdk.capture_exception(e)
     except Exception:
         pass

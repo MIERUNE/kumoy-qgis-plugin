@@ -22,6 +22,7 @@ from qgis.utils import iface
 
 import processing
 
+from ...sentry import capture_exception
 from ...settings_manager import get_settings
 from ...strato import api, constants
 from ...strato.api.error import format_api_error
@@ -369,6 +370,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             return {"VECTOR_ID": vector.id}
 
         except Exception as e:
+            capture_exception(
+                e,
+                {
+                    "algorithm": "UploadVectorAlgorithm",
+                    "vector_layer_uri": layer.source(),
+                    "project_id": project_id if "project_id" in locals() else "",
+                    "vector_name": vector_name if "vector_name" in locals() else "",
+                    "geometry_type": geometry_type
+                    if "geometry_type" in locals()
+                    else "",
+                    "field_mapping": field_mapping
+                    if "field_mapping" in locals()
+                    else "",
+                    "attr_dict": attr_dict if "attr_dict" in locals() else "",
+                },
+            )
             # If vector was created but upload failed, delete it
             if vector is not None:
                 try:
