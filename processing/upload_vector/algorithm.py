@@ -374,7 +374,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 e,
                 {
                     "algorithm": "UploadVectorAlgorithm",
-                    "vector_layer_uri": layer.source(),
                     "project_id": project_id if "project_id" in locals() else "",
                     "vector_name": vector_name if "vector_name" in locals() else "",
                     "geometry_type": geometry_type
