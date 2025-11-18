@@ -181,14 +181,10 @@ class DialogLogin(QDialog):
         # Authentication successful, get the tokens and user info
         id_token = self.auth_manager.get_id_token()
         refresh_token = self.auth_manager.get_refresh_token()
-        user_info = self.auth_manager.get_user_info()
 
         # Store the tokens in settings
         store_setting("id_token", id_token)
         store_setting("refresh_token", refresh_token)
-
-        if user_info:
-            store_setting("user_info", json.dumps(user_info))
 
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success
@@ -200,9 +196,7 @@ class DialogLogin(QDialog):
         # Update the UI
         self.update_login_status()
         self.accept()
-        init_sentry(
-            get_settings().user_info
-        )  # 利用規約・プライバシポリシーを確認したログイン後にSentryを有効化
+        init_sentry()  # 利用規約・プライバシポリシーを確認したログイン後にSentryを有効化
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""

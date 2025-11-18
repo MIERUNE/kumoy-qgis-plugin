@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 
 from qgis.core import Qgis, QgsMessageLog
@@ -11,7 +12,6 @@ class UserSettings:
     id_token: str = ""
     refresh_token: str = ""
     token_expires_at: str = ""
-    user_info: dict = None
     selected_organization_id: str = ""
     selected_project_id: str = ""
     use_custom_server: str = "false"
@@ -31,7 +31,6 @@ def get_settings():
             id_token=qsettings.value("id_token", ""),
             refresh_token=qsettings.value("refresh_token", ""),
             token_expires_at=qsettings.value("token_expires_at", ""),
-            user_info=qsettings.value("user_info", {}),
             selected_organization_id=qsettings.value("selected_organization_id", ""),
             selected_project_id=qsettings.value("selected_project_id", ""),
             use_custom_server=qsettings.value("use_custom_server", "false"),

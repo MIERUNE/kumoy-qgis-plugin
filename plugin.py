@@ -33,7 +33,7 @@ class StratoPlugin:
         self.processing_provider = None
 
         if get_settings().id_token:
-            init_sentry(get_settings().user_info)
+            init_sentry()
 
     def init_translation(self):
         """Initialize translation for the plugin"""
