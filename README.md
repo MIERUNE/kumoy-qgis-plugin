@@ -37,3 +37,9 @@ VSCode はカレントディレクトリの仮想環境を検出しますが、�
 - テスト環境: `https://d2bpnuu07dui2w.cloudfront.net`
 - 開発環境: `https://d2570m9xwzmcva.cloudfront.net`
 - ローカル環境: `http://localhost:5173`
+
+## Acknowledgements
+
+### Sentry Integration
+
+<https://github.com/getsentry/sentry-python> v2.44.0: MIT License

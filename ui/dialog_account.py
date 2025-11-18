@@ -13,10 +13,10 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..read_version import read_version
 from ..settings_manager import store_setting
 from ..strato import api
 from ..strato.constants import LOG_CATEGORY
-from .dialog_login import read_version
 from .remote_image_label import RemoteImageLabel
 
 

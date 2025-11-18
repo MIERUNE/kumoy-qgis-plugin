@@ -21,31 +21,14 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..read_version import read_version
+from ..sentry import init_sentry
 from ..settings_manager import get_settings, store_setting
 from ..strato import api
 from ..strato.api.error import format_api_error
 from ..strato.auth_manager import AuthManager
 from ..strato.constants import LOG_CATEGORY
 from .dialog_login_success import LoginSuccess
-
-
-def read_version():
-    # read version from metadata.txt
-    version = "v0.0.0"
-    try:
-        metadata_path = os.path.join(os.path.dirname(__file__), "../metadata.txt")
-        with open(metadata_path, "r") as f:
-            for line in f:
-                if line.startswith("version="):
-                    version = line.split("=")[1].strip()
-                    break
-    except Exception as e:
-        QgsMessageLog.logMessage(
-            f"Error reading version from metadata.txt: {e}",
-            LOG_CATEGORY,
-            Qgis.Warning,
-        )
-    return version
 
 
 class DialogLogin(QDialog):
@@ -217,6 +200,9 @@ class DialogLogin(QDialog):
         # Update the UI
         self.update_login_status()
         self.accept()
+        init_sentry(
+            get_settings().user_info
+        )  # 利用規約・プライバシポリシーを確認したログイン後にSentryを有効化
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""

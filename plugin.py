@@ -5,6 +5,8 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
 from .processing.provider import StratoProcessingProvider
+from .sentry import init_sentry
+from .strato.api.config import get_settings
 from .strato.constants import PLUGIN_NAME
 from .strato.provider.dataprovider_metadata import StratoProviderMetadata
 from .ui.browser.root import DataItemProvider
@@ -29,6 +31,9 @@ class StratoPlugin:
 
         # Initialize processing provider
         self.processing_provider = None
+
+        if get_settings().id_token:
+            init_sentry(get_settings().user_info)
 
     def init_translation(self):
         """Initialize translation for the plugin"""
