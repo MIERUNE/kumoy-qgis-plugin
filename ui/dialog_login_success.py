@@ -13,7 +13,7 @@ from qgis.PyQt.QtWidgets import (
 class CheckmarkWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(80, 80)
+        self.setFixedSize(50, 50)
 
     def paintEvent(self, event):
         del event  # Unused parameter
@@ -23,14 +23,14 @@ class CheckmarkWidget(QWidget):
         # Draw green circle
         painter.setBrush(QBrush(QColor(76, 175, 80)))
         painter.setPen(QPen(Qt.NoPen))
-        painter.drawEllipse(0, 0, 80, 80)
+        painter.drawEllipse(0, 0, 50, 50)
 
         # Draw white checkmark
         painter.setPen(
-            QPen(QColor(255, 255, 255), 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(QColor(255, 255, 255), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         )
-        painter.drawLine(20, 40, 35, 55)
-        painter.drawLine(35, 55, 60, 25)
+        painter.drawLine(15, 26, 22, 33)
+        painter.drawLine(22, 33, 35, 20)
 
 
 class LoginSuccess(QDialog):
