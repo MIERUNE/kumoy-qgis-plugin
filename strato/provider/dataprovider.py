@@ -111,6 +111,14 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
 
+        # Vérifier que le cached_layer est valide
+        if self.cached_layer is None:
+            error_msg = self.tr("Failed to load cache layer for vector {}").format(
+                self.strato_vector.id
+            )
+            QgsMessageLog.logMessage(error_msg, "STRATO", Qgis.Critical)
+            return
+
         self._is_valid = True
 
         # Set native types based on PostgreSQL data type constraints
@@ -254,6 +262,16 @@ class StratoDataProvider(QgsVectorDataProvider):
             del self.cached_layer
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
+
+        # check cached_layer validity
+        if self.cached_layer is None:
+            error_msg = self.tr("Failed to load cache layer for vector {}").format(
+                self.strato_vector.id
+            )
+            QgsMessageLog.logMessage(error_msg, "STRATO", Qgis.Critical)
+            self._is_valid = False
+            raise Exception(error_msg)
+
         self.clearMinMaxCache()
 
     @classmethod
