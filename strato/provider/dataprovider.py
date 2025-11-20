@@ -248,6 +248,11 @@ class StratoDataProvider(QgsVectorDataProvider):
                 self.tr("Sync error: {}").format(sync_error), "STRATO", Qgis.Warning
             )
 
+        # Delete existing cached_layer before reloading
+        if hasattr(self, "cached_layer") and self.cached_layer is not None:
+            # Force closing connection with GPKG file
+            del self.cached_layer
+
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
         self.clearMinMaxCache()
 
