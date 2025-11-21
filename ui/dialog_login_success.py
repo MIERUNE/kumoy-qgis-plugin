@@ -42,7 +42,7 @@ class LoginSuccess(QDialog):
 
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setContentsMargins(40, 32, 40, 32)
         main_layout.setSpacing(20)
 
         # Checkmark widget centered
@@ -60,6 +60,7 @@ class LoginSuccess(QDialog):
         title_font.setPointSize(24)
         title_font.setBold(True)
         title_label.setFont(title_font)
+        title_label.setStyleSheet("padding: 0px 0px 5px 0px;")
         main_layout.addWidget(title_label)
 
         # Subtitle label
@@ -70,6 +71,7 @@ class LoginSuccess(QDialog):
         subtitle_font = QFont()
         subtitle_font.setPointSize(14)
         subtitle_label.setFont(subtitle_font)
+        subtitle_label.setStyleSheet("padding: 0px 0px 5px 0px;")
         main_layout.addWidget(subtitle_label)
 
         # Add spacing before button
