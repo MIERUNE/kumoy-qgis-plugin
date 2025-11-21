@@ -13,7 +13,7 @@ from qgis.PyQt.QtWidgets import (
 class CheckmarkWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(80, 80)
+        self.setFixedSize(50, 50)
 
     def paintEvent(self, event):
         del event  # Unused parameter
@@ -23,14 +23,14 @@ class CheckmarkWidget(QWidget):
         # Draw green circle
         painter.setBrush(QBrush(QColor(76, 175, 80)))
         painter.setPen(QPen(Qt.NoPen))
-        painter.drawEllipse(0, 0, 80, 80)
+        painter.drawEllipse(0, 0, 50, 50)
 
         # Draw white checkmark
         painter.setPen(
-            QPen(QColor(255, 255, 255), 5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(QColor(255, 255, 255), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         )
-        painter.drawLine(20, 40, 35, 55)
-        painter.drawLine(35, 55, 60, 25)
+        painter.drawLine(15, 26, 22, 33)
+        painter.drawLine(22, 33, 35, 20)
 
 
 class LoginSuccess(QDialog):
@@ -42,7 +42,7 @@ class LoginSuccess(QDialog):
 
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setContentsMargins(40, 32, 40, 32)
         main_layout.setSpacing(20)
 
         # Checkmark widget centered
@@ -54,22 +54,24 @@ class LoginSuccess(QDialog):
         main_layout.addLayout(checkmark_container)
 
         # Title label
-        title_label = QLabel(self.tr("Welcome! You are now logged in."))
+        title_label = QLabel(self.tr("Welcome!\nYou are now logged in."))
         title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
         title_font.setBold(True)
         title_label.setFont(title_font)
+        title_label.setStyleSheet("padding: 0px 0px 5px 0px;")
         main_layout.addWidget(title_label)
 
         # Subtitle label
         subtitle_label = QLabel(
-            self.tr("Next, please select a project to open in Strato.")
+            self.tr("Next, please select a project\nto open in Strato.")
         )
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_font = QFont()
         subtitle_font.setPointSize(14)
         subtitle_label.setFont(subtitle_font)
+        subtitle_label.setStyleSheet("padding: 0px 0px 5px 0px;")
         main_layout.addWidget(subtitle_label)
 
         # Add spacing before button
