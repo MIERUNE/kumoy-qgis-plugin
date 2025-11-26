@@ -263,15 +263,6 @@ class StratoDataProvider(QgsVectorDataProvider):
 
         self.cached_layer = local_cache.get_cached_layer(self.strato_vector.id)
 
-        # check cached_layer validity
-        if self.cached_layer is None:
-            error_msg = self.tr("Failed to load cache layer for vector {}").format(
-                self.strato_vector.id
-            )
-            QgsMessageLog.logMessage(error_msg, "STRATO", Qgis.Critical)
-            self._is_valid = False
-            raise Exception(error_msg)
-
         self.clearMinMaxCache()
 
     @classmethod

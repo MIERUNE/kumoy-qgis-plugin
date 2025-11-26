@@ -31,10 +31,6 @@ class StratoFeatureIterator(QgsAbstractFeatureIterator):
             self.close()
             return
 
-        # Check if cached_layer is valid before attempting to get features
-        if self._provider.cached_layer is None:
-            raise AttributeError("cached_layer is not defined")
-
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
     def fetchFeature(self, f: QgsFeature) -> bool:
