@@ -29,7 +29,7 @@ qgis-plugin/
 
 ```bash
 # プロジェクトファイルを更新（必要に応じて）
-# qgis_hub.pro のSOURCESセクションに新しいファイルを追加
+# kumoy.pro のSOURCESセクションに新しいファイルを追加
 
 # 翻訳ファイルを更新
 /Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main kumoy.pro
