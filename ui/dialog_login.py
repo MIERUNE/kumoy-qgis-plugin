@@ -24,10 +24,10 @@ from qgis.PyQt.QtWidgets import (
 from ..read_version import read_version
 from ..sentry import init_sentry
 from ..settings_manager import get_settings, store_setting
-from ..strato import api
-from ..strato.api.error import format_api_error
-from ..strato.auth_manager import AuthManager
-from ..strato.constants import LOG_CATEGORY
+from ..kumoy import api
+from ..kumoy.api.error import format_api_error
+from ..kumoy.auth_manager import AuthManager
+from ..kumoy.constants import LOG_CATEGORY
 from .dialog_login_success import LoginSuccess
 
 
@@ -88,7 +88,7 @@ class DialogLogin(QDialog):
                 <head/>\
                 <body>\
                     <div>\
-                        <h2>Welcome to Strato.</h2>\
+                        <h2>Welcome to Kumoy.</h2>\
                         <p>Powered by <a href="https://www.mierune.co.jp/"><span style=" text-decoration: underline; color:#0000ff;">MIERUNE Inc.</span></a></p>\
                     </div>\
                 </body>\
@@ -119,9 +119,9 @@ class DialogLogin(QDialog):
         server_url_label.setText(self.tr("Server URL"))
         gridLayout.addWidget(server_url_label, 1, 0)
 
-        self.strato_server_url_input = QLineEdit()
-        self.strato_server_url_input.setText("")
-        gridLayout.addWidget(self.strato_server_url_input, 1, 1)
+        self.kumoy_server_url_input = QLineEdit()
+        self.kumoy_server_url_input.setText("")
+        gridLayout.addWidget(self.kumoy_server_url_input, 1, 1)
 
         verticalLayout.addWidget(self.custom_server_config_group)
 
@@ -301,7 +301,7 @@ class DialogLogin(QDialog):
 
         # カスタムサーバーの設定を保存
         use_custom_server = self.custom_server_config_group.isChecked()
-        custom_server_url = self.strato_server_url_input.text().strip()
+        custom_server_url = self.kumoy_server_url_input.text().strip()
 
         store_setting("use_custom_server", "true" if use_custom_server else "false")
         store_setting("custom_server_url", custom_server_url)
@@ -315,7 +315,7 @@ class DialogLogin(QDialog):
 
         # UIに設定を反映
         self.custom_server_config_group.setChecked(use_custom_server)
-        self.strato_server_url_input.setText(custom_server_url)
+        self.kumoy_server_url_input.setText(custom_server_url)
 
     def validate_custom_server_settings(self) -> bool:
         """カスタムサーバー設定のバリデーション"""
@@ -323,7 +323,7 @@ class DialogLogin(QDialog):
             return True
 
         # 未入力項目がある場合はメッセージボックスを表示
-        if self.strato_server_url_input.text().strip() == "":
+        if self.kumoy_server_url_input.text().strip() == "":
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),
@@ -333,7 +333,7 @@ class DialogLogin(QDialog):
             )
             return False
 
-        if not self.strato_server_url_input.text().startswith("http"):
+        if not self.kumoy_server_url_input.text().startswith("http"):
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),

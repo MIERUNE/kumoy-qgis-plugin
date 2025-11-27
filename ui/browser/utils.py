@@ -3,7 +3,7 @@ import os
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 
 from ...imgs import WARNING_ICON
-from ...strato.constants import LOG_CATEGORY
+from ...kumoy.constants import LOG_CATEGORY
 
 
 class ErrorItem(QgsDataItem):

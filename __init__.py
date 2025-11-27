@@ -1,4 +1,4 @@
 def classFactory(iface):
-    from .plugin import StratoPlugin
+    from .plugin import KumoyPlugin
 
-    return StratoPlugin(iface)
+    return KumoyPlugin(iface)

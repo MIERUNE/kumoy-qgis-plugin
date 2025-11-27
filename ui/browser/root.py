@@ -13,8 +13,8 @@ from qgis.utils import iface
 from ...imgs import MAIN_ICON
 from ...pyqt_version import exec_dialog
 from ...settings_manager import get_settings, store_setting
-from ...strato import api, constants
-from ...strato.api.error import format_api_error
+from ...kumoy import api, constants
+from ...kumoy.api.error import format_api_error
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
@@ -24,7 +24,7 @@ from .vector import VectorRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
-    """Provider for STRATO browser items"""
+    """Provider for KUMOY browser items"""
 
     def __init__(self):
         QgsDataItemProvider.__init__(self)
@@ -40,7 +40,7 @@ class DataItemProvider(QgsDataItemProvider):
 
 
 class RootCollection(QgsDataCollectionItem):
-    """Root collection for STRATO browser"""
+    """Root collection for KUMOY browser"""
 
     def __init__(self):
         # Initialize with default name, will update with project name later
@@ -138,7 +138,7 @@ class RootCollection(QgsDataCollectionItem):
         self.depopulate()
 
     def login(self):
-        """Login to STRATO"""
+        """Login to KUMOY"""
 
         # Show config dialog with Supabase login tab
         dialog = DialogLogin()
@@ -257,7 +257,7 @@ class RootCollection(QgsDataCollectionItem):
         return children
 
     def logout(self):
-        """Logout from STRATO"""
+        """Logout from KUMOY"""
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 None,
@@ -288,6 +288,6 @@ class RootCollection(QgsDataCollectionItem):
         QMessageBox.information(
             None,
             self.tr("Logout"),
-            self.tr("You have been logged out from STRATO."),
+            self.tr("You have been logged out from KUMOY."),
         )
         self.refreshChildren()

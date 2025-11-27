@@ -1,8 +1,8 @@
 [general]
-name=STRATO
+name=KUMOY
 qgisMinimumVersion=3.40
-about=STRATO Plugin
-description=QGIS plugin for managing Strato projects
+about=KUMOY Plugin
+description=QGIS plugin for managing Kumoy projects
 version=dev
 
 #Plugin main icon
@@ -14,6 +14,6 @@ author=MIERUNE Inc.
 email=info@mierune.co.jp
 homepage=
 tracker=
-repository=https://github.com/MIERUNE/strato-qgis-plugin
+repository=https://github.com/MIERUNE/kumoy-qgis-plugin
 tags=
 category=

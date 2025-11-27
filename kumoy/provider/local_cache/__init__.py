@@ -24,7 +24,7 @@ from .settings import delete_last_updated, get_last_updated, store_last_updated
 def _get_cache_dir() -> str:
     """Return the directory where cache files are stored."""
     setting_dir = QgsApplication.qgisSettingsDirPath()
-    cache_dir = os.path.join(setting_dir, "stratogis", "local_cache")
+    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache")
     os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
@@ -42,7 +42,7 @@ def _create_new_cache(
         updated_at: 最終更新日時
     """
     options = QgsVectorFileWriter.SaveVectorOptions()
-    options.layerOptions = ["FID=strato_id"]
+    options.layerOptions = ["FID=kumoy_id"]
     options.driverName = "GPKG"
     options.fileEncoding = "UTF-8"
 
@@ -72,7 +72,7 @@ def _create_new_cache(
     )
 
     BATCH_SIZE = 5000  # Number of features to fetch in each batch
-    after_id = None  # 1回のバッチで最後に取得したstrato_idを保持する
+    after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
     while True:
         # Fetch features in batches
         features = api.qgis_vector.get_features(
@@ -85,14 +85,14 @@ def _create_new_cache(
             qgsfeature = QgsFeature()
             # Set geometry
             g = QgsGeometry()
-            g.fromWkb(feature["strato_wkb"])
+            g.fromWkb(feature["kumoy_wkb"])
             qgsfeature.setGeometry(g)
 
             # Set attributes
             qgsfeature.setFields(fields)
             for name in fields.names():
-                if name == "strato_id":
-                    qgsfeature["strato_id"] = feature["strato_id"]
+                if name == "kumoy_id":
+                    qgsfeature["kumoy_id"] = feature["kumoy_id"]
                 else:
                     qgsfeature[name] = feature["properties"][name]
 
@@ -106,7 +106,7 @@ def _create_new_cache(
             break
 
         # Update after_id for the next batch
-        after_id = features[-1]["strato_id"]
+        after_id = features[-1]["kumoy_id"]
     del writer
 
     return updated_at
@@ -125,7 +125,7 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
 
     # サーバーに存在しないカラムをキャッシュから削除
     for cache_colname in vlayer.fields().names():
-        if cache_colname == "strato_id":
+        if cache_colname == "kumoy_id":
             continue
         # キャッシュにはあるが、現在のサーバー上のカラムには存在しないキャッシュのカラムを削除
         if fields.indexOf(cache_colname) == -1:
@@ -141,7 +141,7 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
     )
 
     should_deleted_fids = diff["deletedRows"] + list(
-        map(lambda rec: rec["strato_id"], diff["updatedRows"])
+        map(lambda rec: rec["kumoy_id"], diff["updatedRows"])
     )
 
     if len(should_deleted_fids) == 0 and len(diff["updatedRows"]) == 0:
@@ -163,15 +163,15 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
                 qgsfeature = QgsFeature()
                 # Set geometry
                 g = QgsGeometry()
-                g.fromWkb(feature["strato_wkb"])
+                g.fromWkb(feature["kumoy_wkb"])
                 qgsfeature.setGeometry(g)
 
                 # Set attributes
                 qgsfeature.setFields(fields)
 
                 for name in fields.names():
-                    if name == "strato_id":
-                        qgsfeature["strato_id"] = feature["strato_id"]
+                    if name == "kumoy_id":
+                        qgsfeature["kumoy_id"] = feature["kumoy_id"]
                     else:
                         qgsfeature[name] = feature["properties"][name]
 

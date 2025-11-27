@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from ...settings_manager import get_settings
 
 # テスト環境
-DEFAULT_SERVER_URL: str = "https://app.strato.mierune.io"
+DEFAULT_SERVER_URL: str = "https://app.kumoy.mierune.io"
 
 
 @dataclass(frozen=True)

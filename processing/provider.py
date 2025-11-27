@@ -3,12 +3,12 @@ import os
 from qgis.core import QgsProcessingProvider
 
 from ..imgs import MAIN_ICON
-from ..strato.constants import PLUGIN_NAME
+from ..kumoy.constants import PLUGIN_NAME
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
 
-class StratoProcessingProvider(QgsProcessingProvider):
-    """Processing provider for STRATO plugin"""
+class KumoyProcessingProvider(QgsProcessingProvider):
+    """Processing provider for KUMOY plugin"""
 
     def __init__(self):
         super().__init__()

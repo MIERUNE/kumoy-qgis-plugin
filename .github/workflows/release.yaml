@@ -4,7 +4,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: strato-plugin
+  PLUGIN_NAME: kumoy-plugin
 jobs:
   release:
     runs-on: ubuntu-latest

@@ -3,15 +3,15 @@ from typing import Dict
 
 from qgis.core import QgsProviderMetadata
 
-from .dataprovider import StratoDataProvider
+from .dataprovider import KumoyDataProvider
 
 
-class StratoProviderMetadata(QgsProviderMetadata):
+class KumoyProviderMetadata(QgsProviderMetadata):
     def __init__(self):
         super().__init__(
-            StratoDataProvider.providerKey(),
-            StratoDataProvider.description(),
-            StratoDataProvider.createProvider,
+            KumoyDataProvider.providerKey(),
+            KumoyDataProvider.description(),
+            KumoyDataProvider.createProvider,
         )
 
     def decodeUri(self, uri: str) -> Dict[str, str]:

@@ -24,9 +24,9 @@ import processing
 
 from ...sentry import capture_exception
 from ...settings_manager import get_settings
-from ...strato import api, constants
-from ...strato.api.error import format_api_error
-from ...strato.get_token import get_token
+from ...kumoy import api, constants
+from ...kumoy.api.error import format_api_error
+from ...kumoy.get_token import get_token
 from .normalize_field_name import normalize_field_name
 
 
@@ -82,10 +82,10 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
-    """Algorithm to upload vector layer to STRATO backend"""
+    """Algorithm to upload vector layer to KUMOY backend"""
 
     INPUT_LAYER: str = "INPUT"
-    STRATO_PROJECT: str = "PROJECT"
+    KUMOY_PROJECT: str = "PROJECT"
     VECTOR_NAME: str = "VECTOR_NAME"
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
@@ -106,7 +106,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def displayName(self) -> str:
         """Algorithm display name"""
-        return self.tr("Upload Vector Layer to STRATO")
+        return self.tr("Upload Vector Layer to KUMOY")
 
     def group(self):
         return None
@@ -117,7 +117,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
-            "Upload a vector layer to the STRATO cloud.\n\n"
+            "Upload a vector layer to the KUMOY cloud.\n\n"
             "The Input Vector Layer dropdown shows vector layers in your current map. "
             "If no map is open, it will be empty."
         )
@@ -176,7 +176,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Project selection
         self.addParameter(
             QgsProcessingParameterEnum(
-                self.STRATO_PROJECT,
+                self.KUMOY_PROJECT,
                 self.tr("Destination project"),
                 options=project_options,
                 allowMultiple=False,
@@ -228,7 +228,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     ):
         """Get project information and validate limits"""
         # Get project ID
-        project_index = self.parameterAsEnum(parameters, self.STRATO_PROJECT, context)
+        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
         project_options = list(self.project_map.keys())
         project_id = self.project_map[project_options[project_index]]
 
@@ -666,7 +666,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         valid_fields_layer: QgsVectorLayer,
         feedback: QgsProcessingFeedback,
     ) -> None:
-        """Upload features to STRATO in batches"""
+        """Upload features to KUMOY in batches"""
         cur_features = []
         accumulated_features = 0
         batch_size = 1000

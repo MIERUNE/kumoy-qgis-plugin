@@ -5,7 +5,7 @@ from .client import ApiClient
 
 
 @dataclass
-class StratoVector:
+class KumoyVector:
     id: str
     name: str
     uri: str
@@ -13,9 +13,9 @@ class StratoVector:
     projectId: str
 
 
-# extends StratoVector
+# extends KumoyVector
 @dataclass
-class StratoVectorDetail(StratoVector):
+class KumoyVectorDetail(KumoyVector):
     extent: List[float]
     count: int
     columns: Dict[str, str]
@@ -24,7 +24,7 @@ class StratoVectorDetail(StratoVector):
     role: Literal["ADMIN", "OWNER", "MEMBER"] = "MEMBER"
 
 
-def get_vectors(project_id: str) -> List[StratoVector]:
+def get_vectors(project_id: str) -> List[KumoyVector]:
     """
     Get a list of vectors for a specific project
 
@@ -32,13 +32,13 @@ def get_vectors(project_id: str) -> List[StratoVector]:
         project_id: Project ID
 
     Returns:
-        List of StratoVector objects
+        List of KumoyVector objects
     """
     response = ApiClient.get(f"/project/{project_id}/vector")
     vectors = []
     for vector_data in response:
         vectors.append(
-            StratoVector(
+            KumoyVector(
                 id=vector_data.get("id", ""),
                 name=vector_data.get("name", ""),
                 uri=vector_data.get("uri", ""),
@@ -56,7 +56,7 @@ def get_vector(project_id: str, vector_id: str):
     """
     response = ApiClient.get(f"/vector/{vector_id}")
 
-    return StratoVectorDetail(
+    return KumoyVectorDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         uri=response.get("uri", ""),
@@ -77,7 +77,7 @@ class AddVectorOptions:
     type: Literal["POINT", "LINESTRING", "POLYGON"]
 
 
-def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> StratoVector:
+def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVector:
     """
     Add a new vector to a project
 
@@ -86,14 +86,14 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> StratoV
         add_vector_options: Options for the new vector
 
     Returns:
-        StratoVector object or None if creation failed
+        KumoyVector object or None if creation failed
     """
     response = ApiClient.post(
         f"/project/{project_id}/vector",
         {"name": add_vector_options.name, "type": add_vector_options.type},
     )
 
-    return StratoVector(
+    return KumoyVector(
         id=response.get("id", ""),
         name=response.get("name", ""),
         uri=response.get("uri", ""),
@@ -123,7 +123,7 @@ class UpdateVectorOptions:
 
 def update_vector(
     project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
-) -> StratoVector:
+) -> KumoyVector:
     """
     Update an existing vector
 
@@ -133,13 +133,13 @@ def update_vector(
         update_vector_options: Update options
 
     Returns:
-        StratoVector object or None if update failed
+        KumoyVector object or None if update failed
     """
     response = ApiClient.put(
         f"/vector/{vector_id}",
         {"name": update_vector_options.name},
     )
-    return StratoVector(
+    return KumoyVector(
         id=response.get("id", ""),
         name=response.get("name", ""),
         uri=response.get("uri", ""),

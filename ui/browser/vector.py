@@ -37,9 +37,9 @@ from ...imgs import (
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
 from ...settings_manager import get_settings, store_setting
-from ...strato import api, constants
-from ...strato.api.error import format_api_error
-from ...strato.provider import local_cache
+from ...kumoy import api, constants
+from ...kumoy.api.error import format_api_error
+from ...kumoy.provider import local_cache
 from .utils import ErrorItem
 
 
@@ -50,7 +50,7 @@ class VectorItem(QgsDataItem):
         self,
         parent,
         path: str,
-        vector: api.project_vector.StratoVector,
+        vector: api.project_vector.KumoyVector,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -125,7 +125,7 @@ class VectorItem(QgsDataItem):
     def add_to_map(self):
         """Add vector layer to QGIS map"""
         try:
-            # memo: Strato Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
+            # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
             api.project_vector.get_vector(self.vector.projectId, self.vector.id)
         except Exception as e:
             msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
@@ -134,15 +134,15 @@ class VectorItem(QgsDataItem):
             return
 
         # Create layer
-        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "strato")
+        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "kumoy")
         layer.extent()  # HACK: to ensure extent is calculated - Issue #224
 
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
 
         if layer.isValid():
-            # strato_idをread-onlyに設定
-            field_idx = layer.fields().indexOf("strato_id")
+            # kumoy_idをread-onlyに設定
+            field_idx = layer.fields().indexOf("kumoy_id")
             # フィールド設定で読み取り専用を設定
             if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
                 # プロバイダーフィールドの場合
@@ -312,7 +312,7 @@ class VectorItem(QgsDataItem):
             # remove vector layer from QGIS project if loaded
             for layer in QgsProject.instance().mapLayers().values():
                 if (
-                    layer.providerType() == "strato"
+                    layer.providerType() == "kumoy"
                     and layer.dataProvider().vector_id == self.vector.id
                 ):
                     QgsProject.instance().removeMapLayer(layer.id())
@@ -525,7 +525,7 @@ class VectorRoot(QgsDataItem):
     def upload_vector(self):
         """processingを利用してベクターレイヤーをアップロード"""
         # Execute with dialog
-        result = processing.execAlgorithmDialog("strato:uploadvector")
+        result = processing.execAlgorithmDialog("kumoy:uploadvector")
 
         # After dialog closes, refresh if needed
         if result:

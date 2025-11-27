@@ -2,7 +2,7 @@ import os
 
 from qgis.core import Qgis, QgsMessageLog
 
-from .strato.constants import LOG_CATEGORY
+from .kumoy.constants import LOG_CATEGORY
 
 
 def read_version():

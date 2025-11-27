@@ -12,27 +12,27 @@ SOURCES = __init__.py \
           ui/browser/styledmap.py \
           ui/browser/utils.py \
           ui/browser/vector.py \
-          strato/auth_manager.py \
-          strato/constants.py \
-          strato/get_token.py \
-          strato/api/client.py \
-          strato/api/config.py \
-          strato/api/error.py \
-          strato/api/layer.py \
-          strato/api/organization.py \
-          strato/api/plan.py \
-          strato/api/project.py \
-          strato/api/project_styledmap.py \
-          strato/api/project_vector.py \
-          strato/api/qgis_vector.py \
-          strato/api/user.py \
-          strato/provider/dataprovider.py \
-          strato/provider/dataprovider_metadata.py \
-          strato/provider/feature_iterator.py \
-          strato/provider/feature_source.py \
-          strato/provider/local_cache/settings.py \
+          kumoy/auth_manager.py \
+          kumoy/constants.py \
+          kumoy/get_token.py \
+          kumoy/api/client.py \
+          kumoy/api/config.py \
+          kumoy/api/error.py \
+          kumoy/api/layer.py \
+          kumoy/api/organization.py \
+          kumoy/api/plan.py \
+          kumoy/api/project.py \
+          kumoy/api/project_styledmap.py \
+          kumoy/api/project_vector.py \
+          kumoy/api/qgis_vector.py \
+          kumoy/api/user.py \
+          kumoy/provider/dataprovider.py \
+          kumoy/provider/dataprovider_metadata.py \
+          kumoy/provider/feature_iterator.py \
+          kumoy/provider/feature_source.py \
+          kumoy/provider/local_cache/settings.py \
           processing/provider.py \
           processing/upload_vector/algorithm.py \
           processing/upload_vector/normalize_field_name.py \
 
-TRANSLATIONS = i18n/strato_ja.ts
+TRANSLATIONS = i18n/kumoy_ja.ts

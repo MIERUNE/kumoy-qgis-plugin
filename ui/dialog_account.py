@@ -15,13 +15,13 @@ from qgis.PyQt.QtWidgets import (
 
 from ..read_version import read_version
 from ..settings_manager import store_setting
-from ..strato import api
-from ..strato.constants import LOG_CATEGORY
+from ..kumoy import api
+from ..kumoy.constants import LOG_CATEGORY
 from .remote_image_label import RemoteImageLabel
 
 
 class DialogAccount(QDialog):
-    """Dialog that shows the current STRATO account information."""
+    """Dialog that shows the current KUMOY account information."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -65,7 +65,7 @@ class DialogAccount(QDialog):
         )
         icon_label.setPixmap(icon_pixmap)
         # label
-        product_label = QLabel("Strato")
+        product_label = QLabel("Kumoy")
         product_label.setStyleSheet("font-size: 18px; font-weight: 600;")
         # layout
         icon_logo_hlayout.addWidget(icon_label)
@@ -229,6 +229,6 @@ class DialogAccount(QDialog):
         QMessageBox.information(
             self,
             self.tr("Logout"),
-            self.tr("You have been logged out from STRATO."),
+            self.tr("You have been logged out from KUMOY."),
         )
         self.accept()

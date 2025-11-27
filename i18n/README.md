@@ -6,10 +6,10 @@
 
 ```
 qgis-plugin/
-├── strato.pro            # Qt プロジェクトファイル（翻訳対象ファイルを定義）
+├── kumoy.pro            # Qt プロジェクトファイル（翻訳対象ファイルを定義）
 ├── i18n/                 # 翻訳ファイルディレクトリ
-│   ├── strato_ja.ts      # 日本語翻訳ソースファイル
-│   └── strato_ja.qm      # 日本語翻訳バイナリファイル
+│   ├── kumoy_ja.ts      # 日本語翻訳ソースファイル
+│   └── kumoy_ja.qm      # 日本語翻訳バイナリファイル
 ```
 
 ## 翻訳の仕組み
@@ -32,22 +32,22 @@ qgis-plugin/
 # qgis_hub.pro のSOURCESセクションに新しいファイルを追加
 
 # 翻訳ファイルを更新
-/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main strato.pro
+/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main kumoy.pro
 ```
 
 ### 2. 翻訳の追加・編集
 
 ```bash
 # Qt Linguistを使用（推奨）
-linguist i18n/strato_ja.ts
+linguist i18n/kumoy_ja.ts
 
 # またはテキストエディタで直接編集
-# i18n/strato_ja.ts ファイルを編集
+# i18n/kumoy_ja.ts ファイルを編集
 ```
 
 ### 3. バイナリファイルのコンパイル
 
 ```bash
 # .ts から .qm ファイルを生成
-lrelease i18n/strato_ja.ts
+lrelease i18n/kumoy_ja.ts
 ```

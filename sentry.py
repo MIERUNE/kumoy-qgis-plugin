@@ -2,7 +2,7 @@ import os
 import sys
 
 from .read_version import read_version
-from .strato.api.user import get_me
+from .kumoy.api.user import get_me
 
 try:
     # hack: プラグイン実行環境では必ず失敗する。型推論を効かせるためのコード

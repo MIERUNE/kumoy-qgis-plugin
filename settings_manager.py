@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
 
-from .strato import constants
+from .kumoy import constants
 
 
 @dataclass
@@ -18,7 +18,7 @@ class UserSettings:
     custom_server_url: str = ""
 
 
-SETTING_GROUP = "/STRATO"
+SETTING_GROUP = "/KUMOY"
 
 
 def get_settings():

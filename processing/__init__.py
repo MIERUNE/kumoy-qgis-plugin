@@ -1,7 +1,7 @@
 """
-STRATO Processing provider
+KUMOY Processing provider
 """
 
 # Only import FieldNameNormalizer for testing purposes
 # Avoid importing provider to prevent dependency issues in tests
-from .provider import StratoProcessingProvider
+from .provider import KumoyProcessingProvider

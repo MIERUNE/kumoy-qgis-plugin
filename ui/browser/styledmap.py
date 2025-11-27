@@ -24,8 +24,8 @@ from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
 from ...settings_manager import get_settings, store_setting
-from ...strato import api, constants
-from ...strato.api.error import format_api_error
+from ...kumoy import api, constants
+from ...kumoy.api.error import format_api_error
 from .utils import ErrorItem
 
 
@@ -36,7 +36,7 @@ class StyledMapItem(QgsDataItem):
         self,
         parent,
         path: str,
-        styled_map: api.project_styledmap.StratoStyledMap,
+        styled_map: api.project_styledmap.KumoyStyledMap,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
