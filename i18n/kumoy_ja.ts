@@ -514,11 +514,6 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">アカウント設定ダイアログの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="234"/>
-        <source>Error loading organization/project data.</source>
-        <translation type="unfinished">組織/プロジェクトデータの読み込みエラー。</translation>
-    </message>
-    <message>
         <location filename="../ui/browser/root.py" line="262"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
@@ -527,6 +522,11 @@ This action can&apos;t be undone.</source>
         <location filename="../ui/browser/root.py" line="288"/>
         <source>You have been logged out from KUMOY.</source>
         <translation type="unfinished">ログアウトしました。</translation>
+    </message>
+    <message>
+        <location filename="../ui/browser/root.py" line="234"/>
+        <source>Please select a project</source>
+        <translation type="unfinished">プロジェクトが指定されていません</translation>
     </message>
 </context>
 <context>
