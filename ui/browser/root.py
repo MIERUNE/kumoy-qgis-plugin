@@ -233,7 +233,7 @@ class RootCollection(QgsDataCollectionItem):
             return [
                 ErrorItem(
                     self,
-                    self.tr("Error loading organization/project data."),
+                    self.tr("Please select a project"),
                 )
             ]
 
@@ -290,4 +290,7 @@ class RootCollection(QgsDataCollectionItem):
             self.tr("Logout"),
             self.tr("You have been logged out from KUMOY."),
         )
+
+        # Reset browser name
+        self.setName(constants.PLUGIN_NAME)
         self.refreshChildren()
