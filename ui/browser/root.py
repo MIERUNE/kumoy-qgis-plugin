@@ -290,4 +290,7 @@ class RootCollection(QgsDataCollectionItem):
             self.tr("Logout"),
             self.tr("You have been logged out from KUMOY."),
         )
+
+        # Reset browser name
+        self.setName(constants.PLUGIN_NAME)
         self.refreshChildren()
