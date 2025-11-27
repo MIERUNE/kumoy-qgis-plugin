@@ -233,7 +233,7 @@ class RootCollection(QgsDataCollectionItem):
             return [
                 ErrorItem(
                     self,
-                    self.tr("Error loading organization/project data."),
+                    self.tr("Please select a project"),
                 )
             ]
 
