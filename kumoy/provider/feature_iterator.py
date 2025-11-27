@@ -6,7 +6,7 @@ from qgis.core import (
 )
 
 
-class StratoFeatureIterator(QgsAbstractFeatureIterator):
+class KumoyFeatureIterator(QgsAbstractFeatureIterator):
     def __init__(self, source, request: QgsFeatureRequest):
         """Constructor"""
 

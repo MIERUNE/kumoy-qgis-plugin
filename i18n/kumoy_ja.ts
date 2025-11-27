@@ -57,8 +57,8 @@
     </message>
     <message>
         <location filename="../ui/dialog_account.py" line="229"/>
-        <source>You have been logged out from STRATO.</source>
-        <translation type="unfinished">STRATOからログアウトしました。</translation>
+        <source>You have been logged out from KUMOY.</source>
+        <translation type="unfinished">KUMOYからログアウトしました。</translation>
     </message>
 </context>
 <context>
@@ -70,8 +70,8 @@
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="102"/>
-        <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
-        <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Strato.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
+        <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
+        <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="347"/>
@@ -154,8 +154,8 @@ Please update your configuration before logging in.</source>
     </message>
     <message>
         <location filename="../ui/dialog_login_success.py" line="66"/>
-        <source>Next, please select a project to open in Strato.</source>
-        <translation type="unfinished">次に、Stratoで開きたいプロジェクトを選択してください。</translation>
+        <source>Next, please select a project to open in Kumoy.</source>
+        <translation type="unfinished">次に、Kumoyで開きたいプロジェクトを選択してください。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login_success.py" line="79"/>
@@ -485,44 +485,44 @@ This action can&apos;t be undone.</source>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="288"/>
-        <source>You have been logged out from STRATO.</source>
+        <source>You have been logged out from KUMOY.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
 </context>
 <context>
-    <name>StratoDataProvider</name>
+    <name>KumoyDataProvider</name>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="178"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
         <source>Vector not found</source>
         <translation type="unfinished">Vectorエラー</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="178"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
         <source>The following vector does not exist: {}</source>
         <translation type="unfinished">Vector &apos;{}&apos; が存在しません</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="190"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
         <source>Syncing: {}</source>
         <translation type="unfinished">同期中: {}</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="190"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
         <source>Cancel</source>
         <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="196"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="196"/>
         <source>Data Sync</source>
         <translation type="unfinished">データ同期</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="244"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="244"/>
         <source>Sync cancelled by user</source>
         <translation type="unfinished">同期がキャンセルされました</translation>
     </message>
     <message>
-        <location filename="../strato/provider/dataprovider.py" line="247"/>
+        <location filename="../kumoy/provider/dataprovider.py" line="247"/>
         <source>Sync error: {}</source>
         <translation type="unfinished">同期エラー: {}</translation>
     </message>
@@ -737,8 +737,8 @@ This action can&apos;t be undone.</source>
     <name>UploadVectorAlgorithm</name>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="108"/>
-        <source>Upload Vector Layer to STRATO</source>
-        <translation type="unfinished">ベクタレイヤをSTRATOにアップロード</translation>
+        <source>Upload Vector Layer to KUMOY</source>
+        <translation type="unfinished">ベクタレイヤをKUMOYにアップロード</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="130"/>
@@ -862,10 +862,10 @@ This action can&apos;t be undone.</source>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="118"/>
-        <source>Upload a vector layer to the STRATO cloud.
+        <source>Upload a vector layer to the KUMOY cloud.
 
 The Input Vector Layer dropdown shows vector layers in your current map. If no map is open, it will be empty.</source>
-        <translation type="unfinished">ベクタレイヤをSTRATOクラウドにアップロードします。
+        <translation type="unfinished">ベクタレイヤをKUMOYクラウドにアップロードします。
 
 入力ベクタレイヤのドロップダウンには、現在のQGISプロジェクトのベクタレイヤが表示されます。マップが開いていない場合は空になります。</translation>
     </message>

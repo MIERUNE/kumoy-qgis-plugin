@@ -65,7 +65,7 @@ class LoginSuccess(QDialog):
 
         # Subtitle label
         subtitle_label = QLabel(
-            self.tr("Next, please select a project\nto open in Strato.")
+            self.tr("Next, please select a project\nto open in Kumoy.")
         )
         subtitle_label.setAlignment(Qt.AlignCenter)
         subtitle_font = QFont()

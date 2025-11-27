@@ -3,17 +3,17 @@
 """
 
 # プラグイン名・プロバイダ名
-PLUGIN_NAME = "STRATO"
+PLUGIN_NAME = "KUMOY"
 
 # ログメッセージのカテゴリ名（QgsMessageLogで使用）
 LOG_CATEGORY = PLUGIN_NAME
 
 # ブラウザパネルのルートパス
-BROWSER_ROOT_PATH = "strato:/"
+BROWSER_ROOT_PATH = "kumoy:/"
 
 # データプロバイダー関連
-DATA_PROVIDER_KEY = "strato"
-DATA_PROVIDER_DESCRIPTION = "STRATO Data Provider"
+DATA_PROVIDER_KEY = "kumoy"
+DATA_PROVIDER_DESCRIPTION = "KUMOY Data Provider"
 
 # 各種名称の最大文字数
 MAX_CHARACTERS_ORGANIZATION_NAME = 32
@@ -21,8 +21,8 @@ MAX_CHARACTERS_PROJECT_NAME = 32
 MAX_CHARACTERS_VECTOR_NAME = 32
 MAX_CHARACTERS_STYLEDMAP_NAME = 32
 
-# Stratoのシステム上の制限
+# Kumoyのシステム上の制限
 MAX_CHARACTERS_STRING_FIELD = 255
 
 # 予約しているカラム名の接頭辞
-RESERVED_FIELD_NAME_PREFIX = "strato_"
+RESERVED_FIELD_NAME_PREFIX = "kumoy_"

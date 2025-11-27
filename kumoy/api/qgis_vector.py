@@ -10,7 +10,7 @@ from .client import ApiClient
 
 def get_features(
     vector_id: str,
-    strato_ids: Optional[List[int]] = None,
+    kumoy_ids: Optional[List[int]] = None,
     bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
     after_id: Optional[int] = None,
@@ -18,11 +18,11 @@ def get_features(
     """
     Get features from a vector layer
     """
-    if strato_ids is None:
-        strato_ids = []
+    if kumoy_ids is None:
+        kumoy_ids = []
 
     options = {
-        "strato_ids": strato_ids,
+        "kumoy_ids": kumoy_ids,
         "bbox": bbox,
         "limit": limit,
     }
@@ -33,7 +33,7 @@ def get_features(
 
     # decode base64
     for feature in response:
-        feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+        feature["kumoy_wkb"] = base64.b64decode(feature["kumoy_wkb"])
 
     return response
 
@@ -47,16 +47,16 @@ def add_features(
     """
     _features = [
         {
-            "strato_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
+            "kumoy_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
             "properties": dict(zip(f.fields().names(), f.attributes())),
         }
         for f in features
     ]
 
-    # rm strato_id from properties
+    # rm kumoy_id from properties
     for feature in _features:
-        if "strato_id" in feature["properties"]:
-            del feature["properties"]["strato_id"]
+        if "kumoy_id" in feature["properties"]:
+            del feature["properties"]["kumoy_id"]
 
     for feature in _features:
         for k in feature["properties"]:
@@ -73,13 +73,13 @@ def add_features(
 
 def delete_features(
     vector_id: str,
-    strato_ids: List[int],
+    kumoy_ids: List[int],
 ):
     """
     Delete features from a vector layer
     """
     ApiClient.post(
-        f"/_qgis/vector/{vector_id}/delete-features", {"strato_ids": strato_ids}
+        f"/_qgis/vector/{vector_id}/delete-features", {"kumoy_ids": kumoy_ids}
     )
 
 
@@ -105,8 +105,8 @@ def change_geometry_values(
     """
     geometry_items_encoded = [
         {
-            "strato_id": item["strato_id"],
-            "strato_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
+            "kumoy_id": item["kumoy_id"],
+            "kumoy_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
         }
         for item in geometry_items
     ]
@@ -198,6 +198,6 @@ def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
     )
 
     for feature in response["updatedRows"]:
-        feature["strato_wkb"] = base64.b64decode(feature["strato_wkb"])
+        feature["kumoy_wkb"] = base64.b64decode(feature["kumoy_wkb"])
 
     return response

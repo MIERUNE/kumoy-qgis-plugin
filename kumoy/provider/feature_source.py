@@ -7,10 +7,10 @@ from qgis.core import (
     QgsVectorDataProvider,
 )
 
-from .feature_iterator import StratoFeatureIterator
+from .feature_iterator import KumoyFeatureIterator
 
 
-class StratoFeatureSource(QgsAbstractFeatureSource):
+class KumoyFeatureSource(QgsAbstractFeatureSource):
     def __init__(self, provider: QgsVectorDataProvider):
         """Constructor"""
         super().__init__()
@@ -25,7 +25,7 @@ class StratoFeatureSource(QgsAbstractFeatureSource):
 
     def getFeatures(self, request) -> QgsFeatureIterator:
         """Return features based on the request."""
-        return QgsFeatureIterator(StratoFeatureIterator(self, request))
+        return QgsFeatureIterator(KumoyFeatureIterator(self, request))
 
     def get_provider(self):
         """Return the associated provider."""

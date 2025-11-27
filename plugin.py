@@ -4,15 +4,15 @@ from qgis.core import QgsApplication, QgsProviderRegistry
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
-from .processing.provider import StratoProcessingProvider
+from .processing.provider import KumoyProcessingProvider
 from .sentry import init_sentry
-from .strato.api.config import get_settings
-from .strato.constants import PLUGIN_NAME
-from .strato.provider.dataprovider_metadata import StratoProviderMetadata
+from .kumoy.api.config import get_settings
+from .kumoy.constants import PLUGIN_NAME
+from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .ui.browser.root import DataItemProvider
 
 
-class StratoPlugin:
+class KumoyPlugin:
     def __init__(self, iface: QgisInterface):
         self.iface = iface
         self.win = self.iface.mainWindow()
@@ -23,7 +23,7 @@ class StratoPlugin:
         self.init_translation()
 
         registry = QgsProviderRegistry.instance()
-        metadata = StratoProviderMetadata()
+        metadata = KumoyProviderMetadata()
         # FIXME: It is not possible to remove unregister a provider
         # Is it the correct approach?
         # assert registry.registerProvider(metadata)
@@ -38,7 +38,7 @@ class StratoPlugin:
     def init_translation(self):
         """Initialize translation for the plugin"""
         locale = QgsApplication.instance().locale()
-        locale_path = os.path.join(self.plugin_dir, "i18n", f"strato_{locale}.qm")
+        locale_path = os.path.join(self.plugin_dir, "i18n", f"kumoy_{locale}.qm")
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -54,7 +54,7 @@ class StratoPlugin:
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
 
         # Register processing provider
-        self.processing_provider = StratoProcessingProvider()
+        self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
     def unload(self):
