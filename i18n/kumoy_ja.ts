@@ -64,62 +64,62 @@
 <context>
     <name>DialogLogin</name>
     <message>
-        <location filename="../ui/dialog_login.py" line="65"/>
+        <location filename="../ui/dialog_login.py" line="48"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="102"/>
+        <location filename="../ui/dialog_login.py" line="85"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="347"/>
+        <location filename="../ui/dialog_login.py" line="327"/>
         <source>Server URL</source>
         <translation type="unfinished">サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="153"/>
+        <location filename="../ui/dialog_login.py" line="136"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="170"/>
+        <location filename="../ui/dialog_login.py" line="153"/>
         <source>Logged in</source>
         <translation type="unfinished">ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="287"/>
+        <location filename="../ui/dialog_login.py" line="267"/>
         <source>Login Error</source>
         <translation type="unfinished">ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="190"/>
+        <location filename="../ui/dialog_login.py" line="173"/>
         <source>Authentication failed: {}</source>
         <translation type="unfinished">認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="267"/>
+        <location filename="../ui/dialog_login.py" line="247"/>
         <source>An error occurred while logging in: {}</source>
         <translation type="unfinished">ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="287"/>
+        <location filename="../ui/dialog_login.py" line="267"/>
         <source>Failed to start authentication: {}</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="308"/>
+        <location filename="../ui/dialog_login.py" line="288"/>
         <source>Waiting for browser authentication...</source>
         <translation type="unfinished">ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="337"/>
         <source>Custom Server Configuration Error</source>
         <translation type="unfinished">カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="347"/>
+        <location filename="../ui/dialog_login.py" line="327"/>
         <source>Some required settings are missing:
 {}
 
@@ -130,19 +130,57 @@ Please update your configuration before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="337"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="279"/>
+        <location filename="../ui/dialog_login.py" line="259"/>
         <source>Signing you in...</source>
         <translation type="unfinished">ログイン中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="125"/>
+        <location filename="../ui/dialog_login.py" line="108"/>
         <source>Custom server configuration</source>
         <translation type="unfinished">カスタムサーバー設定</translation>
+    </message>
+</context>
+<context>
+    <name>KumoyDataProvider</name>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
+        <source>Vector not found</source>
+        <translation type="unfinished">Vectorエラー</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
+        <source>The following vector does not exist: {}</source>
+        <translation type="unfinished">Vector &apos;{}&apos; が存在しません</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
+        <source>Syncing: {}</source>
+        <translation type="unfinished">同期中: {}</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
+        <source>Cancel</source>
+        <translation type="unfinished">キャンセル</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="196"/>
+        <source>Data Sync</source>
+        <translation type="unfinished">データ同期</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="244"/>
+        <source>Sync cancelled by user</source>
+        <translation type="unfinished">同期がキャンセルされました</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/provider/dataprovider.py" line="247"/>
+        <source>Sync error: {}</source>
+        <translation type="unfinished">同期エラー: {}</translation>
     </message>
 </context>
 <context>
@@ -153,19 +191,21 @@ Please update your configuration before logging in.</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login_success.py" line="66"/>
-        <source>Next, please select a project to open in Kumoy.</source>
-        <translation type="unfinished">次に、Kumoyで開きたいプロジェクトを選択してください。</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_login_success.py" line="79"/>
+        <location filename="../ui/dialog_login_success.py" line="81"/>
         <source>Continue</source>
         <translation type="unfinished">続行</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login_success.py" line="57"/>
-        <source>Welcome! You are now logged in.</source>
-        <translation type="unfinished">Welcome! You are now logged in.</translation>
+        <source>Welcome!
+You are now logged in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login_success.py" line="67"/>
+        <source>Next, please select a project
+to open in Kumoy.</source>
+        <translation type="unfinished">次に、Kumoyで開きたいプロジェクトを選択してください。</translation>
     </message>
 </context>
 <context>
@@ -490,44 +530,6 @@ This action can&apos;t be undone.</source>
     </message>
 </context>
 <context>
-    <name>KumoyDataProvider</name>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
-        <source>Vector not found</source>
-        <translation type="unfinished">Vectorエラー</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="178"/>
-        <source>The following vector does not exist: {}</source>
-        <translation type="unfinished">Vector &apos;{}&apos; が存在しません</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
-        <source>Syncing: {}</source>
-        <translation type="unfinished">同期中: {}</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="190"/>
-        <source>Cancel</source>
-        <translation type="unfinished">キャンセル</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="196"/>
-        <source>Data Sync</source>
-        <translation type="unfinished">データ同期</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="244"/>
-        <source>Sync cancelled by user</source>
-        <translation type="unfinished">同期がキャンセルされました</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/provider/dataprovider.py" line="247"/>
-        <source>Sync error: {}</source>
-        <translation type="unfinished">同期エラー: {}</translation>
-    </message>
-</context>
-<context>
     <name>StyledMapItem</name>
     <message>
         <location filename="../ui/browser/styledmap.py" line="66"/>
@@ -736,132 +738,132 @@ This action can&apos;t be undone.</source>
 <context>
     <name>UploadVectorAlgorithm</name>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="108"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="109"/>
         <source>Upload Vector Layer to KUMOY</source>
         <translation type="unfinished">ベクタレイヤをKUMOYにアップロード</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="130"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="131"/>
         <source>Input vector layer</source>
         <translation type="unfinished">入力レイヤ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="176"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="177"/>
         <source>Destination project</source>
         <translation type="unfinished">プロジェクト</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="201"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="202"/>
         <source>Vector layer name</source>
         <translation type="unfinished">レイヤ名</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="211"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="212"/>
         <source>Temporary output</source>
         <translation type="unfinished">一時出力</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="248"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="249"/>
         <source>Cannot upload vector. Your plan allows up to {} vectors per project, but you already have {} vectors.</source>
         <translation type="unfinished">ベクタをアップロードできません。現在のプランではプロジェクトあたり最大{}個のベクターが許可されていますが、すでに{}個のベクターがあります。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="336"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="337"/>
         <source>Cannot upload vector. The layer has {} features, but your plan allows up to {} features per vector.</source>
         <translation type="unfinished">ベクタをアップロードできません。レイヤーには{}個のフィーチャがありますが、現在のプランではベクターあたり最大{}個のフィーチャが許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="313"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="314"/>
         <source>Cannot upload vector. The layer has {} attributes, but your plan allows up to {} attributes per vector.</source>
         <translation type="unfinished">ベクタをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="376"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="392"/>
         <source>Cleaned up incomplete vector layer due to upload failure</source>
         <translation type="unfinished">アップロード失敗により不完全なベクタレイヤをクリーンアップしました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="295"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="296"/>
         <source>Unsupported geometry type</source>
         <translation type="unfinished">サポートされていないジオメトリタイプ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="402"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="418"/>
         <source>The input layer has an undefined or invalid coordinate reference system. Please assign a valid CRS to the layer before uploading.</source>
         <translation type="unfinished">入力レイヤーの座標参照系が未定義または無効です。アップロード前にレイヤーに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="489"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="505"/>
         <source>Converting multipart to singlepart</source>
         <translation type="unfinished">マルチパートからシングルパートへの変換</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="502"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="518"/>
         <source>Reprojecting from {} to EPSG:4326</source>
         <translation type="unfinished">{}からEPSG:4326への投影変換</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="188"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="189"/>
         <source>Attributes to upload</source>
         <translation type="unfinished">アップロードする属性</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="271"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="272"/>
         <source>Invalid input layer</source>
         <translation type="unfinished">無効な入力レイヤ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="273"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="274"/>
         <source>Cannot upload a layer that is already stored in server.</source>
         <translation type="unfinished">サーバーにすでに保存されているレイヤはアップロードできません。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="305"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="306"/>
         <source>Using {} of {} attributes for upload</source>
         <translation type="unfinished">アップロードのために{}個の属性のうち{}個を使用しています</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="410"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="426"/>
         <source>No attributes available for upload. Select at least one attribute.</source>
         <translation type="unfinished">アップロード用の属性が選択されていません。少なくとも1つの属性を選択してください。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="382"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="398"/>
         <source>Failed to clean up incomplete vector layer: {}</source>
         <translation type="unfinished">不完全なベクタレイヤのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="462"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="478"/>
         <source>Dropping Z coordinates</source>
         <translation type="unfinished">Z座標を削除</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="558"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="574"/>
         <source>Unsupported field type for field &apos;{}&apos;. Only string, integer, float, and boolean fields are supported.</source>
         <translation type="unfinished">フィールド &apos;{}&apos;は対応していない型です。文字列型、整数型、浮動小数点型、真偽値型のフィールドのみがサポートされています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="588"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="604"/>
         <source>Field &apos;{}&apos; normalized to &apos;{}&apos;</source>
         <translation type="unfinished">フィールド &apos;{}&apos;は &apos;{}&apos;に正規化されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="352"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="353"/>
         <source>Created vector layer &apos;{}&apos; with ID: {}</source>
         <translation type="unfinished">ベクタレイヤ &apos;{}&apos;がID: {}で作成されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="360"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="361"/>
         <source>Added attributes to vector layer &apos;{}&apos;: {}</source>
         <translation type="unfinished">ベクタレイヤ &apos;{}&apos;に属性を追加しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="681"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="697"/>
         <source>Upload complete: {} / {} features</source>
         <translation type="unfinished">アップロード完了: {} / {} 個のフィーチャ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="118"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="119"/>
         <source>Upload a vector layer to the KUMOY cloud.
 
 The Input Vector Layer dropdown shows vector layers in your current map. If no map is open, it will be empty.</source>
@@ -870,52 +872,52 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
 入力ベクタレイヤのドロップダウンには、現在のQGISプロジェクトのベクタレイヤが表示されます。マップが開いていない場合は空になります。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="429"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="445"/>
         <source>Filtering features using expression: {}</source>
         <translation type="unfinished">次の式でフィーチャをフィルタリング中: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="454"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="470"/>
         <source>No features remain after filtering invalid geometries</source>
         <translation type="unfinished"> 無効なジオメトリをフィルタリングした結果、地物が残りませんでした。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="424"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="440"/>
         <source>Could not create the field mapping using the selected fields.</source>
         <translation type="unfinished">選択された属性からフィールドマッピングを作成できませんでした。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="447"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="463"/>
         <source>Removed {} features with missing or incompatible geometries.</source>
         <translation type="unfinished">{}個の地物は、ジオメトリが存在しないか互換性がないため削除されました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="476"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="492"/>
         <source>Repairing geometries...</source>
         <translation type="unfinished">ジオメトリを修復中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="518"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="534"/>
         <source>Refactoring attributes...</source>
         <translation type="unfinished">属性を処理中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="605"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="621"/>
         <source>Filtering failed due to an unsupported geometry type.</source>
         <translation type="unfinished">ジオメトリタイプがサポートされていないため、フィルタリングに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="641"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="657"/>
         <source>The &apos;{}&apos; processing step failed to create a valid layer.</source>
         <translation type="unfinished">処理ステップ「{}」で有効なレイヤを作成できませんでした。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="156"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="157"/>
         <source>Error Initializing Processing: {}</source>
         <translation type="unfinished">プロセシングの初期化エラー: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="546"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="562"/>
         <source>Skipping reserved field name &apos;{}&apos;</source>
         <translation type="unfinished">予約されたフィールド名&apos;{}&apos;をスキップします</translation>
     </message>
