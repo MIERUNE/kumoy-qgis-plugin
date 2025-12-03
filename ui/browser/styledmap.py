@@ -28,6 +28,9 @@ from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from .utils import ErrorItem
 
+# Save state to avoid recursive calls
+_is_saving = False
+
 
 class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
@@ -135,7 +138,13 @@ class StyledMapItem(QgsDataItem):
         load_project_from_xml(styled_map_detail.qgisproject)
 
         QgsProject.instance().setTitle(self.styled_map.name)
+        # store map id to project instance
+        QgsProject.instance().setCustomVariables(
+            {"kumoy_map_id": self.styled_map.id, "kumoy_map_name": self.styled_map.name}
+        )
+
         QgsProject.instance().setDirty(False)
+        print("custom variables new", QgsProject.instance().customVariables())
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -539,3 +548,71 @@ def delete_tempfile(tmp_path: str):
             constants.LOG_CATEGORY,
             Qgis.Warning,
         )
+
+
+def handle_project_saved():
+    # avoid recursive calls
+    global _is_saving
+    if _is_saving:
+        return
+
+    print("handle_project_saved called")
+    project = QgsProject.instance()
+
+    # Get styled map ID from custom variables
+    custom_vars = project.customVariables()
+    styled_map_id = custom_vars.get("kumoy_map_id")
+    styled_map_name = custom_vars.get("kumoy_map_name")
+
+    # case of non kumoy map
+    if not styled_map_id:
+        return
+
+    # if self.role not in ["ADMIN", "OWNER"]:
+    #     # TODO: show message that user cannot save styled map
+    #     return
+
+    print(f"Saving styled map ID: {styled_map_id}, Name: {styled_map_name}")
+    # 確認ダイアログ
+    confirm = QMessageBox.question(
+        None,
+        "Save Map",
+        "Are you sure you want to overwrite the map '{}' with the current project state?".format(
+            styled_map_name
+        ),
+        QMessageBox.Yes | QMessageBox.No,
+        QMessageBox.No,
+    )
+    if confirm != QMessageBox.Yes:
+        return
+
+    try:
+        _is_saving = True
+        new_qgisproject = get_qgisproject_str()
+
+        # スタイルマップ上書き保存
+        api.project_styledmap.update_styled_map(
+            styled_map_id,
+            api.project_styledmap.UpdateStyledMapOptions(
+                qgisproject=new_qgisproject,
+            ),
+        )
+        iface.messageBar().pushSuccess(
+            "Success",
+            "Map '{}' has been saved successfully.".format(styled_map_name),
+        )
+
+    except Exception as e:
+        error_text = format_api_error(e)
+        QgsMessageLog.logMessage(
+            "Error saving map: {}".format(error_text),
+            constants.LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        QMessageBox.critical(
+            None,
+            "Error",
+            "Error saving map: {}".format(error_text),
+        )
+        _is_saving = False
+        return

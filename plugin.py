@@ -1,6 +1,6 @@
 import os
 
-from qgis.core import QgsApplication, QgsProviderRegistry
+from qgis.core import QgsApplication, QgsProviderRegistry, QgsProject
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 
@@ -10,6 +10,7 @@ from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .ui.browser.root import DataItemProvider
+from .ui.browser.styledmap import handle_project_saved
 
 
 class KumoyPlugin:
@@ -57,7 +58,13 @@ class KumoyPlugin:
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
+        # Connect project saved signal
+        QgsProject.instance().projectSaved.connect(handle_project_saved)
+
     def unload(self):
+        # Disconnect project saved signal
+        QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+
         # Remove translator
         if self.translator:
             QCoreApplication.removeTranslator(self.translator)
