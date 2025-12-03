@@ -148,7 +148,6 @@ class StyledMapItem(QgsDataItem):
         )
 
         QgsProject.instance().setDirty(False)
-        print("custom variables new", QgsProject.instance().customVariables())
 
     def handleDoubleClick(self):
         """ダブルクリック時にスタイルを適用する"""
@@ -245,6 +244,9 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
+            # Avoid recursive calls
+            global _is_saving
+            _is_saving = True
             new_qgisproject = get_qgisproject_str()
 
             # スタイルマップ上書き保存
@@ -266,6 +268,7 @@ class StyledMapItem(QgsDataItem):
                 self.tr("Error"),
                 self.tr("Error saving map: {}").format(error_text),
             )
+            _is_saving = False
             return
 
         # Itemを更新
@@ -279,6 +282,7 @@ class StyledMapItem(QgsDataItem):
                 self.styled_map.name
             ),
         )
+        _is_saving = False
 
     def delete_styled_map(self):
         """スタイルマップを削除する"""
@@ -555,7 +559,7 @@ def delete_tempfile(tmp_path: str):
 
 
 def handle_project_saved():
-    # avoid recursive calls
+    # Avoid recursive calls
     global _is_saving
     if _is_saving:
         return
@@ -583,7 +587,7 @@ def handle_project_saved():
     confirm = QMessageBox.question(
         None,
         "Save Map",
-        "Are you sure you want to overwrite on the cloudthe map '{}' with the current project state?".format(
+        "Do you want to overwrite the cloud map '{}' with the current project state?".format(
             styled_map_name
         ),
         QMessageBox.Yes | QMessageBox.No,
