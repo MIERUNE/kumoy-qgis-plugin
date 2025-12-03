@@ -138,9 +138,13 @@ class StyledMapItem(QgsDataItem):
         load_project_from_xml(styled_map_detail.qgisproject)
 
         QgsProject.instance().setTitle(self.styled_map.name)
-        # store map id to project instance
+        # store map kumoy info to project instance
         QgsProject.instance().setCustomVariables(
-            {"kumoy_map_id": self.styled_map.id, "kumoy_map_name": self.styled_map.name}
+            {
+                "kumoy_map_id": self.styled_map.id,
+                "kumoy_map_name": self.styled_map.name,
+                "kumoy_user_role": self.role,
+            }
         )
 
         QgsProject.instance().setDirty(False)
@@ -556,28 +560,30 @@ def handle_project_saved():
     if _is_saving:
         return
 
-    print("handle_project_saved called")
     project = QgsProject.instance()
 
     # Get styled map ID from custom variables
     custom_vars = project.customVariables()
     styled_map_id = custom_vars.get("kumoy_map_id")
-    styled_map_name = custom_vars.get("kumoy_map_name")
+    styled_map_name = custom_vars.get("kumoy_map_name", "Unnamed Map")
+    user_role = custom_vars.get("kumoy_user_role", "MEMBER")
 
     # case of non kumoy map
     if not styled_map_id:
         return
 
-    # if self.role not in ["ADMIN", "OWNER"]:
-    #     # TODO: show message that user cannot save styled map
-    #     return
+    if user_role not in ["ADMIN", "OWNER"]:
+        iface.messageBar().pushMessage(
+            "Failed",
+            "You do not have permission to save this map to Kumoy.",
+        )
+        return
 
-    print(f"Saving styled map ID: {styled_map_id}, Name: {styled_map_name}")
     # 確認ダイアログ
     confirm = QMessageBox.question(
         None,
         "Save Map",
-        "Are you sure you want to overwrite the map '{}' with the current project state?".format(
+        "Are you sure you want to overwrite on the cloudthe map '{}' with the current project state?".format(
             styled_map_name
         ),
         QMessageBox.Yes | QMessageBox.No,
@@ -614,5 +620,6 @@ def handle_project_saved():
             "Error",
             "Error saving map: {}".format(error_text),
         )
-        _is_saving = False
         return
+    finally:
+        _is_saving = False
