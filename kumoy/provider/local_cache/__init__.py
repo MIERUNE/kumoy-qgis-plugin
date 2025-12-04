@@ -21,15 +21,16 @@ from ...constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
-def _get_cache_dir() -> str:
-    """Return the directory where cache files are stored."""
+def _get_cache_dir(data_type: str) -> str:
+    """Return the directory where cache files are stored.
+    data_type: subdirectory name maps or vectors"""
     setting_dir = QgsApplication.qgisSettingsDirPath()
-    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache")
+    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache", data_type)
     os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
 
-def _create_new_cache(
+def _create_new_vector_cache(
     cache_file: str,
     vector_id: str,
     fields: QgsFields,
@@ -112,7 +113,9 @@ def _create_new_cache(
     return updated_at
 
 
-def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> str:
+def _update_existing_vector_cache(
+    cache_file: str, fields: QgsFields, diff: dict
+) -> str:
     """
     既存のキャッシュファイルを更新する
 
@@ -183,7 +186,7 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
     return updated_at
 
 
-def sync_local_cache(
+def sync_local_vector_cache(
     vector_id: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
 ):
     """
@@ -192,14 +195,14 @@ def sync_local_cache(
     - ローカルにGPKGが存在しなければ新規で作成する
     - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
     """
-    cache_dir = _get_cache_dir()
+    cache_dir = _get_cache_dir("vectors")
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
     last_updated = get_last_updated(vector_id)
     if last_updated is None and os.path.exists(cache_file):
         # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
         # 不整合が生じているので既存ファイルを削除する
-        clear(vector_id)
+        clear_vector(vector_id)
     if last_updated is not None and not os.path.exists(cache_file):
         # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
         # 不整合が生じているので最終更新日時を削除する
@@ -212,7 +215,7 @@ def sync_local_cache(
             # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
             # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-            updated_at = _update_existing_cache(cache_file, fields, diff)
+            updated_at = _update_existing_vector_cache(cache_file, fields, diff)
         except api.error.AppError as e:
             if e.error == "MAX_DIFF_COUNT_EXCEEDED":
                 # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
@@ -221,24 +224,26 @@ def sync_local_cache(
                     LOG_CATEGORY,
                     Qgis.Info,
                 )
-                clear(vector_id)
-                updated_at = _create_new_cache(
+                clear_vector(vector_id)
+                updated_at = _create_new_vector_cache(
                     cache_file, vector_id, fields, geometry_type
                 )
             else:
                 raise e
     else:
         # 新規キャッシュファイルを作成
-        updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
+        updated_at = _create_new_vector_cache(
+            cache_file, vector_id, fields, geometry_type
+        )
 
     store_last_updated(vector_id, updated_at)
 
 
 def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
-    cache_dir = _get_cache_dir()
+    cache_dir = _get_cache_dir("vectors")
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-
+    print(f"Looking for cache file at: {cache_file}")
     layer = QgsVectorLayer(cache_file, "cache", "ogr")
 
     if layer.isValid():
@@ -250,10 +255,10 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
         return None
 
 
-def clear_all() -> bool:
+def clear_all_vector() -> bool:
     """Clear all cached GPKG files. Returns True if all files were deleted successfully."""
 
-    cache_dir = _get_cache_dir()
+    cache_dir = _get_cache_dir("vectors")
     success = True
 
     # Remove all files in cache directory
@@ -283,11 +288,11 @@ def clear_all() -> bool:
     return success
 
 
-def clear(vector_id: str) -> bool:
+def clear_vector(vector_id: str) -> bool:
     """Clear cache for a specific vector.
     Returns True if all files were deleted successfully, False otherwise.
     """
-    cache_dir = _get_cache_dir()
+    cache_dir = _get_cache_dir("vectors")
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
     gpkg_shm_file = f"{cache_file}-shm"
     gpkg_wal_file = f"{cache_file}-wal"

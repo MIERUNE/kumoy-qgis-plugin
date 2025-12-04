@@ -39,7 +39,7 @@ DELETE_MAX_FEATURE_COUNT = 1000
 
 
 class SyncWorker(QThread):
-    """Worker thread for sync_local_cache operation"""
+    """Worker thread for sync_local_vector_cache operation"""
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
@@ -52,7 +52,7 @@ class SyncWorker(QThread):
 
     def run(self):
         try:
-            local_cache.sync_local_cache(
+            local_cache.sync_local_vector_cache(
                 self.vector_id,
                 self.fields,
                 self.wkb_type,
@@ -186,7 +186,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             else:
                 raise e
 
-        # Show loading dialog for sync_local_cache operation
+        # Show loading dialog for sync_local_vector_cache operation
         progress = QProgressDialog(
             self.tr("Syncing: {}").format(self.kumoy_vector.name),
             self.tr("Cancel"),
