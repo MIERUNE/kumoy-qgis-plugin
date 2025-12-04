@@ -322,3 +322,10 @@ def clear_vector(vector_id: str) -> bool:
     delete_last_updated(vector_id)
 
     return success
+
+
+def get_cached_map(map_id: str) -> str:
+    """Retrieve a cached map path."""
+    cache_dir = _get_cache_dir("maps")
+    cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
+    return cache_file

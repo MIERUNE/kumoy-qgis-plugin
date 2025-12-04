@@ -26,6 +26,7 @@ from ...imgs import BROWSER_MAP_ICON
 from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
+from ...kumoy.provider import local_cache
 from .utils import ErrorItem
 
 
@@ -132,7 +133,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(styled_map_detail.qgisproject)
+        load_project_from_xml(styled_map_detail.qgisproject, self.styled_map.id)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
@@ -303,6 +304,16 @@ class StyledMapItem(QgsDataItem):
                 )
                 QMessageBox.critical(
                     None, self.tr("Error"), self.tr("Failed to delete the map.")
+                )
+
+            # Remove cached qgs
+            map_path = local_cache.get_cached_map(self.styled_map.id)
+            if os.path.exists(map_path):
+                os.remove(map_path)
+                QgsMessageLog.logMessage(
+                    f"Cached map file {map_path} removed.",
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
                 )
 
 
@@ -515,16 +526,11 @@ def get_qgisproject_str() -> str:
     return qgs_str
 
 
-def load_project_from_xml(xml_string: str) -> bool:
-    with tempfile.NamedTemporaryFile(
-        suffix=".qgs", mode="w", encoding="utf-8", delete=False
-    ) as tmp:
-        tmp.write(xml_string)
-        tmp_path = tmp.name
-
-        iface.addProject(tmp_path)
-
-    delete_tempfile(tmp_path)
+def load_project_from_xml(xml_string: str, styled_map_id: str) -> bool:
+    map_path = local_cache.get_cached_map(styled_map_id)
+    with open(map_path, "w", encoding="utf-8") as f:
+        f.write(xml_string)
+        iface.addProject(map_path)
 
 
 def delete_tempfile(tmp_path: str):
