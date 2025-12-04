@@ -241,7 +241,6 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            # Avoid recursive calls
             new_qgisproject = get_qgisproject_str()
 
             # スタイルマップ上書き保存
@@ -251,6 +250,13 @@ class StyledMapItem(QgsDataItem):
                     qgisproject=new_qgisproject,
                 ),
             )
+
+            update_qgis_project_info(
+                updated_styled_map.id,
+                updated_styled_map.name,
+                self.role,
+            )
+
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -455,7 +461,11 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # 保存完了後のUI更新
-            QgsProject.instance().setTitle(new_styled_map.name)
+            update_qgis_project_info(
+                new_styled_map.id,
+                new_styled_map.name,
+                self.project.role,
+            )
             QgsProject.instance().setDirty(False)
             self.refresh()
             iface.messageBar().pushSuccess(
@@ -637,3 +647,15 @@ def handle_project_saved():
             "Error saving map: {}".format(error_text),
         )
         return
+
+
+def update_qgis_project_info(map_id: str, map_name: str, user_role: str):
+    project = QgsProject.instance()
+    project.setCustomVariables(
+        {
+            "kumoy_map_id": map_id,
+            "kumoy_map_name": map_name,
+            "kumoy_user_role": user_role,
+        }
+    )
+    project.setTitle(map_name)
