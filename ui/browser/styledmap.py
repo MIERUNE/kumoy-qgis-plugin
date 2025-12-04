@@ -79,6 +79,11 @@ class StyledMapItem(QgsDataItem):
             edit_action.triggered.connect(self.update_metadata_styled_map)
             actions.append(edit_action)
 
+            # Clear map cache action
+            clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+            clear_cache_action.triggered.connect(self.clear_map_cache)
+            actions.append(clear_cache_action)
+
             # スタイルマップ削除アクション
             delete_action = QAction(self.tr("Delete"), parent)
             delete_action.triggered.connect(self.delete_styled_map)
@@ -316,6 +321,45 @@ class StyledMapItem(QgsDataItem):
                     Qgis.Info,
                 )
 
+    def clear_map_cache(self):
+        """Clear cache for this specific map"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear MapCache Data"),
+            self.tr(
+                "This will clear the local cache for map '{}'.\n"
+                "The cached data will be re-downloaded when you access it next time.\n"
+                "Do you want to continue?"
+            ).format(self.styled_map.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            # Clear cache for this specific map
+            cache_cleared = local_cache.clear_map(self.styled_map.id)
+
+            if cache_cleared:
+                QgsMessageLog.logMessage(
+                    self.tr("Cache cleared for map '{}'").format(self.styled_map.name),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                iface.messageBar().pushSuccess(
+                    self.tr("Success"),
+                    self.tr("Cache cleared successfully for map '{}'.").format(
+                        self.styled_map.name
+                    ),
+                )
+            else:
+                iface.messageBar().pushMessage(
+                    self.tr("Cache Clear Failed"),
+                    self.tr("Cache could not be cleared for map '{}'. ").format(
+                        self.styled_map.name
+                    ),
+                )
+
 
 class StyledMapRoot(QgsDataItem):
     """スタイルマップルートアイテム（ブラウザ用）"""
@@ -352,14 +396,19 @@ class StyledMapRoot(QgsDataItem):
             return actions
 
         # 空のMapを作成する
-        empty_map_action = QAction(self.tr("Create new map"), parent)
+        empty_map_action = QAction(self.tr("Create New Map"), parent)
         empty_map_action.triggered.connect(self.add_empty_map)
         actions.append(empty_map_action)
 
         # 現在のQGISプロジェクトを保存する
-        new_action = QAction(self.tr("Save current map as..."), parent)
+        new_action = QAction(self.tr("Save Current Map As..."), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
+
+        # Clear map cache data
+        clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
+        clear_all_cache_action.triggered.connect(self.clear_all_map_cache)
+        actions.append(clear_all_cache_action)
 
         return actions
 
@@ -496,6 +545,43 @@ class StyledMapRoot(QgsDataItem):
             children.append(child)
 
         return children
+
+    def clear_all_map_cache(self):
+        """Clear all map cache data"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear Map Cache"),
+            self.tr(
+                "This will clear all locally cached map files. "
+                "Data will be re-downloaded next time you access maps.\n\n"
+                "Continue?"
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        cache_cleared = local_cache.clear_all_map()
+        if cache_cleared:
+            QgsMessageLog.logMessage(
+                self.tr("All map cache files cleared successfully."),
+                constants.LOG_CATEGORY,
+                Qgis.Info,
+            )
+            iface.messageBar().pushSuccess(
+                self.tr("Success"),
+                self.tr("All map cache files have been cleared successfully."),
+            )
+        else:
+            iface.messageBar().pushMessage(
+                self.tr("Map Cache Clear Failed"),
+                self.tr(
+                    "Some map cache files could not be cleared. "
+                    "Please try again after closing QGIS or ensure no files are locked."
+                ),
+            )
 
 
 def get_qgisproject_str(map_id) -> str:

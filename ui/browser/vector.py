@@ -346,7 +346,7 @@ class VectorItem(QgsDataItem):
             self.tr("Clear Cache Data"),
             self.tr(
                 "This will clear the local cache for vector '{}'.\n"
-                "The cached data will be re-downloaded when you access it next time.\n\n"
+                "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.vector.name),
             QMessageBox.Yes | QMessageBox.No,
@@ -422,7 +422,7 @@ class VectorRoot(QgsDataItem):
             actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache data"), parent)
+        clear_cache_action = QAction(self.tr("Clear Vector Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -564,13 +564,13 @@ class VectorRoot(QgsDataItem):
         return children
 
     def clear_cache(self):
-        """Clear all cached data"""
+        """Clear all vector cache data"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Cache"),
+            self.tr("Clear Vector Cache"),
             self.tr(
-                "This will clear all locally cached files. "
+                "This will clear all locally cached vector files. "
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
             ),
@@ -584,19 +584,19 @@ class VectorRoot(QgsDataItem):
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
-                    self.tr("All cache files cleared successfully."),
+                    self.tr("All vector cache files cleared successfully."),
                     constants.LOG_CATEGORY,
                     Qgis.Info,
                 )
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
-                    self.tr("All cache files have been cleared successfully."),
+                    self.tr("All vector cache files have been cleared successfully."),
                 )
             else:
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Failed"),
+                    self.tr("Vector Cache Clear Failed"),
                     self.tr(
-                        "Some cache files could not be cleared. "
+                        "Some vector cache files could not be cleared. "
                         "Please try again after closing QGIS or ensure no files are locked."
                     ),
                 )
