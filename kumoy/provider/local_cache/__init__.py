@@ -243,7 +243,7 @@ def get_cached_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
     cache_dir = _get_cache_dir("vectors")
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-    print(f"Looking for cache file at: {cache_file}")
+
     layer = QgsVectorLayer(cache_file, "cache", "ogr")
 
     if layer.isValid():
