@@ -1,8 +1,8 @@
 import os
 import sys
 
-from .read_version import read_version
 from .kumoy.api.user import get_me
+from .read_version import read_version
 
 try:
     # hack: プラグイン実行環境では必ず失敗する。型推論を効かせるためのコード
@@ -17,12 +17,16 @@ except Exception:
 
 
 def init_sentry():
+    plugin_version = read_version()
+    if plugin_version == "dev":
+        return
+
     try:
         user_info = get_me()
         sentry_sdk.init(
             dsn="https://ee1792defe1a9bcbd0142de036712f1f@o4504721342136320.ingest.us.sentry.io/4510384287449089",
             send_default_pii=True,
-            release=read_version(),
+            release=plugin_version,
         )
         sentry_sdk.set_user({"id": user_info.id})
     except Exception:
