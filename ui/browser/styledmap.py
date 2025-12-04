@@ -233,7 +233,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            new_qgisproject = get_qgisproject_str()
+            new_qgisproject = get_qgisproject_str(self.styled_map.id)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -306,7 +306,7 @@ class StyledMapItem(QgsDataItem):
                     None, self.tr("Error"), self.tr("Failed to delete the map.")
                 )
 
-            # Remove cached qgs
+            # Remove cached qgs file
             map_path = local_cache.get_cached_map(self.styled_map.id)
             if os.path.exists(map_path):
                 os.remove(map_path)
@@ -444,7 +444,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = get_qgisproject_str()
+            qgisproject = get_qgisproject_str(self.project.id)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -498,16 +498,12 @@ class StyledMapRoot(QgsDataItem):
         return children
 
 
-def get_qgisproject_str() -> str:
-    with tempfile.NamedTemporaryFile(
-        suffix=".qgs", mode="w", encoding="utf-8", delete=False
-    ) as tmp:
-        tmp_path = tmp.name
-
+def get_qgisproject_str(map_id) -> str:
+    map_path = local_cache.get_cached_map(map_id)
     project = QgsProject.instance()
-    project.write(tmp_path)
+    project.write(map_path)
 
-    with open(tmp_path, "r", encoding="utf-8") as f:
+    with open(map_path, "r", encoding="utf-8") as f:
         qgs_str = f.read()
 
     # 文字数制限チェック
@@ -522,7 +518,6 @@ def get_qgisproject_str() -> str:
         )
         raise Exception(err)
 
-    delete_tempfile(tmp_path)
     return qgs_str
 
 
