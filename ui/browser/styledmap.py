@@ -28,9 +28,6 @@ from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from .utils import ErrorItem
 
-# Save state to avoid recursive calls
-_is_saving = False
-
 
 class StyledMapItem(QgsDataItem):
     """スタイルマップアイテム（ブラウザ用）"""
@@ -245,8 +242,6 @@ class StyledMapItem(QgsDataItem):
 
         try:
             # Avoid recursive calls
-            global _is_saving
-            _is_saving = True
             new_qgisproject = get_qgisproject_str()
 
             # スタイルマップ上書き保存
@@ -268,7 +263,6 @@ class StyledMapItem(QgsDataItem):
                 self.tr("Error"),
                 self.tr("Error saving map: {}").format(error_text),
             )
-            _is_saving = False
             return
 
         # Itemを更新
@@ -282,7 +276,6 @@ class StyledMapItem(QgsDataItem):
                 self.styled_map.name
             ),
         )
-        _is_saving = False
 
     def delete_styled_map(self):
         """スタイルマップを削除する"""
@@ -532,6 +525,26 @@ def get_qgisproject_str() -> str:
     return qgs_str
 
 
+def get_qgisproject_str_from_file(file_path: str) -> str:
+    """Lit le contenu d'un fichier QGS déjà sauvegardé"""
+    print(f"Reading QGS file from: {file_path}")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Project file not found: {file_path}")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        qgs_str = f.read()
+
+    # 文字数制限チェック
+    LENGTH_LIMIT = 3000000
+    actual_length = len(qgs_str)
+    if actual_length > LENGTH_LIMIT:
+        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
+        QgsMessageLog.logMessage(err, constants.LOG_CATEGORY, Qgis.Warning)
+        raise Exception(err)
+
+    return qgs_str
+
+
 def load_project_from_xml(xml_string: str) -> bool:
     with tempfile.NamedTemporaryFile(
         suffix=".qgs", mode="w", encoding="utf-8", delete=False
@@ -559,10 +572,7 @@ def delete_tempfile(tmp_path: str):
 
 
 def handle_project_saved():
-    # Avoid recursive calls
-    global _is_saving
-    if _is_saving:
-        return
+    print("Handling project saved event...")
 
     project = QgsProject.instance()
 
@@ -597,8 +607,8 @@ def handle_project_saved():
         return
 
     try:
-        _is_saving = True
-        new_qgisproject = get_qgisproject_str()
+        file_path = project.absoluteFilePath()
+        new_qgisproject = get_qgisproject_str_from_file(file_path)
 
         # スタイルマップ上書き保存
         api.project_styledmap.update_styled_map(
@@ -611,6 +621,8 @@ def handle_project_saved():
             "Success",
             "Map '{}' has been saved successfully.".format(styled_map_name),
         )
+
+        # TODO: update custom variables if name changed
 
     except Exception as e:
         error_text = format_api_error(e)
@@ -625,5 +637,3 @@ def handle_project_saved():
             "Error saving map: {}".format(error_text),
         )
         return
-    finally:
-        _is_saving = False
