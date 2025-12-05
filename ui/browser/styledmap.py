@@ -24,7 +24,6 @@ from qgis.utils import iface
 from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.api.project_styledmap import KumoyStyledMapDetail
 from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
 
@@ -238,7 +237,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            new_qgisproject = write_qgsfile(self.styled_map.id)
+            new_qgisproject = _write_qgsfile(self.styled_map.id)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -493,7 +492,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = write_qgsfile(self.project.id)
+            qgisproject = _write_qgsfile(self.project.id)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -584,7 +583,7 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def write_qgsfile(map_id: str) -> str:
+def _write_qgsfile(map_id: str) -> str:
     """
     現在のプロジェクトをローカルキャッシュに保存し、プロジェクトファイルの内容を文字列で返す
 
