@@ -24,8 +24,11 @@ from qgis.utils import iface
 from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...settings_manager import get_settings, store_setting
+from ...settings_manager import get_settings
 from .utils import ErrorItem
+
+# Flag to prevent double update when saving project from map browser
+_is_updating = False
 
 
 class StyledMapItem(QgsDataItem):
@@ -247,8 +250,13 @@ class StyledMapItem(QgsDataItem):
         if confirm != QMessageBox.Yes:
             return
 
+        global _is_updating
+        _is_updating = True
         try:
-            new_qgisproject = _write_qgsfile(self.styled_map.id)
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
+            project = QgsProject.instance()
+            project.write(map_path)
+            new_qgisproject = _get_qgsfile_str(map_path)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -258,7 +266,7 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
 
-            update_qgis_project_info(
+            update_qgisproject_info(
                 updated_styled_map.id,
                 updated_styled_map.name,
                 self.role,
@@ -277,6 +285,8 @@ class StyledMapItem(QgsDataItem):
                 self.tr("Error saving map: {}").format(error_text),
             )
             return
+        finally:
+            _is_updating = False
 
         # Itemを更新
         self.styled_map = updated_styled_map
@@ -450,6 +460,8 @@ class StyledMapRoot(QgsDataItem):
         clear=False,
     ):
         """新しいスタイルマップを追加する"""
+        global _is_updating
+        _is_updating = True
 
         try:
             # Check plan limits before creating styled map
@@ -510,7 +522,11 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = _write_qgsfile(self.project.id)
+            map_path = local_cache.map.get_filepath(self.project.id)
+            project = QgsProject.instance()
+            project.write(map_path)
+
+            qgisproject = _get_qgsfile_str(map_path)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -522,11 +538,12 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # 保存完了後のUI更新
-            update_qgis_project_info(
+            update_qgisproject_info(
                 new_styled_map.id,
                 new_styled_map.name,
                 self.project.role,
             )
+
             QgsProject.instance().setDirty(False)
             self.refresh()
             iface.messageBar().pushSuccess(
@@ -545,6 +562,8 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error"),
                 self.tr("Error adding map: {}").format(error_text),
             )
+        finally:
+            _is_updating = False
 
     def createChildren(self):
         """子アイテムを作成する"""
@@ -605,12 +624,12 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def _write_qgsfile(map_id: str) -> str:
+def _get_qgsfile_str(map_path: str) -> str:
     """
-    現在のプロジェクトをローカルキャッシュに保存し、プロジェクトファイルの内容を文字列で返す
+    プロジェクトファイルの内容を文字列で返す
 
     Args:
-        map_id (str): スタイルマップID
+        map_path (str): スタイルマップのファイルパス
 
     Raises:
         Exception: too large file size
@@ -618,9 +637,6 @@ def _write_qgsfile(map_id: str) -> str:
     Returns:
         str: プロジェクトファイルの内容
     """
-    map_path = local_cache.map.get_filepath(map_id)
-    project = QgsProject.instance()
-    project.write(map_path)
 
     with open(map_path, "r", encoding="utf-8") as f:
         qgs_str = f.read()
@@ -641,7 +657,11 @@ def _write_qgsfile(map_id: str) -> str:
 
 
 def handle_project_saved():
-    print("Handling project saved event...")
+    """Update current project to Kumoy when QGIS project is saved"""
+    # Do not proceed if already updating from styled map item
+    global _is_updating
+    if _is_updating:
+        return
 
     project = QgsProject.instance()
 
@@ -677,7 +697,7 @@ def handle_project_saved():
 
     try:
         file_path = project.absoluteFilePath()
-        new_qgisproject = get_qgisproject_str_from_file(file_path)
+        new_qgisproject = _get_qgsfile_str(file_path)
 
         # スタイルマップ上書き保存
         api.project_styledmap.update_styled_map(
@@ -708,7 +728,7 @@ def handle_project_saved():
         return
 
 
-def update_qgis_project_info(map_id: str, map_name: str, user_role: str):
+def update_qgisproject_info(map_id: str, map_name: str, user_role: str):
     project = QgsProject.instance()
     project.setCustomVariables(
         {
