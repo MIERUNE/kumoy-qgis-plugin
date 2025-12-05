@@ -22,11 +22,10 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
-from ...settings_manager import get_settings, store_setting
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.provider import local_cache
 from ...kumoy.api.project_styledmap import KumoyStyledMapDetail
+from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
 
 
@@ -312,9 +311,9 @@ class StyledMapItem(QgsDataItem):
                 )
 
             # Remove cached qgs file
-            map_path = local_cache.map.get(self.styled_map.id)
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
             if os.path.exists(map_path):
-                os.remove(map_path)
+                local_cache.map.clear(self.styled_map.id)
                 QgsMessageLog.logMessage(
                     f"Cached map file {map_path} removed.",
                     constants.LOG_CATEGORY,
@@ -585,7 +584,7 @@ class StyledMapRoot(QgsDataItem):
 
 
 def get_qgisproject_str(map_id) -> str:
-    map_path = local_cache.map.get(map_id)
+    map_path = local_cache.map.get_filepath(map_id)
     project = QgsProject.instance()
     project.write(map_path)
 
