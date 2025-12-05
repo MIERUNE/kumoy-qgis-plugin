@@ -1,5 +1,4 @@
 import os
-import tempfile
 import webbrowser
 from typing import Literal
 
@@ -23,9 +22,9 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
-from ...settings_manager import get_settings, store_setting
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
+from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
 
 
@@ -77,6 +76,11 @@ class StyledMapItem(QgsDataItem):
             edit_action = QAction(self.tr("Edit Metadata"), parent)
             edit_action.triggered.connect(self.update_metadata_styled_map)
             actions.append(edit_action)
+
+            # Clear map cache action
+            clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+            clear_cache_action.triggered.connect(self.clear_map_cache)
+            actions.append(clear_cache_action)
 
             # スタイルマップ削除アクション
             delete_action = QAction(self.tr("Delete"), parent)
@@ -132,7 +136,10 @@ class StyledMapItem(QgsDataItem):
             return
 
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(styled_map_detail.qgisproject)
+        qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
+        with open(qgs_path, "w", encoding="utf-8") as f:
+            f.write(styled_map_detail.qgisproject)
+            iface.addProject(qgs_path)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         # store map kumoy info to project instance
@@ -241,7 +248,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            new_qgisproject = get_qgisproject_str()
+            new_qgisproject = _write_qgsfile(self.styled_map.id)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -321,6 +328,55 @@ class StyledMapItem(QgsDataItem):
                     None, self.tr("Error"), self.tr("Failed to delete the map.")
                 )
 
+            # Remove cached qgs file
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
+            if os.path.exists(map_path):
+                local_cache.map.clear(self.styled_map.id)
+                QgsMessageLog.logMessage(
+                    f"Cached map file {map_path} removed.",
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+
+    def clear_map_cache(self):
+        """Clear cache for this specific map"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear MapCache Data"),
+            self.tr(
+                "This will clear the local cache for map '{}'.\n"
+                "The cached data will be re-downloaded when you access it next time.\n"
+                "Do you want to continue?"
+            ).format(self.styled_map.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if confirm == QMessageBox.Yes:
+            # Clear cache for this specific map
+            cache_cleared = local_cache.map.clear(self.styled_map.id)
+
+            if cache_cleared:
+                QgsMessageLog.logMessage(
+                    self.tr("Cache cleared for map '{}'").format(self.styled_map.name),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                iface.messageBar().pushSuccess(
+                    self.tr("Success"),
+                    self.tr("Cache cleared successfully for map '{}'.").format(
+                        self.styled_map.name
+                    ),
+                )
+            else:
+                iface.messageBar().pushMessage(
+                    self.tr("Cache Clear Failed"),
+                    self.tr("Cache could not be cleared for map '{}'. ").format(
+                        self.styled_map.name
+                    ),
+                )
+
 
 class StyledMapRoot(QgsDataItem):
     """スタイルマップルートアイテム（ブラウザ用）"""
@@ -357,14 +413,19 @@ class StyledMapRoot(QgsDataItem):
             return actions
 
         # 空のMapを作成する
-        empty_map_action = QAction(self.tr("Create new map"), parent)
+        empty_map_action = QAction(self.tr("Create New Map"), parent)
         empty_map_action.triggered.connect(self.add_empty_map)
         actions.append(empty_map_action)
 
         # 現在のQGISプロジェクトを保存する
-        new_action = QAction(self.tr("Save current map as..."), parent)
+        new_action = QAction(self.tr("Save Current Map As..."), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
+
+        # Clear map cache data
+        clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
+        clear_all_cache_action.triggered.connect(self.clear_all_map_cache)
+        actions.append(clear_all_cache_action)
 
         return actions
 
@@ -449,7 +510,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = get_qgisproject_str()
+            qgisproject = _write_qgsfile(self.project.id)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -506,17 +567,62 @@ class StyledMapRoot(QgsDataItem):
 
         return children
 
+    def clear_all_map_cache(self):
+        """Clear all map cache data"""
+        # Show confirmation dialog
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Clear Map Cache"),
+            self.tr(
+                "This will clear all locally cached map files. "
+                "Data will be re-downloaded next time you access maps.\n\n"
+                "Continue?"
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
 
-def get_qgisproject_str() -> str:
-    with tempfile.NamedTemporaryFile(
-        suffix=".qgs", mode="w", encoding="utf-8", delete=False
-    ) as tmp:
-        tmp_path = tmp.name
+        cache_cleared = local_cache.map.clear_all()
+        if cache_cleared:
+            QgsMessageLog.logMessage(
+                self.tr("All map cache files cleared successfully."),
+                constants.LOG_CATEGORY,
+                Qgis.Info,
+            )
+            iface.messageBar().pushSuccess(
+                self.tr("Success"),
+                self.tr("All map cache files have been cleared successfully."),
+            )
+        else:
+            iface.messageBar().pushMessage(
+                self.tr("Map Cache Clear Failed"),
+                self.tr(
+                    "Some map cache files could not be cleared. "
+                    "Please try again after closing QGIS or ensure no files are locked."
+                ),
+            )
 
+
+def _write_qgsfile(map_id: str) -> str:
+    """
+    現在のプロジェクトをローカルキャッシュに保存し、プロジェクトファイルの内容を文字列で返す
+
+    Args:
+        map_id (str): スタイルマップID
+
+    Raises:
+        Exception: too large file size
+
+    Returns:
+        str: プロジェクトファイルの内容
+    """
+    map_path = local_cache.map.get_filepath(map_id)
     project = QgsProject.instance()
-    project.write(tmp_path)
+    project.write(map_path)
 
-    with open(tmp_path, "r", encoding="utf-8") as f:
+    with open(map_path, "r", encoding="utf-8") as f:
         qgs_str = f.read()
 
     # 文字数制限チェック
@@ -531,54 +637,7 @@ def get_qgisproject_str() -> str:
         )
         raise Exception(err)
 
-    delete_tempfile(tmp_path)
     return qgs_str
-
-
-def get_qgisproject_str_from_file(file_path: str) -> str:
-    """Lit le contenu d'un fichier QGS déjà sauvegardé"""
-    print(f"Reading QGS file from: {file_path}")
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Project file not found: {file_path}")
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        qgs_str = f.read()
-
-    # 文字数制限チェック
-    LENGTH_LIMIT = 3000000
-    actual_length = len(qgs_str)
-    if actual_length > LENGTH_LIMIT:
-        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
-        QgsMessageLog.logMessage(err, constants.LOG_CATEGORY, Qgis.Warning)
-        raise Exception(err)
-
-    return qgs_str
-
-
-def load_project_from_xml(xml_string: str) -> bool:
-    with tempfile.NamedTemporaryFile(
-        suffix=".qgs", mode="w", encoding="utf-8", delete=False
-    ) as tmp:
-        tmp.write(xml_string)
-        tmp_path = tmp.name
-
-        iface.addProject(tmp_path)
-
-    delete_tempfile(tmp_path)
-
-
-def delete_tempfile(tmp_path: str):
-    if os.path.exists(tmp_path):
-        os.remove(tmp_path)
-        QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} removed.", constants.LOG_CATEGORY, Qgis.Info
-        )
-    else:
-        QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} does not exist.",
-            constants.LOG_CATEGORY,
-            Qgis.Warning,
-        )
 
 
 def handle_project_saved():

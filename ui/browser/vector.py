@@ -36,10 +36,9 @@ from ...imgs import (
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
-from ...settings_manager import get_settings, store_setting
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.provider import local_cache
+from ...settings_manager import get_settings
 from .utils import ErrorItem
 
 
@@ -319,7 +318,7 @@ class VectorItem(QgsDataItem):
 
             # Clear cache for this vector
 
-            cache_cleared = local_cache.clear(self.vector.id)
+            cache_cleared = local_cache.vector.clear(self.vector.id)
 
             if not cache_cleared:
                 iface.messageBar().pushMessage(
@@ -346,7 +345,7 @@ class VectorItem(QgsDataItem):
             self.tr("Clear Cache Data"),
             self.tr(
                 "This will clear the local cache for vector '{}'.\n"
-                "The cached data will be re-downloaded when you access it next time.\n\n"
+                "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.vector.name),
             QMessageBox.Yes | QMessageBox.No,
@@ -355,7 +354,7 @@ class VectorItem(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Clear cache for this specific vector
-            cache_cleared = local_cache.clear(self.vector.id)
+            cache_cleared = local_cache.vector.clear(self.vector.id)
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
@@ -422,7 +421,7 @@ class VectorRoot(QgsDataItem):
             actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache data"), parent)
+        clear_cache_action = QAction(self.tr("Clear Vector Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -564,13 +563,13 @@ class VectorRoot(QgsDataItem):
         return children
 
     def clear_cache(self):
-        """Clear all cached data"""
+        """Clear all vector cache data"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Cache"),
+            self.tr("Clear Vector Cache"),
             self.tr(
-                "This will clear all locally cached files. "
+                "This will clear all locally cached vector files. "
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
             ),
@@ -580,23 +579,23 @@ class VectorRoot(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Get cache directory path
-            cache_cleared = local_cache.clear_all()
+            cache_cleared = local_cache.vector.clear_all()
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
-                    self.tr("All cache files cleared successfully."),
+                    self.tr("All vector cache files cleared successfully."),
                     constants.LOG_CATEGORY,
                     Qgis.Info,
                 )
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
-                    self.tr("All cache files have been cleared successfully."),
+                    self.tr("All vector cache files have been cleared successfully."),
                 )
             else:
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Failed"),
+                    self.tr("Vector Cache Clear Failed"),
                     self.tr(
-                        "Some cache files could not be cleared. "
+                        "Some vector cache files could not be cleared. "
                         "Please try again after closing QGIS or ensure no files are locked."
                     ),
                 )

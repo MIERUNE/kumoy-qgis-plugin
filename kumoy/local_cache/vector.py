@@ -16,15 +16,16 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from ... import api
-from ...constants import LOG_CATEGORY
+from .. import api
+from ..constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
 def _get_cache_dir() -> str:
-    """Return the directory where cache files are stored."""
+    """Return the directory where cache files are stored.
+    data_type: subdirectory name maps or vectors"""
     setting_dir = QgsApplication.qgisSettingsDirPath()
-    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache")
+    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache", "vectors")
     os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
@@ -234,7 +235,7 @@ def sync_local_cache(
     store_last_updated(vector_id, updated_at)
 
 
-def get_cached_layer(vector_id: str) -> QgsVectorLayer:
+def get_layer(vector_id: str) -> QgsVectorLayer:
     """Retrieve a cached QgsVectorLayer by vector ID."""
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
