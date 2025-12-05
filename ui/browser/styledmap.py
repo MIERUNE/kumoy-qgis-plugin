@@ -22,11 +22,9 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
-from ...settings_manager import get_settings, store_setting
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.provider import local_cache
-from ...kumoy.api.project_styledmap import KumoyStyledMapDetail
+from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
 
 
@@ -138,7 +136,10 @@ class StyledMapItem(QgsDataItem):
             return
 
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(styled_map_detail)
+        qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
+        with open(qgs_path, "w", encoding="utf-8") as f:
+            f.write(styled_map_detail.qgisproject)
+            iface.addProject(qgs_path)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
@@ -238,7 +239,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            new_qgisproject = get_qgisproject_str(self.styled_map.id)
+            new_qgisproject = _write_qgsfile(self.styled_map.id)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -312,9 +313,9 @@ class StyledMapItem(QgsDataItem):
                 )
 
             # Remove cached qgs file
-            map_path = local_cache.map.get(self.styled_map.id)
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
             if os.path.exists(map_path):
-                os.remove(map_path)
+                local_cache.map.clear(self.styled_map.id)
                 QgsMessageLog.logMessage(
                     f"Cached map file {map_path} removed.",
                     constants.LOG_CATEGORY,
@@ -493,7 +494,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = get_qgisproject_str(self.project.id)
+            qgisproject = _write_qgsfile(self.project.id)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -584,8 +585,20 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def get_qgisproject_str(map_id) -> str:
-    map_path = local_cache.map.get(map_id)
+def _write_qgsfile(map_id: str) -> str:
+    """
+    現在のプロジェクトをローカルキャッシュに保存し、プロジェクトファイルの内容を文字列で返す
+
+    Args:
+        map_id (str): スタイルマップID
+
+    Raises:
+        Exception: too large file size
+
+    Returns:
+        str: プロジェクトファイルの内容
+    """
+    map_path = local_cache.map.get_filepath(map_id)
     project = QgsProject.instance()
     project.write(map_path)
 
@@ -605,24 +618,3 @@ def get_qgisproject_str(map_id) -> str:
         raise Exception(err)
 
     return qgs_str
-
-
-def load_project_from_xml(styled_map_detail: KumoyStyledMapDetail) -> bool:
-    map_path = local_cache.map.get(styled_map_detail.id)
-    with open(map_path, "w", encoding="utf-8") as f:
-        f.write(styled_map_detail.qgisproject)
-        iface.addProject(map_path)
-
-
-def delete_tempfile(tmp_path: str):
-    if os.path.exists(tmp_path):
-        os.remove(tmp_path)
-        QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} removed.", constants.LOG_CATEGORY, Qgis.Info
-        )
-    else:
-        QgsMessageLog.logMessage(
-            f"Temporary file {tmp_path} does not exist.",
-            constants.LOG_CATEGORY,
-            Qgis.Warning,
-        )

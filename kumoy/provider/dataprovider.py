@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
@@ -15,7 +16,6 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
-    NULL,
 )
 from qgis.PyQt.QtCore import (
     QCoreApplication,
@@ -27,9 +27,8 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
-from .. import api, constants
+from .. import api, constants, local_cache
 from ..api.error import format_api_error
-from . import local_cache
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
 

@@ -36,10 +36,9 @@ from ...imgs import (
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
-from ...settings_manager import get_settings, store_setting
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.provider import local_cache
+from ...settings_manager import get_settings
 from .utils import ErrorItem
 
 
