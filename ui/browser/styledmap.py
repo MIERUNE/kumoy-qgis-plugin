@@ -1,4 +1,5 @@
 import os
+import tempfile
 import webbrowser
 from typing import Literal
 
@@ -492,7 +493,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = get_qgisproject_str(self.project.id)
+            qgisproject = get_qgisproject_str()
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -583,12 +584,15 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def get_qgisproject_str(map_id) -> str:
-    map_path = local_cache.map.get_filepath(map_id)
-    project = QgsProject.instance()
-    project.write(map_path)
+def get_qgisproject_str() -> str:
+    with tempfile.NamedTemporaryFile(
+        suffix=".qgs", mode="w", encoding="utf-8", delete=False
+    ) as tmp:
+        tmp_path = tmp.name
+        project = QgsProject.instance()
+        project.write(tmp_path)
 
-    with open(map_path, "r", encoding="utf-8") as f:
+    with open(tmp_path, "r", encoding="utf-8") as f:
         qgs_str = f.read()
 
     # 文字数制限チェック
