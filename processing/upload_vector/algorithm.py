@@ -393,21 +393,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             return {"VECTOR_ID": vector.id}
 
         except Exception as e:
-            capture_exception(
-                e,
-                {
-                    "algorithm": "UploadVectorAlgorithm",
-                    "project_id": project_id if "project_id" in locals() else "",
-                    "vector_name": vector_name if "vector_name" in locals() else "",
-                    "geometry_type": geometry_type
-                    if "geometry_type" in locals()
-                    else "",
-                    "field_mapping": field_mapping
-                    if "field_mapping" in locals()
-                    else "",
-                    "attr_dict": attr_dict if "attr_dict" in locals() else "",
-                },
-            )
             # If vector was created but upload failed, delete it
             if vector is not None:
                 try:
@@ -424,8 +409,24 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         ).format(str(cleanup_error))
                     )
 
-            # Re-raise the original exception
-            raise e
+            if not isinstance(e, _UserCanceled):
+                capture_exception(
+                    e,
+                    {
+                        "algorithm": "UploadVectorAlgorithm",
+                        "project_id": project_id if "project_id" in locals() else "",
+                        "vector_name": vector_name if "vector_name" in locals() else "",
+                        "geometry_type": geometry_type
+                        if "geometry_type" in locals()
+                        else "",
+                        "field_mapping": field_mapping
+                        if "field_mapping" in locals()
+                        else "",
+                        "attr_dict": attr_dict if "attr_dict" in locals() else "",
+                    },
+                )
+                # Re-raise the original exception
+                raise e
 
     def _process_layer_geometry(
         self,
