@@ -136,8 +136,10 @@ class StyledMapItem(QgsDataItem):
             return
 
         # XML文字列をQGISプロジェクトにロード
-        qgs_path = local_cache.map.get_filepath(self.styled_map.id)
-        iface.addProject(qgs_path)
+        qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
+        with open(qgs_path, "w", encoding="utf-8") as f:
+            f.write(styled_map_detail.qgisproject)
+            iface.addProject(qgs_path)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
