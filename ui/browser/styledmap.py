@@ -1,5 +1,4 @@
 import os
-import tempfile
 import webbrowser
 from typing import Literal
 
@@ -138,7 +137,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         # XML文字列をQGISプロジェクトにロード
-        load_project_from_xml(styled_map_detail.qgisproject, self.styled_map.id)
+        load_project_from_xml(styled_map_detail)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         QgsProject.instance().setDirty(False)
@@ -607,10 +606,10 @@ def get_qgisproject_str(map_id) -> str:
     return qgs_str
 
 
-def load_project_from_xml(xml_string: str, styled_map_id: str) -> bool:
-    map_path = local_cache.get_cached_map(styled_map_id)
+def load_project_from_xml(styled_map_detail) -> bool:
+    map_path = local_cache.get_cached_map(styled_map_detail.id)
     with open(map_path, "w", encoding="utf-8") as f:
-        f.write(xml_string)
+        f.write(styled_map_detail.qgisproject)
         iface.addProject(map_path)
 
 
