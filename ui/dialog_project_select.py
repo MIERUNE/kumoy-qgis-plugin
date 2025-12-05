@@ -24,11 +24,11 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
-from ..pyqt_version import QT_USER_ROLE
-from ..settings_manager import get_settings, store_setting
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import QT_USER_ROLE
+from ..settings_manager import get_settings, store_setting
 from .remote_image_label import RemoteImageLabel
 
 
@@ -534,8 +534,12 @@ class ProjectSelectDialog(QDialog):
             return
 
         try:
+            # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
+            teams = api.team.get_teams(org.id)
+            team = teams[0]  # デフォルトチームが必ず存在する
+
             new_project = api.project.create_project(
-                organization_id=org.id, name=project_name, description=""
+                team_id=team.id, name=project_name, description=""
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),

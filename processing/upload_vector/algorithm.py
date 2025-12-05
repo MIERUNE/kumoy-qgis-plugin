@@ -22,11 +22,11 @@ from qgis.utils import iface
 
 import processing
 
-from ...sentry import capture_exception
-from ...settings_manager import get_settings
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
+from ...sentry import capture_exception
+from ...settings_manager import get_settings
 from .normalize_field_name import normalize_field_name
 
 
@@ -239,7 +239,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Get project and plan limits
         project = api.project.get_project(project_id)
-        organization = api.organization.get_organization(project.organizationId)
+        organization = api.organization.get_organization(project.team.organization_id)
         plan_limits = api.plan.get_plan_limits(organization.subscriptionPlan)
 
         # Check vector count limit

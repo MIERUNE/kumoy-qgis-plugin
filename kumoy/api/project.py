@@ -1,7 +1,9 @@
 from dataclasses import dataclass
-from typing import List, Literal, Optional
+from typing import List, Literal
 
 from .client import ApiClient
+from .organization import Organization
+from .team import Team
 
 
 # どのエンドポイントにも含む要素（create/update)
@@ -13,14 +15,16 @@ class Project:
     createdAt: str
     updatedAt: str
     thumbnailImageUrl: str
+    teamId: str
+    team: Team
 
 
-def create_project(organization_id: str, name: str, description: str) -> Project:
+def create_project(team_id: str, name: str, description: str) -> Project:
     """
     Create a new project
 
     Args:
-        organization_id: Organization ID
+        team_id: Team ID
         name: Project name
 
     Returns:
@@ -31,7 +35,7 @@ def create_project(organization_id: str, name: str, description: str) -> Project
         "/project",
         {
             "name": name,
-            "organizationId": organization_id,
+            "teamId": team_id,
         },
     )
 
@@ -42,6 +46,36 @@ def create_project(organization_id: str, name: str, description: str) -> Project
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
+        teamId=response.get("team", {}).get("id", ""),
+        team=Team(
+            id=response.get("team", {}).get("id", ""),
+            name=response.get("team", {}).get("name", ""),
+            description=response.get("team", {}).get("description", ""),
+            createdAt=response.get("team", {}).get("createdAt", ""),
+            updatedAt=response.get("team", {}).get("updatedAt", ""),
+            organization_id=response.get("team", {})
+            .get("organization", {})
+            .get("id", ""),
+            organization=Organization(
+                id=response.get("team", {}).get("organization", {}).get("id", ""),
+                name=response.get("team", {}).get("organization", {}).get("name", ""),
+                subscriptionPlan=response.get("team", {})
+                .get("organization", {})
+                .get("subscriptionPlan", ""),
+                stripeCustomerId=response.get("team", {})
+                .get("organization", {})
+                .get("stripeCustomerId", ""),
+                storageUnits=response.get("team", {})
+                .get("organization", {})
+                .get("storageUnits", 0),
+                createdAt=response.get("team", {})
+                .get("organization", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("team", {})
+                .get("organization", {})
+                .get("updatedAt", ""),
+            ),
+        ),
     )
 
 
@@ -71,6 +105,36 @@ def update_project(project_id: str, name: str, description: str) -> Project:
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
+        teamId=response.get("team", {}).get("id", ""),
+        team=Team(
+            id=response.get("team", {}).get("id", ""),
+            name=response.get("team", {}).get("name", ""),
+            description=response.get("team", {}).get("description", ""),
+            createdAt=response.get("team", {}).get("createdAt", ""),
+            updatedAt=response.get("team", {}).get("updatedAt", ""),
+            organization_id=response.get("team", {})
+            .get("organization", {})
+            .get("id", ""),
+            organization=Organization(
+                id=response.get("team", {}).get("organization", {}).get("id", ""),
+                name=response.get("team", {}).get("organization", {}).get("name", ""),
+                subscriptionPlan=response.get("team", {})
+                .get("organization", {})
+                .get("subscriptionPlan", ""),
+                stripeCustomerId=response.get("team", {})
+                .get("organization", {})
+                .get("stripeCustomerId", ""),
+                storageUnits=response.get("team", {})
+                .get("organization", {})
+                .get("storageUnits", 0),
+                createdAt=response.get("team", {})
+                .get("organization", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("team", {})
+                .get("organization", {})
+                .get("updatedAt", ""),
+            ),
+        ),
     )
 
 
@@ -115,20 +179,53 @@ def get_projects_by_organization(organization_id: str) -> List[ProjectsInOrganiz
                 description=project.get("description", ""),
                 createdAt=project.get("createdAt", ""),
                 updatedAt=project.get("updatedAt", ""),
+                thumbnailImageUrl=project.get("thumbnailImageUrl", ""),
+                teamId=project.get("team", {}).get("id", ""),
+                team=Team(
+                    id=project.get("team", {}).get("id", ""),
+                    name=project.get("team", {}).get("name", ""),
+                    description=project.get("team", {}).get("description", ""),
+                    createdAt=project.get("team", {}).get("createdAt", ""),
+                    updatedAt=project.get("team", {}).get("updatedAt", ""),
+                    organization_id=project.get("team", {})
+                    .get("organization", {})
+                    .get("id", ""),
+                    organization=Organization(
+                        id=project.get("team", {})
+                        .get("organization", {})
+                        .get("id", ""),
+                        name=project.get("team", {})
+                        .get("organization", {})
+                        .get("name", ""),
+                        stripeCustomerId=project.get("team", {})
+                        .get("organization", {})
+                        .get("stripeCustomerId", ""),
+                        subscriptionPlan=project.get("team", {})
+                        .get("organization", {})
+                        .get("subscriptionPlan", ""),
+                        storageUnits=project.get("team", {})
+                        .get("organization", {})
+                        .get("storageUnits", 0),
+                        createdAt=project.get("team", {})
+                        .get("organization", {})
+                        .get("createdAt", ""),
+                        updatedAt=project.get("team", {})
+                        .get("organization", {})
+                        .get("updatedAt", ""),
+                    ),
+                ),
                 vectorCount=project.get("vectorCount", 0),
                 mapCount=project.get("mapCount", 0),
                 storageUnitsSum=project.get("storageUnitsSum", 0.0),
-                thumbnailImageUrl=project.get("thumbnailImageUrl", ""),
             )
         )
-
     return projects
 
 
 @dataclass
-class ProjectDetail(ProjectsInOrganization):
-    organizationId: str
+class ProjectDetail(Project):
     role: Literal["ADMIN", "OWNER", "MEMBER"]
+    storageUnitsSum: float
 
 
 def get_project(project_id: str) -> ProjectDetail:
@@ -149,10 +246,37 @@ def get_project(project_id: str) -> ProjectDetail:
         description=response.get("description", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
-        organizationId=response.get("organization", {}).get("id", ""),
         storageUnitsSum=response.get("storageUnitsSum", 0.0),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
-        vectorCount=response.get("vectorCount", 0),
-        mapCount=response.get("mapCount", 0),
         role=response.get("role", "MEMBER"),
+        teamId=response.get("team", {}).get("id", ""),
+        team=Team(
+            id=response.get("team", {}).get("id", ""),
+            name=response.get("team", {}).get("name", ""),
+            description=response.get("team", {}).get("description", ""),
+            createdAt=response.get("team", {}).get("createdAt", ""),
+            updatedAt=response.get("team", {}).get("updatedAt", ""),
+            organization_id=response.get("team", {})
+            .get("organization", {})
+            .get("id", ""),
+            organization=Organization(
+                id=response.get("team", {}).get("organization", {}).get("id", ""),
+                name=response.get("team", {}).get("organization", {}).get("name", ""),
+                subscriptionPlan=response.get("team", {})
+                .get("organization", {})
+                .get("subscriptionPlan", ""),
+                stripeCustomerId=response.get("team", {})
+                .get("organization", {})
+                .get("stripeCustomerId", ""),
+                storageUnits=response.get("team", {})
+                .get("organization", {})
+                .get("storageUnits", 0),
+                createdAt=response.get("team", {})
+                .get("organization", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("team", {})
+                .get("organization", {})
+                .get("updatedAt", ""),
+            ),
+        ),
     )
