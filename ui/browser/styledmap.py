@@ -256,7 +256,7 @@ class StyledMapItem(QgsDataItem):
             map_path = local_cache.map.get_filepath(self.styled_map.id)
             project = QgsProject.instance()
             project.write(map_path)
-            new_qgisproject = _get_qgsfile_str(map_path)
+            new_qgisproject = _get_qgsproject_str(map_path)
 
             # スタイルマップ上書き保存
             updated_styled_map = api.project_styledmap.update_styled_map(
@@ -526,7 +526,7 @@ class StyledMapRoot(QgsDataItem):
             project = QgsProject.instance()
             project.write(map_path)
 
-            qgisproject = _get_qgsfile_str(map_path)
+            qgisproject = _get_qgsproject_str(map_path)
 
             # スタイルマップ作成
             new_styled_map = api.project_styledmap.add_styled_map(
@@ -624,7 +624,7 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def _get_qgsfile_str(map_path: str) -> str:
+def _get_qgsproject_str(map_path: str) -> str:
     """
     プロジェクトファイルの内容を文字列で返す
 
@@ -697,7 +697,7 @@ def handle_project_saved():
 
     try:
         file_path = project.absoluteFilePath()
-        new_qgisproject = _get_qgsfile_str(file_path)
+        new_qgisproject = _get_qgsproject_str(file_path)
 
         # スタイルマップ上書き保存
         api.project_styledmap.update_styled_map(
