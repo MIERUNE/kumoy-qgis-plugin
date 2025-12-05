@@ -6,7 +6,7 @@ from qgis.core import (
     QgsMessageLog,
 )
 
-from ...constants import LOG_CATEGORY
+from ..constants import LOG_CATEGORY
 
 
 def _get_cache_dir() -> str:
@@ -18,7 +18,7 @@ def _get_cache_dir() -> str:
     return cache_dir
 
 
-def get(map_id: str) -> str:
+def get_filepath(map_id: str) -> str:
     """Retrieve a cached map path."""
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{map_id}.qgs")

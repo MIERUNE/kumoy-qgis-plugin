@@ -16,8 +16,8 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from ... import api
-from ...constants import LOG_CATEGORY
+from .. import api
+from ..constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
