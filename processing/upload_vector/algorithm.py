@@ -22,12 +22,16 @@ from qgis.utils import iface
 
 import processing
 
-from ...sentry import capture_exception
-from ...settings_manager import get_settings
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
+from ...sentry import capture_exception
+from ...settings_manager import get_settings
 from .normalize_field_name import normalize_field_name
+
+
+class _UserCanceled(Exception):
+    """Internal exception used to short-circuit on user cancellation"""
 
 
 def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
@@ -255,6 +259,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         return project_id, vector_name, plan_limits
 
+    def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
+        """Raise internal cancel marker to unwind quickly without reporting error."""
+        if feedback.isCanceled():
+            raise _UserCanceled()
+
     def processAlgorithm(
         self,
         parameters: Dict[str, Any],
@@ -265,6 +274,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector = None
 
         try:
+            self._raise_if_canceled(feedback)
+
             # Get input layer
             # 入力レイヤーのproviderチェック
             layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
@@ -274,6 +285,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     self.tr("Cannot upload a layer that is already stored in server.")
                 )
+
+            self._raise_if_canceled(feedback)
 
             # Get project information and validate
             project_id, vector_name, plan_limits = self._get_project_info_and_validate(
@@ -289,6 +302,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "but your plan allows up to {} features per vector."
                     ).format(layer_feature_count, plan_limits.maxVectorFeatures)
                 )
+
+            self._raise_if_canceled(feedback)
 
             # Determine geometry type
             geometry_type = _get_geometry_type(layer)
@@ -318,6 +333,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(fields_count, plan_limits.maxVectorAttributes)
                 )
 
+            self._raise_if_canceled(feedback)
+
             field_mapping = self._build_field_mapping(
                 layer,
                 feedback,
@@ -330,6 +347,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 context,
                 feedback,
             )
+
+            self._raise_if_canceled(feedback)
 
             # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
             proc_feature_count = processed_layer.featureCount()
@@ -356,6 +375,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
+            self._raise_if_canceled(feedback)
+
             # Add attributes to vector
             api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
             feedback.pushInfo(
@@ -363,6 +384,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     vector_name, ", ".join(attr_dict.keys())
                 )
             )
+
+            self._raise_if_canceled(feedback)
 
             # Upload features
             self._upload_features(vector.id, processed_layer, feedback)
@@ -447,6 +470,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 geometry_filter_expr
             )
         )
+        self._raise_if_canceled(feedback)
         filtered_layer = self._run_child_algorithm(
             "native:extractbyexpression",
             {
@@ -457,6 +481,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             context,
             feedback,
         )
+
+        self._raise_if_canceled(feedback)
 
         filtered_count = filtered_layer.featureCount()
         if filtered_count < layer.featureCount():
@@ -488,6 +514,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
+        self._raise_if_canceled(feedback)
+
         # Step 3: repair geometries prior to other operations
         feedback.pushInfo(self.tr("Repairing geometries..."))
         current_layer = self._run_child_algorithm(
@@ -499,6 +527,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             context,
             feedback,
         )
+
+        self._raise_if_canceled(feedback)
 
         # Step 4: convert to singlepart if needed
         if QgsWkbTypes.isMultiType(current_layer.wkbType()):
@@ -512,6 +542,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 context,
                 feedback,
             )
+
+        self._raise_if_canceled(feedback)
 
         # Step 5: transform to EPSG:4326 when needed
         if current_layer.crs().authid() != "EPSG:4326":
@@ -531,6 +563,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
             )
 
+        self._raise_if_canceled(feedback)
+
         feedback.pushInfo(self.tr("Refactoring attributes..."))
         current_layer = self._run_child_algorithm(
             "native:refactorfields",
@@ -542,6 +576,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             context,
             feedback,
         )
+
+        self._raise_if_canceled(feedback)
 
         return current_layer
 
@@ -665,13 +701,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector_id: str,
         valid_fields_layer: QgsVectorLayer,
         feedback: QgsProcessingFeedback,
-    ) -> None:
-        """Upload features to KUMOY in batches"""
+    ) -> bool:
+        """Upload features to KUMOY in batches. Returns True when canceled."""
         cur_features = []
         accumulated_features = 0
         batch_size = 1000
 
         for f in valid_fields_layer.getFeatures():
+            self._raise_if_canceled(feedback)
+
             if len(cur_features) >= batch_size:
                 api.qgis_vector.add_features(vector_id, cur_features)
 
@@ -699,3 +737,5 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     accumulated_features, valid_fields_layer.featureCount()
                 )
             )
+
+        return feedback.isCanceled()
