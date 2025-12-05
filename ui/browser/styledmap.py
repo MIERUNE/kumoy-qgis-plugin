@@ -26,6 +26,7 @@ from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.provider import local_cache
+from ...kumoy.api.project_styledmap import KumoyStyledMapDetail
 from .utils import ErrorItem
 
 
@@ -311,7 +312,7 @@ class StyledMapItem(QgsDataItem):
                 )
 
             # Remove cached qgs file
-            map_path = local_cache.get_cached_map(self.styled_map.id)
+            map_path = local_cache.map.get(self.styled_map.id)
             if os.path.exists(map_path):
                 os.remove(map_path)
                 QgsMessageLog.logMessage(
@@ -337,7 +338,7 @@ class StyledMapItem(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Clear cache for this specific map
-            cache_cleared = local_cache.clear_map(self.styled_map.id)
+            cache_cleared = local_cache.map.clear(self.styled_map.id)
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
@@ -562,7 +563,7 @@ class StyledMapRoot(QgsDataItem):
         if confirm != QMessageBox.Yes:
             return
 
-        cache_cleared = local_cache.clear_all_map()
+        cache_cleared = local_cache.map.clear_all()
         if cache_cleared:
             QgsMessageLog.logMessage(
                 self.tr("All map cache files cleared successfully."),
@@ -584,7 +585,7 @@ class StyledMapRoot(QgsDataItem):
 
 
 def get_qgisproject_str(map_id) -> str:
-    map_path = local_cache.get_cached_map(map_id)
+    map_path = local_cache.map.get(map_id)
     project = QgsProject.instance()
     project.write(map_path)
 
@@ -606,8 +607,8 @@ def get_qgisproject_str(map_id) -> str:
     return qgs_str
 
 
-def load_project_from_xml(styled_map_detail) -> bool:
-    map_path = local_cache.get_cached_map(styled_map_detail.id)
+def load_project_from_xml(styled_map_detail: KumoyStyledMapDetail) -> bool:
+    map_path = local_cache.map.get(styled_map_detail.id)
     with open(map_path, "w", encoding="utf-8") as f:
         f.write(styled_map_detail.qgisproject)
         iface.addProject(map_path)
