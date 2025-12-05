@@ -427,6 +427,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
                 # Re-raise the original exception
                 raise e
+            else:
+                return {}
 
     def _process_layer_geometry(
         self,
