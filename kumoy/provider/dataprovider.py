@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
@@ -15,7 +16,6 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
-    NULL,
 )
 from qgis.PyQt.QtCore import (
     QCoreApplication,
@@ -27,9 +27,8 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
-from .. import api, constants
+from .. import api, constants, local_cache
 from ..api.error import format_api_error
-from . import local_cache
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
 
@@ -52,7 +51,7 @@ class SyncWorker(QThread):
 
     def run(self):
         try:
-            local_cache.sync_local_cache(
+            local_cache.vector.sync_local_cache(
                 self.vector_id,
                 self.fields,
                 self.wkb_type,
@@ -109,7 +108,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if self.kumoy_vector is None:
             return
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self._is_valid = True
 
@@ -253,7 +252,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             # Force closing connection with GPKG file
             del self.cached_layer
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self.clearMinMaxCache()
 
