@@ -319,7 +319,7 @@ class VectorItem(QgsDataItem):
 
             # Clear cache for this vector
 
-            cache_cleared = local_cache.clear_vector(self.vector.id)
+            cache_cleared = local_cache.vector.clear(self.vector.id)
 
             if not cache_cleared:
                 iface.messageBar().pushMessage(
@@ -355,7 +355,7 @@ class VectorItem(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Clear cache for this specific vector
-            cache_cleared = local_cache.clear_vector(self.vector.id)
+            cache_cleared = local_cache.vector.clear(self.vector.id)
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
@@ -580,7 +580,7 @@ class VectorRoot(QgsDataItem):
 
         if confirm == QMessageBox.Yes:
             # Get cache directory path
-            cache_cleared = local_cache.clear_all_vector()
+            cache_cleared = local_cache.vector.clear_all()
 
             if cache_cleared:
                 QgsMessageLog.logMessage(

@@ -39,7 +39,7 @@ DELETE_MAX_FEATURE_COUNT = 1000
 
 
 class SyncWorker(QThread):
-    """Worker thread for sync_local_vector_cache operation"""
+    """Worker thread for sync_local_cache operation"""
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
@@ -52,7 +52,7 @@ class SyncWorker(QThread):
 
     def run(self):
         try:
-            local_cache.sync_local_vector_cache(
+            local_cache.vector.sync_local_cache(
                 self.vector_id,
                 self.fields,
                 self.wkb_type,
@@ -109,7 +109,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if self.kumoy_vector is None:
             return
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self._is_valid = True
 
@@ -186,7 +186,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             else:
                 raise e
 
-        # Show loading dialog for sync_local_vector_cache operation
+        # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
             self.tr("Syncing: {}").format(self.kumoy_vector.name),
             self.tr("Cancel"),
@@ -253,7 +253,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             # Force closing connection with GPKG file
             del self.cached_layer
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self.clearMinMaxCache()
 
