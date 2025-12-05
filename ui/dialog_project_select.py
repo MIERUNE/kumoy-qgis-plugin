@@ -400,7 +400,7 @@ class ProjectSelectDialog(QDialog):
         # Update Storage
         if "storage" in self.org_details_panel["usage_widgets"]:
             used = org_detail.usage.usedStorageUnits
-            total = org_detail.storageUnits
+            total = org_detail.availableStorageUnits
             # Format storage units with appropriate suffix
             self.org_details_panel["usage_widgets"]["storage"]["label"].setText(
                 f"{used:.2f}SU / {total:.0f}SU"

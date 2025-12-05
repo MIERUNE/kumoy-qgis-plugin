@@ -58,7 +58,7 @@ class OrganizationUsage:
 @dataclass
 class OrganizationDetail(OrganizationWithRole):
     usage: OrganizationUsage
-    availableStorageUnits: float
+    availableStorageUnits: int
 
 
 def get_organization(organization_id: str) -> OrganizationDetail:
