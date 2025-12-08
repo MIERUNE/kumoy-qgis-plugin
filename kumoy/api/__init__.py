@@ -8,5 +8,6 @@ from . import (
     project_styledmap,
     project_vector,
     qgis_vector,
+    team,
     user,
 )

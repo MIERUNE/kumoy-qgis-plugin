@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
 from .client import ApiClient
 
@@ -10,11 +10,17 @@ class Organization:
     name: str
     stripeCustomerId: Optional[str]
     subscriptionPlan: str
+    storageUnits: int
     createdAt: str
     updatedAt: str
 
 
-def get_organizations() -> List[Organization]:
+@dataclass
+class OrganizationWithRole(Organization):
+    role: Literal["OWNER", "ADMIN", "MEMBER"]
+
+
+def get_organizations() -> List[OrganizationWithRole]:
     """
     Get a list of organizations
 
@@ -26,13 +32,15 @@ def get_organizations() -> List[Organization]:
     organizations = []
     for org in response:
         organizations.append(
-            Organization(
+            OrganizationWithRole(
                 id=org.get("id", ""),
                 name=org.get("name", ""),
                 subscriptionPlan=org.get("subscriptionPlan", ""),
                 stripeCustomerId=org.get("stripeCustomerId", ""),
                 createdAt=org.get("createdAt", ""),
                 updatedAt=org.get("updatedAt", ""),
+                storageUnits=org.get("storageUnits", 0),
+                role=org.get("role", "MEMBER"),
             )
         )
     return organizations
@@ -48,16 +56,9 @@ class OrganizationUsage:
 
 
 @dataclass
-class OrganizationDetail:
-    id: str
-    name: str
-    subscriptionPlan: Literal["FREE", "OPERATOR", "TEAM", "CUSTOM"]
-    stripeCustomerId: Optional[str]
-    createdAt: str
-    updatedAt: str
-    storageUnits: int
+class OrganizationDetail(OrganizationWithRole):
     usage: OrganizationUsage
-    role: Literal["OWNER", "ADMIN", "MEMBER"]
+    availableStorageUnits: int
 
 
 def get_organization(organization_id: str) -> OrganizationDetail:
@@ -77,9 +78,10 @@ def get_organization(organization_id: str) -> OrganizationDetail:
         name=response.get("name", ""),
         subscriptionPlan=response.get("subscriptionPlan", ""),
         stripeCustomerId=response.get("stripeCustomerId", ""),
+        storageUnits=response.get("storageUnits", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
-        storageUnits=response.get("storageUnits", 0),
+        role=response.get("role", "MEMBER"),
         usage=OrganizationUsage(
             projects=response.get("usage", {}).get("projects", 0),
             vectors=response.get("usage", {}).get("vectors", 0),
@@ -87,7 +89,7 @@ def get_organization(organization_id: str) -> OrganizationDetail:
             organizationMembers=response.get("usage", {}).get("organizationMembers", 0),
             usedStorageUnits=response.get("usage", {}).get("usedStorageUnits", 0),
         ),
-        role=response.get("role", "MEMBER"),
+        availableStorageUnits=response.get("availableStorageUnits", 0),
     )
 
 
@@ -110,6 +112,7 @@ def create_organization(name: str) -> Organization:
         stripeCustomerId=response.get("stripeCustomerId", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        storageUnits=response.get("storageUnits", 0),
     )
 
 
@@ -134,6 +137,7 @@ def update_organization(organization_id: str, name: str) -> Organization:
         stripeCustomerId=response.get("stripeCustomerId", ""),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        storageUnits=response.get("storageUnits", 0),
     )
 
 

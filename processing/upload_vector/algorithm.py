@@ -243,7 +243,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Get project and plan limits
         project = api.project.get_project(project_id)
-        organization = api.organization.get_organization(project.organizationId)
+        organization = api.organization.get_organization(project.team.organization_id)
         plan_limits = api.plan.get_plan_limits(organization.subscriptionPlan)
 
         # Check vector count limit
