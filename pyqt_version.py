@@ -1,7 +1,7 @@
 """Qt5/Qt6 compatibility layer"""
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer
-from qgis.PyQt.QtGui import QRegion
+from qgis.PyQt.QtGui import QRegion, QPainter
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -115,6 +115,12 @@ Q_BUFFER_OPEN_MODE = QBuffer if QT_VERSION_INT <= 5 else QBuffer.OpenModeFlag
 """QBuffer open mode
 Qt5: QBuffer.ReadOnly, QBuffer.WriteOnly, etc.
 Qt6: QBuffer.OpenModeFlag.ReadOnly, etc.
+"""
+
+Q_PAINTER_RENDER_HINT = QPainter if QT_VERSION_INT <= 5 else QPainter.RenderHint
+"""QPainter render hints
+Qt5: QPainter.Antialiasing, QPainter.TextAntialiasing, etc.
+Qt6: QPainter.RenderHint.Antialiasing, etc.
 """
 
 Q_NETWORK_REQUEST_HEADER = (

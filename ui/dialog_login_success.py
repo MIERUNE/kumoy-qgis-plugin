@@ -9,7 +9,13 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..pyqt_version import QT_ALIGN, QT_PEN_CAP_STYLE, QT_PEN_JOIN_STYLE, QT_PEN_STYLE
+from ..pyqt_version import (
+    QT_ALIGN,
+    QT_PEN_CAP_STYLE,
+    QT_PEN_JOIN_STYLE,
+    QT_PEN_STYLE,
+    Q_PAINTER_RENDER_HINT,
+)
 
 
 class CheckmarkWidget(QWidget):
@@ -20,7 +26,7 @@ class CheckmarkWidget(QWidget):
     def paintEvent(self, event):
         del event  # Unused parameter
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
 
         # Draw green circle
         painter.setBrush(QBrush(QColor(76, 175, 80)))
