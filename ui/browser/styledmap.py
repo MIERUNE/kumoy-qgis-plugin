@@ -23,6 +23,12 @@ from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
+from ...pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_DIALOG_BUTTON_OK,
+    QT_DIALOG_BUTTON_CANCEL,
+    exec_dialog,
+)
 from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
@@ -113,10 +119,10 @@ class StyledMapItem(QgsDataItem):
                 self.tr(
                     "Are you sure you want to load the map '{}'? This will replace your current project."
                 ).format(self.styled_map.name),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            if confirm != QMessageBox.Yes:
+            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         try:
@@ -170,7 +176,7 @@ class StyledMapItem(QgsDataItem):
         form_layout.addRow(self.tr("Public:"), is_public_field)
 
         # ボタン作成
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
 
@@ -180,7 +186,7 @@ class StyledMapItem(QgsDataItem):
         dialog.setLayout(layout)
 
         # ダイアログ表示
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
         if not result:
             return
 
@@ -232,10 +238,10 @@ class StyledMapItem(QgsDataItem):
             self.tr(
                 "Are you sure you want to overwrite the map '{}' with the current project state?"
             ).format(self.styled_map.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
-        if confirm != QMessageBox.Yes:
+        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
         try:
@@ -283,11 +289,11 @@ class StyledMapItem(QgsDataItem):
             self.tr("Are you sure you want to delete map '{}'?").format(
                 self.styled_map.name
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # スタイルマップ削除
             try:
                 api.project_styledmap.delete_styled_map(self.styled_map.id)
@@ -333,11 +339,11 @@ class StyledMapItem(QgsDataItem):
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.styled_map.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Clear cache for this specific map
             cache_cleared = local_cache.map.clear(self.styled_map.id)
 
@@ -421,10 +427,10 @@ class StyledMapRoot(QgsDataItem):
                 self.tr(
                     "Creating an new map will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            if confirm != QMessageBox.Yes:
+            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         self.add_styled_map(clear=True)
@@ -469,7 +475,7 @@ class StyledMapRoot(QgsDataItem):
             form_layout.addRow(self.tr("Public:"), is_public_field)
 
             # ボタン作成
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
 
@@ -479,7 +485,7 @@ class StyledMapRoot(QgsDataItem):
             dialog.setLayout(layout)
 
             # ダイアログ表示
-            result = dialog.exec_()
+            result = exec_dialog(dialog)
 
             if not result:
                 return
@@ -558,10 +564,10 @@ class StyledMapRoot(QgsDataItem):
                 "Data will be re-downloaded next time you access maps.\n\n"
                 "Continue?"
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
-        if confirm != QMessageBox.Yes:
+        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
         cache_cleared = local_cache.map.clear_all()
