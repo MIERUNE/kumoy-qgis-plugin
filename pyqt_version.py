@@ -2,6 +2,7 @@
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, Qt
 from qgis.PyQt.QtGui import QRegion
+from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -90,6 +91,14 @@ Qt5: Qt.PointingHandCursor, Qt.ArrowCursor, etc.
 Qt6: Qt.CursorShape.PointingHandCursor, etc.
 """
 
+Q_NETWORK_REQUEST_HEADER = (
+    QNetworkRequest if QT_VERSION_INT <= 5 else QNetworkRequest.KnownHeaders
+)
+"""Qt network request header type
+Qt5: QNetworkRequest.ContentTypeHeader, etc.
+Qt6: QNetworkRequest.KnownHeaders.ContentTypeHeader, etc.
+"""
+
 Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
 """Qt region type
 Qt5: QRegion.Ellipse, etc.
@@ -114,3 +123,25 @@ def exec_dialog(dialog: QDialog):
         return dialog.exec_()
     else:
         return dialog.exec()
+
+
+def exec_menu(menu, position):
+    """Execute a QMenu at a given position.
+    Qt5: menu.exec_(position)
+    Qt6: menu.exec(position)
+    """
+    if QT_VERSION_INT <= 5:
+        return menu.exec_(position)
+    else:
+        return menu.exec(position)
+
+
+def exec_event_loop(loop):
+    """Execute a QEventLoop.
+    Qt5: loop.exec_()
+    Qt6: loop.exec()
+    """
+    if QT_VERSION_INT <= 5:
+        return loop.exec_()
+    else:
+        return loop.exec()

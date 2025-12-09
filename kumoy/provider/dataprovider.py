@@ -31,6 +31,7 @@ from .. import api, constants, local_cache
 from ..api.error import format_api_error
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
+from ...pyqt_version import exec_event_loop
 
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
@@ -231,7 +232,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Start sync in background and wait for completion
         sync_worker.start()
-        loop.exec_()  # This keeps UI responsive while waiting
+        exec_event_loop(loop)  # This keeps UI responsive while waiting
 
         # Clean up
         progress.accept()

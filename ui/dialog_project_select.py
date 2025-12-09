@@ -28,6 +28,7 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import (
+    exec_menu,
     QT_USER_ROLE,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
@@ -732,7 +733,7 @@ class ProjectItemWidget(QWidget):
         delete_action = menu.addAction(self.tr("Delete Project"))
         delete_action.triggered.connect(self.delete_project)
 
-        menu.exec_(self.mapToGlobal(position))
+        exec_menu(menu, self.mapToGlobal(position))
 
     def open_in_web(self):
         """Open project in web browser"""
