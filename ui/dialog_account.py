@@ -17,6 +17,7 @@ from ..read_version import read_version
 from ..settings_manager import store_setting
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import QT_ALIGN
 from .remote_image_label import RemoteImageLabel
 
 
@@ -61,7 +62,7 @@ class DialogAccount(QDialog):
         icon_label.setFixedSize(24, 24)
         icon_label.setScaledContents(True)
         icon_pixmap = QPixmap(
-            os.path.join(os.path.dirname(__file__), "../imgs", "icon.svg")
+            os.path.join(os.path.dirname(__file__), "../imgs", "kumoy.png")
         )
         icon_label.setPixmap(icon_pixmap)
         # label
@@ -86,7 +87,7 @@ class DialogAccount(QDialog):
         header_layout.addStretch()
 
         version_label = QLabel(read_version())
-        version_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        version_label.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
         version_label.setStyleSheet("color: #777777; font-size: 12px;")
         header_layout.addWidget(version_label)
         # icon/label <-> version
@@ -98,20 +99,20 @@ class DialogAccount(QDialog):
         profile_layout = QVBoxLayout()
         profile_layout.setSpacing(12)
         profile_layout.setContentsMargins(0, 0, 0, 0)
-        profile_layout.setAlignment(Qt.AlignCenter)
+        profile_layout.setAlignment(QT_ALIGN.AlignCenter)
 
         # Avatar with image or initial + name
         self.avatar_label = RemoteImageLabel(size=(64, 64))
         self.avatar_label.set_circular_mask()
-        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setAlignment(QT_ALIGN.AlignCenter)
 
         # Name label
         self.name_label = QLabel(self.tr("Unknown user"))
-        self.name_label.setAlignment(Qt.AlignCenter)
+        self.name_label.setAlignment(QT_ALIGN.AlignCenter)
         self.name_label.setStyleSheet("font-size: 18px; font-weight: 600;")
 
         self.email_label = QLabel("")
-        self.email_label.setAlignment(Qt.AlignCenter)
+        self.email_label.setAlignment(QT_ALIGN.AlignCenter)
         self.email_label.setStyleSheet("font-size: 13px;")
 
         self.account_settings_button = QPushButton(self.tr("Account settings"))
@@ -125,10 +126,10 @@ class DialogAccount(QDialog):
         """
         )
 
-        profile_layout.addWidget(self.avatar_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.name_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.email_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.account_settings_button, 0, Qt.AlignHCenter)
+        profile_layout.addWidget(self.avatar_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.name_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.email_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.account_settings_button, 0, QT_ALIGN.AlignHCenter)
 
         main_layout.addLayout(profile_layout)
 
