@@ -4,6 +4,7 @@ from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRe
 from qgis.PyQt.QtWidgets import QLabel
 
 from ..imgs import PIN_ICON
+from ..pyqt_version import QT_ALIGN
 
 # icon
 placeholder_pixmap = PIN_ICON.pixmap(24, 24)
@@ -12,7 +13,7 @@ placeholder_pixmap = PIN_ICON.pixmap(24, 24)
 class RemoteImageLabel(QLabel):
     def __init__(self, parent=None, size=(150, 100)):
         super().__init__(parent)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(QT_ALIGN.AlignCenter)
         self.setFixedSize(*size)
         self._img: QImage | None = None
         self.nam = QNetworkAccessManager(self)

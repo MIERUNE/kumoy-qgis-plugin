@@ -34,6 +34,12 @@ Qt5: QDialogButtonBox.Cancel
 Qt6: QDialogButtonBox.StandardButton.Cancel
 """
 
+QT_ALIGN = Qt if QT_VERSION_INT <= 5 else Qt.AlignmentFlag
+"""Qt alignment flags
+Qt5: Qt.AlignRight, etc.
+Qt6: Qt.AlignmentFlag.AlignRight, etc.
+"""
+
 
 def exec_dialog(dialog: QDialog):
     """Execute a modal dialog and return the result.

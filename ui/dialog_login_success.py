@@ -9,6 +9,8 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..pyqt_version import QT_ALIGN
+
 
 class CheckmarkWidget(QWidget):
     def __init__(self, parent=None):
@@ -55,7 +57,7 @@ class LoginSuccess(QDialog):
 
         # Title label
         title_label = QLabel(self.tr("Welcome!\nYou are now logged in."))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(QT_ALIGN.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
         title_font.setBold(True)
@@ -67,7 +69,7 @@ class LoginSuccess(QDialog):
         subtitle_label = QLabel(
             self.tr("Next, please select a project\nto open in Kumoy.")
         )
-        subtitle_label.setAlignment(Qt.AlignCenter)
+        subtitle_label.setAlignment(QT_ALIGN.AlignCenter)
         subtitle_font = QFont()
         subtitle_font.setPointSize(14)
         subtitle_label.setFont(subtitle_font)

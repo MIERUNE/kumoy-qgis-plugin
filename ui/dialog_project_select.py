@@ -27,7 +27,7 @@ from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import QT_USER_ROLE
+from ..pyqt_version import QT_USER_ROLE, QT_ALIGN
 from ..settings_manager import get_settings, store_setting
 from .remote_image_label import RemoteImageLabel
 
@@ -96,7 +96,7 @@ class ProjectSelectDialog(QDialog):
         avatar_name_layout = QHBoxLayout()
         avatar_label = RemoteImageLabel(size=(32, 32))
         avatar_label.set_circular_mask()
-        avatar_label.setAlignment(Qt.AlignCenter)
+        avatar_label.setAlignment(QT_ALIGN.AlignCenter)
 
         avatar_name_layout.addWidget(avatar_label)
 
@@ -109,7 +109,7 @@ class ProjectSelectDialog(QDialog):
         account_org_layout.addWidget(org_label, 0, 2)
         # "show details" link
         details_toggle = QLabel(self.tr("<a href='#'>Show details &#9660;</a>"))
-        details_toggle.setAlignment(Qt.AlignRight)
+        details_toggle.setAlignment(QT_ALIGN.AlignRight)
         details_toggle.linkActivated.connect(self.toggle_details)
         account_org_layout.addWidget(details_toggle, 0, 3)
         # Organization selector
@@ -180,7 +180,7 @@ class ProjectSelectDialog(QDialog):
             # Usage text
             usage_text = QLabel()
             usage_text.setFixedWidth(120)
-            usage_text.setAlignment(Qt.AlignRight)
+            usage_text.setAlignment(QT_ALIGN.AlignRight)
             row_layout.addWidget(usage_text)
 
             # Progress bar
@@ -645,7 +645,7 @@ class ProjectItemWidget(QWidget):
 
         # Right side icons and size
         right_layout = QVBoxLayout()
-        right_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        right_layout.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
 
         # Icons row
         icons_layout = QHBoxLayout()
