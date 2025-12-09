@@ -9,7 +9,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..pyqt_version import QT_ALIGN
+from ..pyqt_version import QT_ALIGN, QT_PEN_CAP_STYLE, QT_PEN_JOIN_STYLE, QT_PEN_STYLE
 
 
 class CheckmarkWidget(QWidget):
@@ -24,12 +24,18 @@ class CheckmarkWidget(QWidget):
 
         # Draw green circle
         painter.setBrush(QBrush(QColor(76, 175, 80)))
-        painter.setPen(QPen(Qt.NoPen))
+        painter.setPen(QPen(QT_PEN_STYLE.NoPen))
         painter.drawEllipse(0, 0, 50, 50)
 
         # Draw white checkmark
         painter.setPen(
-            QPen(QColor(255, 255, 255), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(
+                QColor(255, 255, 255),
+                3,
+                QT_PEN_STYLE.SolidLine,
+                QT_PEN_CAP_STYLE.RoundCap,
+                QT_PEN_JOIN_STYLE.RoundJoin,
+            )
         )
         painter.drawLine(15, 26, 22, 33)
         painter.drawLine(22, 33, 35, 20)

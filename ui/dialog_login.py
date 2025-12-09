@@ -27,7 +27,7 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import QT_ALIGN, Q_SIZE_POLICY
+from ..pyqt_version import exec_dialog, QT_ALIGN, Q_SIZE_POLICY
 from .dialog_login_success import LoginSuccess
 
 
@@ -192,7 +192,7 @@ class DialogLogin(QDialog):
 
         # Show the custom login success dialog
         success_dialog = LoginSuccess(self)
-        success_dialog.exec_()
+        exec_dialog(success_dialog)
         # Update the UI
         self.update_login_status()
         self.accept()

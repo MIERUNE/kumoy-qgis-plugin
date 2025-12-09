@@ -17,7 +17,12 @@ from ..read_version import read_version
 from ..settings_manager import store_setting
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import QT_ALIGN
+from ..pyqt_version import (
+    QT_ALIGN,
+    QT_TEXT_INTERACTION,
+    QT_CURSOR_SHAPE,
+    Q_MESSAGEBOX_STD_BUTTON,
+)
 from .remote_image_label import RemoteImageLabel
 
 
@@ -76,7 +81,9 @@ class DialogAccount(QDialog):
         powered_label = QLabel(
             self.tr('Powered by <a href="https://www.mierune.co.jp/">MIERUNE Inc.</a>')
         )
-        powered_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        powered_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextBrowserInteraction
+        )
         powered_label.setOpenExternalLinks(True)
 
         brand_layout = QVBoxLayout()
@@ -116,7 +123,7 @@ class DialogAccount(QDialog):
         self.email_label.setStyleSheet("font-size: 13px;")
 
         self.account_settings_button = QPushButton(self.tr("Account settings"))
-        self.account_settings_button.setCursor(Qt.PointingHandCursor)
+        self.account_settings_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.account_settings_button.clicked.connect(self._open_account_settings)
         self.account_settings_button.setStyleSheet(
             """
@@ -143,7 +150,9 @@ class DialogAccount(QDialog):
         server_layout.addWidget(server_label)
 
         self.server_url_label = QLabel()
-        self.server_url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.server_url_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextSelectableByMouse
+        )
         self.server_url_label.setStyleSheet("font-size: 12px;")
         server_layout.addWidget(self.server_url_label)
 
@@ -154,7 +163,7 @@ class DialogAccount(QDialog):
         # Logout button
         self.logout_button = QPushButton(self.tr("Logout"))
         self.logout_button.setMinimumHeight(28)
-        self.logout_button.setCursor(Qt.PointingHandCursor)
+        self.logout_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.logout_button.clicked.connect(self._logout)
         main_layout.addWidget(self.logout_button)
 
@@ -209,11 +218,11 @@ class DialogAccount(QDialog):
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
 
-            if confirmed != QMessageBox.Yes:
+            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         QgsProject.instance().clear()

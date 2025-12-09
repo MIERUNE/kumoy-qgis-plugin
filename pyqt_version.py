@@ -60,6 +60,36 @@ Qt5: Qt.CustomContextMenu
 Qt6: Qt.ContextMenuPolicy.CustomContextMenu
 """
 
+QT_PEN_STYLE = Qt if QT_VERSION_INT <= 5 else Qt.PenStyle
+"""Qt pen style
+Qt5: Qt.NoPen, Qt.SolidLine, etc.
+Qt6: Qt.PenStyle.NoPen, Qt.PenStyle.SolidLine, etc.
+"""
+
+QT_PEN_CAP_STYLE = Qt if QT_VERSION_INT <= 5 else Qt.PenCapStyle
+"""Qt pen cap style
+Qt5: Qt.RoundCap, etc.
+Qt6: Qt.PenCapStyle.RoundCap, etc.
+"""
+
+QT_PEN_JOIN_STYLE = Qt if QT_VERSION_INT <= 5 else Qt.PenJoinStyle
+"""Qt pen join style
+Qt5: Qt.RoundJoin, etc.
+Qt6: Qt.PenJoinStyle.RoundJoin, etc.
+"""
+
+QT_TEXT_INTERACTION = Qt if QT_VERSION_INT <= 5 else Qt.TextInteractionFlag
+"""Qt text interaction flags
+Qt5: Qt.TextBrowserInteraction, Qt.TextSelectableByMouse, etc.
+Qt6: Qt.TextInteractionFlag.TextBrowserInteraction, etc.
+"""
+
+QT_CURSOR_SHAPE = Qt if QT_VERSION_INT <= 5 else Qt.CursorShape
+"""Qt cursor shapes
+Qt5: Qt.PointingHandCursor, Qt.ArrowCursor, etc.
+Qt6: Qt.CursorShape.PointingHandCursor, etc.
+"""
+
 Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
 """Qt region type
 Qt5: QRegion.Ellipse, etc.
