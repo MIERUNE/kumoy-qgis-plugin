@@ -28,6 +28,7 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import QT_ALIGN
 from .dialog_login_success import LoginSuccess
 
 
@@ -55,7 +56,7 @@ class DialogLogin(QDialog):
         version_label = QLabel()
         version_label.setText(f"{read_version()}")
         version_label.setScaledContents(False)
-        version_label.setAlignment(Qt.AlignRight)
+        version_label.setAlignment(QT_ALIGN.AlignRight)
         version_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_label)
 
@@ -70,7 +71,7 @@ class DialogLogin(QDialog):
             pixmap = QPixmap(icon_path)
             logo_icon_label.setPixmap(pixmap)
         logo_icon_label.setScaledContents(True)
-        logo_icon_label.setAlignment(Qt.AlignCenter)
+        logo_icon_label.setAlignment(QT_ALIGN.AlignCenter)
         logo_icon_label.setWordWrap(False)
         horizontalLayout_3.addWidget(logo_icon_label)
 
@@ -98,7 +99,7 @@ class DialogLogin(QDialog):
         # padding
         version_and_credits_label.setContentsMargins(0, 20, 0, 40)
         version_and_credits_label.setScaledContents(False)
-        version_and_credits_label.setAlignment(Qt.AlignCenter)
+        version_and_credits_label.setAlignment(QT_ALIGN.AlignCenter)
         version_and_credits_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_and_credits_label)
 
@@ -128,7 +129,7 @@ class DialogLogin(QDialog):
         # Status label
         self.login_status_label = QLabel()
         self.login_status_label.setText("")
-        self.login_status_label.setAlignment(Qt.AlignCenter)
+        self.login_status_label.setAlignment(QT_ALIGN.AlignCenter)
         verticalLayout.addWidget(self.login_status_label)
 
         # Login buttons layout
