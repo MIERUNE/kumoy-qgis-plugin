@@ -27,7 +27,12 @@ from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import QT_USER_ROLE, QT_ALIGN
+from ..pyqt_version import (
+    QT_USER_ROLE,
+    QT_ALIGN,
+    QT_CUSTOM_CONTEXT_MENU,
+    Q_MESSAGEBOX_STD_BUTTON,
+)
 from ..settings_manager import get_settings, store_setting
 from .remote_image_label import RemoteImageLabel
 
@@ -598,7 +603,7 @@ class ProjectItemWidget(QWidget):
         self.project = project
         self.organization_id = organization_id
         self.parent_dialog = parent_dialog
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
 
@@ -762,11 +767,11 @@ class ProjectItemWidget(QWidget):
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
             ).format(self.project.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
                 # Call API to delete project
                 api.project.delete_project(self.project.id)

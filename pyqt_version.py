@@ -5,6 +5,7 @@ from qgis.PyQt.QtGui import QRegion
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QMessageBox,
 )
 
 QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
@@ -24,7 +25,6 @@ Qt5: QDialogButtonBox.Ok
 Qt6: QDialogButtonBox.StandardButton.Ok
 """
 
-
 QT_DIALOG_BUTTON_CANCEL = (
     QDialogButtonBox.Cancel
     if QT_VERSION_INT <= 5
@@ -35,10 +35,28 @@ Qt5: QDialogButtonBox.Cancel
 Qt6: QDialogButtonBox.StandardButton.Cancel
 """
 
+Q_MESSAGEBOX_STD_BUTTON = (
+    QMessageBox.StandardButton if QT_VERSION_INT > 5 else QMessageBox
+)
+"""Qt message box standard button class
+Qt5: QMessageBox
+Qt6: QMessageBox.StandardButton
+"""
+
 QT_ALIGN = Qt if QT_VERSION_INT <= 5 else Qt.AlignmentFlag
 """Qt alignment flags
 Qt5: Qt.AlignRight, etc.
 Qt6: Qt.AlignmentFlag.AlignRight, etc.
+"""
+
+QT_CUSTOM_CONTEXT_MENU = (
+    Qt.CustomContextMenu
+    if QT_VERSION_INT <= 5
+    else Qt.ContextMenuPolicy.CustomContextMenu
+)
+"""Qt custom context menu policy
+Qt5: Qt.CustomContextMenu
+Qt6: Qt.ContextMenuPolicy.CustomContextMenu
 """
 
 Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
