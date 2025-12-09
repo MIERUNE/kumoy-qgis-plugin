@@ -6,6 +6,7 @@ from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QMessageBox,
+    QSizePolicy,
 )
 
 QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
@@ -63,6 +64,12 @@ Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
 """Qt region type
 Qt5: QRegion.Ellipse, etc.
 Qt6: QRegion.RegionType.Ellipse, etc.
+"""
+
+Q_SIZE_POLICY = QSizePolicy if QT_VERSION_INT <= 5 else QSizePolicy.Policy
+"""Qt size policy   
+Qt5: QSizePolicy.Fixed, etc.
+Qt6: QSizePolicy.Policy.Fixed, etc.
 """
 
 

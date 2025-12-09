@@ -16,7 +16,6 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
     QSpacerItem,
     QVBoxLayout,
 )
@@ -28,7 +27,7 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import QT_ALIGN
+from ..pyqt_version import QT_ALIGN, Q_SIZE_POLICY
 from .dialog_login_success import LoginSuccess
 
 
@@ -65,7 +64,7 @@ class DialogLogin(QDialog):
 
         # Icon label
         logo_icon_label = QLabel()
-        logo_icon_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        logo_icon_label.setSizePolicy(Q_SIZE_POLICY.Fixed, Q_SIZE_POLICY.Fixed)
         icon_path = os.path.join(os.path.dirname(__file__), "../imgs/icon.svg")
         if os.path.exists(icon_path):
             pixmap = QPixmap(icon_path)
@@ -78,7 +77,7 @@ class DialogLogin(QDialog):
         verticalLayout.addLayout(horizontalLayout_3)
 
         # Vertical spacer
-        verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        verticalSpacer = QSpacerItem(20, 20, Q_SIZE_POLICY.Minimum, Q_SIZE_POLICY.Fixed)
         verticalLayout.addItem(verticalSpacer)
 
         # Info label with HTML content
