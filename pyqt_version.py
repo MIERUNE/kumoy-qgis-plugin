@@ -1,6 +1,6 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, Qt
+from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer
 from qgis.PyQt.QtGui import QRegion
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
@@ -89,6 +89,32 @@ QT_CURSOR_SHAPE = Qt if QT_VERSION_INT <= 5 else Qt.CursorShape
 """Qt cursor shapes
 Qt5: Qt.PointingHandCursor, Qt.ArrowCursor, etc.
 Qt6: Qt.CursorShape.PointingHandCursor, etc.
+"""
+
+QT_APPLICATION_MODAL = (
+    Qt.ApplicationModal if QT_VERSION_INT <= 5 else Qt.WindowModality.ApplicationModal
+)
+"""Qt application modal flag
+Qt5: Qt.ApplicationModal
+Qt6: Qt.WindowModality.ApplicationModal
+"""
+
+QT_ASPECT_RATIO_MODE = Qt if QT_VERSION_INT <= 5 else Qt.AspectRatioMode
+"""Qt aspect ratio mode
+Qt5: Qt.KeepAspectRatio, Qt.KeepAspectRatioByExpanding, etc.
+Qt6: Qt.AspectRatioMode.KeepAspectRatio, etc.
+"""
+
+QT_TRANSFORMATION_MODE = Qt if QT_VERSION_INT <= 5 else Qt.TransformationMode
+"""Qt transformation mode
+Qt5: Qt.SmoothTransformation, Qt.FastTransformation
+Qt6: Qt.TransformationMode.SmoothTransformation, etc.
+"""
+
+Q_BUFFER_OPEN_MODE = QBuffer if QT_VERSION_INT <= 5 else QBuffer.OpenModeFlag
+"""QBuffer open mode
+Qt5: QBuffer.ReadOnly, QBuffer.WriteOnly, etc.
+Qt6: QBuffer.OpenModeFlag.ReadOnly, etc.
 """
 
 Q_NETWORK_REQUEST_HEADER = (
