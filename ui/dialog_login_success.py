@@ -9,6 +9,14 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..pyqt_version import (
+    QT_ALIGN,
+    QT_PEN_CAP_STYLE,
+    QT_PEN_JOIN_STYLE,
+    QT_PEN_STYLE,
+    Q_PAINTER_RENDER_HINT,
+)
+
 
 class CheckmarkWidget(QWidget):
     def __init__(self, parent=None):
@@ -18,16 +26,22 @@ class CheckmarkWidget(QWidget):
     def paintEvent(self, event):
         del event  # Unused parameter
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
 
         # Draw green circle
         painter.setBrush(QBrush(QColor(76, 175, 80)))
-        painter.setPen(QPen(Qt.NoPen))
+        painter.setPen(QPen(QT_PEN_STYLE.NoPen))
         painter.drawEllipse(0, 0, 50, 50)
 
         # Draw white checkmark
         painter.setPen(
-            QPen(QColor(255, 255, 255), 3, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            QPen(
+                QColor(255, 255, 255),
+                3,
+                QT_PEN_STYLE.SolidLine,
+                QT_PEN_CAP_STYLE.RoundCap,
+                QT_PEN_JOIN_STYLE.RoundJoin,
+            )
         )
         painter.drawLine(15, 26, 22, 33)
         painter.drawLine(22, 33, 35, 20)
@@ -55,7 +69,7 @@ class LoginSuccess(QDialog):
 
         # Title label
         title_label = QLabel(self.tr("Welcome!\nYou are now logged in."))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(QT_ALIGN.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
         title_font.setBold(True)
@@ -67,7 +81,7 @@ class LoginSuccess(QDialog):
         subtitle_label = QLabel(
             self.tr("Next, please select a project\nto open in Kumoy.")
         )
-        subtitle_label.setAlignment(Qt.AlignCenter)
+        subtitle_label.setAlignment(QT_ALIGN.AlignCenter)
         subtitle_font = QFont()
         subtitle_font.setPointSize(14)
         subtitle_label.setFont(subtitle_font)

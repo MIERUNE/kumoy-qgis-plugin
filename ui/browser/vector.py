@@ -39,6 +39,12 @@ from ...imgs import (
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings
+from ...pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_DIALOG_BUTTON_OK,
+    QT_DIALOG_BUTTON_CANCEL,
+    exec_dialog,
+)
 from .utils import ErrorItem
 
 
@@ -234,7 +240,7 @@ class VectorItem(QgsDataItem):
         form_layout.addRow(self.tr("Name:"), name_field)
 
         # Create buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
 
@@ -244,7 +250,7 @@ class VectorItem(QgsDataItem):
         dialog.setLayout(layout)
 
         # Show dialog
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
         if not result:
             return
 
@@ -284,11 +290,11 @@ class VectorItem(QgsDataItem):
             self.tr("Are you sure you want to delete vector '{}'?").format(
                 self.vector.name
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Delete vector
             try:
                 api.project_vector.delete_vector(self.vector.id)
@@ -348,11 +354,11 @@ class VectorItem(QgsDataItem):
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.vector.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Clear cache for this specific vector
             cache_cleared = local_cache.vector.clear(self.vector.id)
 
@@ -470,7 +476,7 @@ class VectorRoot(QgsDataItem):
             description.setWordWrap(True)
 
             # Buttons
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
 
@@ -481,7 +487,7 @@ class VectorRoot(QgsDataItem):
             dialog.setLayout(layout)
 
             # Show dialog
-            result = dialog.exec_()
+            result = exec_dialog(dialog)
 
             if not result:
                 return  # User canceled
@@ -573,11 +579,11 @@ class VectorRoot(QgsDataItem):
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Get cache directory path
             cache_cleared = local_cache.vector.clear_all()
 
