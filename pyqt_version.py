@@ -1,6 +1,7 @@
 """Qt5/Qt6 compatibility layer"""
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, Qt
+from qgis.PyQt.QtGui import QRegion
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -38,6 +39,12 @@ QT_ALIGN = Qt if QT_VERSION_INT <= 5 else Qt.AlignmentFlag
 """Qt alignment flags
 Qt5: Qt.AlignRight, etc.
 Qt6: Qt.AlignmentFlag.AlignRight, etc.
+"""
+
+Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
+"""Qt region type
+Qt5: QRegion.Ellipse, etc.
+Qt6: QRegion.RegionType.Ellipse, etc.
 """
 
 

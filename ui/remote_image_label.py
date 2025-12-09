@@ -4,7 +4,7 @@ from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRe
 from qgis.PyQt.QtWidgets import QLabel
 
 from ..imgs import PIN_ICON
-from ..pyqt_version import QT_ALIGN
+from ..pyqt_version import QT_ALIGN, Q_REGION_TYPE
 
 # icon
 placeholder_pixmap = PIN_ICON.pixmap(24, 24)
@@ -79,5 +79,5 @@ class RemoteImageLabel(QLabel):
         x = (self.width() - size) // 2
         y = (self.height() - size) // 2
 
-        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
+        region = QRegion(QRect(x, y, size, size), Q_REGION_TYPE.Ellipse)
         self.setMask(region)
