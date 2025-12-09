@@ -62,7 +62,7 @@ class DialogAccount(QDialog):
         icon_label.setFixedSize(24, 24)
         icon_label.setScaledContents(True)
         icon_pixmap = QPixmap(
-            os.path.join(os.path.dirname(__file__), "../imgs", "kumoy.png")
+            os.path.join(os.path.dirname(__file__), "../imgs", "icon.svg")
         )
         icon_label.setPixmap(icon_pixmap)
         # label
