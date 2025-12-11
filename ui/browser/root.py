@@ -17,6 +17,7 @@ from ...kumoy.api.error import format_api_error
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
+from ..darkmode import get_adaptive_icon
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem, is_in_darkmode
 from .vector import VectorRoot
