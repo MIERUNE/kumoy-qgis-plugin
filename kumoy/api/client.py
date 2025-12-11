@@ -8,6 +8,7 @@ from qgis.PyQt.QtNetwork import QNetworkRequest
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
+from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
 
 
 def handle_blocking_reply(content: QByteArray) -> dict:
@@ -89,7 +90,7 @@ class ApiClient:
             "Authorization".encode("utf-8"),
             f"Bearer {token}".encode("utf-8"),
         )
-        req.setHeader(QNetworkRequest.ContentTypeHeader, "application/json")
+        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
         # Use json.dumps to preserve dictionary order
         json_data = json.dumps(data, ensure_ascii=False)
@@ -129,7 +130,7 @@ class ApiClient:
             "Authorization".encode("utf-8"),
             f"Bearer {token}".encode("utf-8"),
         )
-        req.setHeader(QNetworkRequest.ContentTypeHeader, "application/json")
+        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
         # Use json.dumps to preserve dictionary order
         json_data = json.dumps(data, ensure_ascii=False)

@@ -11,7 +11,7 @@ from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
 from ...imgs import MAIN_ICON, DARK_MODE_ICON
-from ...pyqt_version import exec_dialog
+from ...pyqt_version import exec_dialog, Q_MESSAGEBOX_STD_BUTTON
 from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
@@ -162,10 +162,10 @@ class RootCollection(QgsDataCollectionItem):
                 self.tr(
                     "Switching projects will discard the current map state. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            != QMessageBox.Yes
+            != Q_MESSAGEBOX_STD_BUTTON.Yes
         ):
             return
 
@@ -271,11 +271,11 @@ class RootCollection(QgsDataCollectionItem):
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
 
-            if confirmed != QMessageBox.Yes:
+            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         QgsProject.instance().clear()

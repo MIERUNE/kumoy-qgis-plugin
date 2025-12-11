@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from qgis.core import (
+    NULL,
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
@@ -15,7 +16,6 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
-    NULL,
 )
 from qgis.PyQt.QtCore import (
     QCoreApplication,
@@ -27,11 +27,11 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
-from .. import api, constants
+from .. import api, constants, local_cache
 from ..api.error import format_api_error
-from . import local_cache
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
+from ...pyqt_version import exec_event_loop, QT_APPLICATION_MODAL
 
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
@@ -52,7 +52,7 @@ class SyncWorker(QThread):
 
     def run(self):
         try:
-            local_cache.sync_local_cache(
+            local_cache.vector.sync_local_cache(
                 self.vector_id,
                 self.fields,
                 self.wkb_type,
@@ -109,7 +109,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if self.kumoy_vector is None:
             return
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self._is_valid = True
 
@@ -194,7 +194,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             0,
         )
         progress.setWindowTitle(self.tr("Data Sync"))
-        progress.setWindowModality(Qt.ApplicationModal)
+        progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setValue(100)  # Set to middle to show indeterminate progress
         progress.setAutoClose(False)  # Don't auto-close
@@ -232,7 +232,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Start sync in background and wait for completion
         sync_worker.start()
-        loop.exec_()  # This keeps UI responsive while waiting
+        exec_event_loop(loop)  # This keeps UI responsive while waiting
 
         # Clean up
         progress.accept()
@@ -253,7 +253,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             # Force closing connection with GPKG file
             del self.cached_layer
 
-        self.cached_layer = local_cache.get_cached_layer(self.kumoy_vector.id)
+        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 
         self.clearMinMaxCache()
 

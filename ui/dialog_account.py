@@ -17,6 +17,12 @@ from ..read_version import read_version
 from ..settings_manager import store_setting
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import (
+    QT_ALIGN,
+    QT_TEXT_INTERACTION,
+    QT_CURSOR_SHAPE,
+    Q_MESSAGEBOX_STD_BUTTON,
+)
 from .remote_image_label import RemoteImageLabel
 
 
@@ -75,7 +81,9 @@ class DialogAccount(QDialog):
         powered_label = QLabel(
             self.tr('Powered by <a href="https://www.mierune.co.jp/">MIERUNE Inc.</a>')
         )
-        powered_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        powered_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextBrowserInteraction
+        )
         powered_label.setOpenExternalLinks(True)
 
         brand_layout = QVBoxLayout()
@@ -86,7 +94,7 @@ class DialogAccount(QDialog):
         header_layout.addStretch()
 
         version_label = QLabel(read_version())
-        version_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        version_label.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
         version_label.setStyleSheet("color: #777777; font-size: 12px;")
         header_layout.addWidget(version_label)
         # icon/label <-> version
@@ -98,24 +106,24 @@ class DialogAccount(QDialog):
         profile_layout = QVBoxLayout()
         profile_layout.setSpacing(12)
         profile_layout.setContentsMargins(0, 0, 0, 0)
-        profile_layout.setAlignment(Qt.AlignCenter)
+        profile_layout.setAlignment(QT_ALIGN.AlignCenter)
 
         # Avatar with image or initial + name
         self.avatar_label = RemoteImageLabel(size=(64, 64))
         self.avatar_label.set_circular_mask()
-        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setAlignment(QT_ALIGN.AlignCenter)
 
         # Name label
         self.name_label = QLabel(self.tr("Unknown user"))
-        self.name_label.setAlignment(Qt.AlignCenter)
+        self.name_label.setAlignment(QT_ALIGN.AlignCenter)
         self.name_label.setStyleSheet("font-size: 18px; font-weight: 600;")
 
         self.email_label = QLabel("")
-        self.email_label.setAlignment(Qt.AlignCenter)
+        self.email_label.setAlignment(QT_ALIGN.AlignCenter)
         self.email_label.setStyleSheet("font-size: 13px;")
 
         self.account_settings_button = QPushButton(self.tr("Account settings"))
-        self.account_settings_button.setCursor(Qt.PointingHandCursor)
+        self.account_settings_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.account_settings_button.clicked.connect(self._open_account_settings)
         self.account_settings_button.setStyleSheet(
             """
@@ -125,10 +133,10 @@ class DialogAccount(QDialog):
         """
         )
 
-        profile_layout.addWidget(self.avatar_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.name_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.email_label, 0, Qt.AlignHCenter)
-        profile_layout.addWidget(self.account_settings_button, 0, Qt.AlignHCenter)
+        profile_layout.addWidget(self.avatar_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.name_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.email_label, 0, QT_ALIGN.AlignHCenter)
+        profile_layout.addWidget(self.account_settings_button, 0, QT_ALIGN.AlignHCenter)
 
         main_layout.addLayout(profile_layout)
 
@@ -142,7 +150,9 @@ class DialogAccount(QDialog):
         server_layout.addWidget(server_label)
 
         self.server_url_label = QLabel()
-        self.server_url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.server_url_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextSelectableByMouse
+        )
         self.server_url_label.setStyleSheet("font-size: 12px;")
         server_layout.addWidget(self.server_url_label)
 
@@ -153,7 +163,7 @@ class DialogAccount(QDialog):
         # Logout button
         self.logout_button = QPushButton(self.tr("Logout"))
         self.logout_button.setMinimumHeight(28)
-        self.logout_button.setCursor(Qt.PointingHandCursor)
+        self.logout_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.logout_button.clicked.connect(self._logout)
         main_layout.addWidget(self.logout_button)
 
@@ -208,11 +218,11 @@ class DialogAccount(QDialog):
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
 
-            if confirmed != QMessageBox.Yes:
+            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         QgsProject.instance().clear()

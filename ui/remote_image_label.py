@@ -4,6 +4,13 @@ from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRe
 from qgis.PyQt.QtWidgets import QLabel
 
 from ..imgs import PIN_ICON
+from ..pyqt_version import (
+    QT_ALIGN,
+    Q_REGION_TYPE,
+    Q_BUFFER_OPEN_MODE,
+    QT_ASPECT_RATIO_MODE,
+    QT_TRANSFORMATION_MODE,
+)
 
 # icon
 placeholder_pixmap = PIN_ICON.pixmap(24, 24)
@@ -12,7 +19,7 @@ placeholder_pixmap = PIN_ICON.pixmap(24, 24)
 class RemoteImageLabel(QLabel):
     def __init__(self, parent=None, size=(150, 100)):
         super().__init__(parent)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(QT_ALIGN.AlignCenter)
         self.setFixedSize(*size)
         self._img: QImage | None = None
         self.nam = QNetworkAccessManager(self)
@@ -32,7 +39,7 @@ class RemoteImageLabel(QLabel):
         self._reply.deleteLater()
         buf = QBuffer()
         buf.setData(data)
-        buf.open(QBuffer.ReadOnly)
+        buf.open(Q_BUFFER_OPEN_MODE.ReadOnly)
         reader = QImageReader(buf)
         reader.setAutoTransform(True)
         img = reader.read()
@@ -53,7 +60,10 @@ class RemoteImageLabel(QLabel):
         target_h = max(1, int(self.height() * dpr))
         # KeepAspectRatioByExpanding で「全面を埋める」サイズへ拡大
         scaled = self._img.scaled(
-            target_w, target_h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+            target_w,
+            target_h,
+            QT_ASPECT_RATIO_MODE.KeepAspectRatioByExpanding,
+            QT_TRANSFORMATION_MODE.SmoothTransformation,
         )
         px = QPixmap.fromImage(scaled)
         px.setDevicePixelRatio(dpr)
@@ -78,5 +88,5 @@ class RemoteImageLabel(QLabel):
         x = (self.width() - size) // 2
         y = (self.height() - size) // 2
 
-        region = QRegion(QRect(x, y, size, size), QRegion.Ellipse)
+        region = QRegion(QRect(x, y, size, size), Q_REGION_TYPE.Ellipse)
         self.setMask(region)
