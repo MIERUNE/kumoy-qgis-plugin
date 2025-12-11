@@ -6,6 +6,7 @@ _IMGS_PATH = os.path.dirname(os.path.realpath(__file__))
 
 # generic icon
 MAIN_ICON = QIcon(os.path.join(_IMGS_PATH, "icon.svg"))
+DARK_MODE_ICON = QIcon(os.path.join(_IMGS_PATH, "icon_dark.svg"))
 MAP_ICON = QIcon(os.path.join(_IMGS_PATH, "map.svg"))
 RELOAD_ICON = QIcon(os.path.join(_IMGS_PATH, "reload.svg"))
 VECTOR_ICON = QIcon(os.path.join(_IMGS_PATH, "vector.svg"))
