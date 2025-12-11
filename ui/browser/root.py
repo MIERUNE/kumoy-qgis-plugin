@@ -10,7 +10,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ...imgs import MAIN_ICON
+from ...imgs import MAIN_ICON, DARK_MODE_ICON
 from ...pyqt_version import exec_dialog
 from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
@@ -19,7 +19,7 @@ from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from .styledmap import StyledMapRoot
-from .utils import ErrorItem
+from .utils import ErrorItem, is_in_darkmode
 from .vector import VectorRoot
 
 
@@ -47,7 +47,12 @@ class RootCollection(QgsDataCollectionItem):
         QgsDataCollectionItem.__init__(
             self, None, constants.PLUGIN_NAME, constants.BROWSER_ROOT_PATH
         )
-        self.setIcon(MAIN_ICON)
+
+        # Select icon based on dark mode detection
+        if is_in_darkmode():
+            self.setIcon(DARK_MODE_ICON)
+        else:
+            self.setIcon(MAIN_ICON)
 
         self.setName(constants.PLUGIN_NAME)
 
