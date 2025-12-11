@@ -14,7 +14,7 @@ def is_in_darkmode(threshold=383):
     Although Qt has no API to detect running in Darkmode or not,
     it is able to get RGB value of widgets, including UI parts of them.
     This function detect Darkmode by evaluating a sum of RGB value of the widget with threshold.
-    
+
     Note:
         Implementation based on MapTiler QGIS Plugin
         https://github.com/maptiler/qgis-maptiler-plugin/blob/719957adcddf12a1251f03b73f4ecebc393faee0/utils.py
