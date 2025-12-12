@@ -2,9 +2,8 @@ import os
 
 from qgis.core import QgsProcessingProvider
 
-from ..ui.darkmode import get_adaptive_icon
 from ..kumoy.constants import PLUGIN_NAME
-from ..ui.browser.utils import is_in_darkmode
+from ..ui.darkmode import get_adaptive_icon
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
 

@@ -36,5 +36,5 @@ def _is_in_darkmode(threshold=383):
 
 def get_adaptive_icon():
     """Get icon adapted to OS setting"""
-
+    print("Detecting darkmode:", _is_in_darkmode())
     return DARK_MODE_ICON if _is_in_darkmode() else MAIN_ICON
