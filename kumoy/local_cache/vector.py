@@ -158,12 +158,10 @@ def append_features(
 
     success, added = provider.addFeatures(created)
     if not success:
-        print(f"FAILED added: {added}")
-
         QgsMessageLog.logMessage(
             f"Failed to append features to cache for {vector_id}.",
             LOG_CATEGORY,
-            Qgis.Critical,
+            Qgis.Warning,
         )
 
     layer.updateExtents()

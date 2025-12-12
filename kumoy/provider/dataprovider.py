@@ -312,12 +312,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
         for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
-            print("ADDING features sliced:", sliced)
             try:
                 api.qgis_vector.add_features(self.kumoy_vector.id, sliced)
             except Exception as e:
-                print(candidates)
-                print(e)
                 QMessageBox.information(
                     None,
                     self.tr("Test error"),
