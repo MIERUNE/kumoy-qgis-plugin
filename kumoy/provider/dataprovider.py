@@ -154,6 +154,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if force_clear:
             local_cache.vector.clear(self.kumoy_vector.id)
 
+        # Drop any previous cached layer so the underlying GPKG lock is released
+        if self.cached_layer is not None:
+            old_layer = self.cached_layer
+            self.cached_layer = None
+            del old_layer
+
         # Ensure local cache layer
         layer = local_cache.vector.ensure_layer(
             self.kumoy_vector.id, self.fields(), self.wkbType()
