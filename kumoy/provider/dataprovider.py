@@ -18,6 +18,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtWidgets import QMessageBox
 
+from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
@@ -68,8 +69,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
-        self.kumoy_vector: Optional[api.project_vector.KumoyVectorDetail] = None
+        self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None
         self.cached_layer = None
+
         self._reload_vector()
 
         if self.kumoy_vector is None:
@@ -134,9 +136,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _reload_vector(self, force_clear: bool = False):
         """Refresh metadata and ensure the lazy cache is ready."""
         try:
-            self.kumoy_vector = api.project_vector.get_vector(
-                self.project_id, self.vector_id
-            )
+            self.kumoy_vector = api.vector.get_vector(self.project_id, self.vector_id)
         except Exception as e:
             if e.args and e.args[0] == "Not Found":
                 QMessageBox.information(

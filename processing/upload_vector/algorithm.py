@@ -247,7 +247,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         plan_limits = api.plan.get_plan_limits(organization.subscriptionPlan)
 
         # Check vector count limit
-        current_vectors = api.project_vector.get_vectors(project_id)
+        current_vectors = api.vector.get_vectors(project_id)
         upload_vector_count = len(current_vectors) + 1
         if upload_vector_count > plan_limits.maxVectors:
             raise QgsProcessingException(
@@ -364,11 +364,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             attr_dict = _create_attribute_dict(processed_layer)
 
             # Create vector
-            options = api.project_vector.AddVectorOptions(
+            options = api.vector.AddVectorOptions(
                 name=vector_name,
                 type=geometry_type,
             )
-            vector = api.project_vector.add_vector(project_id, options)
+            vector = api.vector.add_vector(project_id, options)
             feedback.pushInfo(
                 self.tr("Created vector layer '{}' with ID: {}").format(
                     vector_name, vector.id
@@ -396,7 +396,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # If vector was created but upload failed, delete it
             if vector is not None:
                 try:
-                    api.project_vector.delete_vector(vector.id)
+                    api.vector.delete_vector(vector.id)
                     feedback.pushInfo(
                         self.tr(
                             "Cleaned up incomplete vector layer due to upload failure"

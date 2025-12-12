@@ -23,18 +23,18 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import (
-    exec_menu,
-    QT_USER_ROLE,
+    Q_MESSAGEBOX_STD_BUTTON,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
-    Q_MESSAGEBOX_STD_BUTTON,
+    QT_USER_ROLE,
+    exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
+from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 
 
