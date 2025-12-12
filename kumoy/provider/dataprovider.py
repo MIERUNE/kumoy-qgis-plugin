@@ -27,11 +27,11 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
+from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
 from ..api.error import format_api_error
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
-from ...pyqt_version import exec_event_loop, QT_APPLICATION_MODAL
 
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
@@ -103,7 +103,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
-        self.kumoy_vector: Optional[api.project_vector.KumoyVectorDetail] = None
+        self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None
         self._reload_vector()
 
         if self.kumoy_vector is None:
@@ -170,9 +170,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _reload_vector(self):
         """Refresh local cache"""
         try:
-            self.kumoy_vector = api.project_vector.get_vector(
-                self.project_id, self.vector_id
-            )
+            self.kumoy_vector = api.vector.get_vector(self.project_id, self.vector_id)
         except Exception as e:
             if e.args[0] == "Not Found":
                 QMessageBox.information(

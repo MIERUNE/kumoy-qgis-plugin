@@ -55,7 +55,7 @@ class VectorItem(QgsDataItem):
         self,
         parent,
         path: str,
-        vector: api.project_vector.KumoyVector,
+        vector: api.vector.KumoyVector,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -68,6 +68,7 @@ class VectorItem(QgsDataItem):
 
         self.vector = vector
         self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
+        print(self.vector_uri)
         self.role = role
 
         # Set icon based on geometry type
@@ -131,7 +132,7 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         try:
             # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
-            api.project_vector.get_vector(self.vector.projectId, self.vector.id)
+            api.vector.get_vector(self.vector.projectId, self.vector.id)
         except Exception as e:
             msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
@@ -259,10 +260,10 @@ class VectorItem(QgsDataItem):
 
         # Update vector
         try:
-            updated_vector = api.project_vector.update_vector(
+            updated_vector = api.vector.update_vector(
                 self.vector.projectId,
                 self.vector.id,
-                api.project_vector.UpdateVectorOptions(name=new_name),
+                api.vector.UpdateVectorOptions(name=new_name),
             )
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -297,7 +298,7 @@ class VectorItem(QgsDataItem):
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Delete vector
             try:
-                api.project_vector.delete_vector(self.vector.id)
+                api.vector.delete_vector(self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {format_api_error(e)}",
@@ -438,7 +439,7 @@ class VectorRoot(QgsDataItem):
         try:
             # check plan limits before creating vector
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_vectors = api.project_vector.get_vectors(self.project.id)
+            current_vectors = api.vector.get_vectors(self.project.id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
@@ -504,8 +505,8 @@ class VectorRoot(QgsDataItem):
                 )
                 return
 
-            options = api.project_vector.AddVectorOptions(name=name, type=vector_type)
-            api.project_vector.add_vector(self.project.id, options)
+            options = api.vector.AddVectorOptions(name=name, type=vector_type)
+            api.vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
                 self.tr(
                     "Successfully created vector layer '{}' in project '{}'"
@@ -545,7 +546,7 @@ class VectorRoot(QgsDataItem):
 
         # Get vectors for this project
         try:
-            vectors = api.project_vector.get_vectors(project_id)
+            vectors = api.vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading vectors: {format_api_error(e)}",

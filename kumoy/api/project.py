@@ -14,12 +14,16 @@ class Project:
     description: str
     createdAt: str
     updatedAt: str
-    thumbnailImageUrl: str
     teamId: str
     team: Team
 
 
-def create_project(team_id: str, name: str, description: str) -> Project:
+@dataclass
+class ProjectWithThumbnail(Project):
+    thumbnailImageUrl: str
+
+
+def create_project(team_id: str, name: str, description: str) -> ProjectWithThumbnail:
     """
     Create a new project
 
@@ -39,7 +43,7 @@ def create_project(team_id: str, name: str, description: str) -> Project:
         },
     )
 
-    return Project(
+    return ProjectWithThumbnail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         description=response.get("description", ""),
@@ -79,7 +83,9 @@ def create_project(team_id: str, name: str, description: str) -> Project:
     )
 
 
-def update_project(project_id: str, name: str, description: str) -> Project:
+def update_project(
+    project_id: str, name: str, description: str
+) -> ProjectWithThumbnail:
     """
     Update an existing project
 
@@ -98,7 +104,7 @@ def update_project(project_id: str, name: str, description: str) -> Project:
         },
     )
 
-    return Project(
+    return ProjectWithThumbnail(
         id=response.get("id", ""),
         name=response.get("name", ""),
         description=response.get("description", ""),
@@ -153,7 +159,7 @@ def delete_project(project_id: str):
 
 # Org内Project一覧取得用
 @dataclass
-class ProjectsInOrganization(Project):
+class ProjectsInOrganization(ProjectWithThumbnail):
     vectorCount: int
     mapCount: int
     storageUnitsSum: float
@@ -223,7 +229,7 @@ def get_projects_by_organization(organization_id: str) -> List[ProjectsInOrganiz
 
 
 @dataclass
-class ProjectDetail(Project):
+class ProjectDetail(ProjectWithThumbnail):
     role: Literal["ADMIN", "OWNER", "MEMBER"]
     storageUnitsSum: float
 

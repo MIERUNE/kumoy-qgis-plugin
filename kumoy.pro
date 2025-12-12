@@ -22,8 +22,8 @@ SOURCES = __init__.py \
           kumoy/api/organization.py \
           kumoy/api/plan.py \
           kumoy/api/project.py \
-          kumoy/api/project_styledmap.py \
-          kumoy/api/project_vector.py \
+          kumoy/api/styledmap.py \
+          kumoy/api/vector.py \
           kumoy/api/qgis_vector.py \
           kumoy/api/user.py \
           kumoy/provider/dataprovider.py \
