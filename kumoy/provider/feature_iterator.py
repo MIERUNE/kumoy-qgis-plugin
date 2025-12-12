@@ -185,10 +185,12 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
         return self.fetchFeature(f)
 
     def __iter__(self):
+        """Return self as an iterator object."""
         self.rewind()
         return self
 
     def __next__(self) -> QgsFeature:
+        """Returns the next value till current is lower than high"""
         f = QgsFeature()
         if not self.nextFeature(f):
             raise StopIteration

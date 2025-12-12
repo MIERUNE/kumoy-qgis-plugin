@@ -134,7 +134,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return QCoreApplication.translate("KumoyDataProvider", message)
 
     def _reload_vector(self, force_clear: bool = False):
-        """Refresh metadata and ensure the lazy cache is ready."""
+        """Reload remote vector definition and prepare the lazy cache layer."""
         try:
             self.kumoy_vector = api.vector.get_vector(self.vector_id)
         except Exception as e:
