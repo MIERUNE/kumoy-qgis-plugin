@@ -51,41 +51,57 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
                 type=vector_data.get("type", "POINT"),
                 projectId=vector_data.get("projectId", ""),
                 project=Project(
-                    id=vector_data.get("id", ""),
-                    name=vector_data.get("name", ""),
-                    description=vector_data.get("description", ""),
-                    createdAt=vector_data.get("createdAt", ""),
-                    updatedAt=vector_data.get("updatedAt", ""),
-                    teamId=vector_data.get("team", {}).get("id", ""),
+                    id=vector_data.get("project", {}).get("id", ""),
+                    name=vector_data.get("project", {}).get("name", ""),
+                    description=vector_data.get("project", {}).get("description", ""),
+                    createdAt=vector_data.get("project", {}).get("createdAt", ""),
+                    updatedAt=vector_data.get("project", {}).get("updatedAt", ""),
+                    teamId=vector_data.get("project", {}).get("team", {}).get("id", ""),
                     team=Team(
-                        id=vector_data.get("team", {}).get("id", ""),
-                        name=vector_data.get("team", {}).get("name", ""),
-                        description=vector_data.get("team", {}).get("description", ""),
-                        createdAt=vector_data.get("team", {}).get("createdAt", ""),
-                        updatedAt=vector_data.get("team", {}).get("updatedAt", ""),
-                        organization_id=vector_data.get("team", {})
+                        id=vector_data.get("project", {}).get("team", {}).get("id", ""),
+                        name=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("name", ""),
+                        description=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("description", ""),
+                        createdAt=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("createdAt", ""),
+                        updatedAt=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("updatedAt", ""),
+                        organization_id=vector_data.get("project", {})
+                        .get("team", {})
                         .get("organization", {})
                         .get("id", ""),
                         organization=Organization(
-                            id=vector_data.get("team", {})
+                            id=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("id", ""),
-                            name=vector_data.get("team", {})
+                            name=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("name", ""),
-                            subscriptionPlan=vector_data.get("team", {})
+                            subscriptionPlan=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("subscriptionPlan", ""),
-                            stripeCustomerId=vector_data.get("team", {})
+                            stripeCustomerId=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("stripeCustomerId", ""),
-                            storageUnits=vector_data.get("team", {})
+                            storageUnits=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("storageUnits", 0),
-                            createdAt=vector_data.get("team", {})
+                            createdAt=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("createdAt", ""),
-                            updatedAt=vector_data.get("team", {})
+                            updatedAt=vector_data.get("project", {})
+                            .get("team", {})
                             .get("organization", {})
                             .get("updatedAt", ""),
                         ),

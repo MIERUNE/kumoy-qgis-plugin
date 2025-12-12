@@ -179,7 +179,6 @@ def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
                     name=response.get("project", {})
                     .get("team", {})
                     .get("organization", {})
-                    .get("organization", {})
                     .get("name", ""),
                     subscriptionPlan=response.get("project", {})
                     .get("team", {})
