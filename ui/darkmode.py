@@ -1,6 +1,6 @@
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from ..imgs import DARK_MODE_ICON, MAIN_ICON
+from ..imgs import MAIN_ICON, MAIN_ICON_DARK
 
 
 def _is_in_darkmode(threshold=383):
@@ -34,7 +34,5 @@ def _is_in_darkmode(threshold=383):
     return sum_rgb_value < threshold
 
 
-def get_adaptive_icon():
-    """Get icon adapted to OS setting"""
-    print("Detecting darkmode:", _is_in_darkmode())
-    return DARK_MODE_ICON if _is_in_darkmode() else MAIN_ICON
+def get_main_icon():
+    return MAIN_ICON_DARK if _is_in_darkmode() else MAIN_ICON

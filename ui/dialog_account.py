@@ -2,8 +2,7 @@ import os
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication, Qt
-from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -13,16 +12,18 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..read_version import read_version
-from ..settings_manager import store_setting
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import (
-    QT_ALIGN,
-    QT_TEXT_INTERACTION,
-    QT_CURSOR_SHAPE,
     Q_MESSAGEBOX_STD_BUTTON,
+    Q_SIZE_POLICY,
+    QT_ALIGN,
+    QT_CURSOR_SHAPE,
+    QT_TEXT_INTERACTION,
 )
+from ..read_version import read_version
+from ..settings_manager import store_setting
+from .darkmode import get_adaptive_icon
 from .remote_image_label import RemoteImageLabel
 
 
@@ -64,12 +65,9 @@ class DialogAccount(QDialog):
         icon_logo_hlayout.setSpacing(4)
         # icon
         icon_label = QLabel()
-        icon_label.setFixedSize(24, 24)
+        icon_label.setSizePolicy(Q_SIZE_POLICY.Fixed, Q_SIZE_POLICY.Fixed)
         icon_label.setScaledContents(True)
-        icon_pixmap = QPixmap(
-            os.path.join(os.path.dirname(__file__), "../imgs", "icon.svg")
-        )
-        icon_label.setPixmap(icon_pixmap)
+        icon_label.setPixmap(get_adaptive_icon().pixmap(24, 24))
         # label
         product_label = QLabel("Kumoy")
         product_label.setStyleSheet("font-size: 18px; font-weight: 600;")
