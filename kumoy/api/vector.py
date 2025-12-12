@@ -116,7 +116,7 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
     return vectors
 
 
-def get_vector(project_id: str, vector_id: str):
+def get_vector(vector_id: str):
     """
     Get details for a specific vector
     """
@@ -306,7 +306,7 @@ class UpdateVectorOptions:
 
 
 def update_vector(
-    project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
+    vector_id: str, update_vector_options: UpdateVectorOptions
 ) -> KumoyVector:
     """
     Update an existing vector

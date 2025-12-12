@@ -170,7 +170,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _reload_vector(self):
         """Refresh local cache"""
         try:
-            self.kumoy_vector = api.vector.get_vector(self.project_id, self.vector_id)
+            self.kumoy_vector = api.vector.get_vector(self.vector_id)
         except Exception as e:
             if e.args[0] == "Not Found":
                 QMessageBox.information(
