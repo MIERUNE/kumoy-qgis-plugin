@@ -68,7 +68,6 @@ class VectorItem(QgsDataItem):
 
         self.vector = vector
         self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
-        print(self.vector_uri)
         self.role = role
 
         # Set icon based on geometry type
@@ -132,7 +131,7 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         try:
             # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
-            api.vector.get_vector(self.vector.projectId, self.vector.id)
+            api.vector.get_vector(self.vector.id)
         except Exception as e:
             msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
@@ -261,7 +260,6 @@ class VectorItem(QgsDataItem):
         # Update vector
         try:
             updated_vector = api.vector.update_vector(
-                self.vector.projectId,
                 self.vector.id,
                 api.vector.UpdateVectorOptions(name=new_name),
             )
