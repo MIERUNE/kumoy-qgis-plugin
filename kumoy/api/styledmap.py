@@ -37,8 +37,6 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
     """
     response = ApiClient.get(f"/project/{project_id}/styled-map")
 
-    print(response)
-
     styled_maps = []
     for styled_map_data in response:
         styled_maps.append(
@@ -244,10 +242,9 @@ def add_styled_map(
         },
     )
 
-    return KumoyStyledMapDetail(
+    return KumoyStyledMap(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        qgisproject=response.get("qgisproject", ""),
         isPublic=response.get("isPublic", False),
         projectId=project_id,
         project=Project(
@@ -363,10 +360,9 @@ def update_styled_map(
         update_data,
     )
 
-    return KumoyStyledMapDetail(
+    return KumoyStyledMap(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        qgisproject=response.get("qgisproject", ""),
         isPublic=response.get("isPublic", False),
         projectId=response.get("projectId", ""),
         project=Project(
