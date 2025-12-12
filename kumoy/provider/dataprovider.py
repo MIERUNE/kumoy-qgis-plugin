@@ -298,7 +298,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
-
         candidates: list[QgsFeature] = list(
             filter(
                 lambda f: f.hasGeometry()
@@ -316,12 +315,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
             try:
                 api.qgis_vector.add_features(self.kumoy_vector.id, sliced)
-            except Exception as e:
-                QMessageBox.information(
-                    None,
-                    self.tr("Test error"),
-                    str(e),
-                )
+            except Exception:
                 return False, candidates[0:i]
 
         # reload

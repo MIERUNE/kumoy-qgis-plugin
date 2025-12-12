@@ -195,7 +195,7 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
         return f
 
     def rewind(self) -> bool:
-        """Rewind the iterator to the beginning."""
+        """Reset the iterator."""
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
         self._pending_features.clear()
         self._remote_exhausted = False
@@ -215,5 +215,6 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
         return True
 
     def close(self) -> bool:
+        """Close the iterator and release resources."""
         self._pending_features.clear()
         return self._feature_iterator.close()
