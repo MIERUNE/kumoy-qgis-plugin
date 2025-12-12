@@ -136,7 +136,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _reload_vector(self, force_clear: bool = False):
         """Refresh metadata and ensure the lazy cache is ready."""
         try:
-            self.kumoy_vector = api.vector.get_vector(self.project_id, self.vector_id)
+            self.kumoy_vector = api.vector.get_vector(self.vector_id)
         except Exception as e:
             if e.args and e.args[0] == "Not Found":
                 QMessageBox.information(

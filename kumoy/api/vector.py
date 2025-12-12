@@ -16,7 +16,7 @@ class KumoyVector:
     project: Project
     attribution: str
     uri: str
-    bytes: int
+    storageUnits: float
     createdAt: str
     updatedAt: str
 
@@ -108,7 +108,7 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
                     ),
                 ),
                 attribution=vector_data.get("attribution", ""),
-                bytes=vector_data.get("bytes", 0),
+                storageUnits=vector_data.get("storageUnits", 0),
                 createdAt=vector_data.get("createdAt", ""),
                 updatedAt=vector_data.get("updatedAt", ""),
             )
@@ -116,7 +116,7 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
     return vectors
 
 
-def get_vector(project_id: str, vector_id: str):
+def get_vector(vector_id: str):
     """
     Get details for a specific vector
     """
@@ -184,7 +184,7 @@ def get_vector(project_id: str, vector_id: str):
             ),
         ),
         attribution=response.get("attribution", ""),
-        bytes=response.get("bytes", 0),
+        storageUnits=response.get("storageUnits", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         extent=response.get("extent", []),
@@ -280,7 +280,7 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVe
             ),
         ),
         attribution=response.get("attribution", ""),
-        bytes=response.get("bytes", 0),
+        storageUnits=response.get("storageUnits", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
@@ -306,7 +306,7 @@ class UpdateVectorOptions:
 
 
 def update_vector(
-    project_id: str, vector_id: str, update_vector_options: UpdateVectorOptions
+    vector_id: str, update_vector_options: UpdateVectorOptions
 ) -> KumoyVector:
     """
     Update an existing vector
@@ -385,7 +385,7 @@ def update_vector(
             ),
         ),
         attribution=response.get("attribution", ""),
-        bytes=response.get("bytes", 0),
+        storageUnits=response.get("storageUnits", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
