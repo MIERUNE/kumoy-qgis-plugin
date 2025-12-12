@@ -23,13 +23,13 @@ from qgis.utils import iface
 
 from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
+from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
-    QT_DIALOG_BUTTON_OK,
     QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
     exec_dialog,
 )
-from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings, store_setting
 from .utils import ErrorItem
 
@@ -41,7 +41,7 @@ class StyledMapItem(QgsDataItem):
         self,
         parent,
         path: str,
-        styled_map: api.project_styledmap.KumoyStyledMap,
+        styled_map: api.styledmap.KumoyStyledMap,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -126,7 +126,7 @@ class StyledMapItem(QgsDataItem):
                 return
 
         try:
-            styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
+            styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -199,9 +199,9 @@ class StyledMapItem(QgsDataItem):
 
         try:
             # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
+            updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
+                api.styledmap.UpdateStyledMapOptions(
                     name=new_name,
                     isPublic=new_is_public,
                 ),
@@ -248,9 +248,9 @@ class StyledMapItem(QgsDataItem):
             new_qgisproject = _write_qgsfile(self.styled_map.id)
 
             # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
+            updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
+                api.styledmap.UpdateStyledMapOptions(
                     qgisproject=new_qgisproject,
                 ),
             )
@@ -296,7 +296,7 @@ class StyledMapItem(QgsDataItem):
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # スタイルマップ削除
             try:
-                api.project_styledmap.delete_styled_map(self.styled_map.id)
+                api.styledmap.delete_styled_map(self.styled_map.id)
 
                 # 親アイテムを上書き保存して最新のリストを表示
                 self.parent().refresh()
@@ -444,7 +444,7 @@ class StyledMapRoot(QgsDataItem):
         try:
             # Check plan limits before creating styled map
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_styled_maps = api.project_styledmap.get_styled_maps(self.project.id)
+            current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
                 QMessageBox.critical(
@@ -503,9 +503,9 @@ class StyledMapRoot(QgsDataItem):
             qgisproject = _write_qgsfile(self.project.id)
 
             # スタイルマップ作成
-            new_styled_map = api.project_styledmap.add_styled_map(
+            new_styled_map = api.styledmap.add_styled_map(
                 self.project.id,
-                api.project_styledmap.AddStyledMapOptions(
+                api.styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,
                 ),
@@ -540,7 +540,7 @@ class StyledMapRoot(QgsDataItem):
             return [ErrorItem(self, self.tr("No project selected"))]
 
         # プロジェクトのスタイルマップを取得
-        styled_maps = api.project_styledmap.get_styled_maps(project_id)
+        styled_maps = api.styledmap.get_styled_maps(project_id)
 
         if not styled_maps:
             return [ErrorItem(self, self.tr("No maps available."))]
