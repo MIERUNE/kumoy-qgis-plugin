@@ -150,9 +150,11 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 return
             raise e
 
+        # Clear cache when server-side mutations occurred
         if force_clear:
             local_cache.vector.clear(self.kumoy_vector.id)
 
+        # Ensure local cache layer
         layer = local_cache.vector.ensure_layer(
             self.kumoy_vector.id, self.fields(), self.wkbType()
         )

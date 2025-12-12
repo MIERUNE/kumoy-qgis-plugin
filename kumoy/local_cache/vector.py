@@ -37,6 +37,7 @@ def _cache_file_path(vector_id: str) -> str:
 def _create_empty_cache(
     cache_file: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
 ):
+    """Create an empty cache file with the given schema."""
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.layerOptions = ["FID=kumoy_id"]
     options.driverName = "GPKG"
@@ -55,7 +56,7 @@ def _create_empty_cache(
         QgsMessageLog.logMessage(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}",
             LOG_CATEGORY,
-            Qgis.Critical,
+            Qgis.Info,
         )
         raise Exception(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}"
@@ -65,7 +66,9 @@ def _create_empty_cache(
 
 
 def _ensure_layer_schema(layer: QgsVectorLayer, fields: QgsFields):
-    """Ensure the cache layer matches the expected schema."""
+    """Ensure the cache layer matches the expected schema.
+    Adds missing fields and removes extra fields (except kumoy_id).
+    """
     provider = layer.dataProvider()
     layer_fields = layer.fields()
 
@@ -159,9 +162,9 @@ def append_features(
     success, added = provider.addFeatures(created)
     if not success:
         QgsMessageLog.logMessage(
-            f"Failed to append features to cache for {vector_id}.",
+            f"Failed to append features to cache for {vector_id} during feature iteration.",
             LOG_CATEGORY,
-            Qgis.Warning,
+            Qgis.Info,
         )
 
     layer.updateExtents()
@@ -184,6 +187,7 @@ def get_layer(vector_id: str) -> Optional[QgsVectorLayer]:
 
 
 def max_cached_kumoy_id(layer: QgsVectorLayer) -> Optional[int]:
+    """Return the maximum kumoy_id in the cached layer, or None if not found."""
     if layer is None or not layer.isValid():
         return None
 

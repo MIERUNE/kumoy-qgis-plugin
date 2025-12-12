@@ -39,6 +39,7 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
             self._filter_rect = None
 
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
+        # Queue for freshly appended features before being handed off to QGIS
         self._pending_features: Deque[QgsFeature] = deque()
         self._remote_exhausted = False
         self._remaining_limit = (
@@ -131,6 +132,7 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
                 self._remote_exhausted = True
 
     def _fetch_more(self) -> bool:
+        """Fetch more features from remote API and append to local cache."""
         if self._remote_exhausted:
             return False
 
@@ -193,6 +195,7 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
         return f
 
     def rewind(self) -> bool:
+        """Rewind the iterator to the beginning."""
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
         self._pending_features.clear()
         self._remote_exhausted = False
