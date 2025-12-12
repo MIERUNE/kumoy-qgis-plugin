@@ -10,7 +10,7 @@ from qgis.core import (
 
 from .. import api, local_cache
 
-FETCH_BATCH_SIZE = 500
+FETCH_BATCH_SIZE = 1000
 
 
 class KumoyFeatureIterator(QgsAbstractFeatureIterator):

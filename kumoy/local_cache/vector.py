@@ -165,7 +165,6 @@ def append_features(
             LOG_CATEGORY,
             Qgis.Critical,
         )
-        raise Exception(f"Failed to append features to cache for {vector_id}, {added}")
 
     layer.updateExtents()
     return added

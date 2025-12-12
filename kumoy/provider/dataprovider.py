@@ -296,7 +296,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
-        print("addFeatures called")
 
         candidates: list[QgsFeature] = list(
             filter(
