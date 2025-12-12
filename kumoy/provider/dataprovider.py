@@ -2,7 +2,6 @@ from typing import Dict, List, Optional
 
 from qgis.core import (
     NULL,
-    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
     QgsFeature,
@@ -11,55 +10,21 @@ from qgis.core import (
     QgsField,
     QgsFields,
     QgsGeometry,
-    QgsMessageLog,
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    QEventLoop,
-    Qt,
-    QThread,
-    QVariant,
-    pyqtSignal,
-)
-from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtWidgets import QMessageBox
 
 from .. import api, constants, local_cache
-from ..api.error import format_api_error
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
-from ...pyqt_version import exec_event_loop, QT_APPLICATION_MODAL
 
 ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
 DELETE_MAX_FEATURE_COUNT = 1000
-
-
-class SyncWorker(QThread):
-    """Worker thread for sync_local_cache operation"""
-
-    finished = pyqtSignal()
-    error = pyqtSignal(str)
-
-    def __init__(self, vector_id, fields, wkb_type):
-        super().__init__()
-        self.vector_id = vector_id
-        self.fields = fields
-        self.wkb_type = wkb_type
-
-    def run(self):
-        try:
-            local_cache.vector.sync_local_cache(
-                self.vector_id,
-                self.fields,
-                self.wkb_type,
-            )
-            self.finished.emit()
-        except Exception as e:
-            self.error.emit(format_api_error(e))
 
 
 def parse_uri(
@@ -104,14 +69,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # local cache
         self.kumoy_vector: Optional[api.project_vector.KumoyVectorDetail] = None
+        self.cached_layer = None
         self._reload_vector()
 
         if self.kumoy_vector is None:
             return
 
-        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
-
-        self._is_valid = True
+        self._is_valid = self.cached_layer is not None
 
         # Set native types based on PostgreSQL data type constraints
         self.setNativeTypes(
@@ -167,14 +131,14 @@ class KumoyDataProvider(QgsVectorDataProvider):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("KumoyDataProvider", message)
 
-    def _reload_vector(self):
-        """Refresh local cache"""
+    def _reload_vector(self, force_clear: bool = False):
+        """Refresh metadata and ensure the lazy cache is ready."""
         try:
             self.kumoy_vector = api.project_vector.get_vector(
                 self.project_id, self.vector_id
             )
         except Exception as e:
-            if e.args[0] == "Not Found":
+            if e.args and e.args[0] == "Not Found":
                 QMessageBox.information(
                     None,
                     self.tr("Vector not found"),
@@ -182,79 +146,19 @@ class KumoyDataProvider(QgsVectorDataProvider):
                         self.vector_name
                     ),
                 )
+                self.kumoy_vector = None
                 return
-            else:
-                raise e
+            raise e
 
-        # Show loading dialog for sync_local_cache operation
-        progress = QProgressDialog(
-            self.tr("Syncing: {}").format(self.kumoy_vector.name),
-            self.tr("Cancel"),
-            0,
-            0,
+        if force_clear:
+            local_cache.vector.clear(self.kumoy_vector.id)
+
+        layer = local_cache.vector.ensure_layer(
+            self.kumoy_vector.id, self.fields(), self.wkbType()
         )
-        progress.setWindowTitle(self.tr("Data Sync"))
-        progress.setWindowModality(QT_APPLICATION_MODAL)
-        progress.setMinimumDuration(0)  # Show immediately
-        progress.setValue(100)  # Set to middle to show indeterminate progress
-        progress.setAutoClose(False)  # Don't auto-close
-        progress.setAutoReset(False)  # Don't auto-reset
-        progress.show()
 
-        # Create event loop for non-blocking operation
-        loop = QEventLoop()
-        sync_cancelled = False
-        sync_error = None
-
-        # Create and configure worker thread
-        sync_worker = SyncWorker(self.kumoy_vector.id, self.fields(), self.wkbType())
-
-        def on_sync_finished():
-            loop.quit()
-
-        def on_sync_error(error_message):
-            nonlocal sync_error
-            sync_error = error_message
-            loop.quit()
-
-        def on_progress_cancelled():
-            nonlocal sync_cancelled
-            sync_cancelled = True
-            if sync_worker.isRunning():
-                sync_worker.terminate()
-                sync_worker.wait()
-            loop.quit()
-
-        # Connect signals
-        sync_worker.finished.connect(on_sync_finished)
-        sync_worker.error.connect(on_sync_error)
-        progress.canceled.connect(on_progress_cancelled)
-
-        # Start sync in background and wait for completion
-        sync_worker.start()
-        exec_event_loop(loop)  # This keeps UI responsive while waiting
-
-        # Clean up
-        progress.accept()
-        sync_worker.deleteLater()
-
-        # Handle results
-        if sync_cancelled:
-            # キャンセル時はレイヤーを追加したくないので例外を投げる
-            raise Exception(self.tr("Sync cancelled by user"))
-        elif sync_error:
-            # Log error but continue with existing cached data
-            QgsMessageLog.logMessage(
-                self.tr("Sync error: {}").format(sync_error), "KUMOY", Qgis.Warning
-            )
-
-        # Delete existing cached_layer before reloading
-        if hasattr(self, "cached_layer") and self.cached_layer is not None:
-            # Force closing connection with GPKG file
-            del self.cached_layer
-
-        self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
-
+        self.cached_layer = layer
+        self._is_valid = self.cached_layer is not None
         self.clearMinMaxCache()
 
     @classmethod
@@ -388,10 +292,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 api.qgis_vector.delete_features(self.kumoy_vector.id, chunk)
             except Exception:
                 return False
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True
 
     def addFeatures(self, features: List[QgsFeature], flags=None):
+        print("addFeatures called")
+
         candidates: list[QgsFeature] = list(
             filter(
                 lambda f: f.hasGeometry()
@@ -407,13 +313,21 @@ class KumoyDataProvider(QgsVectorDataProvider):
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
         for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
+            print("ADDING features sliced:", sliced)
             try:
                 api.qgis_vector.add_features(self.kumoy_vector.id, sliced)
-            except Exception:
+            except Exception as e:
+                print(candidates)
+                print(e)
+                QMessageBox.information(
+                    None,
+                    self.tr("Test error"),
+                    str(e),
+                )
                 return False, candidates[0:i]
 
         # reload
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True, candidates
 
     def changeAttributeValues(self, attr_map: Dict[str, dict]) -> bool:
@@ -453,7 +367,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             except Exception:
                 return False
 
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True
 
     def changeGeometryValues(self, geometry_map: Dict[str, QgsGeometry]) -> bool:
@@ -472,7 +386,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             except Exception:
                 return False
 
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
@@ -499,7 +413,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         except Exception:
             return False
 
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
@@ -514,5 +428,5 @@ class KumoyDataProvider(QgsVectorDataProvider):
         except Exception:
             return False
 
-        self._reload_vector()
+        self._reload_vector(force_clear=True)
         return True

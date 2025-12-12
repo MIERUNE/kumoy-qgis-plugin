@@ -1,5 +1,6 @@
-import datetime
 import os
+
+from typing import List, Optional
 
 from qgis.core import (
     Qgis,
@@ -16,9 +17,8 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
-from .. import api
 from ..constants import LOG_CATEGORY
-from .settings import delete_last_updated, get_last_updated, store_last_updated
+from .settings import delete_last_updated
 
 
 def _get_cache_dir() -> str:
@@ -30,18 +30,13 @@ def _get_cache_dir() -> str:
     return cache_dir
 
 
-def _create_new_cache(
-    cache_file: str,
-    vector_id: str,
-    fields: QgsFields,
-    geometry_type: QgsWkbTypes.GeometryType,
-) -> str:
-    """
-    新規にキャッシュファイルを作成する
+def _cache_file_path(vector_id: str) -> str:
+    return os.path.join(_get_cache_dir(), f"{vector_id}.gpkg")
 
-    Returns:
-        updated_at: 最終更新日時
-    """
+
+def _create_empty_cache(
+    cache_file: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
+):
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.layerOptions = ["FID=kumoy_id"]
     options.driverName = "GPKG"
@@ -60,194 +55,152 @@ def _create_new_cache(
         QgsMessageLog.logMessage(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}",
             LOG_CATEGORY,
-            Qgis.Info,
+            Qgis.Critical,
         )
         raise Exception(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}"
         )
 
-    # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
-    # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
-    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-    BATCH_SIZE = 5000  # Number of features to fetch in each batch
-    after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
-    while True:
-        # Fetch features in batches
-        features = api.qgis_vector.get_features(
-            vector_id=vector_id,
-            limit=BATCH_SIZE,
-            after_id=after_id,
-        )
-
-        for feature in features:
-            qgsfeature = QgsFeature()
-            # Set geometry
-            g = QgsGeometry()
-            g.fromWkb(feature["kumoy_wkb"])
-            qgsfeature.setGeometry(g)
-
-            # Set attributes
-            qgsfeature.setFields(fields)
-            for name in fields.names():
-                if name == "kumoy_id":
-                    qgsfeature["kumoy_id"] = feature["kumoy_id"]
-                else:
-                    qgsfeature[name] = feature["properties"][name]
-
-            # Set feature ID and validity
-            qgsfeature.setValid(True)
-            # 地物を書き込み
-            writer.addFeature(qgsfeature)
-
-        if len(features) < BATCH_SIZE:
-            # 取得終了
-            break
-
-        # Update after_id for the next batch
-        after_id = features[-1]["kumoy_id"]
     del writer
 
-    return updated_at
 
+def _ensure_layer_schema(layer: QgsVectorLayer, fields: QgsFields):
+    """Ensure the cache layer matches the expected schema."""
+    provider = layer.dataProvider()
+    layer_fields = layer.fields()
 
-def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> str:
-    """
-    既存のキャッシュファイルを更新する
+    # Add missing fields
+    missing = []
+    for field in fields:
+        if layer_fields.indexOf(field.name()) == -1:
+            new_field = QgsField(field)
+            missing.append(new_field)
 
-    Returns:
-        updated_at: 最終更新日時
-    """
+    if missing:
+        provider.addAttributes(missing)
 
-    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
-    vlayer.startEditing()
-
-    # サーバーに存在しないカラムをキャッシュから削除
-    for cache_colname in vlayer.fields().names():
-        if cache_colname == "kumoy_id":
+    # Remove extra fields (except kumoy_id)
+    to_remove = []
+    for field in layer_fields:
+        if field.name() == "kumoy_id":
             continue
-        # キャッシュにはあるが、現在のサーバー上のカラムには存在しないキャッシュのカラムを削除
-        if fields.indexOf(cache_colname) == -1:
-            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
+        if fields.indexOf(field.name()) == -1:
+            to_remove.append(layer_fields.indexOf(field.name()))
 
-    # サーバーだけに存在するカラムをキャッシュに追加
-    for name in fields.names():
-        if vlayer.fields().indexOf(name) == -1:
-            vlayer.addAttribute(QgsField(name, fields[name].type()))
+    if to_remove:
+        provider.deleteAttributes(to_remove)
 
-    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-    should_deleted_fids = diff["deletedRows"] + list(
-        map(lambda rec: rec["kumoy_id"], diff["updatedRows"])
-    )
-
-    if len(should_deleted_fids) == 0 and len(diff["updatedRows"]) == 0:
-        # No changes, do nothing
-        pass
-    else:
-        # 削除された行と更新された行を全て削除する
-        if len(should_deleted_fids) > 0:
-            for fid in should_deleted_fids:
-                # Delete features by fid
-                feature = vlayer.getFeature(fid)
-                if feature.isValid():
-                    vlayer.deleteFeature(feature.id())
-
-        # 更新された行を新たなレコードとして追加する
-        if len(diff["updatedRows"]) > 0:
-            # add features
-            for feature in diff["updatedRows"]:
-                qgsfeature = QgsFeature()
-                # Set geometry
-                g = QgsGeometry()
-                g.fromWkb(feature["kumoy_wkb"])
-                qgsfeature.setGeometry(g)
-
-                # Set attributes
-                qgsfeature.setFields(fields)
-
-                for name in fields.names():
-                    if name == "kumoy_id":
-                        qgsfeature["kumoy_id"] = feature["kumoy_id"]
-                    else:
-                        qgsfeature[name] = feature["properties"][name]
-
-                # Set feature ID and validity
-                qgsfeature.setValid(True)
-                vlayer.addFeature(qgsfeature)
-
-    vlayer.commitChanges()
-    return updated_at
+    if missing or to_remove:
+        layer.updateFields()
 
 
-def sync_local_cache(
-    vector_id: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
-):
-    """
-    サーバー上のデータとローカルのキャッシュを同期する
-    - キャッシュはGPKGを用いる
-    - ローカルにGPKGが存在しなければ新規で作成する
-    - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
-    """
-    cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
+def ensure_layer(
+    vector_id: str,
+    fields: QgsFields,
+    geometry_type: QgsWkbTypes.GeometryType,
+) -> QgsVectorLayer:
+    """Ensure the cache layer exists and matches the latest schema."""
+    cache_file = _cache_file_path(vector_id)
 
-    last_updated = get_last_updated(vector_id)
-    if last_updated is None and os.path.exists(cache_file):
-        # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
-        # 不整合が生じているので既存ファイルを削除する
-        clear(vector_id)
-    if last_updated is not None and not os.path.exists(cache_file):
-        # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
-        # 不整合が生じているので最終更新日時を削除する
-        delete_last_updated(vector_id)
-        last_updated = None
-
-    if os.path.exists(cache_file):
-        # 既存キャッシュファイルを更新
-        try:
-            # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
-            diff = api.qgis_vector.get_diff(vector_id, last_updated)
-            # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-            updated_at = _update_existing_cache(cache_file, fields, diff)
-        except api.error.AppError as e:
-            if e.error == "MAX_DIFF_COUNT_EXCEEDED":
-                # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
-                QgsMessageLog.logMessage(
-                    f"Diff for vector {vector_id} is too large, recreating cache file.",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                clear(vector_id)
-                updated_at = _create_new_cache(
-                    cache_file, vector_id, fields, geometry_type
-                )
-            else:
-                raise e
-    else:
-        # 新規キャッシュファイルを作成
-        updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
-
-    store_last_updated(vector_id, updated_at)
-
-
-def get_layer(vector_id: str) -> QgsVectorLayer:
-    """Retrieve a cached QgsVectorLayer by vector ID."""
-    cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
+    if not os.path.exists(cache_file):
+        _create_empty_cache(cache_file, fields, geometry_type)
 
     layer = QgsVectorLayer(cache_file, "cache", "ogr")
 
+    if not layer.isValid():
+        QgsMessageLog.logMessage(
+            f"Cache layer {vector_id} is not valid.", LOG_CATEGORY, Qgis.Critical
+        )
+        raise Exception(f"Cache layer {vector_id} is not valid")
+
+    _ensure_layer_schema(layer, fields)
+    return layer
+
+
+def append_features(
+    vector_id: str,
+    layer: QgsVectorLayer,
+    fields: QgsFields,
+    remote_features: List[dict],
+) -> List[QgsFeature]:
+    """Append freshly fetched remote features to the cache layer."""
+    if layer is None or not layer.isValid():
+        raise Exception(
+            f"Cannot append features because cache layer {vector_id} is invalid"
+        )
+
+    provider = layer.dataProvider()
+    qgs_fields = layer.fields()
+    created: List[QgsFeature] = []
+
+    for remote_feature in remote_features:
+        qgs_feature = QgsFeature(qgs_fields)
+        qgs_feature.setFields(qgs_fields, True)
+        qgs_feature.setId(int(remote_feature["kumoy_id"]))
+
+        geometry = QgsGeometry()
+        geometry.fromWkb(remote_feature["kumoy_wkb"])
+        qgs_feature.setGeometry(geometry)
+
+        props = remote_feature.get("properties", {})
+        qgs_feature.setAttribute("kumoy_id", int(remote_feature["kumoy_id"]))
+
+        for name in fields.names():
+            if name == "kumoy_id":
+                continue
+            qgs_feature.setAttribute(name, props.get(name))
+
+        qgs_feature.setValid(True)
+        created.append(qgs_feature)
+
+    if not created:
+        return []
+
+    success, added = provider.addFeatures(created)
+    if not success:
+        print(f"FAILED added: {added}")
+
+        QgsMessageLog.logMessage(
+            f"Failed to append features to cache for {vector_id}.",
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        raise Exception(f"Failed to append features to cache for {vector_id}, {added}")
+
+    layer.updateExtents()
+    return added
+
+
+def get_layer(vector_id: str) -> Optional[QgsVectorLayer]:
+    cache_file = _cache_file_path(vector_id)
+    if not os.path.exists(cache_file):
+        return None
+
+    layer = QgsVectorLayer(cache_file, "cache", "ogr")
     if layer.isValid():
         return layer
-    else:
-        QgsMessageLog.logMessage(
-            f"Cache layer {vector_id} is not valid.", LOG_CATEGORY, Qgis.Info
-        )
+
+    QgsMessageLog.logMessage(
+        f"Cache layer {vector_id} is not valid.", LOG_CATEGORY, Qgis.Info
+    )
+    return None
+
+
+def max_cached_kumoy_id(layer: QgsVectorLayer) -> Optional[int]:
+    if layer is None or not layer.isValid():
+        return None
+
+    idx = layer.fields().indexOf("kumoy_id")
+    if idx == -1:
+        return None
+
+    value = layer.maximumValue(idx)
+    if value in (None, ""):
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
         return None
 
 
@@ -313,7 +266,6 @@ def clear(vector_id: str) -> bool:
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
-            success = False  # Flag unsucceed
     # Delete last updated timestamp
     delete_last_updated(vector_id)
 
