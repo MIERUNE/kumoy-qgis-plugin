@@ -281,7 +281,6 @@ def add_styled_map(
                     name=response.get("project", {})
                     .get("team", {})
                     .get("organization", {})
-                    .get("organization", {})
                     .get("name", ""),
                     subscriptionPlan=response.get("project", {})
                     .get("team", {})

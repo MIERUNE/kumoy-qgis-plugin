@@ -129,39 +129,55 @@ def get_vector(project_id: str, vector_id: str):
         type=response.get("type", "POINT"),
         projectId=response.get("projectId", ""),
         project=Project(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            description=response.get("description", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-            teamId=response.get("team", {}).get("id", ""),
+            id=response.get("project", {}).get("id", ""),
+            name=response.get("project", {}).get("name", ""),
+            description=response.get("project", {}).get("description", ""),
+            createdAt=response.get("project", {}).get("createdAt", ""),
+            updatedAt=response.get("project", {}).get("updatedAt", ""),
+            teamId=response.get("project", {}).get("team", {}).get("id", ""),
             team=Team(
-                id=response.get("team", {}).get("id", ""),
-                name=response.get("team", {}).get("name", ""),
-                description=response.get("team", {}).get("description", ""),
-                createdAt=response.get("team", {}).get("createdAt", ""),
-                updatedAt=response.get("team", {}).get("updatedAt", ""),
-                organization_id=response.get("team", {})
+                id=response.get("project", {}).get("team", {}).get("id", ""),
+                name=response.get("project", {}).get("team", {}).get("name", ""),
+                description=response.get("project", {})
+                .get("team", {})
+                .get("description", ""),
+                createdAt=response.get("project", {})
+                .get("team", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("project", {})
+                .get("team", {})
+                .get("updatedAt", ""),
+                organization_id=response.get("project", {})
+                .get("team", {})
                 .get("organization", {})
                 .get("id", ""),
                 organization=Organization(
-                    id=response.get("team", {}).get("organization", {}).get("id", ""),
-                    name=response.get("team", {})
+                    id=response.get("project", {})
+                    .get("team", {})
+                    .get("organization", {})
+                    .get("id", ""),
+                    name=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("name", ""),
-                    subscriptionPlan=response.get("team", {})
+                    subscriptionPlan=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("team", {})
+                    stripeCustomerId=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("stripeCustomerId", ""),
-                    storageUnits=response.get("team", {})
+                    storageUnits=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("storageUnits", 0),
-                    createdAt=response.get("team", {})
+                    createdAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("createdAt", ""),
-                    updatedAt=response.get("team", {})
+                    updatedAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("updatedAt", ""),
                 ),
@@ -209,39 +225,55 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVe
         type=response.get("type", "POINT"),
         projectId=response.get("projectId", ""),
         project=Project(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            description=response.get("description", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-            teamId=response.get("team", {}).get("id", ""),
+            id=response.get("project", {}).get("id", ""),
+            name=response.get("project", {}).get("name", ""),
+            description=response.get("project", {}).get("description", ""),
+            createdAt=response.get("project", {}).get("createdAt", ""),
+            updatedAt=response.get("project", {}).get("updatedAt", ""),
+            teamId=response.get("project", {}).get("team", {}).get("id", ""),
             team=Team(
-                id=response.get("team", {}).get("id", ""),
-                name=response.get("team", {}).get("name", ""),
-                description=response.get("team", {}).get("description", ""),
-                createdAt=response.get("team", {}).get("createdAt", ""),
-                updatedAt=response.get("team", {}).get("updatedAt", ""),
-                organization_id=response.get("team", {})
+                id=response.get("project", {}).get("team", {}).get("id", ""),
+                name=response.get("project", {}).get("team", {}).get("name", ""),
+                description=response.get("project", {})
+                .get("team", {})
+                .get("description", ""),
+                createdAt=response.get("project", {})
+                .get("team", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("project", {})
+                .get("team", {})
+                .get("updatedAt", ""),
+                organization_id=response.get("project", {})
+                .get("team", {})
                 .get("organization", {})
                 .get("id", ""),
                 organization=Organization(
-                    id=response.get("team", {}).get("organization", {}).get("id", ""),
-                    name=response.get("team", {})
+                    id=response.get("project", {})
+                    .get("team", {})
+                    .get("organization", {})
+                    .get("id", ""),
+                    name=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("name", ""),
-                    subscriptionPlan=response.get("team", {})
+                    subscriptionPlan=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("team", {})
+                    stripeCustomerId=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("stripeCustomerId", ""),
-                    storageUnits=response.get("team", {})
+                    storageUnits=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("storageUnits", 0),
-                    createdAt=response.get("team", {})
+                    createdAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("createdAt", ""),
-                    updatedAt=response.get("team", {})
+                    updatedAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("updatedAt", ""),
                 ),
@@ -298,39 +330,55 @@ def update_vector(
         type=response.get("type", "POINT"),
         projectId=response.get("projectId", ""),
         project=Project(
-            id=response.get("id", ""),
-            name=response.get("name", ""),
-            description=response.get("description", ""),
-            createdAt=response.get("createdAt", ""),
-            updatedAt=response.get("updatedAt", ""),
-            teamId=response.get("team", {}).get("id", ""),
+            id=response.get("project", {}).get("id", ""),
+            name=response.get("project", {}).get("name", ""),
+            description=response.get("project", {}).get("description", ""),
+            createdAt=response.get("project", {}).get("createdAt", ""),
+            updatedAt=response.get("project", {}).get("updatedAt", ""),
+            teamId=response.get("project", {}).get("team", {}).get("id", ""),
             team=Team(
-                id=response.get("team", {}).get("id", ""),
-                name=response.get("team", {}).get("name", ""),
-                description=response.get("team", {}).get("description", ""),
-                createdAt=response.get("team", {}).get("createdAt", ""),
-                updatedAt=response.get("team", {}).get("updatedAt", ""),
-                organization_id=response.get("team", {})
+                id=response.get("project", {}).get("team", {}).get("id", ""),
+                name=response.get("project", {}).get("team", {}).get("name", ""),
+                description=response.get("project", {})
+                .get("team", {})
+                .get("description", ""),
+                createdAt=response.get("project", {})
+                .get("team", {})
+                .get("createdAt", ""),
+                updatedAt=response.get("project", {})
+                .get("team", {})
+                .get("updatedAt", ""),
+                organization_id=response.get("project", {})
+                .get("team", {})
                 .get("organization", {})
                 .get("id", ""),
                 organization=Organization(
-                    id=response.get("team", {}).get("organization", {}).get("id", ""),
-                    name=response.get("team", {})
+                    id=response.get("project", {})
+                    .get("team", {})
+                    .get("organization", {})
+                    .get("id", ""),
+                    name=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("name", ""),
-                    subscriptionPlan=response.get("team", {})
+                    subscriptionPlan=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("team", {})
+                    stripeCustomerId=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("stripeCustomerId", ""),
-                    storageUnits=response.get("team", {})
+                    storageUnits=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("storageUnits", 0),
-                    createdAt=response.get("team", {})
+                    createdAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("createdAt", ""),
-                    updatedAt=response.get("team", {})
+                    updatedAt=response.get("project", {})
+                    .get("team", {})
                     .get("organization", {})
                     .get("updatedAt", ""),
                 ),
