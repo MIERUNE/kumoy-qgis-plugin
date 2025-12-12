@@ -19,15 +19,15 @@ class KumoyVector:
     bytes: int
     createdAt: str
     updatedAt: str
-    extent: List[float]
-    count: int
-    columns: Dict[str, str]
 
 
 # extends KumoyVector
 @dataclass
 class KumoyVectorDetail(KumoyVector):
-    role: Literal["ADMIN", "OWNER", "MEMBER"] = "MEMBER"
+    role: Literal["ADMIN", "OWNER", "MEMBER"]
+    extent: List[float]
+    count: int
+    columns: Dict[str, str]
 
 
 def get_vectors(project_id: str) -> List[KumoyVector]:
@@ -56,7 +56,6 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
                     description=vector_data.get("description", ""),
                     createdAt=vector_data.get("createdAt", ""),
                     updatedAt=vector_data.get("updatedAt", ""),
-                    thumbnailImageUrl=vector_data.get("thumbnailImageUrl"),
                     teamId=vector_data.get("team", {}).get("id", ""),
                     team=Team(
                         id=vector_data.get("team", {}).get("id", ""),
@@ -96,12 +95,8 @@ def get_vectors(project_id: str) -> List[KumoyVector]:
                 bytes=vector_data.get("bytes", 0),
                 createdAt=vector_data.get("createdAt", ""),
                 updatedAt=vector_data.get("updatedAt", ""),
-                extent=vector_data.get("extent", []),
-                count=vector_data.get("count", 0),
-                columns=vector_data.get("columns", {}),
             )
         )
-    print(vectors)
     return vectors
 
 
@@ -123,7 +118,6 @@ def get_vector(project_id: str, vector_id: str):
             description=response.get("description", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
-            thumbnailImageUrl=response.get("thumbnailImageUrl"),
             teamId=response.get("team", {}).get("id", ""),
             team=Team(
                 id=response.get("team", {}).get("id", ""),
@@ -204,7 +198,6 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVe
             description=response.get("description", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
-            thumbnailImageUrl=response.get("thumbnailImageUrl"),
             teamId=response.get("team", {}).get("id", ""),
             team=Team(
                 id=response.get("team", {}).get("id", ""),
@@ -242,9 +235,6 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVe
         bytes=response.get("bytes", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
-        extent=response.get("extent", []),
-        count=response.get("count", 0),
-        columns=response.get("columns", {}),
     )
 
 
@@ -297,7 +287,6 @@ def update_vector(
             description=response.get("description", ""),
             createdAt=response.get("createdAt", ""),
             updatedAt=response.get("updatedAt", ""),
-            thumbnailImageUrl=response.get("thumbnailImageUrl"),
             teamId=response.get("team", {}).get("id", ""),
             team=Team(
                 id=response.get("team", {}).get("id", ""),
@@ -335,7 +324,4 @@ def update_vector(
         bytes=response.get("bytes", 0),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
-        extent=response.get("extent", []),
-        count=response.get("count", 0),
-        columns=response.get("columns", {}),
     )
