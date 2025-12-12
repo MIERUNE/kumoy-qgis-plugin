@@ -245,7 +245,6 @@ def add_styled_map(
     return KumoyStyledMap(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        qgisproject=response.get("qgisproject", ""),
         isPublic=response.get("isPublic", False),
         projectId=project_id,
         project=Project(
@@ -364,7 +363,6 @@ def update_styled_map(
     return KumoyStyledMap(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        qgisproject=response.get("qgisproject", ""),
         isPublic=response.get("isPublic", False),
         projectId=response.get("projectId", ""),
         project=Project(
