@@ -2,9 +2,8 @@ import os
 
 from qgis.core import QgsProcessingProvider
 
-from ..ui.darkmode import get_adaptive_icon
 from ..kumoy.constants import PLUGIN_NAME
-from ..ui.browser.utils import is_in_darkmode
+from ..ui.icons import MAIN_ICON
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
 
@@ -24,7 +23,7 @@ class KumoyProcessingProvider(QgsProcessingProvider):
 
     def icon(self):
         """Icon for this provider"""
-        return get_adaptive_icon()
+        return MAIN_ICON
 
     def loadAlgorithms(self):
         """Load algorithms"""
