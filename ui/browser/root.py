@@ -10,16 +10,16 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ...pyqt_version import exec_dialog, Q_MESSAGEBOX_STD_BUTTON
-from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
+from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
+from ...settings_manager import get_settings, store_setting
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
-from ..darkmode import get_adaptive_icon
+from ...ui.icons import MAIN_ICON
 from .styledmap import StyledMapRoot
-from .utils import ErrorItem, is_in_darkmode
+from .utils import ErrorItem
 from .vector import VectorRoot
 
 
@@ -47,7 +47,7 @@ class RootCollection(QgsDataCollectionItem):
         QgsDataCollectionItem.__init__(
             self, None, constants.PLUGIN_NAME, constants.BROWSER_ROOT_PATH
         )
-        self.setIcon(get_adaptive_icon())
+        self.setIcon(MAIN_ICON)
 
         self.setName(constants.PLUGIN_NAME)
 

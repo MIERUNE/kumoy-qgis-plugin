@@ -7,7 +7,7 @@ description=QGIS plugin for managing Kumoy projects
 version=dev
 
 #Plugin main icon
-icon=imgs/icon.png
+icon=icon.png
 
 supportsQt6=True
 

@@ -1,5 +1,4 @@
 import json
-import os
 import urllib.request
 import webbrowser
 from urllib.error import HTTPError
@@ -20,15 +19,16 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..read_version import read_version
-from ..sentry import init_sentry
-from ..settings_manager import get_settings, store_setting
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
-from ..pyqt_version import exec_dialog, QT_ALIGN, Q_SIZE_POLICY
+from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
+from ..read_version import read_version
+from ..sentry import init_sentry
+from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
+from .icons import MAIN_ICON
 
 
 class DialogLogin(QDialog):
@@ -65,10 +65,7 @@ class DialogLogin(QDialog):
         # Icon label
         logo_icon_label = QLabel()
         logo_icon_label.setSizePolicy(Q_SIZE_POLICY.Fixed, Q_SIZE_POLICY.Fixed)
-        icon_path = os.path.join(os.path.dirname(__file__), "../imgs/icon.svg")
-        if os.path.exists(icon_path):
-            pixmap = QPixmap(icon_path)
-            logo_icon_label.setPixmap(pixmap)
+        logo_icon_label.setPixmap(MAIN_ICON.pixmap(128, 128))
         logo_icon_label.setScaledContents(True)
         logo_icon_label.setAlignment(QT_ALIGN.AlignCenter)
         logo_icon_label.setWordWrap(False)
