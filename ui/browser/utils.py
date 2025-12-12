@@ -2,8 +2,8 @@ import os
 
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 
-from ...imgs import WARNING_ICON
 from ...kumoy.constants import LOG_CATEGORY
+from ..icons import WARNING_ICON
 
 
 class ErrorItem(QgsDataItem):

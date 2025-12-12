@@ -1,4 +1,3 @@
-import os
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
@@ -23,7 +22,7 @@ from ..pyqt_version import (
 )
 from ..read_version import read_version
 from ..settings_manager import store_setting
-from .darkmode import get_adaptive_icon
+from .icons import MAIN_ICON
 from .remote_image_label import RemoteImageLabel
 
 
@@ -67,7 +66,7 @@ class DialogAccount(QDialog):
         icon_label = QLabel()
         icon_label.setSizePolicy(Q_SIZE_POLICY.Fixed, Q_SIZE_POLICY.Fixed)
         icon_label.setScaledContents(True)
-        icon_label.setPixmap(get_adaptive_icon().pixmap(24, 24))
+        icon_label.setPixmap(MAIN_ICON.pixmap(24, 24))
         # label
         product_label = QLabel("Kumoy")
         product_label.setStyleSheet("font-size: 18px; font-weight: 600;")

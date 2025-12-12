@@ -1,9 +1,7 @@
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from ..imgs import MAIN_ICON, MAIN_ICON_DARK
 
-
-def _is_in_darkmode(threshold=383):
+def is_in_darkmode(threshold=383):
     """detect the Qt in Darkmode or not
 
     This function has a dependancy on PyQt, QMessageBox.
@@ -32,7 +30,3 @@ def _is_in_darkmode(threshold=383):
 
     sum_rgb_value = red + green + blue
     return sum_rgb_value < threshold
-
-
-def get_main_icon():
-    return MAIN_ICON_DARK if _is_in_darkmode() else MAIN_ICON

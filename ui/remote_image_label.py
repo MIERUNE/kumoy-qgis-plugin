@@ -1,16 +1,16 @@
-from qgis.PyQt.QtCore import QBuffer, QByteArray, Qt, QUrl, QRect
+from qgis.PyQt.QtCore import QBuffer, QByteArray, QRect, Qt, QUrl
 from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import QLabel
 
-from ..imgs import PIN_ICON
 from ..pyqt_version import (
-    QT_ALIGN,
-    Q_REGION_TYPE,
     Q_BUFFER_OPEN_MODE,
+    Q_REGION_TYPE,
+    QT_ALIGN,
     QT_ASPECT_RATIO_MODE,
     QT_TRANSFORMATION_MODE,
 )
+from .icons import PIN_ICON
 
 # icon
 placeholder_pixmap = PIN_ICON.pixmap(24, 24)

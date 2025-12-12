@@ -21,16 +21,16 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
+from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
-    QT_DIALOG_BUTTON_OK,
     QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
     exec_dialog,
 )
-from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings, store_setting
+from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
 
 
