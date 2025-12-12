@@ -3,7 +3,7 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from ..imgs import DARK_MODE_ICON, MAIN_ICON
 
 
-def is_in_darkmode(threshold=383):
+def _is_in_darkmode(threshold=383):
     """detect the Qt in Darkmode or not
 
     This function has a dependancy on PyQt, QMessageBox.
@@ -37,4 +37,4 @@ def is_in_darkmode(threshold=383):
 def get_adaptive_icon():
     """Get icon adapted to OS setting"""
 
-    return DARK_MODE_ICON if is_in_darkmode() else MAIN_ICON
+    return DARK_MODE_ICON if _is_in_darkmode() else MAIN_ICON
