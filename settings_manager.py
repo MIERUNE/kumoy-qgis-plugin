@@ -56,3 +56,10 @@ def store_setting(key, value):
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.setValue(key, value)
     qsettings.endGroup()
+
+
+def clear_settings():
+    qsettings = QSettings()
+    qsettings.beginGroup(SETTING_GROUP)
+    qsettings.remove("")
+    qsettings.endGroup()

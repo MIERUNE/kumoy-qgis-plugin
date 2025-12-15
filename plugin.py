@@ -3,6 +3,7 @@ import os
 from qgis.core import QgsApplication, QgsProviderRegistry
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
 
 from .processing.provider import KumoyProcessingProvider
 from .sentry import init_sentry
@@ -10,6 +11,7 @@ from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .ui.browser.root import DataItemProvider
+from .settings_manager import clear_settings
 
 
 class KumoyPlugin:
@@ -32,6 +34,9 @@ class KumoyPlugin:
         # Initialize processing provider
         self.processing_provider = None
 
+        # Initialize menu action
+        self.clear_settings_action = None
+
         if get_settings().id_token:
             init_sentry()
 
@@ -49,6 +54,26 @@ class KumoyPlugin:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate(PLUGIN_NAME, message)
 
+    def on_clear_settings(self):
+        """Handle clear settings action"""
+        reply = QMessageBox.question(
+            self.win,
+            self.tr("Clear All Settings"),
+            self.tr(
+                'Are you sure you want to clear all settings for the "Kumoy" plugin?'
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            clear_settings()
+            QMessageBox.information(
+                self.win,
+                self.tr("Clear All Settings"),
+                self.tr("Plugin settings have been cleared successfully."),
+            )
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -57,7 +82,16 @@ class KumoyPlugin:
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
+        # Add menu action for clearing settings
+        self.clear_settings_action = QAction(self.tr("Clear All Settings"), self.win)
+        self.clear_settings_action.triggered.connect(self.on_clear_settings)
+        self.iface.addPluginToMenu(PLUGIN_NAME, self.clear_settings_action)
+
     def unload(self):
+        # Remove menu action
+        if self.clear_settings_action:
+            self.iface.removePluginMenu(PLUGIN_NAME, self.clear_settings_action)
+
         # Remove translator
         if self.translator:
             QCoreApplication.removeTranslator(self.translator)
