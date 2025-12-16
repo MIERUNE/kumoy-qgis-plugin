@@ -58,8 +58,12 @@ def store_setting(key, value):
     qsettings.endGroup()
 
 
-def clear_settings():
+def reset_settings():
+    from kumoy.local_cache.settings import reset_local_cache_settings
+
     qsettings = QSettings()
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.remove("")
     qsettings.endGroup()
+
+    reset_local_cache_settings()

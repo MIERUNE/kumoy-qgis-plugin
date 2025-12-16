@@ -12,7 +12,7 @@ from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .ui.browser.root import DataItemProvider
-from .settings_manager import clear_settings
+from .settings_manager import reset_settings
 
 
 class KumoyPlugin:
@@ -68,7 +68,7 @@ class KumoyPlugin:
         )
 
         if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            clear_settings()
+            reset_settings()
             QMessageBox.information(
                 self.win,
                 self.tr("Reset Plugin Settings"),
