@@ -5,6 +5,7 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 
+from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .processing.provider import KumoyProcessingProvider
 from .sentry import init_sentry
 from .kumoy.api.config import get_settings
@@ -56,17 +57,17 @@ class KumoyPlugin:
 
     def on_reset_settings(self):
         """Handle clear settings action"""
-        reply = QMessageBox.question(
+        reply = Q_MESSAGEBOX_STD_BUTTON.question(
             self.win,
             self.tr("Reset Plugin Settings"),
             self.tr(
                 'Are you sure you want to reset all settings for the "Kumoy" plugin?'
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
             clear_settings()
             QMessageBox.information(
                 self.win,
