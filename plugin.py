@@ -35,7 +35,7 @@ class KumoyPlugin:
         self.processing_provider = None
 
         # Initialize menu action
-        self.clear_settings_action = None
+        self.reset_plugin_settings = None
 
         if get_settings().id_token:
             init_sentry()
@@ -54,13 +54,13 @@ class KumoyPlugin:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate(PLUGIN_NAME, message)
 
-    def on_clear_settings(self):
+    def on_reset_settings(self):
         """Handle clear settings action"""
         reply = QMessageBox.question(
             self.win,
-            self.tr("Clear All Settings"),
+            self.tr("Reset Plugin Settings"),
             self.tr(
-                'Are you sure you want to clear all settings for the "Kumoy" plugin?'
+                'Are you sure you want to reset all settings for the "Kumoy" plugin?'
             ),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -70,8 +70,8 @@ class KumoyPlugin:
             clear_settings()
             QMessageBox.information(
                 self.win,
-                self.tr("Clear All Settings"),
-                self.tr("Plugin settings have been cleared successfully."),
+                self.tr("Reset Plugin Settings"),
+                self.tr("Plugin settings have been reset successfully."),
             )
 
     def initGui(self):
@@ -82,15 +82,15 @@ class KumoyPlugin:
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
-        # Add menu action for clearing settings
-        self.clear_settings_action = QAction(self.tr("Clear All Settings"), self.win)
-        self.clear_settings_action.triggered.connect(self.on_clear_settings)
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.clear_settings_action)
+        # Add menu action for resetting settings
+        self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
+        self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
+        self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
     def unload(self):
         # Remove menu action
-        if self.clear_settings_action:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.clear_settings_action)
+        if self.reset_plugin_settings:
+            self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
         # Remove translator
         if self.translator:
