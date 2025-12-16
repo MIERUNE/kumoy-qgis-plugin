@@ -57,7 +57,7 @@ class KumoyPlugin:
 
     def on_reset_settings(self):
         """Handle clear settings action"""
-        reply = Q_MESSAGEBOX_STD_BUTTON.question(
+        reply = QMessageBox.question(
             self.win,
             self.tr("Reset Plugin Settings"),
             self.tr(
