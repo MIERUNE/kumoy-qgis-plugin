@@ -5,6 +5,7 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
 
 from .kumoy import constants
+from .kumoy.local_cache.settings import reset_local_cache_settings
 
 
 @dataclass
@@ -59,8 +60,6 @@ def store_setting(key, value):
 
 
 def reset_settings():
-    from kumoy.local_cache.settings import reset_local_cache_settings
-
     qsettings = QSettings()
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.remove("")
