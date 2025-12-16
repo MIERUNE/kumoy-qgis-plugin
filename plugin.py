@@ -1,6 +1,6 @@
 import os
 
-from qgis.core import QgsApplication, QgsProviderRegistry
+from qgis.core import QgsApplication, QgsProviderRegistry, QgsProject
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
@@ -56,19 +56,37 @@ class KumoyPlugin:
         return QCoreApplication.translate(PLUGIN_NAME, message)
 
     def on_reset_settings(self):
-        """Handle clear settings action"""
+        """Handle reset settings action"""
         reply = QMessageBox.question(
             self.win,
             self.tr("Reset Plugin Settings"),
             self.tr(
-                'Are you sure you want to reset all settings for the "Kumoy" plugin?'
+                'Are you sure you want to reset all settings for the "Kumoy" plugin? '
+                "This will clear your current project."
             ),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
         if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
+            if QgsProject.instance().isDirty():
+                confirmed = QMessageBox.question(
+                    self.win,
+                    self.tr("Reset Plugin Settings"),
+                    self.tr(
+                        "You have unsaved changes. "
+                        "Resetting settings will clear your current project. Continue?"
+                    ),
+                    Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                    Q_MESSAGEBOX_STD_BUTTON.No,
+                )
+
+                if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
+                    return
+
+            QgsProject.instance().clear()
             reset_settings()
+
             QMessageBox.information(
                 self.win,
                 self.tr("Reset Plugin Settings"),
