@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
@@ -200,6 +200,7 @@ def get_vector(vector_id: str):
 class AddVectorOptions:
     name: str
     type: Literal["POINT", "LINESTRING", "POLYGON"]
+    attribution: Optional[str] = None
 
 
 def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVector:
@@ -213,10 +214,15 @@ def add_vector(project_id: str, add_vector_options: AddVectorOptions) -> KumoyVe
     Returns:
         KumoyVector object or None if creation failed
     """
-    response = ApiClient.post(
-        f"/project/{project_id}/vector",
-        {"name": add_vector_options.name, "type": add_vector_options.type},
-    )
+
+    payload = {
+        "name": add_vector_options.name,
+        "type": add_vector_options.type,
+    }
+    if add_vector_options.attribution is not None:
+        payload["attribution"] = add_vector_options.attribution
+
+    response = ApiClient.post(f"/project/{project_id}/vector", payload)
 
     return KumoyVector(
         id=response.get("id", ""),
@@ -302,7 +308,8 @@ def delete_vector(vector_id: str):
 
 @dataclass
 class UpdateVectorOptions:
-    name: str
+    name: Optional[str] = None
+    attribution: Optional[str] = None
 
 
 def update_vector(
@@ -312,17 +319,21 @@ def update_vector(
     Update an existing vector
 
     Args:
-        project_id: Project ID
         vector_id: Vector ID
         update_vector_options: Update options
 
     Returns:
-        KumoyVector object or None if update failed
+        KumoyVector object
     """
-    response = ApiClient.put(
-        f"/vector/{vector_id}",
-        {"name": update_vector_options.name},
-    )
+
+    payload = {}
+    if update_vector_options.name is not None:
+        payload["name"] = update_vector_options.name
+    if update_vector_options.attribution is not None:
+        payload["attribution"] = update_vector_options.attribution
+
+    response = ApiClient.put(f"/vector/{vector_id}", payload)
+
     return KumoyVector(
         id=response.get("id", ""),
         name=response.get("name", ""),

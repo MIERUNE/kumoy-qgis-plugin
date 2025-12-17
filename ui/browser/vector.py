@@ -235,9 +235,12 @@ class VectorItem(QgsDataItem):
         # Create fields
         name_field = QLineEdit(self.vector.name)
         name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
+        attribution_field = QLineEdit(self.vector.attribution)
+        attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
 
         # Add fields to form
         form_layout.addRow(self.tr("Name:"), name_field)
+        form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # Create buttons
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
@@ -256,12 +259,15 @@ class VectorItem(QgsDataItem):
 
         # Get values
         new_name = name_field.text()
+        new_attribution = attribution_field.text()
 
         # Update vector
         try:
             updated_vector = api.vector.update_vector(
                 self.vector.id,
-                api.vector.UpdateVectorOptions(name=new_name),
+                api.vector.UpdateVectorOptions(
+                    name=new_name, attribution=new_attribution
+                ),
             )
         except Exception as e:
             QgsMessageLog.logMessage(

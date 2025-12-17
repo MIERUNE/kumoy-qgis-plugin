@@ -219,6 +219,9 @@ class AddStyledMapOptions:
 
     name: str
     qgisproject: str
+    attribution: Optional[str] = None
+    description: Optional[str] = None
+    isPublic: Optional[bool] = None
 
 
 def add_styled_map(
@@ -234,13 +237,19 @@ def add_styled_map(
     Returns:
         KumoyStyledMapオブジェクトまたは作成失敗時はNone
     """
-    response = ApiClient.post(
-        f"/project/{project_id}/styled-map",
-        {
-            "name": options.name,
-            "qgisproject": options.qgisproject,
-        },
-    )
+
+    payload = {
+        "name": options.name,
+        "qgisproject": options.qgisproject,
+    }
+    if options.attribution is not None:
+        payload["attribution"] = options.attribution
+    if options.description is not None:
+        payload["description"] = options.description
+    if options.isPublic is not None:
+        payload["isPublic"] = options.isPublic
+
+    response = ApiClient.post(f"/project/{project_id}/styled-map", payload)
 
     return KumoyStyledMap(
         id=response.get("id", ""),
@@ -330,8 +339,10 @@ class UpdateStyledMapOptions:
     """
 
     name: Optional[str] = None
+    description: Optional[str] = None
     qgisproject: Optional[str] = None
     isPublic: Optional[bool] = None
+    attribution: Optional[str] = None
 
 
 def update_styled_map(
@@ -354,6 +365,10 @@ def update_styled_map(
         update_data["qgisproject"] = options.qgisproject
     if options.isPublic is not None:
         update_data["isPublic"] = options.isPublic
+    if options.attribution is not None:
+        update_data["attribution"] = options.attribution
+    if options.description is not None:
+        update_data["description"] = options.description
 
     response = ApiClient.put(
         f"/styled-map/{styled_map_id}",
