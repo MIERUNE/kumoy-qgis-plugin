@@ -439,6 +439,10 @@ class StyledMapRoot(QgsDataItem):
     ):
         """新しいMapをKumoyサーバー上に作成する"""
 
+        # HACK: to ensure extents of all layers are calculated - Issue #311
+        for layer in QgsProject.instance().mapLayers().values():
+            layer.extent()
+
         try:
             # Check plan limits before creating styled map
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
