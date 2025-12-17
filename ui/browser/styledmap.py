@@ -244,6 +244,10 @@ class StyledMapItem(QgsDataItem):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
+        # HACK: to ensure extents of all layers are calculated - Issue #311
+        for layer in QgsProject.instance().mapLayers().values():
+            layer.extent()
+
         try:
             new_qgisproject = _write_qgsfile(self.styled_map.id)
 
