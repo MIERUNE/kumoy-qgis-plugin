@@ -140,7 +140,6 @@ class VectorItem(QgsDataItem):
 
         # Create layer
         layer = QgsVectorLayer(self.vector_uri, self.vector.name, "kumoy")
-        layer.extent()  # HACK: to ensure extent is calculated - Issue #224
 
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
