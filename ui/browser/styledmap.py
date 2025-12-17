@@ -35,8 +35,6 @@ from .utils import ErrorItem
 
 
 class StyledMapItem(QgsDataItem):
-    """スタイルマップアイテム（ブラウザ用）"""
-
     def __init__(
         self,
         parent,
@@ -109,7 +107,7 @@ class StyledMapItem(QgsDataItem):
         webbrowser.open(url)
 
     def apply_style(self):
-        """スタイルをQGISレイヤーに適用する"""
+        """KumoyサーバーからMapを取得してQGISに適用する"""
 
         # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
         if QgsProject.instance().isDirty():
@@ -151,12 +149,10 @@ class StyledMapItem(QgsDataItem):
         QgsProject.instance().setDirty(False)
 
     def handleDoubleClick(self):
-        """ダブルクリック時にスタイルを適用する"""
         self.apply_style()
         return True
 
     def update_metadata_styled_map(self):
-        """Mapを編集する"""
         # ダイアログ作成
         dialog = QDialog()
         dialog.setWindowTitle(self.tr("Edit Map"))
@@ -285,7 +281,6 @@ class StyledMapItem(QgsDataItem):
         )
 
     def delete_styled_map(self):
-        """スタイルマップを削除する"""
         # 削除確認
         confirm = QMessageBox.question(
             None,
@@ -333,7 +328,6 @@ class StyledMapItem(QgsDataItem):
                 )
 
     def clear_map_cache(self):
-        """Clear cache for this specific map"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
@@ -443,7 +437,7 @@ class StyledMapRoot(QgsDataItem):
         self,
         clear=False,
     ):
-        """新しいスタイルマップを追加する"""
+        """新しいMapをKumoyサーバー上に作成する"""
 
         try:
             # Check plan limits before creating styled map
@@ -537,7 +531,6 @@ class StyledMapRoot(QgsDataItem):
             )
 
     def createChildren(self):
-        """子アイテムを作成する"""
         project_id = get_settings().selected_project_id
 
         if not project_id:
@@ -558,7 +551,6 @@ class StyledMapRoot(QgsDataItem):
         return children
 
     def clear_all_map_cache(self):
-        """Clear all map cache data"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
