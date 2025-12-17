@@ -170,10 +170,16 @@ class StyledMapItem(QgsDataItem):
         name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
         is_public_field = QCheckBox(self.tr("Make Public"))
         is_public_field.setChecked(self.styled_map.isPublic)
+        attribution_field = QLineEdit(self.styled_map.attribution)
+        attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
+        description_field = QLineEdit(self.styled_map.description)
+        description_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION)
 
         # フォームにフィールドを追加
         form_layout.addRow(self.tr("Name:"), name_field)
         form_layout.addRow(self.tr("Public:"), is_public_field)
+        form_layout.addRow(self.tr("Description:"), description_field)
+        form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # ボタン作成
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
@@ -193,6 +199,8 @@ class StyledMapItem(QgsDataItem):
         # 値を取得（タイトルと公開設定のみ）
         new_name = name_field.text()
         new_is_public = is_public_field.isChecked()
+        new_attribution = attribution_field.text()
+        new_description = description_field.text()
 
         if new_name == "":
             return
@@ -204,6 +212,8 @@ class StyledMapItem(QgsDataItem):
                 api.styledmap.UpdateStyledMapOptions(
                     name=new_name,
                     isPublic=new_is_public,
+                    attribution=new_attribution,
+                    description=new_description,
                 ),
             )
         except Exception as e:
