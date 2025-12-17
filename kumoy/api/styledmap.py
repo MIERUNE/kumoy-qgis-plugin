@@ -220,6 +220,8 @@ class AddStyledMapOptions:
     name: str
     qgisproject: str
     attribution: Optional[str] = None
+    description: Optional[str] = None
+    isPublic: Optional[bool] = None
 
 
 def add_styled_map(
@@ -242,6 +244,10 @@ def add_styled_map(
     }
     if options.attribution is not None:
         payload["attribution"] = options.attribution
+    if options.description is not None:
+        payload["description"] = options.description
+    if options.isPublic is not None:
+        payload["isPublic"] = options.isPublic
 
     response = ApiClient.post(f"/project/{project_id}/styled-map", payload)
 

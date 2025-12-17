@@ -478,10 +478,20 @@ class StyledMapRoot(QgsDataItem):
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit()
             name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
+            attribution_field = QLineEdit()
+            attribution_field.setMaxLength(
+                constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION
+            )
+            description_field = QLineEdit()
+            description_field.setMaxLength(
+                constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION
+            )
             is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
             form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(self.tr("Description:"), description_field)
+            form_layout.addRow(self.tr("Attribution:"), attribution_field)
             form_layout.addRow(self.tr("Public:"), is_public_field)
 
             # ボタン作成
@@ -502,6 +512,9 @@ class StyledMapRoot(QgsDataItem):
 
             # 値を取得（タイトルと公開設定のみ）
             name = name_field.text()
+            attribution = attribution_field.text()
+            description = description_field.text()
+            is_public = is_public_field.isChecked()
 
             if not name:
                 return
@@ -518,6 +531,9 @@ class StyledMapRoot(QgsDataItem):
                 api.styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,
+                    attribution=attribution,
+                    description=description,
+                    isPublic=is_public,
                 ),
             )
 
