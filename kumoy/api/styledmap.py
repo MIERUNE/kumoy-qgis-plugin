@@ -365,6 +365,10 @@ def update_styled_map(
         update_data["qgisproject"] = options.qgisproject
     if options.isPublic is not None:
         update_data["isPublic"] = options.isPublic
+    if options.attribution is not None:
+        update_data["attribution"] = options.attribution
+    if options.description is not None:
+        update_data["description"] = options.description
 
     response = ApiClient.put(
         f"/styled-map/{styled_map_id}",
