@@ -219,6 +219,7 @@ class AddStyledMapOptions:
 
     name: str
     qgisproject: str
+    attribution: Optional[str] = None
 
 
 def add_styled_map(
@@ -234,13 +235,15 @@ def add_styled_map(
     Returns:
         KumoyStyledMapオブジェクトまたは作成失敗時はNone
     """
-    response = ApiClient.post(
-        f"/project/{project_id}/styled-map",
-        {
-            "name": options.name,
-            "qgisproject": options.qgisproject,
-        },
-    )
+
+    payload = {
+        "name": options.name,
+        "qgisproject": options.qgisproject,
+    }
+    if options.attribution is not None:
+        payload["attribution"] = options.attribution
+
+    response = ApiClient.post(f"/project/{project_id}/styled-map", payload)
 
     return KumoyStyledMap(
         id=response.get("id", ""),
@@ -330,8 +333,10 @@ class UpdateStyledMapOptions:
     """
 
     name: Optional[str] = None
+    description: Optional[str] = None
     qgisproject: Optional[str] = None
     isPublic: Optional[bool] = None
+    attribution: Optional[str] = None
 
 
 def update_styled_map(
