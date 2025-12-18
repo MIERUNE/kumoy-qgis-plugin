@@ -20,7 +20,6 @@ from qgis.core import (
 from qgis.PyQt.QtCore import (
     QCoreApplication,
     QEventLoop,
-    Qt,
     QThread,
     QVariant,
     pyqtSignal,
@@ -45,12 +44,12 @@ class SyncWorker(QThread):
     error = pyqtSignal(str)
     progress = pyqtSignal(int)
 
-    def __init__(self, vector_id, fields, wkb_type, total_features):
+    def __init__(self, kumoy_vector, fields, wkb_type):
         super().__init__()
-        self.vector_id = vector_id
+        self.vector = kumoy_vector
         self.fields = fields
         self.wkb_type = wkb_type
-        self.total_features = max(total_features, 1)
+        self.total_features = max(self.vector.count, 1)
 
     def run(self):
         try:
@@ -60,7 +59,7 @@ class SyncWorker(QThread):
                 self.progress.emit(min(percent, 100))
 
             local_cache.vector.sync_local_cache(
-                self.vector_id,
+                self.vector.id,
                 self.fields,
                 self.wkb_type,
                 progress_callback=on_chunk,
@@ -202,7 +201,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
         progress.setWindowTitle(self.tr("Data Sync"))
         progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
-        progress.setValue(100)  # Set to middle to show indeterminate progress
         progress.setAutoClose(False)  # Don't auto-close
         progress.setAutoReset(False)  # Don't auto-reset
         progress.setRange(0, 100)
@@ -216,7 +214,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Create and configure worker thread
         sync_worker = SyncWorker(
-            self.kumoy_vector.id, self.fields(), self.wkbType(), self.kumoy_vector.count
+            self.kumoy_vector,
+            self.fields(),
+            self.wkbType(),
         )
 
         def on_sync_finished():
