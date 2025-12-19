@@ -341,7 +341,7 @@ class StyledMapItem(QgsDataItem):
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear MapCache Data"),
+            self.tr("Clear Map Cache Data"),
             self.tr(
                 "This will clear the local cache for map '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
