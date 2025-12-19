@@ -105,10 +105,9 @@ def _create_new_cache(
             # 地物を書き込み
             writer.addFeature(qgsfeature)
 
-        # Progress reporting
-        if progress_callback is not None and len(features) > 0:
-            processed_features += len(features)
-            progress_callback(processed_features)
+            if progress_callback is not None:
+                processed_features += 1
+                progress_callback(processed_features)
 
         if len(features) < BATCH_SIZE:
             # 取得終了
@@ -117,10 +116,6 @@ def _create_new_cache(
         # Update after_id for the next batch
         after_id = features[-1]["kumoy_id"]
     del writer
-
-    # Final progress report
-    if progress_callback is not None:
-        progress_callback(processed_features)
 
     return updated_at
 
