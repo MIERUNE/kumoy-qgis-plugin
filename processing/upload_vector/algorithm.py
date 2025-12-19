@@ -232,7 +232,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     ):
         """Get project information and validate limits"""
         # Get project ID
-        project_index = self.parameterAsEnum(parameters, self.Kumoy_PROJECT, context)
+        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
         project_options = list(self.project_map.keys())
         project_id = self.project_map[project_options[project_index]]
 
