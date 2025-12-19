@@ -1,8 +1,8 @@
 [general]
-name=KUMOY
+name=Kumoy
 qgisMinimumVersion=3.40
 qgisMaximumVersion=4.99
-about=KUMOY Plugin
+about=Kumoy Plugin
 description=QGIS plugin for managing Kumoy projects
 version=dev
 

@@ -18,7 +18,7 @@ class UserSettings:
     custom_server_url: str = ""
 
 
-SETTING_GROUP = "/KUMOY"
+SETTING_GROUP = "/Kumoy"
 
 
 def get_settings():

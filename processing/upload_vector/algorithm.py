@@ -86,7 +86,7 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
-    """Algorithm to upload vector layer to KUMOY backend"""
+    """Algorithm to upload vector layer to Kumoy backend"""
 
     INPUT_LAYER: str = "INPUT"
     KUMOY_PROJECT: str = "PROJECT"
@@ -110,7 +110,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def displayName(self) -> str:
         """Algorithm display name"""
-        return self.tr("Upload Vector Layer to KUMOY")
+        return self.tr("Upload Vector Layer to Kumoy")
 
     def group(self):
         return None
@@ -121,7 +121,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
-            "Upload a vector layer to the KUMOY cloud.\n\n"
+            "Upload a vector layer to the Kumoy cloud.\n\n"
             "The Input Vector Layer dropdown shows vector layers in your current map. "
             "If no map is open, it will be empty."
         )
@@ -416,12 +416,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "algorithm": "UploadVectorAlgorithm",
                         "project_id": project_id if "project_id" in locals() else "",
                         "vector_name": vector_name if "vector_name" in locals() else "",
-                        "geometry_type": geometry_type
-                        if "geometry_type" in locals()
-                        else "",
-                        "field_mapping": field_mapping
-                        if "field_mapping" in locals()
-                        else "",
+                        "geometry_type": (
+                            geometry_type if "geometry_type" in locals() else ""
+                        ),
+                        "field_mapping": (
+                            field_mapping if "field_mapping" in locals() else ""
+                        ),
                         "attr_dict": attr_dict if "attr_dict" in locals() else "",
                     },
                 )
@@ -705,7 +705,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         valid_fields_layer: QgsVectorLayer,
         feedback: QgsProcessingFeedback,
     ) -> bool:
-        """Upload features to KUMOY in batches. Returns True when canceled."""
+        """Upload features to Kumoy in batches. Returns True when canceled."""
         cur_features = []
         accumulated_features = 0
         batch_size = 1000

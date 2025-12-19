@@ -23,7 +23,7 @@ def handle_blocking_reply(content: QByteArray) -> dict:
 
 
 class ApiClient:
-    """Base API client for KUMOY backend"""
+    """Base API client for Kumoy backend"""
 
     @staticmethod
     def get(endpoint: str, params: Optional[Dict] = None) -> dict:

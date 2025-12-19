@@ -27,7 +27,7 @@ from .remote_image_label import RemoteImageLabel
 
 
 class DialogAccount(QDialog):
-    """Dialog that shows the current KUMOY account information."""
+    """Dialog that shows the current Kumoy account information."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -236,6 +236,6 @@ class DialogAccount(QDialog):
         QMessageBox.information(
             self,
             self.tr("Logout"),
-            self.tr("You have been logged out from KUMOY."),
+            self.tr("You have been logged out from Kumoy."),
         )
         self.accept()

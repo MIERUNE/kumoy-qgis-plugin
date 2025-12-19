@@ -24,7 +24,7 @@ from .vector import VectorRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
-    """Provider for KUMOY browser items"""
+    """Provider for Kumoy browser items"""
 
     def __init__(self):
         QgsDataItemProvider.__init__(self)
@@ -40,7 +40,7 @@ class DataItemProvider(QgsDataItemProvider):
 
 
 class RootCollection(QgsDataCollectionItem):
-    """Root collection for KUMOY browser"""
+    """Root collection for Kumoy browser"""
 
     def __init__(self):
         # Initialize with default name, will update with project name later
@@ -138,7 +138,7 @@ class RootCollection(QgsDataCollectionItem):
         self.depopulate()
 
     def login(self):
-        """Login to KUMOY"""
+        """Login to Kumoy"""
 
         # Show config dialog with Supabase login tab
         dialog = DialogLogin()
@@ -257,7 +257,7 @@ class RootCollection(QgsDataCollectionItem):
         return children
 
     def logout(self):
-        """Logout from KUMOY"""
+        """Logout from Kumoy"""
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 None,
@@ -288,7 +288,7 @@ class RootCollection(QgsDataCollectionItem):
         QMessageBox.information(
             None,
             self.tr("Logout"),
-            self.tr("You have been logged out from KUMOY."),
+            self.tr("You have been logged out from Kumoy."),
         )
 
         # Reset browser name

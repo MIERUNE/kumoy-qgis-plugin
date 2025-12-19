@@ -10,7 +10,7 @@ from .team import Team
 @dataclass
 class KumoyStyledMap:
     """
-    KUMOYのStyledMapを表すデータクラス
+    KumoyのStyledMapを表すデータクラス
     """
 
     id: str
@@ -122,7 +122,7 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
 @dataclass
 class KumoyStyledMapDetail(KumoyStyledMap):
     """
-    KUMOYのStyledMapの詳細を表すデータクラス
+    KumoyのStyledMapの詳細を表すデータクラス
     """
 
     qgisproject: str
