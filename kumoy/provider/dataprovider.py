@@ -243,7 +243,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         elif sync_error:
             # Log error but continue with existing cached data
             QgsMessageLog.logMessage(
-                self.tr("Sync error: {}").format(sync_error), "KUMOY", Qgis.Warning
+                self.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
             )
 
         # Delete existing cached_layer before reloading

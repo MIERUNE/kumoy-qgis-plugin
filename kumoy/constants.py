@@ -3,7 +3,7 @@
 """
 
 # プラグイン名・プロバイダ名
-PLUGIN_NAME = "KUMOY"
+PLUGIN_NAME = "Kumoy"
 
 # ログメッセージのカテゴリ名（QgsMessageLogで使用）
 LOG_CATEGORY = PLUGIN_NAME
@@ -13,7 +13,7 @@ BROWSER_ROOT_PATH = "kumoy:/"
 
 # データプロバイダー関連
 DATA_PROVIDER_KEY = "kumoy"
-DATA_PROVIDER_DESCRIPTION = "KUMOY Data Provider"
+DATA_PROVIDER_DESCRIPTION = "Kumoy Data Provider"
 
 # 各種名称の最大文字数
 MAX_CHARACTERS_ORGANIZATION_NAME = 32

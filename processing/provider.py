@@ -8,7 +8,7 @@ from .upload_vector.algorithm import UploadVectorAlgorithm
 
 
 class KumoyProcessingProvider(QgsProcessingProvider):
-    """Processing provider for KUMOY plugin"""
+    """Processing provider for Kumoy plugin"""
 
     def __init__(self):
         super().__init__()

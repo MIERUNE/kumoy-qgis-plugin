@@ -57,8 +57,8 @@
     </message>
     <message>
         <location filename="../ui/dialog_account.py" line="236"/>
-        <source>You have been logged out from KUMOY.</source>
-        <translation type="unfinished">KUMOYからログアウトしました。</translation>
+        <source>You have been logged out from Kumoy.</source>
+        <translation type="unfinished">Kumoyからログアウトしました。</translation>
     </message>
 </context>
 <context>
@@ -520,7 +520,7 @@ This action can&apos;t be undone.</source>
     </message>
     <message>
         <location filename="../ui/browser/root.py" line="288"/>
-        <source>You have been logged out from KUMOY.</source>
+        <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
@@ -837,8 +837,8 @@ Continue?</source>
     <name>UploadVectorAlgorithm</name>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="113"/>
-        <source>Upload Vector Layer to KUMOY</source>
-        <translation type="unfinished">ベクタレイヤをKUMOYにアップロード</translation>
+        <source>Upload Vector Layer to Kumoy</source>
+        <translation type="unfinished">ベクタレイヤをKumoyにアップロード</translation>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="135"/>
@@ -962,10 +962,10 @@ Continue?</source>
     </message>
     <message>
         <location filename="../processing/upload_vector/algorithm.py" line="123"/>
-        <source>Upload a vector layer to the KUMOY cloud.
+        <source>Upload a vector layer to the Kumoy cloud.
 
 The Input Vector Layer dropdown shows vector layers in your current map. If no map is open, it will be empty.</source>
-        <translation type="unfinished">ベクタレイヤをKUMOYクラウドにアップロードします。
+        <translation type="unfinished">ベクタレイヤをKumoyクラウドにアップロードします。
 
 入力ベクタレイヤのドロップダウンには、現在のQGISプロジェクトのベクタレイヤが表示されます。マップが開いていない場合は空になります。</translation>
     </message>

@@ -1,5 +1,5 @@
 """
-KUMOY Processing provider
+Kumoy Processing provider
 """
 
 # Only import FieldNameNormalizer for testing purposes
