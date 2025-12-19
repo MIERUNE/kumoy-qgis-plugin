@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Callable, Optional
 
 from qgis.core import (
     Qgis,
@@ -35,6 +36,7 @@ def _create_new_cache(
     vector_id: str,
     fields: QgsFields,
     geometry_type: QgsWkbTypes.GeometryType,
+    progress_callback: Optional[Callable[[int], None]] = None,
 ) -> str:
     """
     新規にキャッシュファイルを作成する
@@ -74,6 +76,7 @@ def _create_new_cache(
 
     BATCH_SIZE = 5000  # Number of features to fetch in each batch
     after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
+    processed_features = 0
     while True:
         # Fetch features in batches
         features = api.qgis_vector.get_features(
@@ -101,6 +104,10 @@ def _create_new_cache(
             qgsfeature.setValid(True)
             # 地物を書き込み
             writer.addFeature(qgsfeature)
+
+            if progress_callback is not None:
+                processed_features += 1
+                progress_callback(processed_features)
 
         if len(features) < BATCH_SIZE:
             # 取得終了
@@ -185,7 +192,10 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
 
 
 def sync_local_cache(
-    vector_id: str, fields: QgsFields, geometry_type: QgsWkbTypes.GeometryType
+    vector_id: str,
+    fields: QgsFields,
+    geometry_type: QgsWkbTypes.GeometryType,
+    progress_callback: Optional[Callable[[int], None]] = None,
 ):
     """
     サーバー上のデータとローカルのキャッシュを同期する
@@ -224,13 +234,23 @@ def sync_local_cache(
                 )
                 clear(vector_id)
                 updated_at = _create_new_cache(
-                    cache_file, vector_id, fields, geometry_type
+                    cache_file,
+                    vector_id,
+                    fields,
+                    geometry_type,
+                    progress_callback=progress_callback,
                 )
             else:
                 raise e
     else:
         # 新規キャッシュファイルを作成
-        updated_at = _create_new_cache(cache_file, vector_id, fields, geometry_type)
+        updated_at = _create_new_cache(
+            cache_file,
+            vector_id,
+            fields,
+            geometry_type,
+            progress_callback=progress_callback,
+        )
 
     store_last_updated(vector_id, updated_at)
 

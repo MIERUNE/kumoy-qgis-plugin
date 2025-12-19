@@ -20,7 +20,6 @@ from qgis.core import (
 from qgis.PyQt.QtCore import (
     QCoreApplication,
     QEventLoop,
-    Qt,
     QThread,
     QVariant,
     pyqtSignal,
@@ -43,19 +42,27 @@ class SyncWorker(QThread):
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
-    def __init__(self, vector_id, fields, wkb_type):
+    def __init__(self, kumoy_vector, fields, wkb_type):
         super().__init__()
-        self.vector_id = vector_id
+        self.vector = kumoy_vector
         self.fields = fields
         self.wkb_type = wkb_type
+        self.total_features = max(self.vector.count, 1)
 
     def run(self):
         try:
+
+            def on_progress_update(processed_count):
+                percent = int((processed_count / self.total_features) * 100)
+                self.progress.emit(min(percent, 100))
+
             local_cache.vector.sync_local_cache(
-                self.vector_id,
+                self.vector.id,
                 self.fields,
                 self.wkb_type,
+                progress_callback=on_progress_update,
             )
             self.finished.emit()
         except Exception as e:
@@ -194,9 +201,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
         progress.setWindowTitle(self.tr("Data Sync"))
         progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
-        progress.setValue(100)  # Set to middle to show indeterminate progress
         progress.setAutoClose(False)  # Don't auto-close
         progress.setAutoReset(False)  # Don't auto-reset
+        progress.setRange(0, 100)
+        progress.setValue(0)
         progress.show()
 
         # Create event loop for non-blocking operation
@@ -205,7 +213,11 @@ class KumoyDataProvider(QgsVectorDataProvider):
         sync_error = None
 
         # Create and configure worker thread
-        sync_worker = SyncWorker(self.kumoy_vector.id, self.fields(), self.wkbType())
+        sync_worker = SyncWorker(
+            self.kumoy_vector,
+            self.fields(),
+            self.wkbType(),
+        )
 
         def on_sync_finished():
             loop.quit()
@@ -223,9 +235,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 sync_worker.wait()
             loop.quit()
 
+        def on_worker_progress(percent):
+            progress.setValue(percent)
+
         # Connect signals
         sync_worker.finished.connect(on_sync_finished)
         sync_worker.error.connect(on_sync_error)
+        sync_worker.progress.connect(on_worker_progress)
         progress.canceled.connect(on_progress_cancelled)
 
         # Start sync in background and wait for completion
