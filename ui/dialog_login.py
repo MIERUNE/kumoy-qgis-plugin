@@ -139,6 +139,8 @@ class DialogLogin(QDialog):
         return QCoreApplication.translate("DialogLogin", message)
 
     def closeEvent(self, event):
+        if hasattr(self, "auth_manager") and self.auth_manager:
+            self.auth_manager.cancel_auth()
         self.save_server_settings()
         super().closeEvent(event)
 
