@@ -34,6 +34,7 @@ from .icons import MAIN_ICON
 class DialogLogin(QDialog):
     def __init__(self):
         super().__init__()
+        self.auth_manager = None
         self.setupUi()
 
         # load saved server settings
@@ -139,7 +140,7 @@ class DialogLogin(QDialog):
         return QCoreApplication.translate("DialogLogin", message)
 
     def closeEvent(self, event):
-        if hasattr(self, "auth_manager") and self.auth_manager:
+        if self.auth_manager is not None:
             self.auth_manager.cancel_auth()
         self.save_server_settings()
         super().closeEvent(event)
