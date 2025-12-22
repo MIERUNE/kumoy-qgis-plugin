@@ -87,6 +87,12 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             reset_settings()
 
+            # Refresh browser panel
+            registry = QgsApplication.instance().dataItemProviderRegistry()
+            registry.removeProvider(self.dip)
+            self.dip = DataItemProvider()
+            registry.addProvider(self.dip)
+
             QMessageBox.information(
                 self.win,
                 self.tr("Reset Plugin Settings"),
