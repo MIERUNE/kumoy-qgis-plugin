@@ -365,6 +365,10 @@ class AuthManager(QObject):
         # Return the URL for the user to open in their browser
         return True, auth_url
 
+    def cancel_auth(self):
+        """Public helper to abort any in-flight auth flow."""
+        self._cleanup_auth()
+
     def get_id_token(self) -> Optional[str]:
         """Get the current id token if available and not expired.
 
