@@ -20,13 +20,13 @@ from qgis.core import (
 from qgis.PyQt.QtCore import (
     QCoreApplication,
     QEventLoop,
-    Qt,
     QThread,
     QVariant,
     pyqtSignal,
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 
+from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
 from ..api.error import format_api_error
 from .feature_iterator import KumoyFeatureIterator
@@ -42,19 +42,27 @@ class SyncWorker(QThread):
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
-    def __init__(self, vector_id, fields, wkb_type):
+    def __init__(self, kumoy_vector, fields, wkb_type):
         super().__init__()
-        self.vector_id = vector_id
+        self.vector = kumoy_vector
         self.fields = fields
         self.wkb_type = wkb_type
+        self.total_features = max(self.vector.count, 1)
 
     def run(self):
         try:
+
+            def on_progress_update(processed_count):
+                percent = int((processed_count / self.total_features) * 100)
+                self.progress.emit(min(percent, 100))
+
             local_cache.vector.sync_local_cache(
-                self.vector_id,
+                self.vector.id,
                 self.fields,
                 self.wkb_type,
+                progress_callback=on_progress_update,
             )
             self.finished.emit()
         except Exception as e:
@@ -102,7 +110,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
 
         # local cache
-        self.kumoy_vector: Optional[api.project_vector.KumoyVectorDetail] = None
+        self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None
         self._reload_vector()
 
         if self.kumoy_vector is None:
@@ -169,9 +177,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _reload_vector(self):
         """Refresh local cache"""
         try:
-            self.kumoy_vector = api.project_vector.get_vector(
-                self.project_id, self.vector_id
-            )
+            self.kumoy_vector = api.vector.get_vector(self.vector_id)
         except Exception as e:
             if e.args[0] == "Not Found":
                 QMessageBox.information(
@@ -193,11 +199,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
             0,
         )
         progress.setWindowTitle(self.tr("Data Sync"))
-        progress.setWindowModality(Qt.ApplicationModal)
+        progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
-        progress.setValue(100)  # Set to middle to show indeterminate progress
         progress.setAutoClose(False)  # Don't auto-close
         progress.setAutoReset(False)  # Don't auto-reset
+        progress.setRange(0, 100)
+        progress.setValue(0)
         progress.show()
 
         # Create event loop for non-blocking operation
@@ -206,7 +213,11 @@ class KumoyDataProvider(QgsVectorDataProvider):
         sync_error = None
 
         # Create and configure worker thread
-        sync_worker = SyncWorker(self.kumoy_vector.id, self.fields(), self.wkbType())
+        sync_worker = SyncWorker(
+            self.kumoy_vector,
+            self.fields(),
+            self.wkbType(),
+        )
 
         def on_sync_finished():
             loop.quit()
@@ -224,14 +235,18 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 sync_worker.wait()
             loop.quit()
 
+        def on_worker_progress(percent):
+            progress.setValue(percent)
+
         # Connect signals
         sync_worker.finished.connect(on_sync_finished)
         sync_worker.error.connect(on_sync_error)
+        sync_worker.progress.connect(on_worker_progress)
         progress.canceled.connect(on_progress_cancelled)
 
         # Start sync in background and wait for completion
         sync_worker.start()
-        loop.exec_()  # This keeps UI responsive while waiting
+        exec_event_loop(loop)  # This keeps UI responsive while waiting
 
         # Clean up
         progress.accept()
@@ -244,7 +259,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         elif sync_error:
             # Log error but continue with existing cached data
             QgsMessageLog.logMessage(
-                self.tr("Sync error: {}").format(sync_error), "KUMOY", Qgis.Warning
+                self.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
             )
 
         # Delete existing cached_layer before reloading

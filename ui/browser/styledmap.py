@@ -21,10 +21,16 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ...imgs import BROWSER_MAP_ICON
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
+from ...pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
+    exec_dialog,
+)
 from ...settings_manager import get_settings
+from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
 
 # Flag to prevent double update when saving project from map browser
@@ -32,13 +38,11 @@ _is_updating = False
 
 
 class StyledMapItem(QgsDataItem):
-    """スタイルマップアイテム（ブラウザ用）"""
-
     def __init__(
         self,
         parent,
         path: str,
-        styled_map: api.project_styledmap.KumoyStyledMap,
+        styled_map: api.styledmap.KumoyStyledMap,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -106,7 +110,7 @@ class StyledMapItem(QgsDataItem):
         webbrowser.open(url)
 
     def apply_style(self):
-        """スタイルをQGISレイヤーに適用する"""
+        """KumoyサーバーからMapを取得してQGISに適用する"""
 
         # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
         if QgsProject.instance().isDirty():
@@ -116,14 +120,14 @@ class StyledMapItem(QgsDataItem):
                 self.tr(
                     "Are you sure you want to load the map '{}'? This will replace your current project."
                 ).format(self.styled_map.name),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            if confirm != QMessageBox.Yes:
+            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         try:
-            styled_map_detail = api.project_styledmap.get_styled_map(self.styled_map.id)
+            styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -157,12 +161,10 @@ class StyledMapItem(QgsDataItem):
         QgsProject.instance().setDirty(False)
 
     def handleDoubleClick(self):
-        """ダブルクリック時にスタイルを適用する"""
         self.apply_style()
         return True
 
     def update_metadata_styled_map(self):
-        """Mapを編集する"""
         # ダイアログ作成
         dialog = QDialog()
         dialog.setWindowTitle(self.tr("Edit Map"))
@@ -176,13 +178,19 @@ class StyledMapItem(QgsDataItem):
         name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
         is_public_field = QCheckBox(self.tr("Make Public"))
         is_public_field.setChecked(self.styled_map.isPublic)
+        attribution_field = QLineEdit(self.styled_map.attribution)
+        attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
+        description_field = QLineEdit(self.styled_map.description)
+        description_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION)
 
         # フォームにフィールドを追加
         form_layout.addRow(self.tr("Name:"), name_field)
         form_layout.addRow(self.tr("Public:"), is_public_field)
+        form_layout.addRow(self.tr("Description:"), description_field)
+        form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # ボタン作成
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
 
@@ -192,24 +200,28 @@ class StyledMapItem(QgsDataItem):
         dialog.setLayout(layout)
 
         # ダイアログ表示
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
         if not result:
             return
 
         # 値を取得（タイトルと公開設定のみ）
         new_name = name_field.text()
         new_is_public = is_public_field.isChecked()
+        new_attribution = attribution_field.text()
+        new_description = description_field.text()
 
         if new_name == "":
             return
 
         try:
             # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
+            updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
+                api.styledmap.UpdateStyledMapOptions(
                     name=new_name,
                     isPublic=new_is_public,
+                    attribution=new_attribution,
+                    description=new_description,
                 ),
             )
         except Exception as e:
@@ -244,14 +256,18 @@ class StyledMapItem(QgsDataItem):
             self.tr(
                 "Are you sure you want to overwrite the map '{}' with the current project state?"
             ).format(self.styled_map.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
-        if confirm != QMessageBox.Yes:
+        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
         global _is_updating
         _is_updating = True
+        # HACK: to ensure extents of all layers are calculated - Issue #311
+        for layer in QgsProject.instance().mapLayers().values():
+            layer.extent()
+
         try:
             map_path = local_cache.map.get_filepath(self.styled_map.id)
             project = QgsProject.instance()
@@ -259,9 +275,9 @@ class StyledMapItem(QgsDataItem):
             new_qgisproject = _get_qgsproject_str(map_path)
 
             # スタイルマップ上書き保存
-            updated_styled_map = api.project_styledmap.update_styled_map(
+            updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.project_styledmap.UpdateStyledMapOptions(
+                api.styledmap.UpdateStyledMapOptions(
                     qgisproject=new_qgisproject,
                 ),
             )
@@ -301,7 +317,6 @@ class StyledMapItem(QgsDataItem):
         )
 
     def delete_styled_map(self):
-        """スタイルマップを削除する"""
         # 削除確認
         confirm = QMessageBox.question(
             None,
@@ -309,14 +324,14 @@ class StyledMapItem(QgsDataItem):
             self.tr("Are you sure you want to delete map '{}'?").format(
                 self.styled_map.name
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # スタイルマップ削除
             try:
-                api.project_styledmap.delete_styled_map(self.styled_map.id)
+                api.styledmap.delete_styled_map(self.styled_map.id)
 
                 # 親アイテムを上書き保存して最新のリストを表示
                 self.parent().refresh()
@@ -349,21 +364,20 @@ class StyledMapItem(QgsDataItem):
                 )
 
     def clear_map_cache(self):
-        """Clear cache for this specific map"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear MapCache Data"),
+            self.tr("Clear Map Cache Data"),
             self.tr(
                 "This will clear the local cache for map '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.styled_map.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Clear cache for this specific map
             cache_cleared = local_cache.map.clear(self.styled_map.id)
 
@@ -447,10 +461,10 @@ class StyledMapRoot(QgsDataItem):
                 self.tr(
                     "Creating an new map will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            if confirm != QMessageBox.Yes:
+            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         self.add_styled_map(clear=True)
@@ -462,11 +476,16 @@ class StyledMapRoot(QgsDataItem):
         """新しいスタイルマップを追加する"""
         global _is_updating
         _is_updating = True
+        """新しいMapをKumoyサーバー上に作成する"""
+
+        # HACK: to ensure extents of all layers are calculated - Issue #311
+        for layer in QgsProject.instance().mapLayers().values():
+            layer.extent()
 
         try:
             # Check plan limits before creating styled map
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_styled_maps = api.project_styledmap.get_styled_maps(self.project.id)
+            current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
                 QMessageBox.critical(
@@ -490,14 +509,24 @@ class StyledMapRoot(QgsDataItem):
             # フィールド作成（タイトルのみ編集可）
             name_field = QLineEdit()
             name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
+            attribution_field = QLineEdit()
+            attribution_field.setMaxLength(
+                constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION
+            )
+            description_field = QLineEdit()
+            description_field.setMaxLength(
+                constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION
+            )
             is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
             form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(self.tr("Description:"), description_field)
+            form_layout.addRow(self.tr("Attribution:"), attribution_field)
             form_layout.addRow(self.tr("Public:"), is_public_field)
 
             # ボタン作成
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
 
@@ -507,13 +536,16 @@ class StyledMapRoot(QgsDataItem):
             dialog.setLayout(layout)
 
             # ダイアログ表示
-            result = dialog.exec_()
+            result = exec_dialog(dialog)
 
             if not result:
                 return
 
             # 値を取得（タイトルと公開設定のみ）
             name = name_field.text()
+            attribution = attribution_field.text()
+            description = description_field.text()
+            is_public = is_public_field.isChecked()
 
             if not name:
                 return
@@ -529,11 +561,14 @@ class StyledMapRoot(QgsDataItem):
             qgisproject = _get_qgsproject_str(map_path)
 
             # スタイルマップ作成
-            new_styled_map = api.project_styledmap.add_styled_map(
+            new_styled_map = api.styledmap.add_styled_map(
                 self.project.id,
-                api.project_styledmap.AddStyledMapOptions(
+                api.styledmap.AddStyledMapOptions(
                     name=name,
                     qgisproject=qgisproject,
+                    attribution=attribution,
+                    description=description,
+                    isPublic=is_public,
                 ),
             )
 
@@ -566,14 +601,13 @@ class StyledMapRoot(QgsDataItem):
             _is_updating = False
 
     def createChildren(self):
-        """子アイテムを作成する"""
         project_id = get_settings().selected_project_id
 
         if not project_id:
             return [ErrorItem(self, self.tr("No project selected"))]
 
         # プロジェクトのスタイルマップを取得
-        styled_maps = api.project_styledmap.get_styled_maps(project_id)
+        styled_maps = api.styledmap.get_styled_maps(project_id)
 
         if not styled_maps:
             return [ErrorItem(self, self.tr("No maps available."))]
@@ -587,7 +621,6 @@ class StyledMapRoot(QgsDataItem):
         return children
 
     def clear_all_map_cache(self):
-        """Clear all map cache data"""
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
@@ -597,10 +630,10 @@ class StyledMapRoot(QgsDataItem):
                 "Data will be re-downloaded next time you access maps.\n\n"
                 "Continue?"
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
-        if confirm != QMessageBox.Yes:
+        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
         cache_cleared = local_cache.map.clear_all()

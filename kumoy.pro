@@ -22,15 +22,17 @@ SOURCES = __init__.py \
           kumoy/api/organization.py \
           kumoy/api/plan.py \
           kumoy/api/project.py \
-          kumoy/api/project_styledmap.py \
-          kumoy/api/project_vector.py \
+          kumoy/api/styledmap.py \
+          kumoy/api/vector.py \
           kumoy/api/qgis_vector.py \
           kumoy/api/user.py \
+          kumoy/local_cache/map.py \
+          kumoy/local_cache/settings.py \
+          kumoy/local_cache/vector.py \
           kumoy/provider/dataprovider.py \
           kumoy/provider/dataprovider_metadata.py \
           kumoy/provider/feature_iterator.py \
           kumoy/provider/feature_source.py \
-          kumoy/provider/local_cache/settings.py \
           processing/provider.py \
           processing/upload_vector/algorithm.py \
           processing/upload_vector/normalize_field_name.py \

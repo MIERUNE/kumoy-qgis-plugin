@@ -1,5 +1,4 @@
 import json
-import os
 import urllib.request
 import webbrowser
 from urllib.error import HTTPError
@@ -16,24 +15,26 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
     QSpacerItem,
     QVBoxLayout,
 )
 
-from ..read_version import read_version
-from ..sentry import init_sentry
-from ..settings_manager import get_settings, store_setting
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
+from ..read_version import read_version
+from ..sentry import init_sentry
+from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
+from .icons import MAIN_ICON
 
 
 class DialogLogin(QDialog):
     def __init__(self):
         super().__init__()
+        self.auth_manager = None
         self.setupUi()
 
         # load saved server settings
@@ -55,7 +56,7 @@ class DialogLogin(QDialog):
         version_label = QLabel()
         version_label.setText(f"{read_version()}")
         version_label.setScaledContents(False)
-        version_label.setAlignment(Qt.AlignRight)
+        version_label.setAlignment(QT_ALIGN.AlignRight)
         version_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_label)
 
@@ -64,20 +65,17 @@ class DialogLogin(QDialog):
 
         # Icon label
         logo_icon_label = QLabel()
-        logo_icon_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        icon_path = os.path.join(os.path.dirname(__file__), "../imgs/icon.svg")
-        if os.path.exists(icon_path):
-            pixmap = QPixmap(icon_path)
-            logo_icon_label.setPixmap(pixmap)
+        logo_icon_label.setSizePolicy(Q_SIZE_POLICY.Fixed, Q_SIZE_POLICY.Fixed)
+        logo_icon_label.setPixmap(MAIN_ICON.pixmap(128, 128))
         logo_icon_label.setScaledContents(True)
-        logo_icon_label.setAlignment(Qt.AlignCenter)
+        logo_icon_label.setAlignment(QT_ALIGN.AlignCenter)
         logo_icon_label.setWordWrap(False)
         horizontalLayout_3.addWidget(logo_icon_label)
 
         verticalLayout.addLayout(horizontalLayout_3)
 
         # Vertical spacer
-        verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        verticalSpacer = QSpacerItem(20, 20, Q_SIZE_POLICY.Minimum, Q_SIZE_POLICY.Fixed)
         verticalLayout.addItem(verticalSpacer)
 
         # Info label with HTML content
@@ -98,7 +96,7 @@ class DialogLogin(QDialog):
         # padding
         version_and_credits_label.setContentsMargins(0, 20, 0, 40)
         version_and_credits_label.setScaledContents(False)
-        version_and_credits_label.setAlignment(Qt.AlignCenter)
+        version_and_credits_label.setAlignment(QT_ALIGN.AlignCenter)
         version_and_credits_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_and_credits_label)
 
@@ -128,7 +126,7 @@ class DialogLogin(QDialog):
         # Status label
         self.login_status_label = QLabel()
         self.login_status_label.setText("")
-        self.login_status_label.setAlignment(Qt.AlignCenter)
+        self.login_status_label.setAlignment(QT_ALIGN.AlignCenter)
         verticalLayout.addWidget(self.login_status_label)
 
         # Login buttons layout
@@ -142,6 +140,8 @@ class DialogLogin(QDialog):
         return QCoreApplication.translate("DialogLogin", message)
 
     def closeEvent(self, event):
+        if self.auth_manager is not None:
+            self.auth_manager.cancel_auth()
         self.save_server_settings()
         super().closeEvent(event)
 
@@ -192,7 +192,7 @@ class DialogLogin(QDialog):
 
         # Show the custom login success dialog
         success_dialog = LoginSuccess(self)
-        success_dialog.exec_()
+        exec_dialog(success_dialog)
         # Update the UI
         self.update_login_status()
         self.accept()

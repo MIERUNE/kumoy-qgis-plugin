@@ -30,15 +30,21 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ...imgs import (
+from ...kumoy import api, constants, local_cache
+from ...kumoy.api.error import format_api_error
+from ...pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
+    exec_dialog,
+)
+from ...settings_manager import get_settings
+from ..icons import (
     BROWSER_FOLDER_ICON,
     BROWSER_GEOMETRY_LINESTRING_ICON,
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
-from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
-from ...settings_manager import get_settings
 from .utils import ErrorItem
 
 
@@ -49,7 +55,7 @@ class VectorItem(QgsDataItem):
         self,
         parent,
         path: str,
-        vector: api.project_vector.KumoyVector,
+        vector: api.vector.KumoyVector,
         role: Literal["ADMIN", "OWNER", "MEMBER"],
     ):
         QgsDataItem.__init__(
@@ -125,7 +131,7 @@ class VectorItem(QgsDataItem):
         """Add vector layer to QGIS map"""
         try:
             # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
-            api.project_vector.get_vector(self.vector.projectId, self.vector.id)
+            api.vector.get_vector(self.vector.id)
         except Exception as e:
             msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
@@ -134,7 +140,6 @@ class VectorItem(QgsDataItem):
 
         # Create layer
         layer = QgsVectorLayer(self.vector_uri, self.vector.name, "kumoy")
-        layer.extent()  # HACK: to ensure extent is calculated - Issue #224
 
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
@@ -229,12 +234,15 @@ class VectorItem(QgsDataItem):
         # Create fields
         name_field = QLineEdit(self.vector.name)
         name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
+        attribution_field = QLineEdit(self.vector.attribution)
+        attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
 
         # Add fields to form
         form_layout.addRow(self.tr("Name:"), name_field)
+        form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # Create buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
 
@@ -244,19 +252,21 @@ class VectorItem(QgsDataItem):
         dialog.setLayout(layout)
 
         # Show dialog
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
         if not result:
             return
 
         # Get values
         new_name = name_field.text()
+        new_attribution = attribution_field.text()
 
         # Update vector
         try:
-            updated_vector = api.project_vector.update_vector(
-                self.vector.projectId,
+            updated_vector = api.vector.update_vector(
                 self.vector.id,
-                api.project_vector.UpdateVectorOptions(name=new_name),
+                api.vector.UpdateVectorOptions(
+                    name=new_name, attribution=new_attribution
+                ),
             )
         except Exception as e:
             QgsMessageLog.logMessage(
@@ -284,14 +294,14 @@ class VectorItem(QgsDataItem):
             self.tr("Are you sure you want to delete vector '{}'?").format(
                 self.vector.name
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Delete vector
             try:
-                api.project_vector.delete_vector(self.vector.id)
+                api.vector.delete_vector(self.vector.id)
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {format_api_error(e)}",
@@ -348,11 +358,11 @@ class VectorItem(QgsDataItem):
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.vector.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Clear cache for this specific vector
             cache_cleared = local_cache.vector.clear(self.vector.id)
 
@@ -432,7 +442,7 @@ class VectorRoot(QgsDataItem):
         try:
             # check plan limits before creating vector
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
-            current_vectors = api.project_vector.get_vectors(self.project.id)
+            current_vectors = api.vector.get_vectors(self.project.id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
@@ -470,7 +480,7 @@ class VectorRoot(QgsDataItem):
             description.setWordWrap(True)
 
             # Buttons
-            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
 
@@ -481,7 +491,7 @@ class VectorRoot(QgsDataItem):
             dialog.setLayout(layout)
 
             # Show dialog
-            result = dialog.exec_()
+            result = exec_dialog(dialog)
 
             if not result:
                 return  # User canceled
@@ -498,8 +508,8 @@ class VectorRoot(QgsDataItem):
                 )
                 return
 
-            options = api.project_vector.AddVectorOptions(name=name, type=vector_type)
-            api.project_vector.add_vector(self.project.id, options)
+            options = api.vector.AddVectorOptions(name=name, type=vector_type)
+            api.vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
                 self.tr(
                     "Successfully created vector layer '{}' in project '{}'"
@@ -539,7 +549,7 @@ class VectorRoot(QgsDataItem):
 
         # Get vectors for this project
         try:
-            vectors = api.project_vector.get_vectors(project_id)
+            vectors = api.vector.get_vectors(project_id)
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading vectors: {format_api_error(e)}",
@@ -573,11 +583,11 @@ class VectorRoot(QgsDataItem):
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
             ),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if confirm == QMessageBox.Yes:
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             # Get cache directory path
             cache_cleared = local_cache.vector.clear_all()
 

@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 from qgis.core import QgsFeature
 from qgis.PyQt.QtCore import QVariant
 
-from .. import constants
 from .client import ApiClient
 
 

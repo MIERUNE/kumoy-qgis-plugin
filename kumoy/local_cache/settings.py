@@ -1,6 +1,6 @@
 from qgis.PyQt.QtCore import QSettings
 
-SETTING_GROUP = "/KUMOY/local_cache"
+SETTING_GROUP = "/Kumoy/local_cache"
 
 
 def get_last_updated(vector_id: str) -> str:
@@ -32,4 +32,14 @@ def delete_last_updated(vector_id: str):
     qsettings = QSettings()
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.remove(vector_id)
+    qsettings.endGroup()
+
+
+def reset_local_cache_settings():
+    """
+    Reset local cache settings.
+    """
+    qsettings = QSettings()
+    qsettings.beginGroup(SETTING_GROUP)
+    qsettings.remove("")
     qsettings.endGroup()

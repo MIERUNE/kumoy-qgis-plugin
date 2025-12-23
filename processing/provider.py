@@ -2,13 +2,13 @@ import os
 
 from qgis.core import QgsProcessingProvider
 
-from ..imgs import MAIN_ICON
 from ..kumoy.constants import PLUGIN_NAME
+from ..ui.icons import MAIN_ICON
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
 
 class KumoyProcessingProvider(QgsProcessingProvider):
-    """Processing provider for KUMOY plugin"""
+    """Processing provider for Kumoy plugin"""
 
     def __init__(self):
         super().__init__()

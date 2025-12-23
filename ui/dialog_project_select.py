@@ -23,12 +23,18 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..imgs import MAP_ICON, RELOAD_ICON, VECTOR_ICON
-from ..pyqt_version import QT_USER_ROLE
-from ..settings_manager import get_settings, store_setting
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import LOG_CATEGORY
+from ..pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_ALIGN,
+    QT_CUSTOM_CONTEXT_MENU,
+    QT_USER_ROLE,
+    exec_menu,
+)
+from ..settings_manager import get_settings, store_setting
+from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 
 
@@ -96,7 +102,7 @@ class ProjectSelectDialog(QDialog):
         avatar_name_layout = QHBoxLayout()
         avatar_label = RemoteImageLabel(size=(32, 32))
         avatar_label.set_circular_mask()
-        avatar_label.setAlignment(Qt.AlignCenter)
+        avatar_label.setAlignment(QT_ALIGN.AlignCenter)
 
         avatar_name_layout.addWidget(avatar_label)
 
@@ -109,7 +115,7 @@ class ProjectSelectDialog(QDialog):
         account_org_layout.addWidget(org_label, 0, 2)
         # "show details" link
         details_toggle = QLabel(self.tr("<a href='#'>Show details &#9660;</a>"))
-        details_toggle.setAlignment(Qt.AlignRight)
+        details_toggle.setAlignment(QT_ALIGN.AlignRight)
         details_toggle.linkActivated.connect(self.toggle_details)
         account_org_layout.addWidget(details_toggle, 0, 3)
         # Organization selector
@@ -180,7 +186,7 @@ class ProjectSelectDialog(QDialog):
             # Usage text
             usage_text = QLabel()
             usage_text.setFixedWidth(120)
-            usage_text.setAlignment(Qt.AlignRight)
+            usage_text.setAlignment(QT_ALIGN.AlignRight)
             row_layout.addWidget(usage_text)
 
             # Progress bar
@@ -400,7 +406,7 @@ class ProjectSelectDialog(QDialog):
         # Update Storage
         if "storage" in self.org_details_panel["usage_widgets"]:
             used = org_detail.usage.usedStorageUnits
-            total = org_detail.storageUnits
+            total = org_detail.availableStorageUnits
             # Format storage units with appropriate suffix
             self.org_details_panel["usage_widgets"]["storage"]["label"].setText(
                 f"{used:.2f}SU / {total:.0f}SU"
@@ -534,8 +540,12 @@ class ProjectSelectDialog(QDialog):
             return
 
         try:
+            # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
+            teams = api.team.get_teams(org.id)
+            team = teams[0]  # デフォルトチームが必ず存在する
+
             new_project = api.project.create_project(
-                organization_id=org.id, name=project_name, description=""
+                team_id=team.id, name=project_name, description=""
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),
@@ -594,7 +604,7 @@ class ProjectItemWidget(QWidget):
         self.project = project
         self.organization_id = organization_id
         self.parent_dialog = parent_dialog
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
 
@@ -641,7 +651,7 @@ class ProjectItemWidget(QWidget):
 
         # Right side icons and size
         right_layout = QVBoxLayout()
-        right_layout.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        right_layout.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
 
         # Icons row
         icons_layout = QHBoxLayout()
@@ -723,7 +733,7 @@ class ProjectItemWidget(QWidget):
         delete_action = menu.addAction(self.tr("Delete Project"))
         delete_action.triggered.connect(self.delete_project)
 
-        menu.exec_(self.mapToGlobal(position))
+        exec_menu(menu, self.mapToGlobal(position))
 
     def open_in_web(self):
         """Open project in web browser"""
@@ -758,11 +768,11 @@ class ProjectItemWidget(QWidget):
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
             ).format(self.project.name),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
         )
 
-        if reply == QMessageBox.Yes:
+        if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
                 # Call API to delete project
                 api.project.delete_project(self.project.id)

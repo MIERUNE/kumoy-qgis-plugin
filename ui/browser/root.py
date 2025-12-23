@@ -10,21 +10,21 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ...imgs import MAIN_ICON
-from ...pyqt_version import exec_dialog
-from ...settings_manager import get_settings, store_setting
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
+from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
+from ...settings_manager import get_settings, store_setting
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
+from ...ui.icons import MAIN_ICON
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
 from .vector import VectorRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
-    """Provider for KUMOY browser items"""
+    """Provider for Kumoy browser items"""
 
     def __init__(self):
         QgsDataItemProvider.__init__(self)
@@ -40,7 +40,7 @@ class DataItemProvider(QgsDataItemProvider):
 
 
 class RootCollection(QgsDataCollectionItem):
-    """Root collection for KUMOY browser"""
+    """Root collection for Kumoy browser"""
 
     def __init__(self):
         # Initialize with default name, will update with project name later
@@ -138,7 +138,7 @@ class RootCollection(QgsDataCollectionItem):
         self.depopulate()
 
     def login(self):
-        """Login to KUMOY"""
+        """Login to Kumoy"""
 
         # Show config dialog with Supabase login tab
         dialog = DialogLogin()
@@ -157,10 +157,10 @@ class RootCollection(QgsDataCollectionItem):
                 self.tr(
                     "Switching projects will discard the current map state. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            != QMessageBox.Yes
+            != Q_MESSAGEBOX_STD_BUTTON.Yes
         ):
             return
 
@@ -257,7 +257,7 @@ class RootCollection(QgsDataCollectionItem):
         return children
 
     def logout(self):
-        """Logout from KUMOY"""
+        """Logout from Kumoy"""
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 None,
@@ -266,11 +266,11 @@ class RootCollection(QgsDataCollectionItem):
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
             )
 
-            if confirmed != QMessageBox.Yes:
+            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
         QgsProject.instance().clear()
@@ -288,7 +288,7 @@ class RootCollection(QgsDataCollectionItem):
         QMessageBox.information(
             None,
             self.tr("Logout"),
-            self.tr("You have been logged out from KUMOY."),
+            self.tr("You have been logged out from Kumoy."),
         )
 
         # Reset browser name

@@ -4,6 +4,7 @@ from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
 
 from .kumoy import constants
+from .kumoy.local_cache.settings import reset_local_cache_settings
 
 
 @dataclass
@@ -17,7 +18,7 @@ class UserSettings:
     custom_server_url: str = ""
 
 
-SETTING_GROUP = "/KUMOY"
+SETTING_GROUP = "/Kumoy"
 
 
 def get_settings():
@@ -55,3 +56,12 @@ def store_setting(key, value):
     qsettings.beginGroup(SETTING_GROUP)
     qsettings.setValue(key, value)
     qsettings.endGroup()
+
+
+def reset_settings():
+    qsettings = QSettings()
+    qsettings.beginGroup(SETTING_GROUP)
+    qsettings.remove("")
+    qsettings.endGroup()
+
+    reset_local_cache_settings()
