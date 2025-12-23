@@ -183,7 +183,7 @@ class StyledMapItem(QgsDataItem):
         button_box.rejected.connect(dialog.reject)
 
         # Disable OK if name is empty
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
         ok_button.setEnabled(bool(name_field.text().strip()))
         name_field.textChanged.connect(
             lambda text: ok_button.setEnabled(bool(text.strip()))
@@ -509,7 +509,7 @@ class StyledMapRoot(QgsDataItem):
             button_box.rejected.connect(dialog.reject)
 
             # Disable OK if name is empty
-            ok_button = button_box.button(QDialogButtonBox.Ok)
+            ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
             ok_button.setEnabled(bool(name_field.text().strip()))
             name_field.textChanged.connect(
                 lambda text: ok_button.setEnabled(bool(text.strip()))
