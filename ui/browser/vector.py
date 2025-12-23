@@ -238,13 +238,22 @@ class VectorItem(QgsDataItem):
         attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
 
         # Add fields to form
-        form_layout.addRow(self.tr("Name:"), name_field)
+        form_layout.addRow(
+            self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+        )
         form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # Create buttons
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
+
+        # Disable OK if name is empty
+        ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+        ok_button.setEnabled(bool(name_field.text().strip()))
+        name_field.textChanged.connect(
+            lambda text: ok_button.setEnabled(bool(text.strip()))
+        )
 
         # Add layouts to dialog
         layout.addLayout(form_layout)
@@ -466,12 +475,17 @@ class VectorRoot(QgsDataItem):
             # Name field
             name_field = QLineEdit()
             name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
-            form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(
+                self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+            )
 
             # Type field
             type_field = QComboBox()
             type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-            form_layout.addRow(self.tr("Geometry Type:"), type_field)
+            form_layout.addRow(
+                self.tr("Geometry Type:") + ' <span style="color: red;">*</span>',
+                type_field,
+            )
 
             # Add description
             description = QLabel(
@@ -483,6 +497,13 @@ class VectorRoot(QgsDataItem):
             button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
+
+            # Disable OK if name is empty
+            ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+            ok_button.setEnabled(bool(name_field.text().strip()))
+            name_field.textChanged.connect(
+                lambda text: ok_button.setEnabled(bool(text.strip()))
+            )
 
             # Add to layout
             layout.addLayout(form_layout)
