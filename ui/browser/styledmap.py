@@ -656,6 +656,8 @@ class StyledMapRoot(QgsDataItem):
                 ),
             )
 
+def tr(message: str, context: str = "StyledMap"):
+    return QCoreApplication.translate(context, message)
 
 def _get_qgsproject_str(map_path: str) -> str:
     """
@@ -718,8 +720,8 @@ def handle_project_saved():
     # 確認ダイアログ
     confirm = QMessageBox.question(
         None,
-        "Save Map",
-        "Do you want to overwrite the cloud map '{}' with the current project state?".format(
+        tr("Save Map"),
+        tr("Do you want to overwrite the cloud map '{}' with the current project state?").format(
             styled_map_name
         ),
         QMessageBox.Yes | QMessageBox.No,
@@ -733,9 +735,9 @@ def handle_project_saved():
         new_qgisproject = _get_qgsproject_str(file_path)
 
         # スタイルマップ上書き保存
-        api.project_styledmap.update_styled_map(
+        api.styledmap.update_styled_map(
             styled_map_id,
-            api.project_styledmap.UpdateStyledMapOptions(
+            api.styledmap.UpdateStyledMapOptions(
                 qgisproject=new_qgisproject,
             ),
         )
