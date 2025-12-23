@@ -172,7 +172,9 @@ class StyledMapItem(QgsDataItem):
         description_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION)
 
         # フォームにフィールドを追加
-        form_layout.addRow(self.tr("Name:"), name_field)
+        form_layout.addRow(
+            self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+        )
         form_layout.addRow(self.tr("Public:"), is_public_field)
         form_layout.addRow(self.tr("Description:"), description_field)
         form_layout.addRow(self.tr("Attribution:"), attribution_field)
@@ -181,6 +183,13 @@ class StyledMapItem(QgsDataItem):
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
+
+        # Disable OK if name is empty
+        ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+        ok_button.setEnabled(bool(name_field.text().strip()))
+        name_field.textChanged.connect(
+            lambda text: ok_button.setEnabled(bool(text.strip()))
+        )
 
         # ダイアログにレイアウトを追加
         layout.addLayout(form_layout)
@@ -491,7 +500,9 @@ class StyledMapRoot(QgsDataItem):
             is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
-            form_layout.addRow(self.tr("Name:"), name_field)
+            form_layout.addRow(
+                self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+            )
             form_layout.addRow(self.tr("Description:"), description_field)
             form_layout.addRow(self.tr("Attribution:"), attribution_field)
             form_layout.addRow(self.tr("Public:"), is_public_field)
@@ -500,6 +511,13 @@ class StyledMapRoot(QgsDataItem):
             button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
             button_box.accepted.connect(dialog.accept)
             button_box.rejected.connect(dialog.reject)
+
+            # Disable OK if name is empty
+            ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+            ok_button.setEnabled(bool(name_field.text().strip()))
+            name_field.textChanged.connect(
+                lambda text: ok_button.setEnabled(bool(text.strip()))
+            )
 
             # ダイアログにレイアウトを追加
             layout.addLayout(form_layout)
