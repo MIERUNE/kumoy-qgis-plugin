@@ -121,8 +121,11 @@ class KumoyPlugin:
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
-        # Disconnect project saved signal
-        QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+        # Disconnect project saved signal (avoid TypeError if not connected)
+        try:
+            QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+        except TypeError:
+            pass
 
         # Remove translator
         if self.translator:
