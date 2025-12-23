@@ -238,7 +238,7 @@ class VectorItem(QgsDataItem):
         attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
 
         # Add fields to form
-        form_layout.addRow(self.tr("Name (required):"), name_field)
+        form_layout.addRow(self.tr("Name:") + ' <span style="color: red;">*</span>', name_field)
         form_layout.addRow(self.tr("Attribution:"), attribution_field)
 
         # Create buttons
@@ -473,12 +473,12 @@ class VectorRoot(QgsDataItem):
             # Name field
             name_field = QLineEdit()
             name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
-            form_layout.addRow(self.tr("Name (required):"), name_field)
+            form_layout.addRow(self.tr("Name:") + ' <span style="color: red;">*</span>', name_field)
 
             # Type field
             type_field = QComboBox()
             type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
-            form_layout.addRow(self.tr("Geometry Type:"), type_field)
+            form_layout.addRow(self.tr("Geometry Type:") + ' <span style="color: red;">*</span>', type_field)
 
             # Add description
             description = QLabel(
