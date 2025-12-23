@@ -675,7 +675,7 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def tr(message: str, context: str = "StyledMap"):
+def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
@@ -700,7 +700,9 @@ def _get_qgsproject_str(map_path: str) -> str:
     LENGTH_LIMIT = 3000000  # 300万文字
     actual_length = len(qgs_str)
     if actual_length > LENGTH_LIMIT:
-        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
+        err = tr(
+            "Project file size is too large. Limit is {} bytes. your: {} bytes"
+        ).format(LENGTH_LIMIT, actual_length)
         QgsMessageLog.logMessage(
             err,
             constants.LOG_CATEGORY,
@@ -732,23 +734,22 @@ def handle_project_saved():
 
     if user_role not in ["ADMIN", "OWNER"]:
         iface.messageBar().pushMessage(
-            "Failed",
-            "You do not have permission to save this map to Kumoy.",
+            tr("Failed"),
+            tr("You do not have permission to save this map to Kumoy."),
         )
         return
 
     # 確認ダイアログ
     confirm = QMessageBox.question(
         None,
-        tr("Save Map", "StyledMap"),
+        tr("Save Map"),
         tr(
             "Do you want to overwrite the cloud map '{}' with the current project state?",
-            "StyledMap",
         ).format(styled_map_name),
-        QMessageBox.Yes | QMessageBox.No,
-        QMessageBox.No,
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
     )
-    if confirm != QMessageBox.Yes:
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
     try:
@@ -763,8 +764,8 @@ def handle_project_saved():
             ),
         )
         iface.messageBar().pushSuccess(
-            "Success",
-            "Map '{}' has been saved successfully.".format(styled_map_name),
+            tr("Success"),
+            tr("Map '{}' has been saved successfully.").format(styled_map_name),
         )
 
         # TODO: update custom variables if name changed
@@ -772,14 +773,14 @@ def handle_project_saved():
     except Exception as e:
         error_text = format_api_error(e)
         QgsMessageLog.logMessage(
-            "Error saving map: {}".format(error_text),
+            tr("Error saving map: {}").format(error_text),
             constants.LOG_CATEGORY,
             Qgis.Critical,
         )
         QMessageBox.critical(
             None,
-            "Error",
-            "Error saving map: {}".format(error_text),
+            tr("Error"),
+            tr("Error saving map: {}").format(error_text),
         )
         return
 
