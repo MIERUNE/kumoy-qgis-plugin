@@ -172,7 +172,9 @@ class StyledMapItem(QgsDataItem):
         description_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION)
 
         # フォームにフィールドを追加
-        form_layout.addRow(self.tr("Name:") + ' <span style="color: red;">*</span>', name_field)
+        form_layout.addRow(
+            self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+        )
         form_layout.addRow(self.tr("Public:"), is_public_field)
         form_layout.addRow(self.tr("Description:"), description_field)
         form_layout.addRow(self.tr("Attribution:"), attribution_field)
@@ -498,7 +500,9 @@ class StyledMapRoot(QgsDataItem):
             is_public_field = QCheckBox(self.tr("Make Public"))
 
             # フォームにフィールドを追加
-            form_layout.addRow(self.tr("Name:") + ' <span style="color: red;">*</span>', name_field)
+            form_layout.addRow(
+                self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+            )
             form_layout.addRow(self.tr("Description:"), description_field)
             form_layout.addRow(self.tr("Attribution:"), attribution_field)
             form_layout.addRow(self.tr("Public:"), is_public_field)
