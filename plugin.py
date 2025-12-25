@@ -11,8 +11,9 @@ from .sentry import init_sentry
 from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
+from .ui.browser import styledmap
 from .ui.browser.root import DataItemProvider
-from .ui.browser.styledmap import handle_project_saved
+from .ui.browser.styledmap import get_qgsstr_and_upload
 from .settings_manager import reset_settings
 
 
@@ -100,6 +101,26 @@ class KumoyPlugin:
                 self.tr("Plugin settings have been reset successfully."),
             )
 
+    def handle_project_saved(self):
+        """Update current project to Kumoy when QGIS project is saved"""
+        # Do not proceed if already updating from styled map item
+        if styledmap.is_updating:
+            return
+
+        project = QgsProject.instance()
+
+        # Get styled map ID from custom variables
+        custom_vars = project.customVariables()
+        styled_map_id = custom_vars.get("kumoy_map_id")
+        styled_map_name = custom_vars.get("kumoy_map_name", "Unnamed Map")
+
+        # case of non kumoy map
+        if not styled_map_id:
+            return
+
+        file_path = project.absoluteFilePath()
+        get_qgsstr_and_upload(styled_map_id, file_path, styled_map_name)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -109,7 +130,7 @@ class KumoyPlugin:
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
         # Connect project saved signal
-        QgsProject.instance().projectSaved.connect(handle_project_saved)
+        QgsProject.instance().projectSaved.connect(self.handle_project_saved)
 
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
@@ -123,7 +144,7 @@ class KumoyPlugin:
 
         # Disconnect project saved signal (avoid TypeError if not connected)
         try:
-            QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+            QgsProject.instance().projectSaved.disconnect(self.handle_project_saved)
         except TypeError:
             pass
 

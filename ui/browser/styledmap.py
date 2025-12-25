@@ -34,7 +34,7 @@ from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
 
 # Flag to prevent double update when saving project from map browser
-_is_updating = False
+is_updating = False
 
 
 class StyledMapItem(QgsDataItem):
@@ -257,21 +257,8 @@ class StyledMapItem(QgsDataItem):
         )
 
     def apply_qgisproject_to_styledmap(self):
-        # 確認ダイアログ
-        confirm = QMessageBox.question(
-            None,
-            self.tr("Save Map"),
-            self.tr(
-                "Are you sure you want to overwrite the map '{}' with the current project state?"
-            ).format(self.styled_map.name),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
-        )
-        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-            return
-
-        global _is_updating
-        _is_updating = True
+        global is_updating
+        is_updating = True
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
@@ -287,7 +274,7 @@ class StyledMapItem(QgsDataItem):
             self.styled_map.name,
         )
 
-        _is_updating = False
+        is_updating = False
 
         # Itemを更新
         self.styled_map = updated_styled_map
@@ -460,8 +447,8 @@ class StyledMapRoot(QgsDataItem):
     ):
         """新しいスタイルマップを追加する"""
         """新しいMapをKumoyサーバー上に作成する"""
-        global _is_updating
-        _is_updating = True
+        global is_updating
+        is_updating = True
 
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
@@ -591,7 +578,7 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error adding map: {}").format(error_text),
             )
         finally:
-            _is_updating = False
+            is_updating = False
 
     def createChildren(self):
         project_id = get_settings().selected_project_id
@@ -688,41 +675,6 @@ def _get_qgsproject_str(map_path: str) -> str:
     return qgs_str
 
 
-def handle_project_saved():
-    """Update current project to Kumoy when QGIS project is saved"""
-    # Do not proceed if already updating from styled map item
-    global _is_updating
-    if _is_updating:
-        return
-
-    project = QgsProject.instance()
-
-    # Get styled map ID from custom variables
-    custom_vars = project.customVariables()
-    styled_map_id = custom_vars.get("kumoy_map_id")
-    styled_map_name = custom_vars.get("kumoy_map_name", "Unnamed Map")
-
-    # case of non kumoy map
-    if not styled_map_id:
-        return
-
-    # 確認ダイアログ
-    confirm = QMessageBox.question(
-        None,
-        tr("Save Map"),
-        tr(
-            "Do you want to overwrite the cloud map '{}' with the current project state?",
-        ).format(styled_map_name),
-        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-        Q_MESSAGEBOX_STD_BUTTON.No,
-    )
-    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-        return
-
-    file_path = project.absoluteFilePath()
-    get_qgsstr_and_upload(styled_map_id, file_path, styled_map_name)
-
-
 def update_qgisproject_info(map_id: str, map_name: str):
     project = QgsProject.instance()
     project.setCustomVariables(
@@ -739,6 +691,19 @@ def get_qgsstr_and_upload(
     map_path: str,
     map_name: str,
 ) -> str:
+    # 確認ダイアログ
+    confirm = QMessageBox.question(
+        None,
+        tr("Save Map"),
+        tr(
+            "Are you sure you want to overwrite the map '{}' with the current project state?",
+        ).format(map_name),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
     try:
         qgisproject = _get_qgsproject_str(map_path)
 
