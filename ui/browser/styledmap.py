@@ -154,7 +154,6 @@ class StyledMapItem(QgsDataItem):
             {
                 "kumoy_map_id": self.styled_map.id,
                 "kumoy_map_name": self.styled_map.name,
-                "kumoy_user_role": self.role,
             }
         )
 
@@ -277,41 +276,18 @@ class StyledMapItem(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        try:
-            map_path = local_cache.map.get_filepath(self.styled_map.id)
-            project = QgsProject.instance()
-            project.write(map_path)
-            new_qgisproject = _get_qgsproject_str(map_path)
+        # try:
+        map_path = local_cache.map.get_filepath(self.styled_map.id)
+        project = QgsProject.instance()
+        project.write(map_path)
 
-            # スタイルマップ上書き保存
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
-            )
+        updated_styled_map = get_qgsstr_and_upload(
+            self.styled_map.id,
+            map_path,
+            self.styled_map.name,
+        )
 
-            update_qgisproject_info(
-                updated_styled_map.id,
-                updated_styled_map.name,
-                self.role,
-            )
-
-        except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error saving map: {}").format(error_text),
-            )
-            return
-        finally:
-            _is_updating = False
+        _is_updating = False
 
         # Itemを更新
         self.styled_map = updated_styled_map
@@ -483,9 +459,9 @@ class StyledMapRoot(QgsDataItem):
         clear=False,
     ):
         """新しいスタイルマップを追加する"""
+        """新しいMapをKumoyサーバー上に作成する"""
         global _is_updating
         _is_updating = True
-        """新しいMapをKumoyサーバー上に作成する"""
 
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
@@ -594,7 +570,6 @@ class StyledMapRoot(QgsDataItem):
             update_qgisproject_info(
                 new_styled_map.id,
                 new_styled_map.name,
-                self.project.role,
             )
 
             QgsProject.instance().setDirty(False)
@@ -726,17 +701,9 @@ def handle_project_saved():
     custom_vars = project.customVariables()
     styled_map_id = custom_vars.get("kumoy_map_id")
     styled_map_name = custom_vars.get("kumoy_map_name", "Unnamed Map")
-    user_role = custom_vars.get("kumoy_user_role", "MEMBER")
 
     # case of non kumoy map
     if not styled_map_id:
-        return
-
-    if user_role not in ["ADMIN", "OWNER"]:
-        iface.messageBar().pushMessage(
-            tr("Failed"),
-            tr("You do not have permission to save this map to Kumoy."),
-        )
         return
 
     # 確認ダイアログ
@@ -752,23 +719,47 @@ def handle_project_saved():
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
+    file_path = project.absoluteFilePath()
+    get_qgsstr_and_upload(styled_map_id, file_path, styled_map_name)
+
+
+def update_qgisproject_info(map_id: str, map_name: str):
+    project = QgsProject.instance()
+    project.setCustomVariables(
+        {
+            "kumoy_map_id": map_id,
+            "kumoy_map_name": map_name,
+        }
+    )
+    project.setTitle(map_name)
+
+
+def get_qgsstr_and_upload(
+    map_id: str,
+    map_path: str,
+    map_name: str,
+) -> str:
     try:
-        file_path = project.absoluteFilePath()
-        new_qgisproject = _get_qgsproject_str(file_path)
+        qgisproject = _get_qgsproject_str(map_path)
 
         # スタイルマップ上書き保存
-        api.styledmap.update_styled_map(
-            styled_map_id,
+        updated_styled_map = api.styledmap.update_styled_map(
+            map_id,
             api.styledmap.UpdateStyledMapOptions(
-                qgisproject=new_qgisproject,
+                qgisproject=qgisproject,
             ),
         )
+
         iface.messageBar().pushSuccess(
             tr("Success"),
-            tr("Map '{}' has been saved successfully.").format(styled_map_name),
+            tr("Map '{}' has been saved successfully.").format(map_name),
         )
 
-        # TODO: update custom variables if name changed
+        update_qgisproject_info(
+            updated_styled_map.id,
+            updated_styled_map.name,
+        )
+        return updated_styled_map
 
     except Exception as e:
         error_text = format_api_error(e)
@@ -783,15 +774,3 @@ def handle_project_saved():
             tr("Error saving map: {}").format(error_text),
         )
         return
-
-
-def update_qgisproject_info(map_id: str, map_name: str, user_role: str):
-    project = QgsProject.instance()
-    project.setCustomVariables(
-        {
-            "kumoy_map_id": map_id,
-            "kumoy_map_name": map_name,
-            "kumoy_user_role": user_role,
-        }
-    )
-    project.setTitle(map_name)
