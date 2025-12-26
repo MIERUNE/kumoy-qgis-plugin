@@ -161,11 +161,17 @@ def handle_project_saved() -> None:
     if not styled_map_id:
         return
 
-    file_path = project.absoluteFilePath()
+    # Check if project file is saved in local cache
+    file_path = os.path.abspath(project.absoluteFilePath())
+    local_cache_dir = os.path.abspath(_get_cache_dir())
+
+    try:
+        in_cache = os.path.commonpath([file_path, local_cache_dir]) == local_cache_dir
+    except ValueError:
+        in_cache = False
 
     # Clear custom variables and don't proceed if the project file not saved in local cache
-    local_cache_dir = _get_cache_dir()
-    if not file_path.startswith(local_cache_dir):
+    if not in_cache:
         QgsProject.instance().setCustomVariables({})
         return
 
