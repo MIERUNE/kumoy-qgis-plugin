@@ -14,6 +14,8 @@ from qgis.utils import iface
 
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
+is_updating = False
+
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
@@ -95,9 +97,6 @@ def clear_all() -> bool:
     return success
 
 
-is_updating = False
-
-
 def write_qgsfile(map_path: str) -> str:
     """Write current project to specified path and return its content as string."""
     global is_updating
@@ -165,6 +164,8 @@ def handle_project_saved() -> None:
 
     # Clear custom variables and don't proceed if the project file not saved in local cache
     local_cache_dir = _get_cache_dir()
+    print(local_cache_dir)
+    print(file_path)
     if not file_path.startswith(local_cache_dir):
         QgsProject.instance().setCustomVariables({})
         return
