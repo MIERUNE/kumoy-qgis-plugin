@@ -23,13 +23,14 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
+from ...kumoy.local_cache.map import write_qgsfile
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     exec_dialog,
 )
-from ...settings_manager import get_settings, store_setting
+from ...settings_manager import get_settings
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
 
@@ -146,6 +147,12 @@ class StyledMapItem(QgsDataItem):
             iface.addProject(qgs_path)
 
         QgsProject.instance().setTitle(self.styled_map.name)
+        # store map kumoy info to project instance
+        QgsProject.instance().setCustomVariables(
+            {
+                "kumoy_map_id": self.styled_map.id,
+            }
+        )
         QgsProject.instance().setDirty(False)
 
     def handleDoubleClick(self):
@@ -264,9 +271,10 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         try:
-            new_qgisproject = _write_qgsfile(self.styled_map.id)
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
+            new_qgisproject = write_qgsfile(map_path)
 
-            # スタイルマップ上書き保存
+            # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
@@ -543,7 +551,8 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            qgisproject = _write_qgsfile(self.project.id)
+            map_path = local_cache.map.get_filepath(self.project.id)
+            qgisproject = write_qgsfile(map_path)
 
             # スタイルマップ作成
             new_styled_map = api.styledmap.add_styled_map(
@@ -558,6 +567,9 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # 保存完了後のUI更新
+            QgsProject.instance().setCustomVariables(
+                {"kumoy_map_id": new_styled_map.id}
+            )
             QgsProject.instance().setTitle(new_styled_map.name)
             QgsProject.instance().setDirty(False)
             self.refresh()
@@ -633,38 +645,3 @@ class StyledMapRoot(QgsDataItem):
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
             )
-
-
-def _write_qgsfile(map_id: str) -> str:
-    """
-    現在のプロジェクトをローカルキャッシュに保存し、プロジェクトファイルの内容を文字列で返す
-
-    Args:
-        map_id (str): スタイルマップID
-
-    Raises:
-        Exception: too large file size
-
-    Returns:
-        str: プロジェクトファイルの内容
-    """
-    map_path = local_cache.map.get_filepath(map_id)
-    project = QgsProject.instance()
-    project.write(map_path)
-
-    with open(map_path, "r", encoding="utf-8") as f:
-        qgs_str = f.read()
-
-    # 文字数制限チェック
-    LENGTH_LIMIT = 3000000  # 300万文字
-    actual_length = len(qgs_str)
-    if actual_length > LENGTH_LIMIT:
-        err = f"Project file size is too large. Limit is {LENGTH_LIMIT} bytes. your: {actual_length} bytes"
-        QgsMessageLog.logMessage(
-            err,
-            constants.LOG_CATEGORY,
-            Qgis.Warning,
-        )
-        raise Exception(err)
-
-    return qgs_str

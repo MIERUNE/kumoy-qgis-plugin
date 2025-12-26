@@ -10,6 +10,7 @@ from .processing.provider import KumoyProcessingProvider
 from .sentry import init_sentry
 from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
+from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .ui.browser.root import DataItemProvider
 from .settings_manager import reset_settings
@@ -107,6 +108,9 @@ class KumoyPlugin:
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
+        # Connect project saved signal
+        QgsProject.instance().projectSaved.connect(handle_project_saved)
+
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
@@ -126,3 +130,6 @@ class KumoyPlugin:
         # Unregister processing provider
         if self.processing_provider:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
+
+        # Disconnect project saved signal
+        QgsProject.instance().projectSaved.disconnect(handle_project_saved)
