@@ -14,6 +14,7 @@ from qgis.utils import iface
 
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
+# Flag to prevent double updates when handling project saved event
 is_updating = False
 
 
