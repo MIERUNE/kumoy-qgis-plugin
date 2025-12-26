@@ -259,34 +259,34 @@ class StyledMapItem(QgsDataItem):
     def apply_qgisproject_to_styledmap(self):
         global is_updating
         is_updating = True
-        # HACK: to ensure extents of all layers are calculated - Issue #311
-        for layer in QgsProject.instance().mapLayers().values():
-            layer.extent()
+        try:
+            # HACK: to ensure extents of all layers are calculated - Issue #311
+            for layer in QgsProject.instance().mapLayers().values():
+                layer.extent()
 
-        # try:
-        map_path = local_cache.map.get_filepath(self.styled_map.id)
-        project = QgsProject.instance()
-        project.write(map_path)
+            map_path = local_cache.map.get_filepath(self.styled_map.id)
+            project = QgsProject.instance()
+            project.write(map_path)
 
-        updated_styled_map = get_qgsstr_and_upload(
-            self.styled_map.id,
-            map_path,
-            self.styled_map.name,
-        )
+            updated_styled_map = get_qgsstr_and_upload(
+                self.styled_map.id,
+                map_path,
+                self.styled_map.name,
+            )
 
-        is_updating = False
+            # Itemを更新
+            self.styled_map = updated_styled_map
+            self.setName(updated_styled_map.name)
+            self.refresh()
 
-        # Itemを更新
-        self.styled_map = updated_styled_map
-        self.setName(updated_styled_map.name)
-        self.refresh()
-
-        iface.messageBar().pushSuccess(
-            self.tr("Success"),
-            self.tr("Map '{}' has been saved successfully.").format(
-                self.styled_map.name
-            ),
-        )
+            iface.messageBar().pushSuccess(
+                self.tr("Success"),
+                self.tr("Map '{}' has been saved successfully.").format(
+                    self.styled_map.name
+                ),
+            )
+        finally:
+            is_updating = False
 
     def delete_styled_map(self):
         # 削除確認
