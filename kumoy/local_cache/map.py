@@ -6,8 +6,8 @@ from qgis.PyQt.QtWidgets import QMessageBox
 
 from ..constants import LOG_CATEGORY
 
-from ...kumoy import api
-from ...kumoy.api.error import format_api_error
+from .. import api
+from ..api.error import format_api_error
 
 from qgis.utils import iface
 
