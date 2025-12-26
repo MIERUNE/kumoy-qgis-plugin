@@ -14,6 +14,8 @@ from qgis.utils import iface
 
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
+is_updating = False
+
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
@@ -93,9 +95,6 @@ def clear_all() -> bool:
             success = False  # Flag unsucceed
 
     return success
-
-
-is_updating = False
 
 
 def write_qgsfile(map_path: str) -> str:
