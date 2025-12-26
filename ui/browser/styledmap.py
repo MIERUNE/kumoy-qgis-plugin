@@ -273,6 +273,8 @@ class StyledMapItem(QgsDataItem):
                 map_path,
                 self.styled_map.name,
             )
+            if not updated_styled_map:
+                return
 
             # Itemを更新
             self.styled_map = updated_styled_map
