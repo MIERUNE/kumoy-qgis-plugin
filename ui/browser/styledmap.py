@@ -22,7 +22,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
+from ...kumoy.api.error import format_api_error, ForbiddenError
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_DIALOG_BUTTON_CANCEL,
@@ -728,6 +728,18 @@ def get_qgsstr_and_upload(
         )
         return updated_styled_map
 
+    except ForbiddenError as e:
+        error_text = format_api_error(e)
+        QgsMessageLog.logMessage(
+            tr("Error saving map: {}").format(error_text),
+            constants.LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        iface.messageBar().pushMessage(
+            tr("Failed"),
+            tr("Error saving map: {}").format(error_text),
+        )
+        return
     except Exception as e:
         error_text = format_api_error(e)
         QgsMessageLog.logMessage(

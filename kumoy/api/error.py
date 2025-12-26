@@ -61,6 +61,15 @@ class UnderMaintenanceError(Exception):
         super().__init__(message)
 
 
+class ForbiddenError(Exception):
+    """Exception for forbidden errors"""
+
+    def __init__(self, message: str, error: str = ""):
+        self.message = message
+        self.error = error
+        super().__init__(f"{message} : {error}")
+
+
 def raise_error(error: dict):
     """
     APIのエラーレスポンスを受け取り、適切な例外を発生させる
@@ -77,6 +86,7 @@ def raise_error(error: dict):
         ConflictError: _description_
         UnderMaintenanceError: _description_
         Exception: _description_
+        ForbiddenError: _description_
     """
 
     message = error.get("message", "")
@@ -95,6 +105,8 @@ def raise_error(error: dict):
         raise ConflictError(message, error.get("error", ""))
     elif message == "Under Maintenance":
         raise UnderMaintenanceError(message, error.get("error", ""))
+    elif message == "Forbidden":
+        raise ForbiddenError(message, error.get("error", ""))
     else:
         raise Exception(error)
 
