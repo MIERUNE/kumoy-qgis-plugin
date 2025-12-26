@@ -271,8 +271,7 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         try:
-            map_path = local_cache.map.get_filepath(self.styled_map.id)
-            new_qgisproject = write_qgsfile(map_path)
+            new_qgisproject = write_qgsfile(self.styled_map.id)
 
             # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
@@ -551,8 +550,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            map_path = local_cache.map.get_filepath(self.project.id)
-            qgisproject = write_qgsfile(map_path)
+            qgisproject = write_qgsfile(self.project.id)
 
             # スタイルマップ作成
             new_styled_map = api.styledmap.add_styled_map(

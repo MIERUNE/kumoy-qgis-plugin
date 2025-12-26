@@ -98,11 +98,12 @@ def clear_all() -> bool:
     return success
 
 
-def write_qgsfile(map_path: str) -> str:
-    """Write current project to specified path and return its content as string."""
+def write_qgsfile(map_id: str) -> str:
+    """Save current project to local cache and return project file content as string."""
     global is_updating
     is_updating = True
     try:
+        map_path = get_filepath(map_id)
         project = QgsProject.instance()
         project.write(map_path)
         qgisproject_str = _get_qgs_str(map_path)
