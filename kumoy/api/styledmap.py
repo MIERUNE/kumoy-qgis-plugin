@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
