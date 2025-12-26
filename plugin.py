@@ -132,4 +132,7 @@ class KumoyPlugin:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
         # Disconnect project saved signal
-        QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+        try:
+            QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+        except TypeError:
+            pass
