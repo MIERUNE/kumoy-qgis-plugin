@@ -13,7 +13,7 @@ def update_kumoy_indicator():
 
     missing_nodes = False
     for layer in QgsProject.instance().mapLayers().values():
-        if not layer or layer.providerType() != "kumoy":
+        if layer.providerType() != "kumoy":
             continue
         node = root.findLayer(layer.id())
         if not node:
