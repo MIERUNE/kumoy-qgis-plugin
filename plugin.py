@@ -1,19 +1,20 @@
 import os
 
-from qgis.core import QgsApplication, QgsProviderRegistry, QgsProject
+from qgis.core import QgsApplication, QgsProject, QgsProviderRegistry
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 
-from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .processing.provider import KumoyProcessingProvider
-from .sentry import init_sentry
 from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
-from .ui.browser.root import DataItemProvider
+from .processing.provider import KumoyProcessingProvider
+from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .sentry import init_sentry
 from .settings_manager import reset_settings
+from .ui.browser.root import DataItemProvider
+from .ui.layer_indicators import update_kumoy_indicator
 
 
 class KumoyPlugin:
@@ -111,6 +112,15 @@ class KumoyPlugin:
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
 
+        # Connect indicator setting signals on map loaded and layer tree changes
+        QgsProject.instance().layerTreeRoot().removedChildren.connect(
+            update_kumoy_indicator
+        )
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(
+            update_kumoy_indicator
+        )
+        QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
+
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
@@ -131,8 +141,15 @@ class KumoyPlugin:
         if self.processing_provider:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
-        # Disconnect project saved signal
+        # Disconnect signals
         try:
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
+            QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
+            QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
+                update_kumoy_indicator
+            )
+            QgsProject.instance().layerTreeRoot().addedChildren.disconnect(
+                update_kumoy_indicator
+            )
         except TypeError:
             pass
