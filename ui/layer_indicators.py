@@ -1,6 +1,5 @@
 from qgis.core import QgsProject
 from qgis.gui import QgsLayerTreeViewIndicator
-from qgis.PyQt.QtCore import QTimer
 from qgis.utils import iface
 
 from ..kumoy.constants import DATA_PROVIDER_KEY
