@@ -113,13 +113,10 @@ class KumoyPlugin:
         QgsProject.instance().projectSaved.connect(handle_project_saved)
 
         # Connect indicator setting signals on map loaded and layer tree changes
-        QgsProject.instance().layerTreeRoot().addedChildren.connect(
-            update_kumoy_indicator
-        )
+        QgsProject.instance().layerLoaded.connect(update_kumoy_indicator)
         QgsProject.instance().layerTreeRoot().removedChildren.connect(
             update_kumoy_indicator
         )
-        QgsProject.instance().layerLoaded.connect(update_kumoy_indicator)
 
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
@@ -144,13 +141,9 @@ class KumoyPlugin:
         # Disconnect signals
         try:
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
-
-            QgsProject.instance().layerTreeRoot().addedChildren.disconnect(
-                update_kumoy_indicator
-            )
+            QgsProject.instance().layerLoaded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
                 update_kumoy_indicator
             )
-            QgsProject.instance().layerLoaded.disconnect(update_kumoy_indicator)
         except TypeError:
             pass
