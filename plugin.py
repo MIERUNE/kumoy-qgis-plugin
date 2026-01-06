@@ -116,6 +116,9 @@ class KumoyPlugin:
         QgsProject.instance().layerTreeRoot().removedChildren.connect(
             update_kumoy_indicator
         )
+        QgsProject.instance().layerTreeRoot().addedChildren.connect(
+            update_kumoy_indicator
+        )
         QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
 
         # Add menu action for resetting settings
@@ -143,6 +146,9 @@ class KumoyPlugin:
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
+                update_kumoy_indicator
+            )
+            QgsProject.instance().layerTreeRoot().addedChildren.disconnect(
                 update_kumoy_indicator
             )
         except TypeError:
