@@ -4,6 +4,7 @@ from qgis.gui import QgsLayerTreeViewIndicator
 from qgis.utils import iface
 
 from .icons import MAIN_ICON
+from ..kumoy.constants import DATA_PROVIDER_KEY
 
 
 def update_kumoy_indicator():
@@ -13,7 +14,7 @@ def update_kumoy_indicator():
 
     missing_nodes = False
     for layer in QgsProject.instance().mapLayers().values():
-        if layer.providerType() != "kumoy":
+        if layer.providerType() != DATA_PROVIDER_KEY:
             continue
         node = root.findLayer(layer.id())
         if not node:

@@ -139,7 +139,9 @@ class VectorItem(QgsDataItem):
             return
 
         # Create layer
-        layer = QgsVectorLayer(self.vector_uri, self.vector.name, "kumoy")
+        layer = QgsVectorLayer(
+            self.vector_uri, self.vector.name, constants.DATA_PROVIDER_KEY
+        )
 
         # Set pixel-based styling
         self._set_pixel_based_style(layer)
@@ -330,7 +332,7 @@ class VectorItem(QgsDataItem):
             # remove vector layer from QGIS project if loaded
             for layer in QgsProject.instance().mapLayers().values():
                 if (
-                    layer.providerType() == "kumoy"
+                    layer.providerType() == constants.DATA_PROVIDER_KEY
                     and layer.dataProvider().vector_id == self.vector.id
                 ):
                     QgsProject.instance().removeMapLayer(layer.id())
