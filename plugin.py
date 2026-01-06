@@ -141,14 +141,10 @@ class KumoyPlugin:
         if self.processing_provider:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
-        # Disconnect project saved signal
+        # Disconnect signals
         try:
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
-        except TypeError:
-            pass
 
-        # Disconnect indicator setting signals
-        try:
             QgsProject.instance().layerTreeRoot().addedChildren.disconnect(
                 update_kumoy_indicator
             )
