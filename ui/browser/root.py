@@ -111,7 +111,7 @@ class RootCollection(QgsDataCollectionItem):
 
         # Refresh action
         refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refreshChildren)
+        refresh_action.triggered.connect(self.refresh)
 
         # Account action
         account_action = QAction(self.tr("Account"), parent)
@@ -123,8 +123,10 @@ class RootCollection(QgsDataCollectionItem):
 
         return [select_project_action, refresh_action, account_action, logout_action]
 
-    def refreshChildren(self):
-        """Refresh the children of the root collection"""
+    def refresh(self):
+        """Refresh the children of the root collection
+        also called when refresh button is clicked in browser panel"""
+
         try:
             self.load_organization_project()
         except Exception as e:
@@ -134,7 +136,6 @@ class RootCollection(QgsDataCollectionItem):
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
             QMessageBox.critical(None, self.tr("Error"), msg)
 
-        self.refresh()
         self.depopulate()
 
     def login(self):
@@ -196,7 +197,7 @@ class RootCollection(QgsDataCollectionItem):
                     "Your QGIS project was cleared because the active project changed."
                 ),
             )
-            self.refreshChildren()
+            self.refresh()
 
     def account_settings(self):
         """Show account settings dialog"""
@@ -222,7 +223,7 @@ class RootCollection(QgsDataCollectionItem):
             self.project_data = None
             self.setName(constants.PLUGIN_NAME)
             # Refresh to update UI
-            self.refreshChildren()
+            self.refresh()
 
     def createChildren(self):
         """Create child items for the root collection"""
@@ -293,4 +294,4 @@ class RootCollection(QgsDataCollectionItem):
 
         # Reset browser name
         self.setName(constants.PLUGIN_NAME)
-        self.refreshChildren()
+        self.refresh()
