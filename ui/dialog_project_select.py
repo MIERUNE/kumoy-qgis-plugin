@@ -333,10 +333,6 @@ class ProjectSelectDialog(QDialog):
 
     def on_organization_changed(self, index):
         """Reset project selection when organization changes"""
-        if index == -1:
-            self._handle_no_organization()
-            return
-
         self.project_section["project_list"].setCurrentItem(None)
         org_data = self.account_org_panel["org_combo"].itemData(index)
         if org_data:
