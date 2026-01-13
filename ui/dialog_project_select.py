@@ -301,13 +301,13 @@ class ProjectSelectDialog(QDialog):
         msg_label = QLabel(
             self.tr("No organization available. Please create one to get started.")
         )
-        msg_label.setAlignment(Qt.AlignCenter)
+        msg_label.setAlignment(QT_ALIGN.AlignCenter)
         no_org_layout.addWidget(msg_label)
 
         create_org_btn = QPushButton(self.tr("Create Organization"))
         create_org_url = f"{api.config.get_api_config().SERVER_URL}/organization"
         create_org_btn.clicked.connect(lambda: webbrowser.open(create_org_url))
-        no_org_layout.addWidget(create_org_btn, alignment=Qt.AlignCenter)
+        no_org_layout.addWidget(create_org_btn, alignment=QT_ALIGN.AlignCenter)
 
         no_org_item = QListWidgetItem(self.project_section["project_list"])
         no_org_item.setFlags(Qt.NoItemFlags)  # Make it non-selectable
