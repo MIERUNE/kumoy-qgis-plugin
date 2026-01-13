@@ -30,6 +30,7 @@ from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
+    QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
     exec_menu,
 )
@@ -310,7 +311,7 @@ class ProjectSelectDialog(QDialog):
         no_org_layout.addWidget(create_org_btn, alignment=QT_ALIGN.AlignCenter)
 
         no_org_item = QListWidgetItem(self.project_section["project_list"])
-        no_org_item.setFlags(Qt.NoItemFlags)  # Make it non-selectable
+        no_org_item.setFlags(QT_NO_ITEM_FLAGS)  # Make it non-selectable
         no_org_item.setSizeHint(no_org_widget.sizeHint())
         self.project_section["project_list"].addItem(no_org_item)
         self.project_section["project_list"].setItemWidget(no_org_item, no_org_widget)

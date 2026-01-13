@@ -143,6 +143,12 @@ Qt5: QSizePolicy.Fixed, etc.
 Qt6: QSizePolicy.Policy.Fixed, etc.
 """
 
+QT_NO_ITEM_FLAGS = Qt.NoItemFlags if QT_VERSION_INT <= 5 else Qt.ItemFlag.NoItemFlags
+"""Qt item flag: no flags
+Qt5: Qt.NoItemFlags
+Qt6: Qt.ItemFlag.NoItemFlags
+"""
+
 
 def exec_dialog(dialog: QDialog):
     """Execute a modal dialog and return the result.
