@@ -218,6 +218,7 @@ class ProjectSelectDialog(QDialog):
             "usage_frame": usage_frame,
             "plan_role_label": plan_role_label,
             "usage_widgets": usage_widgets,
+            "org_settings_button": org_settings_button,
         }
 
     def _create_project_section(self):
@@ -279,12 +280,63 @@ class ProjectSelectDialog(QDialog):
         """Load organizations into the combo box"""
         self.account_org_panel["org_combo"].clear()
         organizations = api.organization.get_organizations()
+
+        if not organizations:
+            self._handle_no_organization()
+            return
         for org in organizations:
             self.account_org_panel["org_combo"].addItem(org.name, org)
 
+    def _handle_no_organization(self):
+        """Handle case when no organization is available"""
+        # Clear project list
+        self.project_section["project_list"].clear()
+
+        # Add message + button inviting to create an organization instead project list
+        no_org_widget = QWidget()
+        no_org_layout = QVBoxLayout(no_org_widget)
+        no_org_layout.setContentsMargins(12, 12, 12, 12)
+        no_org_layout.setSpacing(8)
+
+        msg_label = QLabel(
+            self.tr("No organization available. Please create one to get started.")
+        )
+        msg_label.setAlignment(Qt.AlignCenter)
+        no_org_layout.addWidget(msg_label)
+
+        create_org_btn = QPushButton(self.tr("Create Organization"))
+        create_org_url = f"{api.config.get_api_config().SERVER_URL}/organization"
+        create_org_btn.clicked.connect(lambda: webbrowser.open(create_org_url))
+        no_org_layout.addWidget(create_org_btn, alignment=Qt.AlignCenter)
+
+        no_org_item = QListWidgetItem(self.project_section["project_list"])
+        no_org_item.setFlags(Qt.NoItemFlags)  # Make it non-selectable
+        no_org_item.setSizeHint(no_org_widget.sizeHint())
+        self.project_section["project_list"].addItem(no_org_item)
+        self.project_section["project_list"].setItemWidget(no_org_item, no_org_widget)
+
+        # Clear organization details
+        self.org_details_panel["plan_role_label"].setText(
+            self.tr("<div><span>No organization available</span></div>")
+        )
+
+        keys = ["projects", "maps", "vectors", "members", "storage"]
+        for key in keys:
+            widgets = self.org_details_panel["usage_widgets"][key]
+            widgets["label"].setText("")
+            widgets["progress"].setMaximum(1)
+            widgets["progress"].setValue(0)
+            self._set_progress_color(widgets["progress"], 0, 1)
+
+        self.button_panel["new_project_btn"].setEnabled(False)
+        self.org_details_panel["org_settings_button"].setEnabled(False)
+
     def on_organization_changed(self, index):
-        """Handle organization selection change"""
-        # 組織の選択が変更されたら、プロジェクト選択状態を初期化
+        """Reset project selection when organization changes"""
+        if index == -1:
+            self._handle_no_organization()
+            return
+
         self.project_section["project_list"].setCurrentItem(None)
         org_data = self.account_org_panel["org_combo"].itemData(index)
         if org_data:
@@ -308,6 +360,7 @@ class ProjectSelectDialog(QDialog):
 
         # Update usage display
         self.update_usage_display(org_detail)
+        self.org_details_panel["org_settings_button"].setEnabled(True)
 
         if org_detail.role == "OWNER":
             self.button_panel["new_project_btn"].setEnabled(True)
