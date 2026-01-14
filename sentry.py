@@ -27,6 +27,7 @@ def init_sentry():
             dsn="https://ee1792defe1a9bcbd0142de036712f1f@o4504721342136320.ingest.us.sentry.io/4510384287449089",
             send_default_pii=True,
             release=plugin_version,
+            default_integrations=False,
         )
         sentry_sdk.set_user({"id": user_info.id})
     except Exception:
