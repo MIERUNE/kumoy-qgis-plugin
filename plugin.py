@@ -1,19 +1,21 @@
 import os
 
-from qgis.core import QgsApplication, QgsProject, QgsProviderRegistry
+from qgis.core import QgsApplication, QgsProject, QgsProviderRegistry, QgsVectorLayer
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
-from .kumoy.constants import PLUGIN_NAME
+from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
 from .settings_manager import reset_settings
+
 from .ui.browser.root import DataItemProvider
+from .ui.icons import MAIN_ICON
 from .ui.layer_indicators import update_kumoy_indicator
 
 
@@ -36,6 +38,7 @@ class KumoyPlugin:
 
         # Initialize processing provider
         self.processing_provider = None
+        self.convert_action = None
 
         # Initialize menu action
         self.reset_plugin_settings = None
@@ -101,6 +104,39 @@ class KumoyPlugin:
                 self.tr("Plugin settings have been reset successfully."),
             )
 
+    def show_layer_context_menu(self, menu: QMenu):
+        """Add custom action to layer context menu"""
+        # Get the current layer from the layer tree view
+        layer_tree_view = self.iface.layerTreeView()
+        current_node = layer_tree_view.currentNode()
+
+        if not current_node:
+            return
+
+        # Get the layer from the node
+        if hasattr(current_node, "layer"):
+            layer = current_node.layer()
+        else:
+            return
+
+        # Only add for vector layers that are not already Kumoy layers
+        if isinstance(layer, QgsVectorLayer):
+
+            if layer.dataProvider().name() != DATA_PROVIDER_KEY:
+                # Add separator before our action
+                menu.addSeparator()
+
+                # Create and add convert action with icon
+                action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
+                action.triggered.connect(lambda: self.convert_layer(layer))
+                menu.addAction(action)
+
+    def convert_layer(self, layer):
+        """Convert a layer to Kumoy"""
+        from .ui.actions.convert_vector_action import convert_layer_to_kumoy
+
+        convert_layer_to_kumoy(layer)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -108,6 +144,11 @@ class KumoyPlugin:
         # Register processing provider
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
+
+        # Connect to layer tree context menu
+        self.iface.layerTreeView().contextMenuAboutToShow.connect(
+            self.show_layer_context_menu
+        )
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -127,6 +168,14 @@ class KumoyPlugin:
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
     def unload(self):
+        # Disconnect layer tree context menu
+        try:
+            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
+                self.show_layer_context_menu
+            )
+        except TypeError:
+            pass
+
         # Remove menu action
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)

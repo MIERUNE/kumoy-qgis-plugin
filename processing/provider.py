@@ -5,7 +5,6 @@ from qgis.core import QgsProcessingProvider
 from ..kumoy.constants import PLUGIN_NAME
 from ..ui.icons import MAIN_ICON
 from .upload_vector.algorithm import UploadVectorAlgorithm
-from .convert_vector.algorithm import ConvertVectorAlgorithm
 
 
 class KumoyProcessingProvider(QgsProcessingProvider):
@@ -29,7 +28,6 @@ class KumoyProcessingProvider(QgsProcessingProvider):
     def loadAlgorithms(self):
         """Load algorithms"""
         self.addAlgorithm(UploadVectorAlgorithm())
-        self.addAlgorithm(ConvertVectorAlgorithm())
 
     def longName(self):
         """Longer version of the provider name"""
