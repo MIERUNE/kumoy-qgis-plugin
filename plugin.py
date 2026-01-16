@@ -16,7 +16,8 @@ from .settings_manager import reset_settings
 
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
-from .ui.layer_indicators import update_kumoy_indicator
+from .ui.layers.convert_vector import convert_layer_to_kumoy
+from .ui.layers.indicators import update_kumoy_indicator
 
 
 class KumoyPlugin:
@@ -110,32 +111,21 @@ class KumoyPlugin:
         layer_tree_view = self.iface.layerTreeView()
         current_node = layer_tree_view.currentNode()
 
-        if not current_node:
+        if not current_node or not hasattr(current_node, "layer"):
             return
 
-        # Get the layer from the node
-        if hasattr(current_node, "layer"):
-            layer = current_node.layer()
-        else:
+        layer = current_node.layer()
+
+        if not isinstance(layer, QgsVectorLayer):
+            return
+        if layer.dataProvider().name() == DATA_PROVIDER_KEY:
             return
 
-        # Only add for vector layers that are not already Kumoy layers
-        if isinstance(layer, QgsVectorLayer):
-
-            if layer.dataProvider().name() != DATA_PROVIDER_KEY:
-                # Add separator before our action
-                menu.addSeparator()
-
-                # Create and add convert action with icon
-                action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-                action.triggered.connect(lambda: self.convert_layer(layer))
-                menu.addAction(action)
-
-    def convert_layer(self, layer):
-        """Convert a layer to Kumoy"""
-        from .ui.actions.convert_vector_action import convert_layer_to_kumoy
-
-        convert_layer_to_kumoy(layer)
+        # Create and add convert action
+        action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
+        action.triggered.connect(lambda: convert_layer_to_kumoy(layer))
+        menu.addSeparator()
+        menu.addAction(action)
 
     def initGui(self):
         self.dip = DataItemProvider()
