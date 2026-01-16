@@ -1,3 +1,5 @@
+from typing import Optional, Tuple
+
 from qgis.core import (
     Qgis,
     QgsMessageLog,
@@ -20,72 +22,88 @@ def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
+def select_project() -> Optional[Tuple[str, int]]:
+    """
+    Show a dialog to select a project from all organizations.
+
+    Returns:
+        Tuple[project_id, project_index] if a project was selected, None otherwise
+    """
+    # Check authentication
+    settings = get_settings()
+    if not settings.id_token:
+        QMessageBox.warning(None, tr("Not Logged In"), tr("Please log in first."))
+        return None
+
+    # Get organizations
+    organizations = api.organization.get_organizations()
+    if not organizations:
+        QMessageBox.warning(
+            None,
+            tr("No Organization"),
+            tr("No organization available. Please create one to get started."),
+        )
+        return None
+
+    # Get projects from all organizations for selection
+    projects = []
+    project_display_names = []
+
+    for org in organizations:
+        org_projects = api.project.get_projects_by_organization(org.id)
+        for proj in org_projects:
+            projects.append(proj)
+            # Display format: "Organization / Project"
+            project_display_names.append(f"{org.name} / {proj.name}")
+
+    if not projects:
+        QMessageBox.warning(
+            None,
+            tr("No Project"),
+            tr("No project found in any organization."),
+        )
+        return None
+
+    # Find default project index based on instanciated one
+    default_index = 0
+    selected_project_id = settings.selected_project_id
+    if selected_project_id:
+        for idx, proj in enumerate(projects):
+            if proj.id == selected_project_id:
+                default_index = idx
+                break
+
+    # User select project dialog
+    project_name, ok = QInputDialog.getItem(
+        None,
+        tr("Select Project"),
+        tr("Select a project to upload to:"),
+        project_display_names,
+        default_index,
+        False,
+    )
+
+    if not ok:
+        return None
+
+    # Find the selected project
+    selected_index = project_display_names.index(project_name)
+    selected_project = projects[selected_index]
+
+    return (selected_project.id, selected_index)
+
+
 def convert_layer_to_kumoy(layer: QgsVectorLayer):
     """Convert a vector layer to Kumoy"""
     progress_dialog = None
 
     try:
-        # Get organization and projects
-        settings = get_settings()
-        if not settings.id_token:
-            QMessageBox.warning(None, tr("Not Logged In"), tr("Please log in first."))
+        # Show project selection dialog
+        project_selection = select_project()
+        if not project_selection:
             return
 
-        organizations = api.organization.get_organizations()
-        if not organizations:
-            QMessageBox.warning(
-                None,
-                tr("No Organization"),
-                tr("No organization available. Please create one to get started."),
-            )
-            return
-
-        # Get projects from all organizations for selection
-        projects = []
-        project_display_names = []
-
-        for org in organizations:
-            org_projects = api.project.get_projects_by_organization(org.id)
-            for proj in org_projects:
-                projects.append(proj)
-                # Display format: "Organization / Project"
-                project_display_names.append(
-                    f"{org.name} / {proj.name}"
-                )  # "Organization / Project"
-
-        if not projects:
-            QMessageBox.warning(
-                None,
-                tr("No Project"),
-                tr("No project found in any organization."),
-            )
-            return
-
-        # Find default project index based on instanciated one
-        default_index = 0
-        selected_project_id = settings.selected_project_id
-        if selected_project_id:
-            for idx, proj in enumerate(projects):
-                if proj.id == selected_project_id:
-                    default_index = idx
-                    break
-
-        # User select project dialog
-        project_name, ok = QInputDialog.getItem(
-            None,
-            tr("Select Project"),
-            tr("Select a project to upload to:"),
-            project_display_names,
-            default_index,
-            False,
-        )
-
-        if not ok:
-            return
-
-        # Find the selected project index
-        selected_index = project_display_names.index(project_name)
-
+        project_id, project_index = project_selection
         vector_name = layer.name()
 
         # Create progress dialog
@@ -122,7 +140,7 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             "kumoy:uploadvector",
             {
                 "INPUT": layer,
-                "PROJECT": selected_index,
+                "PROJECT": project_index,
                 "VECTOR_NAME": vector_name,
                 "SELECTED_FIELDS": [],
             },
