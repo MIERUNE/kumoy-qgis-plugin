@@ -99,6 +99,14 @@ Qt5: Qt.ApplicationModal
 Qt6: Qt.WindowModality.ApplicationModal
 """
 
+QT_WINDOW_MODAL = (
+    Qt.WindowModal if QT_VERSION_INT <= 5 else Qt.WindowModality.WindowModal
+)
+"""Qt window modal flag
+Qt5: Qt.WindowModal
+Qt6: Qt.WindowModality.WindowModal
+"""
+
 QT_ASPECT_RATIO_MODE = Qt if QT_VERSION_INT <= 5 else Qt.AspectRatioMode
 """Qt aspect ratio mode
 Qt5: Qt.KeepAspectRatio, Qt.KeepAspectRatioByExpanding, etc.

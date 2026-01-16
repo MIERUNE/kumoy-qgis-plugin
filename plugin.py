@@ -1,6 +1,13 @@
 import os
+from functools import partial
 
-from qgis.core import QgsApplication, QgsProject, QgsProviderRegistry, QgsVectorLayer
+from qgis.core import (
+    QgsApplication,
+    QgsLayerTreeLayer,
+    QgsProject,
+    QgsProviderRegistry,
+    QgsVectorLayer,
+)
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
@@ -111,19 +118,21 @@ class KumoyPlugin:
         layer_tree_view = self.iface.layerTreeView()
         current_node = layer_tree_view.currentNode()
 
-        if not current_node or not hasattr(current_node, "layer"):
+        if not isinstance(current_node, QgsLayerTreeLayer):
             return
 
         layer = current_node.layer()
 
-        if not isinstance(layer, QgsVectorLayer):
+        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
             return
-        if layer.dataProvider().name() == DATA_PROVIDER_KEY:
+
+        provider = layer.dataProvider()
+        if not provider or provider.name() == DATA_PROVIDER_KEY:
             return
 
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-        action.triggered.connect(lambda: convert_layer_to_kumoy(layer))
+        action.triggered.connect(partial(convert_layer_to_kumoy, layer))
         menu.addSeparator()
         menu.addAction(action)
 
@@ -158,14 +167,6 @@ class KumoyPlugin:
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
     def unload(self):
-        # Disconnect layer tree context menu
-        try:
-            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
-                self.show_layer_context_menu
-            )
-        except TypeError:
-            pass
-
         # Remove menu action
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
@@ -180,8 +181,11 @@ class KumoyPlugin:
         if self.processing_provider:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
-        # Disconnect signals
+        # Disconnect signals and added menus
         try:
+            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
+                self.show_layer_context_menu
+            )
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(

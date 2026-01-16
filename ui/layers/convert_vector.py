@@ -8,7 +8,7 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
-from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox, QProgressDialog
 from qgis.utils import iface
 import processing
@@ -16,6 +16,7 @@ import processing
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings
+from ...pyqt_version import QT_APPLICATION_MODAL
 
 
 def tr(message: str, context: str = "@default") -> str:
@@ -115,7 +116,7 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             iface.mainWindow(),
         )
         progress_dialog.setWindowTitle(tr("Kumoy Upload"))
-        progress_dialog.setWindowModality(Qt.ApplicationModal)
+        progress_dialog.setWindowModality(QT_APPLICATION_MODAL)
         progress_dialog.setMinimumDuration(0)
         progress_dialog.setValue(10)
         progress_dialog.show()
