@@ -6,20 +6,18 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox, QProgressDialog
-from qgis.PyQt.QtCore import Qt
 from qgis.utils import iface
 import processing
 
-from ...kumoy import constants
-from ...kumoy.api import organization, project, vector
+from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...settings_manager import get_settings
 
 
-def tr(message):
-    return QCoreApplication.translate("ConvertVectorAction", message)
+def tr(message: str, context: str = "@default") -> str:
+    return QCoreApplication.translate(context, message)
 
 
 def convert_layer_to_kumoy(layer: QgsVectorLayer):
@@ -33,45 +31,46 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             QMessageBox.warning(None, tr("Not Logged In"), tr("Please log in first."))
             return
 
-        # Get all organizations
-        organizations = organization.get_organizations()
+        organizations = api.organization.get_organizations()
         if not organizations:
             QMessageBox.warning(
                 None,
-                tr("No Organizations"),
-                tr("You don't have access to any organizations."),
+                tr("No Organization"),
+                tr("No organization available. Please create one to get started."),
             )
             return
 
-        # Get ALL projects from ALL organizations (same order as in the algorithm)
-        all_projects = []
+        # Get projects from all organizations for selection
+        projects = []
         project_display_names = []
 
         for org in organizations:
-            org_projects = project.get_projects_by_organization(org.id)
+            org_projects = api.project.get_projects_by_organization(org.id)
             for proj in org_projects:
-                all_projects.append(proj)
+                projects.append(proj)
                 # Display format: "Organization / Project"
-                project_display_names.append(f"{org.name} / {proj.name}")
+                project_display_names.append(
+                    f"{org.name} / {proj.name}"
+                )  # "Organization / Project"
 
-        if not all_projects:
+        if not projects:
             QMessageBox.warning(
                 None,
-                tr("No Projects"),
-                tr("No projects found in any organization."),
+                tr("No Project"),
+                tr("No project found in any organization."),
             )
             return
 
-        # Find default project index based on selected_project_id
+        # Find default project index based on instanciated one
         default_index = 0
         selected_project_id = settings.selected_project_id
         if selected_project_id:
-            for idx, proj in enumerate(all_projects):
+            for idx, proj in enumerate(projects):
                 if proj.id == selected_project_id:
                     default_index = idx
                     break
 
-        # Let user select project
+        # User select project dialog
         project_name, ok = QInputDialog.getItem(
             None,
             tr("Select Project"),
@@ -84,10 +83,9 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
         if not ok:
             return
 
-        # Find the selected project INDEX
+        # Find the selected project index
         selected_index = project_display_names.index(project_name)
 
-        # Use layer name as vector name
         vector_name = layer.name()
 
         # Create progress dialog
@@ -144,31 +142,22 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             return
 
         if not result or "VECTOR_ID" not in result:
-            raise Exception(tr("Upload failed - no vector ID returned"))
+            raise Exception(tr("Upload failed - unable to get vector id"))
 
         vector_id = result["VECTOR_ID"]
 
-        # Close progress dialog BEFORE creating the Kumoy layer
         progress_dialog.close()
         progress_dialog = None
 
-        # Show message that upload is complete
-        iface.messageBar().pushMessage(
-            constants.PLUGIN_NAME,
-            tr("Upload complete, adding layer to map..."),
-            level=Qgis.Info,
-            duration=2,
-        )
-
         # Get updated vector details
-        vector_detail = vector.get_vector(vector_id)
+        vector = api.vector.get_vector(vector_id)
 
         # Create Kumoy layer URI
-        vector_uri = f"project_id={vector_detail.projectId};vector_id={vector_detail.id};vector_name={vector_detail.name};vector_type={vector_detail.type};"
+        vector_uri = f"project_id={vector.projectId};vector_id={vector.id};vector_name={vector.name};vector_type={vector.type};"
 
         # Create the layer
         kumoy_layer = QgsVectorLayer(
-            vector_uri, vector_detail.name, constants.DATA_PROVIDER_KEY
+            vector_uri, vector.name, constants.DATA_PROVIDER_KEY
         )
 
         if kumoy_layer.isValid():
@@ -187,18 +176,15 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             original_layer_node = root.findLayer(layer.id())
 
             if original_layer_node:
+                # Replace local layer by new Kumoy layer at the same index position
                 parent_node = original_layer_node.parent()
-                # Get the index position of the original layer
                 index = parent_node.children().index(original_layer_node)
 
-                # Remove original layer from project
                 QgsProject.instance().removeMapLayer(layer.id())
-
-                # Add new Kumoy layer at the SAME index position
                 QgsProject.instance().addMapLayer(kumoy_layer, False)
                 parent_node.insertLayer(index, kumoy_layer)
             else:
-                # Fallback: just add to root if original node not found
+                # Fallback: add to root if original node not found
                 QgsProject.instance().removeMapLayer(layer.id())
                 QgsProject.instance().addMapLayer(kumoy_layer)
 
