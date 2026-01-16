@@ -187,8 +187,9 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
                 config.setReadOnly(field_idx, True)
                 kumoy_layer.setEditFormConfig(config)
 
-            # Copy layer styling from original
-            kumoy_layer.setRenderer(layer.renderer().clone())
+            original_renderer = layer.renderer()
+            if original_renderer:
+                kumoy_layer.setRenderer(original_renderer.clone())
 
             # Get original layer position in legend
             root = QgsProject.instance().layerTreeRoot()
