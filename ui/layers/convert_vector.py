@@ -96,6 +96,15 @@ def select_project() -> Optional[Tuple[str, int]]:
 
 def convert_layer_to_kumoy(layer: QgsVectorLayer):
     """Convert a vector layer to Kumoy"""
+    # Validate layer before proceeding
+    if not layer or not layer.isValid():
+        QMessageBox.warning(
+            None,
+            tr("Invalid Layer"),
+            tr("The selected layer is no longer valid or has been removed."),
+        )
+        return
+
     progress_dialog = None
 
     try:
