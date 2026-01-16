@@ -7,7 +7,8 @@ from qgis.core import (
     QgsProcessingFeedback,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox
+from qgis.PyQt.QtWidgets import QInputDialog, QMessageBox, QProgressDialog
+from qgis.PyQt.QtCore import Qt
 from qgis.utils import iface
 import processing
 
@@ -23,6 +24,8 @@ def tr(message):
 
 def convert_layer_to_kumoy(layer: QgsVectorLayer):
     """Convert a vector layer to Kumoy"""
+    progress_dialog = None
+
     try:
         # Get organization and projects
         settings = get_settings()
@@ -74,32 +77,49 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             tr("Select Project"),
             tr("Select a project to upload to:"),
             project_display_names,
-            default_index,  # Set default selection
+            default_index,
             False,
         )
 
         if not ok:
             return
 
-        # Find the selected project INDEX (not ID!)
+        # Find the selected project INDEX
         selected_index = project_display_names.index(project_name)
 
         # Use layer name as vector name
         vector_name = layer.name()
 
-        # Step 1: Upload layer using Processing algorithm
-        iface.messageBar().pushMessage(
-            constants.PLUGIN_NAME,
-            tr("Uploading layer '{}'...").format(layer.name()),
-            level=Qgis.Info,
-            duration=0,
+        # Create progress dialog
+        progress_dialog = QProgressDialog(
+            tr("Uploading layer '{}'...").format(vector_name),
+            tr("Cancel"),
+            0,
+            100,
+            iface.mainWindow(),
         )
+        progress_dialog.setWindowTitle(tr("Kumoy Upload"))
+        progress_dialog.setWindowModality(Qt.ApplicationModal)
+        progress_dialog.setMinimumDuration(0)
+        progress_dialog.setValue(10)
+        progress_dialog.show()
 
         # Create processing context and feedback
         context = QgsProcessingContext()
         feedback = QgsProcessingFeedback()
 
-        # Run the upload algorithm with the PROJECT INDEX
+        # Connect feedback to progress dialog
+        def update_progress(progress):
+            if progress_dialog:
+                # Scale progress: 10-90% for upload
+                progress_dialog.setValue(10 + int(progress * 0.8))
+
+        feedback.progressChanged.connect(update_progress)
+
+        # Handle cancel
+        progress_dialog.canceled.connect(feedback.cancel)
+
+        # Run the upload algorithm
         result = processing.run(
             "kumoy:uploadvector",
             {
@@ -112,17 +132,32 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             feedback=feedback,
         )
 
+        # Check if cancelled
+        if feedback.isCanceled():
+            progress_dialog.close()
+            iface.messageBar().pushMessage(
+                constants.PLUGIN_NAME,
+                tr("Upload cancelled"),
+                level=Qgis.Warning,
+                duration=3,
+            )
+            return
+
         if not result or "VECTOR_ID" not in result:
             raise Exception(tr("Upload failed - no vector ID returned"))
 
         vector_id = result["VECTOR_ID"]
 
-        # Step 2: Create Kumoy layer
+        # Close progress dialog BEFORE creating the Kumoy layer
+        progress_dialog.close()
+        progress_dialog = None
+
+        # Show message that upload is complete
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
-            tr("Adding layer to map..."),
+            tr("Upload complete, adding layer to map..."),
             level=Qgis.Info,
-            duration=0,
+            duration=2,
         )
 
         # Get updated vector details
@@ -156,16 +191,12 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
                 # Get the index position of the original layer
                 index = parent_node.children().index(original_layer_node)
 
-                # Remove original layer from project (this also removes from tree)
+                # Remove original layer from project
                 QgsProject.instance().removeMapLayer(layer.id())
 
                 # Add new Kumoy layer at the SAME index position
-                QgsProject.instance().addMapLayer(
-                    kumoy_layer, False
-                )  # Don't add to legend yet
-                parent_node.insertLayer(
-                    index, kumoy_layer
-                )  # Insert at specific position
+                QgsProject.instance().addMapLayer(kumoy_layer, False)
+                parent_node.insertLayer(index, kumoy_layer)
             else:
                 # Fallback: just add to root if original node not found
                 QgsProject.instance().removeMapLayer(layer.id())
@@ -175,7 +206,7 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
                 constants.PLUGIN_NAME,
                 tr("Layer '{}' converted to Kumoy successfully!").format(vector_name),
                 level=Qgis.Success,
-                duration=5,
+                duration=2,
             )
         else:
             error_msg = (
@@ -186,6 +217,9 @@ def convert_layer_to_kumoy(layer: QgsVectorLayer):
             raise Exception(tr("Failed to create Kumoy layer: {}").format(error_msg))
 
     except Exception as e:
+        if progress_dialog:
+            progress_dialog.close()
+
         QgsMessageLog.logMessage(
             f"Error converting layer: {str(e)}",
             constants.LOG_CATEGORY,
