@@ -1,6 +1,6 @@
 import webbrowser
 
-from qgis.core import Qgis, QgsMessageLog, QgsProject
+from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -229,6 +229,11 @@ class DialogAccount(QDialog):
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
+
+        # Refresh processing algorithms to clear cached project list
+        provider = QgsApplication.processingRegistry().providerById("kumoy")
+        if provider:
+            provider.refreshAlgorithms()
 
         QgsMessageLog.logMessage(
             "Logged out via account dialog", LOG_CATEGORY, Qgis.Info

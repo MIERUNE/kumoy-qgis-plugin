@@ -89,6 +89,10 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             reset_settings()
 
+            # Refresh processing algorithms to clear cached project list
+            if self.processing_provider:
+                self.processing_provider.refreshAlgorithms()
+
             # Refresh browser panel
             registry = QgsApplication.instance().dataItemProviderRegistry()
             registry.removeProvider(self.dip)
