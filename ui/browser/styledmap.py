@@ -699,12 +699,6 @@ class StyledMapRoot(QgsDataItem):
         progress_dialog = None
 
         try:
-            # Show project selection dialog
-            project_selection = select_project()
-            if not project_selection:
-                return
-
-            project_id, project_index = project_selection
             vector_name = layer.name()
 
             # Create progress dialog
@@ -735,6 +729,23 @@ class StyledMapRoot(QgsDataItem):
 
             # Handle cancel
             progress_dialog.canceled.connect(feedback.cancel)
+
+            # Get the project index for the processing algorithm using project id
+            organizations = api.organization.get_organizations()
+            all_projects = []
+            for org in organizations:
+                org_projects = api.project.get_projects_by_organization(org.id)
+                all_projects.extend(org_projects)
+
+            # Find the index of current project
+            project_index = None
+            for idx, proj in enumerate(all_projects):
+                if proj.id == self.project.id:
+                    project_index = idx
+                    break
+
+            if project_index is None:
+                raise Exception(self.tr("Project not found in organization list"))
 
             # Run the upload algorithm
             result = processing.run(
