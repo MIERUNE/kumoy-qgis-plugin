@@ -7,6 +7,9 @@ from qgis.core import (
     QgsDataItem,
     QgsMessageLog,
     QgsProject,
+    QgsVectorLayer,
+    QgsProcessingContext,
+    QgsProcessingFeedback,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
@@ -17,15 +20,18 @@ from qgis.PyQt.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QMessageBox,
+    QProgressDialog,
     QVBoxLayout,
 )
 from qgis.utils import iface
+import processing
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import write_qgsfile
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
+    QT_APPLICATION_MODAL,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     exec_dialog,
@@ -436,6 +442,11 @@ class StyledMapRoot(QgsDataItem):
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
 
+        # Convert current local project to Kumoy styled map
+        new_action = QAction(self.tr("Convert Current Project to Kumoy"), parent)
+        new_action.triggered.connect(self.convert_to_kumoy_styled_map)
+        actions.append(new_action)
+
         # Clear map cache data
         clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
         clear_all_cache_action.triggered.connect(self.clear_all_map_cache)
@@ -457,13 +468,17 @@ class StyledMapRoot(QgsDataItem):
             if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
-        self.add_styled_map(clear=True)
+        self.add_styled_map(clear=True, convert_layers=False)
 
     def add_styled_map(
         self,
         clear=False,
+        convert_layers=False,
     ):
-        """新しいMapをKumoyサーバー上に作成する"""
+        """Add a new map to kumoy server
+        Options:
+        clear - whether to clear current QGIS project
+        convert_layers - whether to convert local layers to kumoy layers"""
 
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
@@ -550,6 +565,9 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
+            if convert_layers:
+                self._convert_local_layers_to_kumoy_layers()
+
             qgisproject = write_qgsfile(self.project.id)
 
             # スタイルマップ作成
@@ -587,6 +605,11 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error"),
                 self.tr("Error adding map: {}").format(error_text),
             )
+
+    def convert_to_kumoy_styled_map(self):
+        # convert local layers to kumoy layers first
+        self.add_styled_map(clear=False, convert_layers=True)
+        return
 
     def createChildren(self):
         project_id = get_settings().selected_project_id
@@ -642,4 +665,192 @@ class StyledMapRoot(QgsDataItem):
                     "Some map cache files could not be cleared. "
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
+            )
+
+    def _convert_local_layers_to_kumoy_layers(self):
+        """Convert all local layers in current QGIS project to kumoy layers"""
+        # check all layers in layer tree
+        for layer in QgsProject.instance().mapLayers().values():
+            # skip if it is not a valid vector layer
+            if (
+                not layer
+                or not layer.isValid()
+                or not isinstance(layer, QgsVectorLayer)
+            ):
+                continue
+            provider = layer.dataProvider()
+            if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
+                continue
+
+            self._convert_to_kumoy(layer)
+
+    def _convert_to_kumoy(self, layer):
+        """Convert a vector layer to Kumoy"""
+
+        # Validate layer before proceeding
+        if not layer or not layer.isValid():
+            QMessageBox.warning(
+                None,
+                self.tr("Invalid Layer"),
+                self.tr("The selected layer is no longer valid or has been removed."),
+            )
+            return
+
+        progress_dialog = None
+
+        try:
+            # Show project selection dialog
+            project_selection = select_project()
+            if not project_selection:
+                return
+
+            project_id, project_index = project_selection
+            vector_name = layer.name()
+
+            # Create progress dialog
+            progress_dialog = QProgressDialog(
+                self.tr("Uploading layer '{}'...").format(vector_name),
+                self.tr("Cancel"),
+                0,
+                100,
+                iface.mainWindow(),
+            )
+            progress_dialog.setWindowTitle(self.tr("Kumoy Upload"))
+            progress_dialog.setWindowModality(QT_APPLICATION_MODAL)
+            progress_dialog.setMinimumDuration(0)
+            progress_dialog.setValue(10)
+            progress_dialog.show()
+
+            # Create processing context and feedback
+            context = QgsProcessingContext()
+            feedback = QgsProcessingFeedback()
+
+            # Connect feedback to progress dialog
+            def update_progress(progress):
+                if progress_dialog:
+                    # Scale progress: 10-90% for upload
+                    progress_dialog.setValue(10 + int(progress * 0.8))
+
+            feedback.progressChanged.connect(update_progress)
+
+            # Handle cancel
+            progress_dialog.canceled.connect(feedback.cancel)
+
+            # Run the upload algorithm
+            result = processing.run(
+                "kumoy:uploadvector",
+                {
+                    "INPUT": layer,
+                    "PROJECT": project_index,
+                    "VECTOR_NAME": vector_name,
+                    "SELECTED_FIELDS": [],
+                },
+                context=context,
+                feedback=feedback,
+            )
+
+            # Check if cancelled
+            if feedback.isCanceled():
+                progress_dialog.close()
+                iface.messageBar().pushMessage(
+                    constants.PLUGIN_NAME,
+                    self.tr("Upload cancelled"),
+                    level=Qgis.Warning,
+                    duration=3,
+                )
+                return
+
+            if not result or "VECTOR_ID" not in result:
+                raise Exception(self.tr("Upload failed - unable to get vector id"))
+
+            vector_id = result["VECTOR_ID"]
+
+            progress_dialog.close()
+            progress_dialog = None
+
+            # Get updated vector details
+            vector = api.vector.get_vector(vector_id)
+
+            # Create Kumoy layer URI
+            vector_uri = f"project_id={vector.projectId};vector_id={vector.id};vector_name={vector.name};vector_type={vector.type};"
+
+            # Create the layer
+            kumoy_layer = QgsVectorLayer(
+                vector_uri, vector.name, constants.DATA_PROVIDER_KEY
+            )
+
+            if kumoy_layer.isValid():
+                # Configure kumoy_id as read-only
+                field_idx = kumoy_layer.fields().indexOf("kumoy_id")
+                if field_idx >= 0:
+                    config = kumoy_layer.editFormConfig()
+                    config.setReadOnly(field_idx, True)
+                    kumoy_layer.setEditFormConfig(config)
+
+                original_renderer = layer.renderer()
+                if original_renderer:
+                    kumoy_layer.setRenderer(original_renderer.clone())
+
+                # Get original layer position in legend
+                root = QgsProject.instance().layerTreeRoot()
+                original_layer_node = root.findLayer(layer.id())
+
+                if original_layer_node:
+                    # Replace local layer by new Kumoy layer at the same index position
+                    parent_node = original_layer_node.parent()
+                    index = parent_node.children().index(original_layer_node)
+
+                    # Remove local layer
+                    parent_node.removeChildNode(original_layer_node)
+                    QgsProject.instance().removeMapLayer(layer.id())
+
+                    # Add new layer to project at the same position
+                    QgsProject.instance().addMapLayer(kumoy_layer, False)
+                    parent_node.insertLayer(index, kumoy_layer)
+
+                    # Set the new layer as the current/selected layer
+                    layer_tree_view = iface.layerTreeView()
+                    new_layer_node = root.findLayer(kumoy_layer.id())
+                    if new_layer_node:
+                        layer_tree_view.setCurrentLayer(kumoy_layer)
+                else:
+                    # Fallback: add to root if original node not found
+                    QgsProject.instance().removeMapLayer(layer.id())
+                    QgsProject.instance().addMapLayer(kumoy_layer)
+
+                    # Set as current layer
+                    iface.layerTreeView().setCurrentLayer(kumoy_layer)
+
+                iface.messageBar().pushMessage(
+                    constants.PLUGIN_NAME,
+                    self.tr("Layer '{}' converted to Kumoy successfully!").format(
+                        vector_name
+                    ),
+                    level=Qgis.Success,
+                    duration=2,
+                )
+            else:
+                error_msg = (
+                    kumoy_layer.error().message()
+                    if kumoy_layer.error()
+                    else "Unknown error"
+                )
+                raise Exception(
+                    self.tr("Failed to create Kumoy layer: {}").format(error_msg)
+                )
+
+        except Exception as e:
+            if progress_dialog:
+                progress_dialog.close()
+
+            QgsMessageLog.logMessage(
+                f"Error converting layer: {str(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            iface.messageBar().pushMessage(
+                constants.PLUGIN_NAME,
+                self.tr("Error: {}").format(format_api_error(e)),
+                level=Qgis.Critical,
+                duration=10,
             )
