@@ -830,13 +830,10 @@ class StyledMapRoot(QgsDataItem):
                     parent_node = original_layer_node.parent()
                     index = parent_node.children().index(original_layer_node)
 
-                    # Remove local layer
-                    parent_node.removeChildNode(original_layer_node)
-                    QgsProject.instance().removeMapLayer(layer.id())
-
-                    # Add new layer to project at the same position
                     QgsProject.instance().addMapLayer(kumoy_layer, False)
                     parent_node.insertLayer(index, kumoy_layer)
+                    parent_node.removeChildNode(original_layer_node)
+                    QgsProject.instance().removeMapLayer(layer.id())
 
                     # Set the new layer as the current/selected layer
                     layer_tree_view = iface.layerTreeView()
@@ -845,8 +842,8 @@ class StyledMapRoot(QgsDataItem):
                         layer_tree_view.setCurrentLayer(kumoy_layer)
                 else:
                     # Fallback: add to root if original node not found
-                    QgsProject.instance().removeMapLayer(layer.id())
                     QgsProject.instance().addMapLayer(kumoy_layer)
+                    QgsProject.instance().removeMapLayer(layer.id())
 
                     # Set as current layer
                     iface.layerTreeView().setCurrentLayer(kumoy_layer)
