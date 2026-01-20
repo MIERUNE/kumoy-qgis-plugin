@@ -1,6 +1,7 @@
 import os
 import webbrowser
 from typing import Literal
+from functools import partial
 
 from qgis.core import (
     Qgis,
@@ -443,9 +444,13 @@ class StyledMapRoot(QgsDataItem):
         actions.append(new_action)
 
         # Convert current local project to Kumoy styled map
-        new_action = QAction(self.tr("Convert Current Project to Kumoy"), parent)
-        new_action.triggered.connect(self.convert_to_kumoy_styled_map)
-        actions.append(new_action)
+        convert_action = QAction(
+            self.tr("Convert Current Project to Kumoy Map"), parent
+        )
+        convert_action.triggered.connect(
+            partial(self.add_styled_map, convert_layers=True)
+        )
+        actions.append(convert_action)
 
         # Clear map cache data
         clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
@@ -587,12 +592,13 @@ class StyledMapRoot(QgsDataItem):
                 {"kumoy_map_id": new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
-            QgsProject.instance().setDirty(False)
             self.refresh()
+
             iface.messageBar().pushSuccess(
                 self.tr("Success"),
                 self.tr("Map '{}' has been created successfully.").format(name),
             )
+            QgsProject.instance().setDirty(False)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -605,11 +611,6 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error"),
                 self.tr("Error adding map: {}").format(error_text),
             )
-
-    def convert_to_kumoy_styled_map(self):
-        # convert local layers to kumoy layers first
-        self.add_styled_map(clear=False, convert_layers=True)
-        return
 
     def createChildren(self):
         project_id = get_settings().selected_project_id
@@ -832,14 +833,6 @@ class StyledMapRoot(QgsDataItem):
                     # Set as current layer
                     iface.layerTreeView().setCurrentLayer(kumoy_layer)
 
-                iface.messageBar().pushMessage(
-                    constants.PLUGIN_NAME,
-                    self.tr("Layer '{}' converted to Kumoy successfully!").format(
-                        vector_name
-                    ),
-                    level=Qgis.Success,
-                    duration=2,
-                )
             else:
                 error_msg = (
                     kumoy_layer.error().message()
