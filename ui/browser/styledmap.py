@@ -1,7 +1,6 @@
 import os
 import webbrowser
 from typing import Literal
-from functools import partial
 
 from qgis.core import (
     Qgis,
@@ -438,19 +437,10 @@ class StyledMapRoot(QgsDataItem):
         empty_map_action.triggered.connect(self.add_empty_map)
         actions.append(empty_map_action)
 
-        # 現在のQGISプロジェクトを保存する
-        new_action = QAction(self.tr("Save Current Map As..."), parent)
+        # Upload current QGIS project as new Kumoy styled map
+        new_action = QAction(self.tr("Save Current Project As..."), parent)
         new_action.triggered.connect(self.add_styled_map)
         actions.append(new_action)
-
-        # Convert current local project to Kumoy styled map
-        convert_action = QAction(
-            self.tr("Convert Current Project to Kumoy Map"), parent
-        )
-        convert_action.triggered.connect(
-            partial(self.add_styled_map, convert_layers=True)
-        )
-        actions.append(convert_action)
 
         # Clear map cache data
         clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
@@ -473,17 +463,12 @@ class StyledMapRoot(QgsDataItem):
             if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
                 return
 
-        self.add_styled_map(clear=True, convert_layers=False)
+        self.add_styled_map(clear=True)
 
-    def add_styled_map(
-        self,
-        clear=False,
-        convert_layers=False,
-    ):
+    def add_styled_map(self, clear=False):
         """Add a new map to kumoy server
         Options:
-        clear - whether to clear current QGIS project
-        convert_layers - whether to convert local layers to kumoy layers"""
+        clear - whether to clear current QGIS project"""
 
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
@@ -570,8 +555,23 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            if convert_layers:
-                self._convert_local_layers_to_kumoy_layers()
+            # Find local layers in current QGIS project
+            local_layers = self._get_local_vector_layers()
+
+            if local_layers:
+                convert_confirm = QMessageBox.question(
+                    None,
+                    self.tr("Convert Local Layers to Kumoy Layers"),
+                    self.tr(
+                        "There are {} local vector layers in the current project. "
+                        "Do you want to convert them to Kumoy layers?"
+                    ).format(len(local_layers)),
+                    Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                    Q_MESSAGEBOX_STD_BUTTON.Yes,
+                )
+                if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+                    for layer in local_layers:
+                        self._convert_to_kumoy(layer)
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -668,9 +668,9 @@ class StyledMapRoot(QgsDataItem):
                 ),
             )
 
-    def _convert_local_layers_to_kumoy_layers(self):
-        """Convert all local layers in current QGIS project to kumoy layers"""
-        # check all layers in layer tree
+    def _get_local_vector_layers(self):
+        """Get all local vector layers in current QGIS project"""
+        local_layers = []
         for layer in QgsProject.instance().mapLayers().values():
             # skip if it is not a valid vector layer
             if (
@@ -683,7 +683,9 @@ class StyledMapRoot(QgsDataItem):
             if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
                 continue
 
-            self._convert_to_kumoy(layer)
+            local_layers.append(layer)
+
+        return local_layers
 
     def _convert_to_kumoy(self, layer):
         """Convert a vector layer to Kumoy"""
