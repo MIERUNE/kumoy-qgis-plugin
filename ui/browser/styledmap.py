@@ -474,6 +474,15 @@ class StyledMapRoot(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
+        # Check if any layer is in editing mode
+        if self._layer_is_editing():
+            QMessageBox.warning(
+                None,
+                self.tr("Cannot Add Map"),
+                self.tr("Please save or discard your layer edits before saving map."),
+            )
+            return
+
         try:
             # Check plan limits before creating styled map
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
@@ -667,6 +676,13 @@ class StyledMapRoot(QgsDataItem):
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
             )
+
+    def _layer_is_editing(self):
+        """Check if any layer in current QGIS project is in editing mode"""
+        for layer in QgsProject.instance().mapLayers().values():
+            if isinstance(layer, QgsVectorLayer) and layer.isEditable():
+                return True
+        return False
 
     def _get_local_vector_layers(self):
         """Get all local vector layers in current QGIS project"""
