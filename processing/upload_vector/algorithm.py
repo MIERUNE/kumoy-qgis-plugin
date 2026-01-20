@@ -23,6 +23,7 @@ from qgis.utils import iface
 import processing
 
 from ...kumoy import api, constants
+from ...kumoy.api import user as api_user
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
 from ...sentry import capture_exception
@@ -70,9 +71,7 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
     for field in valid_fields_layer.fields():
         # Map QGIS field types to our supported types
         field_type = "string"  # Default to string
-        if (
-            field.type() == QVariant.Int or field.type() == QVariant.LongLong
-        ):  # LongLong is for 64-bit integers
+        if field.type() in [QVariant.Int, QVariant.LongLong]:
             field_type = "integer"
         elif field.type() == QVariant.Double:
             field_type = "float"
@@ -93,6 +92,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     VECTOR_NAME: str = "VECTOR_NAME"
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
+    INIT_USER_ID: str = "INIT_USER_ID"  # Hidden parameter for user validation
 
     project_map: Dict[str, str] = {}
 
@@ -130,6 +130,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Initialize algorithm parameters"""
         project_options = []
         self.project_map = {}
+        init_user_id = ""
 
         # Input vector layer
         self.addParameter(
@@ -144,6 +145,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if get_token() is None:
                 # 未ログイン
                 return
+
+            # ダイアログを開いた時点のユーザーIDを保存
+            current_user = api_user.get_me()
+            if current_user:
+                init_user_id = current_user.id
 
             # Get all organizations first
             organizations = api.organization.get_organizations()
@@ -224,6 +230,20 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
         self.addParameter(param)
 
+        # Parameter to store user ID at dialog open time (as dropdown to prevent editing)
+        user_id_param = QgsProcessingParameterEnum(
+            self.INIT_USER_ID,
+            self.tr("User ID"),
+            options=[init_user_id] if init_user_id else [],
+            allowMultiple=False,
+            optional=False,
+            defaultValue=0,
+        )
+        user_id_param.setFlags(
+            user_id_param.flags() | QgsProcessingParameterEnum.FlagAdvanced
+        )
+        self.addParameter(user_id_param)
+
     def _get_project_info_and_validate(
         self,
         parameters: Dict[str, Any],
@@ -275,6 +295,20 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         try:
             self._raise_if_canceled(feedback)
+
+            # ダイアログを開いた時と実行時でユーザーが異なる場合はエラー
+            init_user_id = self.parameterAsEnumString(
+                parameters, self.INIT_USER_ID, context
+            )
+            current_user = api_user.get_me()
+            current_user_id = current_user.id if current_user else ""
+            if init_user_id != current_user_id:
+                raise QgsProcessingException(
+                    self.tr(
+                        "The logged-in user has changed since the dialog was opened. "
+                        "Please close this dialog and reopen it."
+                    )
+                )
 
             # Get input layer
             # 入力レイヤーのproviderチェック
@@ -426,7 +460,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     },
                 )
                 # Re-raise the original exception
-                raise e
+                raise
             else:
                 return {}
 
@@ -704,8 +738,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector_id: str,
         valid_fields_layer: QgsVectorLayer,
         feedback: QgsProcessingFeedback,
-    ) -> bool:
-        """Upload features to Kumoy in batches. Returns True when canceled."""
+    ) -> None:
+        """Upload features to Kumoy in batches."""
         cur_features = []
         accumulated_features = 0
         batch_size = 1000
@@ -740,5 +774,3 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     accumulated_features, valid_fields_layer.featureCount()
                 )
             )
-
-        return feedback.isCanceled()
