@@ -811,7 +811,7 @@ class StyledMapRoot(QgsDataItem):
                     level=Qgis.Warning,
                     duration=3,
                 )
-                return
+                return (False, self.tr("Upload cancelled by user"))
 
             if not result or "VECTOR_ID" not in result:
                 raise Exception(self.tr("Upload failed - unable to get vector id"))
