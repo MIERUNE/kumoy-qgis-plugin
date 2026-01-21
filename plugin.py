@@ -9,6 +9,7 @@ from .kumoy.api.config import get_settings
 from .kumoy.constants import PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
+from .processing.closeAllProcessingDialogs import closeAllProcessingDialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
@@ -87,6 +88,7 @@ class KumoyPlugin:
                     return
 
             QgsProject.instance().clear()
+            closeAllProcessingDialogs()
             reset_settings()
 
             # Refresh browser panel
@@ -127,6 +129,8 @@ class KumoyPlugin:
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
     def unload(self):
+        closeAllProcessingDialogs()
+
         # Remove menu action
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)

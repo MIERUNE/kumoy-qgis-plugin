@@ -12,7 +12,7 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...processing.closeDialogs import closeAllDialogs
+from ...processing.closeAllProcessingDialogs import closeAllProcessingDialogs
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
 from ...settings_manager import get_settings, store_setting
 from ...ui.dialog_account import DialogAccount
@@ -277,7 +277,7 @@ class RootCollection(QgsDataCollectionItem):
 
         QgsProject.instance().clear()
 
-        closeAllDialogs()
+        closeAllProcessingDialogs()
 
         # Clear stored settings
         store_setting("id_token", "")
