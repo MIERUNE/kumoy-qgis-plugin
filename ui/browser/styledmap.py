@@ -871,5 +871,5 @@ class StyledMapRoot(QgsDataItem):
                 constants.PLUGIN_NAME,
                 self.tr("Error: {}").format(format_api_error(e)),
                 level=Qgis.Critical,
-                duration=10,
+                duration=0,
             )
