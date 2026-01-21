@@ -178,6 +178,17 @@ class KumoyPlugin:
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
+        # Connect to plugin menu aboutToShow to update logout action visibility
+        self.iface.pluginMenu().aboutToShow.connect(
+            self.update_logout_action_visibility
+        )
+        self.update_logout_action_visibility()
+
+    def update_logout_action_visibility(self):
+        # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
+        is_logged_in = bool(get_settings().id_token)
+        self.logout_action.setVisible(is_logged_in)
+
     def unload(self):
         # Remove menu actions
         if self.logout_action:
@@ -205,6 +216,9 @@ class KumoyPlugin:
             )
             QgsProject.instance().layerTreeRoot().addedChildren.disconnect(
                 update_kumoy_indicator
+            )
+            self.iface.pluginMenu().aboutToShow.disconnect(
+                self.update_logout_action_visibility
             )
         except TypeError:
             pass
