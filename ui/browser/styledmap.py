@@ -680,7 +680,7 @@ class StyledMapRoot(QgsDataItem):
     def _layer_is_editing(self):
         """Check if any layer in current QGIS project is in editing mode"""
         for layer in QgsProject.instance().mapLayers().values():
-            if isinstance(layer, QgsVectorLayer) and layer.isEditable():
+            if isinstance(layer, QgsVectorLayer) and layer.isModified():
                 return True
         return False
 
