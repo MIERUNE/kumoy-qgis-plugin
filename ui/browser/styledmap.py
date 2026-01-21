@@ -71,6 +71,12 @@ class StyledMapItem(QgsDataItem):
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
+        if self.styled_map.isPublic:
+            # 公開マップの場合、公開ページを開くアクション
+            open_public_action = QAction(self.tr("Open Public Page"), parent)
+            open_public_action.triggered.connect(self.open_public_page)
+            actions.append(open_public_action)
+
         if self.role in ["ADMIN", "OWNER"]:
             # スタイルマップ上書き保存アクション
             save_action = QAction(self.tr("Overwrite with current state"), parent)
@@ -91,12 +97,6 @@ class StyledMapItem(QgsDataItem):
             delete_action = QAction(self.tr("Delete"), parent)
             delete_action.triggered.connect(self.delete_styled_map)
             actions.append(delete_action)
-
-        if self.styled_map.isPublic:
-            # 公開マップの場合、公開ページを開くアクション
-            open_public_action = QAction(self.tr("Open Public Page"), parent)
-            open_public_action.triggered.connect(self.open_public_page)
-            actions.append(open_public_action)
 
         return actions
 
