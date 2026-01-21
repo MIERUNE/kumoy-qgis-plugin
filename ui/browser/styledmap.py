@@ -77,6 +77,11 @@ class StyledMapItem(QgsDataItem):
             open_public_action.triggered.connect(self.open_public_page)
             actions.append(open_public_action)
 
+        # Clear map cache action
+        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+        clear_cache_action.triggered.connect(self.clear_map_cache)
+        actions.append(clear_cache_action)
+
         if self.role in ["ADMIN", "OWNER"]:
             # スタイルマップ上書き保存アクション
             save_action = QAction(self.tr("Overwrite with current state"), parent)
@@ -87,11 +92,6 @@ class StyledMapItem(QgsDataItem):
             edit_action = QAction(self.tr("Edit Metadata"), parent)
             edit_action.triggered.connect(self.update_metadata_styled_map)
             actions.append(edit_action)
-
-            # Clear map cache action
-            clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
-            clear_cache_action.triggered.connect(self.clear_map_cache)
-            actions.append(clear_cache_action)
 
             # スタイルマップ削除アクション
             delete_action = QAction(self.tr("Delete"), parent)
