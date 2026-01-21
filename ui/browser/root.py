@@ -237,7 +237,7 @@ class RootCollection(QgsDataCollectionItem):
         vector_path = f"{self.path()}/vectors"
         vector_root = VectorRoot(
             self,
-            "Vectors",
+            self.tr("Vectors"),
             vector_path,
             self.organization_data,
             self.project_data,
@@ -247,7 +247,7 @@ class RootCollection(QgsDataCollectionItem):
         # Create styled map root
         styled_map_path = f"{self.path()}/styledmaps"
         styled_map_root = StyledMapRoot(
-            self, "Maps", styled_map_path, self.organization_data, self.project_data
+            self, self.tr("Maps"), styled_map_path, self.organization_data, self.project_data
         )
         children.append(styled_map_root)
 
