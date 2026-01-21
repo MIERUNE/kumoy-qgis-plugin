@@ -1,6 +1,12 @@
 import os
 
-from qgis.core import QgsApplication, QgsProject, QgsProviderRegistry
+from qgis.core import (
+    Qgis,
+    QgsApplication,
+    QgsMessageLog,
+    QgsProject,
+    QgsProviderRegistry,
+)
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
@@ -13,7 +19,7 @@ from .processing.close_all_processing_dialogs import close_all_processing_dialog
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
-from .settings_manager import reset_settings
+from .settings_manager import reset_settings, store_setting
 from .ui.browser.root import DataItemProvider
 from .ui.layer_indicators import update_kumoy_indicator
 
@@ -38,8 +44,9 @@ class KumoyPlugin:
         # Initialize processing provider
         self.processing_provider = None
 
-        # Initialize menu action
+        # Initialize menu actions
         self.reset_plugin_settings = None
+        self.logout_action = None
 
         if get_settings().id_token:
             init_sentry()
@@ -103,6 +110,47 @@ class KumoyPlugin:
                 self.tr("Plugin settings have been reset successfully."),
             )
 
+    def on_logout(self):
+        """Handle logout action"""
+        if QgsProject.instance().isDirty():
+            confirmed = QMessageBox.question(
+                self.win,
+                self.tr("Logout"),
+                self.tr(
+                    "You have unsaved changes. "
+                    "Logging out will clear your current project. Continue?"
+                ),
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.No,
+            )
+
+            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
+                return
+
+        QgsProject.instance().clear()
+
+        close_all_processing_dialogs()
+
+        # Clear stored settings
+        store_setting("id_token", "")
+        store_setting("refresh_token", "")
+        store_setting("user_info", "")
+        store_setting("selected_project_id", "")
+        store_setting("selected_organization_id", "")
+
+        QgsMessageLog.logMessage("Logged out via menu", PLUGIN_NAME, Qgis.Info)
+        QMessageBox.information(
+            self.win,
+            self.tr("Logout"),
+            self.tr("You have been logged out from Kumoy."),
+        )
+
+        # Refresh browser panel
+        registry = QgsApplication.instance().dataItemProviderRegistry()
+        registry.removeProvider(self.dip)
+        self.dip = DataItemProvider()
+        registry.addProvider(self.dip)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -123,6 +171,11 @@ class KumoyPlugin:
         )
         QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
 
+        # Add menu action for logout
+        self.logout_action = QAction(self.tr("Logout"), self.win)
+        self.logout_action.triggered.connect(self.on_logout)
+        self.iface.addPluginToMenu(PLUGIN_NAME, self.logout_action)
+
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
@@ -131,7 +184,9 @@ class KumoyPlugin:
     def unload(self):
         close_all_processing_dialogs()
 
-        # Remove menu action
+        # Remove menu actions
+        if self.logout_action:
+            self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
