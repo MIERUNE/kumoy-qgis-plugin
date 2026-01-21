@@ -252,9 +252,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         if upload_vector_count > plan_limits.maxVectors:
             raise QgsProcessingException(
                 self.tr(
-                    "Cannot upload vector {}. Your plan allows up to {} vectors per project, "
+                    "Cannot upload vector. Your plan allows up to {} vectors per project, "
                     "but you already have {} vectors."
-                ).format(vector_name, plan_limits.maxVectors, upload_vector_count)
+                ).format(plan_limits.maxVectors, upload_vector_count)
             )
 
         return project_id, vector_name, plan_limits
@@ -298,11 +298,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if layer_feature_count > plan_limits.maxVectorFeatures:
                 raise QgsProcessingException(
                     self.tr(
-                        "Cannot upload vector {}. The layer has {} features, "
+                        "Cannot upload vector. The layer has {} features, "
                         "but your plan allows up to {} features per vector."
-                    ).format(
-                        vector_name, layer_feature_count, plan_limits.maxVectorFeatures
-                    )
+                    ).format(layer_feature_count, plan_limits.maxVectorFeatures)
                 )
 
             self._raise_if_canceled(feedback)
@@ -330,9 +328,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if fields_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
                     self.tr(
-                        "Cannot upload vector {}. The layer has {} attributes, "
+                        "Cannot upload vector. The layer has {} attributes, "
                         "but your plan allows up to {} attributes per vector."
-                    ).format(vector_name, fields_count, plan_limits.maxVectorAttributes)
+                    ).format(fields_count, plan_limits.maxVectorAttributes)
                 )
 
             self._raise_if_canceled(feedback)
@@ -357,11 +355,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if proc_feature_count > plan_limits.maxVectorFeatures:
                 raise QgsProcessingException(
                     self.tr(
-                        "Cannot upload vector {}. The layer has {} features, "
+                        "Cannot upload vector. The layer has {} features, "
                         "but your plan allows up to {} features per vector."
-                    ).format(
-                        vector_name, proc_feature_count, plan_limits.maxVectorFeatures
-                    )
+                    ).format(proc_feature_count, plan_limits.maxVectorFeatures)
                 )
 
             # Create attribute dictionary

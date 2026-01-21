@@ -572,15 +572,18 @@ class StyledMapRoot(QgsDataItem):
                     None,
                     self.tr("Convert Local Layers to Kumoy Layers"),
                     self.tr(
-                        "There are {} local vector layers in the current project. "
+                        "There are {} local vector layers in the current project.\n"
                         "Do you want to convert them to Kumoy layers?"
                     ).format(len(local_layers)),
                     Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
                     Q_MESSAGEBOX_STD_BUTTON.Yes,
                 )
                 if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+                    conversion_errors = []  # Store failed conversions
                     for layer in local_layers:
-                        self._convert_to_kumoy(layer)
+                        success, error = self._convert_to_kumoy(layer)
+                        if not success:
+                            conversion_errors.append((layer.name(), error))
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -603,10 +606,31 @@ class StyledMapRoot(QgsDataItem):
             QgsProject.instance().setTitle(new_styled_map.name)
             self.refresh()
 
-            iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("Map '{}' has been created successfully.").format(name),
-            )
+            # Show success message with conversion errors summary if any
+            if (
+                local_layers
+                and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
+                and conversion_errors
+            ):
+                error_details = "\n".join(
+                    [
+                        f"• {layer_name}\n{error}\n"
+                        for layer_name, error in conversion_errors
+                    ]
+                )
+                QMessageBox.warning(
+                    None,
+                    self.tr("Map Created with Warnings"),
+                    self.tr(
+                        "Map '{}' has been created successfully.\n\n"
+                        "Warning: the following layers could not be converted:\n\n{}"
+                    ).format(name, error_details),
+                )
+            else:
+                iface.messageBar().pushSuccess(
+                    self.tr("Success"),
+                    self.tr("Map '{}' has been created successfully.").format(name),
+                )
             QgsProject.instance().setDirty(False)
         except Exception as e:
             error_text = format_api_error(e)
@@ -704,16 +728,15 @@ class StyledMapRoot(QgsDataItem):
         return local_layers
 
     def _convert_to_kumoy(self, layer):
-        """Convert a vector layer to Kumoy"""
+        """Convert a vector layer to Kumoy
+
+        Returns:
+            tuple: (success: bool, error_message: str or None)
+        """
 
         # Validate layer before proceeding
         if not layer or not layer.isValid():
-            QMessageBox.warning(
-                None,
-                self.tr("Invalid Layer"),
-                self.tr("The selected layer is no longer valid or has been removed."),
-            )
-            return
+            return (False, self.tr("The layer is no longer valid or has been removed."))
 
         progress_dialog = None
 
@@ -858,18 +881,17 @@ class StyledMapRoot(QgsDataItem):
                     self.tr("Failed to create Kumoy layer: {}").format(error_msg)
                 )
 
+            # Success
+            return (True, None)
+
         except Exception as e:
             if progress_dialog:
                 progress_dialog.close()
 
+            error_msg = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error converting layer: {str(e)}",
+                f"Error converting layer: {error_msg}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
-            iface.messageBar().pushMessage(
-                constants.PLUGIN_NAME,
-                self.tr("Error: {}").format(format_api_error(e)),
-                level=Qgis.Critical,
-                duration=0,
-            )
+            return (False, error_msg)
