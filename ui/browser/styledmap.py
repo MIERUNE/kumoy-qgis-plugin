@@ -6,10 +6,10 @@ from qgis.core import (
     Qgis,
     QgsDataItem,
     QgsMessageLog,
-    QgsProject,
-    QgsVectorLayer,
     QgsProcessingContext,
     QgsProcessingFeedback,
+    QgsProject,
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
@@ -24,6 +24,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 from qgis.utils import iface
+
 import processing
 
 from ...kumoy import api, constants, local_cache
@@ -259,12 +260,58 @@ class StyledMapItem(QgsDataItem):
         )
 
     def apply_qgisproject_to_styledmap(self):
+        # 確認ダイアログ
+        confirm = QMessageBox.question(
+            None,
+            self.tr("Save Map"),
+            self.tr(
+                "Are you sure you want to overwrite the map '{}' with the current project state?"
+            ).format(self.styled_map.name),
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
+        )
+        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+            return
+
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        # Use QGIS standard save - handle_project_saved will handle API upload
-        iface.actionSaveProject().trigger()
+        try:
+            new_qgisproject = write_qgsfile(self.styled_map.id)
+
+            # Overwrite styled map
+            updated_styled_map = api.styledmap.update_styled_map(
+                self.styled_map.id,
+                api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=new_qgisproject,
+                ),
+            )
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                self.tr("Error saving map: {}").format(error_text),
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error saving map: {}").format(error_text),
+            )
+            return
+
+        # Itemを更新
+        self.styled_map = updated_styled_map
+        self.setName(updated_styled_map.name)
+        self.refresh()
+
+        iface.messageBar().pushSuccess(
+            self.tr("Success"),
+            self.tr("Map '{}' has been saved successfully.").format(
+                self.styled_map.name
+            ),
+        )
 
     def delete_styled_map(self):
         # 削除確認
