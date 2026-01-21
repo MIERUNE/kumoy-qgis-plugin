@@ -25,6 +25,7 @@ from qgis.PyQt.QtCore import (
     pyqtSignal,
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
+from qgis.utils import iface
 
 from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
@@ -197,6 +198,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
             self.tr("Cancel"),
             0,
             0,
+            iface.mainWindow(),  # Parent to center on QGIS window
         )
         progress.setWindowTitle(self.tr("Data Sync"))
         progress.setWindowModality(QT_APPLICATION_MODAL)
