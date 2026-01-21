@@ -608,7 +608,8 @@ class StyledMapRoot(QgsDataItem):
                 {"kumoy_map_id": new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
-            self.refresh()
+            # reload browser panel
+            self.parent().refresh()
 
             # Show success message with conversion errors summary if any
             if (
