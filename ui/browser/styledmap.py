@@ -474,14 +474,20 @@ class StyledMapRoot(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        # Check if any layer is in editing mode
-        if self._layer_is_editing():
-            QMessageBox.warning(
-                None,
-                self.tr("Cannot Add Map"),
-                self.tr("Please save or discard your layer edits before saving map."),
-            )
-            return
+        # Find local layers in current QGIS project
+        local_layers = self._get_local_vector_layers()
+
+        # Check if any local layer has unsaved edits
+        for layer in local_layers:
+            if isinstance(layer, QgsVectorLayer) and layer.isModified():
+                QMessageBox.warning(
+                    None,
+                    self.tr("Cannot Add Map"),
+                    self.tr(
+                        "Please save or discard your local layer edits before saving map."
+                    ),
+                )
+                return
 
         try:
             # Check plan limits before creating styled map
@@ -564,9 +570,7 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            # Find local layers in current QGIS project
-            local_layers = self._get_local_vector_layers()
-
+            # Convert local layers to Kumoy layers
             if local_layers:
                 convert_confirm = QMessageBox.question(
                     None,
@@ -700,13 +704,6 @@ class StyledMapRoot(QgsDataItem):
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
             )
-
-    def _layer_is_editing(self):
-        """Check if any layer in current QGIS project is in editing mode"""
-        for layer in QgsProject.instance().mapLayers().values():
-            if isinstance(layer, QgsVectorLayer) and layer.isModified():
-                return True
-        return False
 
     def _get_local_vector_layers(self):
         """Get all local vector layers in current QGIS project"""
