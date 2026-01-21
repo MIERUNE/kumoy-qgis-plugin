@@ -1,15 +1,12 @@
 from typing import Any, Dict, Optional, Set
 
 from qgis.core import (
-    Qgis,
     QgsCoordinateReferenceSystem,
-    QgsMessageLog,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
-    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterField,
     QgsProcessingParameterString,
@@ -18,16 +15,14 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.utils import iface
 
 import processing
 
 from ...kumoy import api, constants
-from ...kumoy.api.error import format_api_error
-from ...kumoy.get_token import get_token
 from ...sentry import capture_exception
 from ...settings_manager import get_settings
 from .normalize_field_name import normalize_field_name
+from .project_widget_wrapper import ProjectWidgetWrapper
 
 
 class _UserCanceled(Exception):
@@ -94,8 +89,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
-    project_map: Dict[str, str] = {}
-
     def tr(self, string: str) -> str:
         """Translate string"""
         return QCoreApplication.translate("UploadVectorAlgorithm", string)
@@ -128,9 +121,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         """Initialize algorithm parameters"""
-        project_options = []
-        self.project_map = {}
-
         # Input vector layer
         self.addParameter(
             QgsProcessingParameterVectorLayer(
@@ -140,54 +130,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        try:
-            if get_token() is None:
-                # 未ログイン
-                return
-
-            # Get all organizations first
-            organizations = api.organization.get_organizations()
-            project_options = []
-            project_ids = []
-
-            # Get projects for each organization
-            for org in organizations:
-                projects = api.project.get_projects_by_organization(org.id)
-                for project in projects:
-                    project_options.append(f"{org.name} / {project.name}")
-                    project_ids.append(project.id)
-
-        except Exception as e:
-            msg = self.tr("Error Initializing Processing: {}").format(
-                format_api_error(e)
-            )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            iface.messageBar().pushMessage(
-                constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
-            )
-            return
-
-        self.project_map = dict(zip(project_options, project_ids))
-        default_project_index = 0
-        selected_project_id = get_settings().selected_project_id
-        if selected_project_id and self.project_map:
-            # Find the index for the selected project ID
-            for idx, (_, pid) in enumerate(self.project_map.items()):
-                if pid == selected_project_id:
-                    default_project_index = idx
-                    break
-
-        # Project selection
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                self.KUMOY_PROJECT,
-                self.tr("Destination project"),
-                options=project_options,
-                allowMultiple=False,
-                optional=False,
-                defaultValue=default_project_index,
-            )
+        # Project selection with custom widget wrapper
+        # The widget wrapper handles project list fetching and displays
+        # project names while storing project IDs as values
+        default_project_id = get_settings().selected_project_id or ""
+        project_param = QgsProcessingParameterString(
+            self.KUMOY_PROJECT,
+            self.tr("Destination project"),
+            defaultValue=default_project_id,
+            optional=False,
         )
+        project_param.setMetadata({"widget_wrapper": {"class": ProjectWidgetWrapper}})
+        self.addParameter(project_param)
 
         # Field selection
         self.addParameter(
@@ -231,10 +185,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         layer: QgsVectorLayer,
     ):
         """Get project information and validate limits"""
-        # Get project ID
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        project_options = list(self.project_map.keys())
-        project_id = self.project_map[project_options[project_index]]
+        # Get project ID directly from the string parameter
+        project_id = self.parameterAsString(parameters, self.KUMOY_PROJECT, context)
+        if not project_id:
+            raise QgsProcessingException(self.tr("No project selected"))
 
         # Get vector name
         vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
@@ -248,13 +202,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Check vector count limit
         current_vectors = api.vector.get_vectors(project_id)
-        upload_vector_count = len(current_vectors) + 1
-        if upload_vector_count > plan_limits.maxVectors:
+        current_vector_count = len(current_vectors)
+        if current_vector_count >= plan_limits.maxVectors:
             raise QgsProcessingException(
                 self.tr(
                     "Cannot upload vector. Your plan allows up to {} vectors per project, "
                     "but you already have {} vectors."
-                ).format(plan_limits.maxVectors, upload_vector_count)
+                ).format(plan_limits.maxVectors, current_vector_count)
             )
 
         return project_id, vector_name, plan_limits
@@ -425,8 +379,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "attr_dict": attr_dict if "attr_dict" in locals() else "",
                     },
                 )
-                # Re-raise the original exception
-                raise e
+                raise
             else:
                 return {}
 
