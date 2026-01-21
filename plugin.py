@@ -36,10 +36,7 @@ class KumoyPlugin:
 
         registry = QgsProviderRegistry.instance()
         metadata = KumoyProviderMetadata()
-        # FIXME: It is not possible to remove unregister a provider
-        # Is it the correct approach?
-        # assert registry.registerProvider(metadata)
-        registry.registerProvider(metadata)
+        registry.registerProvider(metadata)  # needs reopen QGIS to unregister
 
         # Initialize processing provider
         self.processing_provider = None
@@ -182,8 +179,6 @@ class KumoyPlugin:
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
     def unload(self):
-        close_all_processing_dialogs()
-
         # Remove menu actions
         if self.logout_action:
             self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
@@ -197,6 +192,7 @@ class KumoyPlugin:
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 
         # Unregister processing provider
+        close_all_processing_dialogs()
         if self.processing_provider:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
