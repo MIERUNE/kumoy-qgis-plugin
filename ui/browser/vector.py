@@ -104,6 +104,11 @@ class VectorItem(QgsDataItem):
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
+        # Clear cache action
+        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+        clear_cache_action.triggered.connect(self.clear_cache)
+        actions.append(clear_cache_action)
+
         if self.role in ["ADMIN", "OWNER"]:
             # Edit vector action
             edit_action = QAction(self.tr("Edit Vector"), parent)
@@ -114,16 +119,6 @@ class VectorItem(QgsDataItem):
             delete_action = QAction(self.tr("Delete Vector"), parent)
             delete_action.triggered.connect(self.delete_vector)
             actions.append(delete_action)
-
-        # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_cache)
-        actions.append(clear_cache_action)
-
-        # Refresh action
-        refresh_action = QAction(self.tr("Refresh"), parent)
-        refresh_action.triggered.connect(self.refresh)
-        actions.append(refresh_action)
 
         return actions
 

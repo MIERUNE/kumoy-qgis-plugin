@@ -12,9 +12,8 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...processing.close_all_processing_dialogs import close_all_processing_dialogs
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
-from ...settings_manager import get_settings, store_setting
+from ...settings_manager import get_settings
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
@@ -118,11 +117,7 @@ class RootCollection(QgsDataCollectionItem):
         account_action = QAction(self.tr("Account"), parent)
         account_action.triggered.connect(self.account_settings)
 
-        # Logout action
-        logout_action = QAction(self.tr("Logout"), parent)
-        logout_action.triggered.connect(self.logout)
-
-        return [select_project_action, refresh_action, account_action, logout_action]
+        return [select_project_action, refresh_action, account_action]
 
     def refresh(self):
         """Refresh the children of the root collection
@@ -257,44 +252,3 @@ class RootCollection(QgsDataCollectionItem):
         children.append(styled_map_root)
 
         return children
-
-    def logout(self):
-        """Logout from Kumoy"""
-        if QgsProject.instance().isDirty():
-            confirmed = QMessageBox.question(
-                None,
-                self.tr("Logout"),
-                self.tr(
-                    "You have unsaved changes. "
-                    "Logging out will clear your current project. Continue?"
-                ),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.No,
-            )
-
-            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
-                return
-
-        QgsProject.instance().clear()
-
-        close_all_processing_dialogs()
-
-        # Clear stored settings
-        store_setting("id_token", "")
-        store_setting("refresh_token", "")
-        store_setting("user_info", "")
-        store_setting("selected_project_id", "")
-        store_setting("selected_organization_id", "")
-
-        QgsMessageLog.logMessage(
-            "Logged out via browser root", constants.LOG_CATEGORY, Qgis.Info
-        )
-        QMessageBox.information(
-            None,
-            self.tr("Logout"),
-            self.tr("You have been logged out from Kumoy."),
-        )
-
-        # Reset browser name
-        self.setName(constants.PLUGIN_NAME)
-        self.refresh()

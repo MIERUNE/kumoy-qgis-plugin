@@ -71,6 +71,17 @@ class StyledMapItem(QgsDataItem):
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
+        if self.styled_map.isPublic:
+            # 公開マップの場合、公開ページを開くアクション
+            open_public_action = QAction(self.tr("Open Public Page"), parent)
+            open_public_action.triggered.connect(self.open_public_page)
+            actions.append(open_public_action)
+
+        # Clear map cache action
+        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+        clear_cache_action.triggered.connect(self.clear_map_cache)
+        actions.append(clear_cache_action)
+
         if self.role in ["ADMIN", "OWNER"]:
             # スタイルマップ上書き保存アクション
             save_action = QAction(self.tr("Overwrite with current state"), parent)
@@ -82,21 +93,10 @@ class StyledMapItem(QgsDataItem):
             edit_action.triggered.connect(self.update_metadata_styled_map)
             actions.append(edit_action)
 
-            # Clear map cache action
-            clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
-            clear_cache_action.triggered.connect(self.clear_map_cache)
-            actions.append(clear_cache_action)
-
             # スタイルマップ削除アクション
             delete_action = QAction(self.tr("Delete"), parent)
             delete_action.triggered.connect(self.delete_styled_map)
             actions.append(delete_action)
-
-        if self.styled_map.isPublic:
-            # 公開マップの場合、公開ページを開くアクション
-            open_public_action = QAction(self.tr("Open Public Page"), parent)
-            open_public_action.triggered.connect(self.open_public_page)
-            actions.append(open_public_action)
 
         return actions
 
@@ -253,58 +253,12 @@ class StyledMapItem(QgsDataItem):
         )
 
     def apply_qgisproject_to_styledmap(self):
-        # 確認ダイアログ
-        confirm = QMessageBox.question(
-            None,
-            self.tr("Save Map"),
-            self.tr(
-                "Are you sure you want to overwrite the map '{}' with the current project state?"
-            ).format(self.styled_map.name),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
-        )
-        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-            return
-
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        try:
-            new_qgisproject = write_qgsfile(self.styled_map.id)
-
-            # Overwrite styled map
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
-            )
-        except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error saving map: {}").format(error_text),
-            )
-            return
-
-        # Itemを更新
-        self.styled_map = updated_styled_map
-        self.setName(updated_styled_map.name)
-        self.refresh()
-
-        iface.messageBar().pushSuccess(
-            self.tr("Success"),
-            self.tr("Map '{}' has been saved successfully.").format(
-                self.styled_map.name
-            ),
-        )
+        # Use QGIS standard save - handle_project_saved will handle API upload
+        iface.actionSaveProject().trigger()
 
     def delete_styled_map(self):
         # 削除確認
