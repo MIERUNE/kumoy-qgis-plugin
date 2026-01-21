@@ -13,7 +13,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
-from ..processing.closeAllProcessingDialogs import closeAllProcessingDialogs
+from ..processing.close_all_processing_dialogs import close_all_processing_dialogs
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -225,7 +225,7 @@ class DialogAccount(QDialog):
 
         QgsProject.instance().clear()
 
-        closeAllProcessingDialogs()
+        close_all_processing_dialogs()
 
         store_setting("id_token", "")
         store_setting("refresh_token", "")

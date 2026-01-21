@@ -5,7 +5,7 @@ from processing.gui.AlgorithmDialog import AlgorithmDialog
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
 
-def closeAllProcessingDialogs():
+def close_all_processing_dialogs():
     """Close all open dialogs related to the plugin"""
     for widget in QApplication.topLevelWidgets():
         if isinstance(widget, AlgorithmDialog):
