@@ -21,7 +21,7 @@ from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
 from .settings_manager import reset_settings, store_setting
 from .ui.browser.root import DataItemProvider
-from .ui.layer_indicators import update_kumoy_indicator
+from .ui.layers.indicators import update_kumoy_indicator
 
 
 class KumoyPlugin:
