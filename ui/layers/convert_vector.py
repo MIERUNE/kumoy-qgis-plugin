@@ -53,7 +53,7 @@ def on_convert_to_kumoy_clicked(layer):
     if success:
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
-            tr("Layer '{}' converted to Kumoy successfully!").format(layer_name),
+            tr("Layer '{}' converted to Kumoy successfully.").format(layer_name),
             level=Qgis.Success,
             duration=5,
         )

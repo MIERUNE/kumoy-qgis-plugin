@@ -67,7 +67,7 @@ class KumoyPlugin:
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate(PLUGIN_NAME, message)
+        return QCoreApplication.translate("KumoyPlugin", message)
 
     def on_reset_settings(self):
         """Handle reset settings action"""
