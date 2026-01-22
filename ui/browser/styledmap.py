@@ -624,13 +624,18 @@ class StyledMapRoot(QgsDataItem):
                         for layer_name, error in conversion_errors
                     ]
                 )
+                # Limit error details length
+                msg_max_length = 500
+                if len(error_details) > msg_max_length:
+                    error_details = error_details[:msg_max_length] + "..."
+
                 QMessageBox.warning(
                     None,
                     self.tr("Map Created with Warnings"),
                     self.tr(
                         "Map '{}' has been created successfully.\n\n"
-                        "Warning: the following layers could not be converted:\n\n{}"
-                    ).format(name, error_details),
+                        "Warning: {} layers could not be converted:\n\n{}"
+                    ).format(name, len(conversion_errors), error_details),
                 )
             else:
                 iface.messageBar().pushSuccess(
