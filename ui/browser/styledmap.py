@@ -626,7 +626,7 @@ class StyledMapRoot(QgsDataItem):
                     ]
                 )
                 # Limit error details length
-                msg_max_length = 500
+                msg_max_length = 1000
                 if len(error_details) > msg_max_length:
                     error_details = error_details[:msg_max_length] + "..."
 

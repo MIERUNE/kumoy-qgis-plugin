@@ -1,18 +1,21 @@
 import os
+from functools import partial
 
 from qgis.core import (
     Qgis,
     QgsApplication,
+    QgsLayerTreeLayer,
     QgsMessageLog,
     QgsProject,
     QgsProviderRegistry,
+    QgsVectorLayer,
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
-from .kumoy.constants import PLUGIN_NAME
+from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
@@ -21,6 +24,8 @@ from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
 from .settings_manager import reset_settings, store_setting
 from .ui.browser.root import DataItemProvider
+from .ui.icons import MAIN_ICON
+from .ui.layers.convert_vector import convert_layer_to_kumoy
 from .ui.layers.indicators import update_kumoy_indicator
 
 
@@ -40,6 +45,8 @@ class KumoyPlugin:
 
         # Initialize processing provider
         self.processing_provider = None
+
+        self.convert_action = None
 
         # Initialize menu actions
         self.reset_plugin_settings = None
@@ -148,6 +155,30 @@ class KumoyPlugin:
         self.dip = DataItemProvider()
         registry.addProvider(self.dip)
 
+    def show_layer_context_menu(self, menu: QMenu):
+        """Add custom action to layer context menu"""
+        # Get the current layer from the layer tree view
+        layer_tree_view = self.iface.layerTreeView()
+        current_node = layer_tree_view.currentNode()
+
+        if not isinstance(current_node, QgsLayerTreeLayer):
+            return
+
+        layer = current_node.layer()
+
+        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
+            return
+
+        provider = layer.dataProvider()
+        if not provider or provider.name() == DATA_PROVIDER_KEY:
+            return
+
+        # Create and add convert action
+        action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
+        action.triggered.connect(partial(convert_layer_to_kumoy, layer))
+        menu.addSeparator()
+        menu.addAction(action)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -155,6 +186,11 @@ class KumoyPlugin:
         # Register processing provider
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
+
+        # Connect to layer tree context menu
+        self.iface.layerTreeView().contextMenuAboutToShow.connect(
+            self.show_layer_context_menu
+        )
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -209,6 +245,9 @@ class KumoyPlugin:
 
         # Disconnect signals
         try:
+            self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
+                self.show_layer_context_menu
+            )
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
