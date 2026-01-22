@@ -69,18 +69,21 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
     attr_dict = {}
     for field in valid_fields_layer.fields():
         # Map QGIS field types to our supported types
-        field_type = "string"  # Default to string
-        if (
-            field.type() == QVariant.Int or field.type() == QVariant.LongLong
-        ):  # LongLong is for 64-bit integers
+        if field.type() == QVariant.String:
+            field_type = "string"
+        elif field.type() in (QVariant.Int, QVariant.LongLong):
             field_type = "integer"
         elif field.type() == QVariant.Double:
             field_type = "float"
         elif field.type() == QVariant.Bool:
             field_type = "boolean"
+        else:
+            # 事前に正規化されているのでここには来ないはず
+            raise QgsProcessingException(
+                f"Unexpected field type for field '{field.name()}': {field.type()}"
+            )
 
-        column_name = field.name()
-        attr_dict[column_name] = field_type
+        attr_dict[field.name()] = field_type
 
     return attr_dict
 
@@ -335,14 +338,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             self._raise_if_canceled(feedback)
 
+            # Normalize field types first (convert JSON types to string)
+            normalized_layer = self._normalize_field_types(layer, context, feedback)
+            self._raise_if_canceled(feedback)
+
             field_mapping = self._build_field_mapping(
-                layer,
+                normalized_layer,
                 feedback,
                 selected_fields if selected_fields else None,
             )
 
             processed_layer = self._process_layer_geometry(
-                layer,
+                normalized_layer,
                 field_mapping,
                 context,
                 feedback,
@@ -603,20 +610,19 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
                 continue
 
+            # 事前に正規化されているのでサポート型のみのはず
             if field.type() not in [
                 QVariant.String,
                 QVariant.Int,
-                QVariant.LongLong,  # LongLong is for 64-bit integers
+                QVariant.LongLong,
                 QVariant.Double,
                 QVariant.Bool,
             ]:
-                feedback.pushInfo(
-                    self.tr(
-                        "Unsupported field type for field '{}'. "
-                        "Only string, integer, float, and boolean fields are supported."
-                    ).format(field.name())
+                raise QgsProcessingException(
+                    self.tr("Unexpected field type for field '{}': {}").format(
+                        field.name(), field.type()
+                    )
                 )
-                continue
 
             current_names = [
                 m["name"] for m in mapping.values()
@@ -662,6 +668,75 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) = '{allowed_type}'"
+
+    def _normalize_field_types(
+        self,
+        layer: QgsVectorLayer,
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> QgsVectorLayer:
+        """Normalize all field types to supported types (string/integer/float/boolean).
+
+        Non-supported types (QVariant.Map, QVariant.List, etc.) are converted to string.
+        """
+        SUPPORTED_TYPES = [
+            QVariant.String,
+            QVariant.Int,
+            QVariant.LongLong,
+            QVariant.Double,
+            QVariant.Bool,
+        ]
+
+        mapping_list = []
+        needs_conversion = False
+
+        for field in layer.fields():
+            # QgsField.type() does not distinguish between String and JSON,
+            # so we also check typeName() for JSON fields (e.g., GeoJSON data)
+            is_json = field.typeName().upper() == "JSON"
+            is_supported = field.type() in SUPPORTED_TYPES and not is_json
+
+            if is_supported:
+                # Supported type - keep as is
+                expression = f'"{field.name()}"'
+                field_type = field.type()
+                length = field.length()
+                precision = field.precision()
+            else:
+                # Non-supported type (JSON, Map, List, etc.) - convert to JSON string
+                expression = f'to_json("{field.name()}")'
+                field_type = QVariant.String
+                length = 0
+                precision = 0
+                needs_conversion = True
+                feedback.pushInfo(
+                    self.tr("Converting field '{}' to string type").format(field.name())
+                )
+
+            mapping_list.append(
+                {
+                    "expression": expression,
+                    "length": length,
+                    "name": field.name(),
+                    "precision": precision,
+                    "type": field_type,
+                }
+            )
+
+        if not needs_conversion:
+            # No conversion needed, return original layer
+            return layer
+
+        return self._run_child_algorithm(
+            "native:refactorfields",
+            {
+                "INPUT": layer,
+                "FIELDS_MAPPING": mapping_list,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context,
+            feedback,
+        )
 
     def _run_child_algorithm(
         self,
