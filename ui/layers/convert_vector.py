@@ -60,6 +60,12 @@ def convert_to_kumoy(layer, project):
         progress_dialog.setValue(10)
         progress_dialog.show()
 
+        # Issue #356: ensure dialog is drawn properly on Windows
+        progress_dialog.repaint()
+        QCoreApplication.processEvents()
+        progress_dialog.repaint()
+        QCoreApplication.processEvents()
+
         # Create processing context and feedback
         context = QgsProcessingContext()
         feedback = QgsProcessingFeedback()
