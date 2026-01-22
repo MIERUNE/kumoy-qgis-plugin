@@ -756,7 +756,7 @@ class StyledMapRoot(QgsDataItem):
             progress_dialog.setValue(10)
             progress_dialog.show()
 
-            # Windows fix: ensure dialog is drawn properly
+            # Issue #356: ensure dialog is drawn properly on Windows
             progress_dialog.repaint()
             QCoreApplication.processEvents()
             progress_dialog.repaint()
