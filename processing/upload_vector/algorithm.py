@@ -14,7 +14,6 @@ from qgis.core import (
     QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
-    QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -348,8 +347,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
                 selected_fields if selected_fields else None,
             )
-
-            QgsProject.instance().addMapLayer(normalized_layer)
 
             processed_layer = self._process_layer_geometry(
                 normalized_layer,
