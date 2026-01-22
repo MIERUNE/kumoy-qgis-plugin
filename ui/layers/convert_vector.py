@@ -17,22 +17,56 @@ import processing
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...kumoy.local_cache.map import write_qgsfile
 from ...pyqt_version import (
-    Q_MESSAGEBOX_STD_BUTTON,
     QT_APPLICATION_MODAL,
 )
 from ...settings_manager import get_settings
-from ..icons import BROWSER_MAP_ICON
 
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def convert_to_kumoy(layer, project):
-    """Convert a vector layer to Kumoy
+def on_convert_to_kumoy_clicked(layer):
+    # Validate layer before proceeding
+    if not layer or not layer.isValid():
+        QMessageBox.warning(
+            None,
+            tr("Invalid Layer"),
+            tr("The selected layer is no longer valid or has been removed."),
+        )
+        return
 
+    layer_name = layer.name()
+    project_id = get_settings().selected_project_id
+
+    if not project_id:
+        QMessageBox.warning(
+            None,
+            tr("No Project Selected"),
+            tr("Please select a Kumoy project before converting a layer."),
+        )
+        return
+
+    success, error = convert_to_kumoy(layer, project_id)
+
+    if success:
+        iface.messageBar().pushMessage(
+            constants.PLUGIN_NAME,
+            tr("Layer '{}' converted to Kumoy successfully!").format(layer_name),
+            level=Qgis.Success,
+            duration=5,
+        )
+    else:
+        QMessageBox.warning(
+            None,
+            tr("Conversion Failed"),
+            tr("Failed to convert layer '{}' to Kumoy:\n{}").format(layer_name, error),
+        )
+
+
+def convert_to_kumoy(layer, project_id):
+    """Convert a vector layer to Kumoy
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
@@ -54,7 +88,7 @@ def convert_to_kumoy(layer, project):
             100,
             iface.mainWindow(),
         )
-        progress_dialog.setWindowTitle(tr("BBKumoy Upload"))
+        progress_dialog.setWindowTitle(tr("Kumoy Upload"))
         progress_dialog.setWindowModality(QT_APPLICATION_MODAL)
         progress_dialog.setMinimumDuration(0)
         progress_dialog.setValue(10)
@@ -91,7 +125,7 @@ def convert_to_kumoy(layer, project):
         # Find the index of current project
         project_index = None
         for idx, proj in enumerate(all_projects):
-            if proj.id == project.id:
+            if proj.id == project_id:
                 project_index = idx
                 break
 

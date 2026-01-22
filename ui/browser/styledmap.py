@@ -6,8 +6,6 @@ from qgis.core import (
     Qgis,
     QgsDataItem,
     QgsMessageLog,
-    QgsProcessingContext,
-    QgsProcessingFeedback,
     QgsProject,
     QgsVectorLayer,
 )
@@ -20,19 +18,15 @@ from qgis.PyQt.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QMessageBox,
-    QProgressDialog,
     QVBoxLayout,
 )
 from qgis.utils import iface
-
-import processing
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import write_qgsfile
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
-    QT_APPLICATION_MODAL,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     exec_dialog,
@@ -587,7 +581,7 @@ class StyledMapRoot(QgsDataItem):
                 if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
                     conversion_errors = []  # Store failed conversions
                     for layer in local_layers:
-                        success, error = convert_to_kumoy(layer, self.project)
+                        success, error = convert_to_kumoy(layer, self.project.id)
                         if not success:
                             conversion_errors.append((layer.name(), error))
 

@@ -25,7 +25,7 @@ from .sentry import init_sentry
 from .settings_manager import reset_settings, store_setting
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
-from .ui.layers.convert_vector import convert_layer_to_kumoy
+from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
 from .ui.layers.indicators import update_kumoy_indicator
 
 
@@ -175,7 +175,7 @@ class KumoyPlugin:
 
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-        action.triggered.connect(partial(convert_layer_to_kumoy, layer))
+        action.triggered.connect(partial(on_convert_to_kumoy_clicked, layer))
         menu.addSeparator()
         menu.addAction(action)
 
