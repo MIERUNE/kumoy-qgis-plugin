@@ -1,3 +1,6 @@
+import processing
+from typing import Optional
+
 from qgis.core import (
     Qgis,
     QgsMessageLog,
@@ -13,8 +16,6 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-import processing
-
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (
@@ -27,7 +28,7 @@ def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def on_convert_to_kumoy_clicked(layer):
+def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
     # Validate layer before proceeding
     if not layer or not layer.isValid():
         QMessageBox.warning(
@@ -65,7 +66,9 @@ def on_convert_to_kumoy_clicked(layer):
         )
 
 
-def convert_to_kumoy(layer, project_id):
+def convert_to_kumoy(
+    layer: QgsVectorLayer, project_id: str
+) -> tuple[bool, Optional[str]]:
     """Convert a vector layer to Kumoy
     Returns:
         tuple: (success: bool, error_message: str or None)
