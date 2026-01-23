@@ -2,8 +2,8 @@ from qgis.core import QgsProject
 from qgis.gui import QgsLayerTreeViewIndicator
 from qgis.utils import iface
 
-from ..kumoy.constants import DATA_PROVIDER_KEY
-from .icons import MAIN_ICON
+from ...kumoy.constants import DATA_PROVIDER_KEY
+from ..icons import MAIN_ICON
 
 
 def update_kumoy_indicator():
