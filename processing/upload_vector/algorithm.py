@@ -789,7 +789,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self._raise_if_canceled(feedback)
 
             if len(cur_features) >= batch_size:
-                api.qgis_vector.add_features(vector_id, cur_features)
+                self._add_features_batch(vector_id, cur_features)
 
                 accumulated_features += len(cur_features)
                 feedback.pushInfo(
@@ -808,7 +808,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Upload remaining features
         if cur_features:
-            api.qgis_vector.add_features(vector_id, cur_features)
+            self._add_features_batch(vector_id, cur_features)
             accumulated_features += len(cur_features)
             feedback.pushInfo(
                 self.tr("Upload complete: {} / {} features").format(
@@ -817,3 +817,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
         return feedback.isCanceled()
+
+    def _add_features_batch(self, vector_id: str, features: list) -> None:
+        try:
+            api.qgis_vector.add_features(vector_id, features)
+        except api.qgis_vector.WkbTooLargeError as e:
+            raise QgsProcessingException(
+                self.tr(
+                    "Cannot upload feature: geometry is too large. "
+                    "Please simplify the geometry or split it into smaller parts. "
+                    "Details: {}"
+                ).format(str(e))
+            )

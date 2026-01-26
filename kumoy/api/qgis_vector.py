@@ -2,9 +2,14 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
+from .. import constants
 from .client import ApiClient
+
+
+def tr(message: str) -> str:
+    return QCoreApplication.translate("@default", message)
 
 
 def get_features(
@@ -37,6 +42,12 @@ def get_features(
     return response
 
 
+class WkbTooLargeError(Exception):
+    """Raised when a feature's WKB exceeds the maximum allowed length."""
+
+    pass
+
+
 def add_features(
     vector_id: str,
     features: List[QgsFeature],
@@ -44,13 +55,21 @@ def add_features(
     """
     Add features to a vector layer
     """
-    _features = [
-        {
-            "kumoy_wkb": base64.b64encode(f.geometry().asWkb()).decode("utf-8"),
-            "properties": dict(zip(f.fields().names(), f.attributes())),
-        }
-        for f in features
-    ]
+    _features = []
+    for f in features:
+        kumoy_wkb = base64.b64encode(f.geometry().asWkb()).decode("utf-8")
+        if len(kumoy_wkb) > constants.MAX_WKB_LENGTH:
+            raise WkbTooLargeError(
+                tr("Feature geometry exceeds maximum WKB length ({} > {})").format(
+                    f"{len(kumoy_wkb):,}", f"{constants.MAX_WKB_LENGTH:,}"
+                )
+            )
+        _features.append(
+            {
+                "kumoy_wkb": kumoy_wkb,
+                "properties": dict(zip(f.fields().names(), f.attributes())),
+            }
+        )
 
     # rm kumoy_id from properties
     for feature in _features:
