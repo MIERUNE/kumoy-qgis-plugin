@@ -9,7 +9,7 @@ from .client import ApiClient
 
 
 def tr(message: str) -> str:
-    return QCoreApplication.translate("qgis_vector", message)
+    return QCoreApplication.translate("@default", message)
 
 
 def get_features(
