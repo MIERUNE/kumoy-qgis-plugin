@@ -82,6 +82,9 @@ def convert_to_kumoy(
 
     try:
         vector_name = layer.name()
+        # trim name if too long
+        if len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
+            vector_name = vector_name[: constants.MAX_CHARACTERS_VECTOR_NAME]
 
         # Create progress dialog
         progress_dialog = QProgressDialog(
