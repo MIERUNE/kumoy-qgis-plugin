@@ -38,7 +38,12 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
         )
         return
 
-    layer_name = layer.name()
+    layer_trimmed = False
+    vector_name = layer.name()
+    if len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
+        vector_name = vector_name[: constants.MAX_CHARACTERS_VECTOR_NAME]
+        layer_trimmed = True
+
     project_id = get_settings().selected_project_id
 
     if not project_id:
@@ -49,27 +54,41 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
         )
         return
 
-    success, error = convert_to_kumoy(layer, project_id)
+    success, error = convert_to_kumoy(layer, project_id, vector_name)
 
-    if success:
+    if success and not layer_trimmed:
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
-            tr("Layer '{}' converted to Kumoy successfully.").format(layer_name),
+            tr("Layer '{}' converted to Kumoy successfully.").format(vector_name),
             level=Qgis.Success,
             duration=5,
+        )
+    elif success and layer_trimmed:
+        QMessageBox.information(
+            None,
+            tr("Converted with trimmed name"),
+            tr(
+                "Layer has been converted but has its name trimmed to {} characters:\n'{}'."
+            ).format(constants.MAX_CHARACTERS_VECTOR_NAME, vector_name),
         )
     else:
         QMessageBox.warning(
             None,
             tr("Conversion Failed"),
-            tr("Failed to convert layer '{}' to Kumoy:\n{}").format(layer_name, error),
+            tr("Failed to convert layer '{}' to Kumoy:\n{}").format(
+                layer.name(), error
+            ),
         )
 
 
 def convert_to_kumoy(
-    layer: QgsVectorLayer, project_id: str
+    layer: QgsVectorLayer, project_id: str, vector_name: str
 ) -> tuple[bool, Optional[str]]:
     """Convert a vector layer to Kumoy
+    Args:
+        layer: The vector layer to convert
+        project_id: The Kumoy project ID to upload the layer to
+        vector_name: The name to assign to the new Kumoy vector
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
@@ -81,8 +100,6 @@ def convert_to_kumoy(
     progress_dialog = None
 
     try:
-        vector_name = layer.name()
-
         # Create progress dialog
         progress_dialog = QProgressDialog(
             tr("Uploading layer '{}'...").format(vector_name),

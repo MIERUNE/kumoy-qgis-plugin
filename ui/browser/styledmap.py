@@ -579,9 +579,18 @@ class StyledMapRoot(QgsDataItem):
                     Q_MESSAGEBOX_STD_BUTTON.Yes,
                 )
                 if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+                    trimmed_layers = []  # Track if any layer name was trimmed
                     conversion_errors = []  # Store failed conversions
                     for layer in local_layers:
-                        success, error = convert_to_kumoy(layer, self.project.id)
+                        vector_name = layer.name()
+                        if len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
+                            vector_name = vector_name[
+                                : constants.MAX_CHARACTERS_VECTOR_NAME
+                            ]
+                            trimmed_layers.append(layer.name())
+                        success, error = convert_to_kumoy(
+                            layer, self.project.id, vector_name
+                        )
                         if not success:
                             conversion_errors.append((layer.name(), error))
 
@@ -608,30 +617,52 @@ class StyledMapRoot(QgsDataItem):
             self.parent().refresh()
 
             # Show success message with conversion errors summary if any
-            if (
-                local_layers
-                and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
-                and conversion_errors
-            ):
-                error_details = "\n".join(
-                    [
-                        f"• {layer_name}\n{error}\n"
-                        for layer_name, error in conversion_errors
-                    ]
-                )
-                # Limit error details length
-                msg_max_length = 1000
-                if len(error_details) > msg_max_length:
-                    error_details = error_details[:msg_max_length] + "..."
+            if local_layers and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+                if conversion_errors or trimmed_layers:
+                    warning_parts = []
 
-                QMessageBox.warning(
-                    None,
-                    self.tr("Map Created with Warnings"),
-                    self.tr(
-                        "Map '{}' has been created successfully.\n\n"
-                        "Warning: {} layers could not be converted:\n\n{}"
-                    ).format(name, len(conversion_errors), error_details),
-                )
+                    if trimmed_layers:
+                        trimmed_text = self.tr(
+                            "The following {} layer(s) had their name(s) trimmed to {} characters:"
+                        ).format(
+                            len(trimmed_layers), constants.MAX_CHARACTERS_VECTOR_NAME
+                        )
+                        trimmed_text += "\n" + "\n".join(
+                            [f"• {name}" for name in trimmed_layers]
+                        )
+                        warning_parts.append(trimmed_text)
+
+                    if conversion_errors:
+                        error_text = self.tr(
+                            "{} layer(s) could not be converted:"
+                        ).format(len(conversion_errors))
+                        error_text += "\n" + "\n".join(
+                            [
+                                f"• {layer_name}: {error}"
+                                for layer_name, error in conversion_errors
+                            ]
+                        )
+                        warning_parts.append(error_text)
+
+                    warning_details = "\n\n".join(warning_parts)
+
+                    # Limit total message length
+                    msg_max_length = 1000
+                    if len(warning_details) > msg_max_length:
+                        warning_details = warning_details[:msg_max_length] + "..."
+
+                    QMessageBox.warning(
+                        None,
+                        self.tr("Map Created with Warnings"),
+                        self.tr(
+                            "Map '{}' has been created with the following warnings:\n\n{}"
+                        ).format(name, warning_details),
+                    )
+                else:
+                    iface.messageBar().pushSuccess(
+                        self.tr("Success"),
+                        self.tr("Map '{}' has been created successfully.").format(name),
+                    )
             else:
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
