@@ -68,7 +68,7 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
             None,
             tr("Converted with trimmed name"),
             tr(
-                "Layer has been converted but has its name trimmed to {} characters:\n'{}'."
+                "Layer has been converted but has its name trimmed to {} characters:\n{}"
             ).format(constants.MAX_CHARACTERS_VECTOR_NAME, vector_name),
         )
     else:
