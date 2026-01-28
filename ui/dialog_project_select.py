@@ -35,12 +35,14 @@ from ..kumoy.constants import (
 )
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
+    QDIALOG_CODE,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
+    exec_dialog,
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
@@ -679,7 +681,7 @@ class ProjectSelectDialog(QDialog):
             return
 
         new_project_dialog = EditProjectDialog(org.name, self)
-        if new_project_dialog.exec_() != QDialog.Accepted:
+        if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
             return
 
         project_name = new_project_dialog.project_name
@@ -976,7 +978,7 @@ class ProjectItemWidget(QWidget):
         )
         edit_dialog.setWindowTitle(self.tr("Edit Project"))
 
-        if edit_dialog.exec_() != QDialog.Accepted:
+        if exec_dialog(edit_dialog) != QDIALOG_CODE.Accepted:
             return
 
         new_name = edit_dialog.project_name

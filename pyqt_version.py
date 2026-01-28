@@ -149,6 +149,12 @@ Qt5: Qt.NoItemFlags
 Qt6: Qt.ItemFlag.NoItemFlags
 """
 
+QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode
+"""QDialog code class
+Qt5: QDialog.Accepted, QDialog.Rejected
+Qt6: QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected
+"""
+
 
 def exec_dialog(dialog: QDialog):
     """Execute a modal dialog and return the result.
