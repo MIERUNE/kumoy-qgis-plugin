@@ -7,6 +7,7 @@ SOURCES = __init__.py \
           ui/dialog_login.py \
           ui/dialog_login_success.py \
           ui/dialog_project_select.py \
+          ui/dialog_project_edit.py \
           ui/layers/convert_vector.py \
           ui/remote_image_label.py \
           ui/browser/root.py \
