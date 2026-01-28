@@ -11,7 +11,6 @@ from qgis.PyQt.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -25,16 +24,21 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
-from ..kumoy.constants import LOG_CATEGORY
+from ..kumoy.constants import (
+    LOG_CATEGORY,
+)
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
+    QDIALOG_CODE,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
     QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
+    exec_dialog,
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
+from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 
@@ -581,13 +585,12 @@ class ProjectSelectDialog(QDialog):
             )
             return
 
-        project_name, ok = QInputDialog.getText(
-            self,
-            self.tr("New Project"),
-            self.tr("Enter a name for your new project in '{}':").format(org.name),
-        )
-        if not ok or not project_name:
+        new_project_dialog = ProjectEditDialog(org.name, self)
+        if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
             return
+
+        project_name = new_project_dialog.project_name
+        project_description = new_project_dialog.project_description
 
         try:
             # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
@@ -595,7 +598,7 @@ class ProjectSelectDialog(QDialog):
             team = teams[0]  # デフォルトチームが必ず存在する
 
             new_project = api.project.create_project(
-                team_id=team.id, name=project_name, description=""
+                team_id=team.id, name=project_name, description=project_description
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),
@@ -866,55 +869,85 @@ class ProjectItemWidget(QWidget):
         if not self.project or not self.parent_dialog:
             return
 
-        # Show input dialog with current project name
-        new_name, ok = QInputDialog.getText(
+        # Get organization name for the dialog
+        org = self.parent_dialog.get_selected_organization()
+        if not org:
+            return
+
+        try:
+            # Fetch full project details to get the description
+            project_detail = api.project.get_project(self.project.id)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                self.tr("Failed to load project details: {}").format(
+                    format_api_error(e)
+                ),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                self.parent_dialog,
+                self.tr("Error"),
+                self.tr("Failed to load project details: {}").format(
+                    format_api_error(e)
+                ),
+            )
+            return
+
+        # Show edit dialog with current project data
+        edit_dialog = ProjectEditDialog(
+            org.name,
             self.parent_dialog,
-            self.tr("Edit Project"),
-            self.tr("Project name:"),
-            text=self.project.name,
+            initial_name=project_detail.name,
+            initial_description=project_detail.description,
         )
+        edit_dialog.setWindowTitle(self.tr("Edit Project"))
 
-        if ok and new_name and new_name != self.project.name:
-            try:
-                # Call API to update project
-                updated_project = api.project.update_project(
-                    project_id=self.project.id, name=new_name, description=""
-                )
+        if exec_dialog(edit_dialog) != QDIALOG_CODE.Accepted:
+            return
 
-                QgsMessageLog.logMessage(
-                    self.tr("Project '{}' renamed to '{}' successfully").format(
-                        self.project.name, new_name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
+        new_name = edit_dialog.project_name
+        new_description = edit_dialog.project_description
 
-                # Update the current project data
-                self.project = updated_project
+        # Check if anything changed
+        if (
+            new_name == project_detail.name
+            and new_description == project_detail.description
+        ):
+            return
 
-                # Refresh the project list
-                if self.parent_dialog:
-                    org = self.parent_dialog.get_selected_organization()
-                    if org:
-                        self.parent_dialog.load_projects(org)
-                        # Re-select the updated project
-                        self.parent_dialog._select_project_by_id(self.project.id)
+        try:
+            # Call API to update project
+            updated_project = api.project.update_project(
+                project_id=self.project.id, name=new_name, description=new_description
+            )
 
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Updated"),
-                    self.tr("Project has been renamed to '{}' successfully.").format(
-                        new_name
-                    ),
-                )
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    self.tr("Failed to update project: {}").format(format_api_error(e)),
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    self.parent_dialog,
-                    self.tr("Error"),
-                    self.tr("Failed to update project: {}").format(format_api_error(e)),
-                )
+            QgsMessageLog.logMessage(
+                self.tr("Project '{}' updated successfully").format(self.project.name),
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
+
+            # Update the current project data
+            self.project = updated_project
+
+            # Refresh the project list
+            self.parent_dialog.load_projects(org)
+            self.parent_dialog._select_project_by_id(self.project.id)
+
+            QMessageBox.information(
+                self.parent_dialog,
+                self.tr("Project Updated"),
+                self.tr("Project '{}' has been updated successfully.").format(new_name),
+            )
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                self.tr("Failed to update project: {}").format(format_api_error(e)),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                self.parent_dialog,
+                self.tr("Error"),
+                self.tr("Failed to update project: {}").format(format_api_error(e)),
+            )

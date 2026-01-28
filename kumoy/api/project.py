@@ -40,6 +40,7 @@ def create_project(team_id: str, name: str, description: str) -> ProjectWithThum
         {
             "name": name,
             "teamId": team_id,
+            "description": description,
         },
     )
 
@@ -101,6 +102,7 @@ def update_project(
         f"/project/{project_id}",
         {
             "name": name,
+            "description": description,
         },
     )
 
