@@ -33,6 +33,8 @@ from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
+    QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
     QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
     exec_menu,
@@ -53,17 +55,12 @@ class NewProjectDialog(QDialog):
         self.setup_ui()
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("NewProjectDialog", message)
 
     def setup_ui(self):
-        """Set up the dialog UI"""
         self.setWindowTitle(self.tr("New Project"))
-        # self.resize(450, 300)
 
         layout = QVBoxLayout()
-        # layout.setSpacing(4)
-        # layout.setContentsMargins(12, 12, 12, 12)
 
         # Name field
         name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
@@ -73,7 +70,6 @@ class NewProjectDialog(QDialog):
         self.name_input.setPlaceholderText(self.tr("Enter project name"))
         self.name_input.setMaxLength(32)
         layout.addWidget(self.name_input)
-        # layout.addSpacing(2)
 
         # Description field
         description_label = QLabel(self.tr("Description"))
@@ -84,10 +80,9 @@ class NewProjectDialog(QDialog):
         self.description_input.setMaximumHeight(100)
         self.description_input.textChanged.connect(self._limit_description)
         layout.addWidget(self.description_input)
-        # layout.addSpacing(2)
 
         # Buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
