@@ -286,7 +286,7 @@ Please update your configuration before logging in.</source>
     </message>
 </context>
 <context>
-    <name>EditProjectDialog</name>
+    <name>ProjectEditDialog</name>
     <message>
         <location filename="../ui/dialog_project_select.py" line="73"/>
         <source>New Project</source>

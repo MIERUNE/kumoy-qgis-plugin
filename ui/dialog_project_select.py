@@ -8,19 +8,16 @@ from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -29,110 +26,21 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.constants import (
     LOG_CATEGORY,
-    MAX_CHARACTERS_PROJECT_NAME,
-    MAX_CHARACTERS_PROJECT_DESCRIPTION,
 )
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QDIALOG_CODE,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
-    QT_DIALOG_BUTTON_CANCEL,
-    QT_DIALOG_BUTTON_OK,
     QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
     exec_dialog,
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
+from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
-
-
-class EditProjectDialog(QDialog):
-    """Dialog for creating a new project with name and description"""
-
-    def __init__(
-        self,
-        org_name: str,
-        parent=None,
-        initial_name: str = "",
-        initial_description: str = "",
-    ):
-        super().__init__(parent)
-        self.org_name = org_name
-        self.project_name = ""
-        self.project_description = ""
-        self.initial_name = initial_name
-        self.initial_description = initial_description
-        self.setup_ui()
-
-    def tr(self, message):
-        return QCoreApplication.translate("EditProjectDialog", message)
-
-    def setup_ui(self):
-        self.setWindowTitle(self.tr("New Project"))
-
-        layout = QVBoxLayout()
-
-        # Name field
-        name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
-        layout.addWidget(name_label)
-
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText(self.tr("Enter project name"))
-        self.name_input.setMaxLength(MAX_CHARACTERS_PROJECT_NAME)
-        self.name_input.setText(self.initial_name)
-        layout.addWidget(self.name_input)
-
-        # Description field
-        description_label = QLabel(self.tr("Description"))
-        layout.addWidget(description_label)
-
-        self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText(self.tr("Enter project description"))
-        self.description_input.setMaximumHeight(100)
-        self.description_input.textChanged.connect(self._limit_description)
-        self.description_input.setPlainText(self.initial_description or "")
-        layout.addWidget(self.description_input)
-
-        # Buttons
-        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-        self.setLayout(layout)
-
-    def _limit_description(self):
-        """Limit description to maximum characters"""
-        if (
-            len(self.description_input.toPlainText())
-            > MAX_CHARACTERS_PROJECT_DESCRIPTION
-        ):
-            cursor = self.description_input.textCursor()
-            self.description_input.setPlainText(
-                self.description_input.toPlainText()[
-                    :MAX_CHARACTERS_PROJECT_DESCRIPTION
-                ]
-            )
-            cursor.setPosition(MAX_CHARACTERS_PROJECT_DESCRIPTION)
-            self.description_input.setTextCursor(cursor)
-
-    def accept(self):
-        """Validate and accept the dialog"""
-        self.project_name = self.name_input.text().strip()
-        self.project_description = self.description_input.toPlainText().strip()
-
-        if not self.project_name:
-            QMessageBox.warning(
-                self,
-                self.tr("Invalid Input"),
-                self.tr("Project name cannot be empty."),
-            )
-            return
-
-        super().accept()
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -677,7 +585,7 @@ class ProjectSelectDialog(QDialog):
             )
             return
 
-        new_project_dialog = EditProjectDialog(org.name, self)
+        new_project_dialog = ProjectEditDialog(org.name, self)
         if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
             return
 
@@ -987,7 +895,7 @@ class ProjectItemWidget(QWidget):
             return
 
         # Show edit dialog with current project data
-        edit_dialog = EditProjectDialog(
+        edit_dialog = ProjectEditDialog(
             org.name,
             self.parent_dialog,
             initial_name=project_detail.name,
