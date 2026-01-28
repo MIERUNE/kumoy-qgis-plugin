@@ -8,17 +8,20 @@ from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
+    QDialogButtonBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +40,84 @@ from ..pyqt_version import (
 from ..settings_manager import get_settings, store_setting
 from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
+
+
+class NewProjectDialog(QDialog):
+    """Dialog for creating a new project with name and description"""
+
+    def __init__(self, org_name: str, parent=None):
+        super().__init__(parent)
+        self.org_name = org_name
+        self.project_name = ""
+        self.project_description = ""
+        self.setup_ui()
+
+    def tr(self, message):
+        """Get the translation for a string using Qt translation API"""
+        return QCoreApplication.translate("NewProjectDialog", message)
+
+    def setup_ui(self):
+        """Set up the dialog UI"""
+        self.setWindowTitle(self.tr("New Project"))
+        # self.resize(450, 300)
+
+        layout = QVBoxLayout()
+        # layout.setSpacing(4)
+        # layout.setContentsMargins(12, 12, 12, 12)
+
+        # Name field
+        name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
+        layout.addWidget(name_label)
+
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText(self.tr("Enter project name"))
+        self.name_input.setMaxLength(32)
+        layout.addWidget(self.name_input)
+        # layout.addSpacing(2)
+
+        # Description field
+        description_label = QLabel(self.tr("Description"))
+        layout.addWidget(description_label)
+
+        self.description_input = QTextEdit()
+        self.description_input.setPlaceholderText(self.tr("Enter project description"))
+        self.description_input.setMaximumHeight(100)
+        self.description_input.textChanged.connect(self._limit_description)
+        layout.addWidget(self.description_input)
+        # layout.addSpacing(2)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+        self.setLayout(layout)
+
+    def _limit_description(self):
+        """Limit description to 255 characters"""
+        if len(self.description_input.toPlainText()) > 255:
+            cursor = self.description_input.textCursor()
+            self.description_input.setPlainText(
+                self.description_input.toPlainText()[:255]
+            )
+            cursor.setPosition(255)
+            self.description_input.setTextCursor(cursor)
+
+    def accept(self):
+        """Validate and accept the dialog"""
+        self.project_name = self.name_input.text().strip()
+        self.project_description = self.description_input.toPlainText().strip()
+
+        if not self.project_name:
+            QMessageBox.warning(
+                self,
+                self.tr("Invalid Input"),
+                self.tr("Project name cannot be empty."),
+            )
+            return
+
+        super().accept()
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -581,13 +662,12 @@ class ProjectSelectDialog(QDialog):
             )
             return
 
-        project_name, ok = QInputDialog.getText(
-            self,
-            self.tr("New Project"),
-            self.tr("Enter a name for your new project in '{}':").format(org.name),
-        )
-        if not ok or not project_name:
+        new_project_dialog = NewProjectDialog(org.name, self)
+        if new_project_dialog.exec_() != QDialog.Accepted:
             return
+
+        project_name = new_project_dialog.project_name
+        project_description = new_project_dialog.project_description
 
         try:
             # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
@@ -595,7 +675,7 @@ class ProjectSelectDialog(QDialog):
             team = teams[0]  # デフォルトチームが必ず存在する
 
             new_project = api.project.create_project(
-                team_id=team.id, name=project_name, description=""
+                team_id=team.id, name=project_name, description=project_description
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),
