@@ -28,7 +28,11 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
-from ..kumoy.constants import LOG_CATEGORY
+from ..kumoy.constants import (
+    LOG_CATEGORY,
+    MAX_CHARACTERS_PROJECT_NAME,
+    MAX_CHARACTERS_PROJECT_DESCRIPTION,
+)
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_ALIGN,
@@ -68,7 +72,7 @@ class NewProjectDialog(QDialog):
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText(self.tr("Enter project name"))
-        self.name_input.setMaxLength(32)
+        self.name_input.setMaxLength(MAX_CHARACTERS_PROJECT_NAME)
         layout.addWidget(self.name_input)
 
         # Description field
@@ -90,13 +94,18 @@ class NewProjectDialog(QDialog):
         self.setLayout(layout)
 
     def _limit_description(self):
-        """Limit description to 255 characters"""
-        if len(self.description_input.toPlainText()) > 255:
+        """Limit description to maximum characters"""
+        if (
+            len(self.description_input.toPlainText())
+            > MAX_CHARACTERS_PROJECT_DESCRIPTION
+        ):
             cursor = self.description_input.textCursor()
             self.description_input.setPlainText(
-                self.description_input.toPlainText()[:255]
+                self.description_input.toPlainText()[
+                    :MAX_CHARACTERS_PROJECT_DESCRIPTION
+                ]
             )
-            cursor.setPosition(255)
+            cursor.setPosition(MAX_CHARACTERS_PROJECT_DESCRIPTION)
             self.description_input.setTextCursor(cursor)
 
     def accept(self):
