@@ -392,7 +392,7 @@ to open in Kumoy.</source>
     </message>
 </context>
 <context>
-    <name>NewProjectDialog</name>
+    <name>EditProjectDialog</name>
     <message>
         <location filename="../ui/dialog_project_select.py" line="61"/>
         <source>New Project</source>
