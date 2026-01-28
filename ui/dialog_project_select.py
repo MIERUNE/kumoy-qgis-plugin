@@ -12,7 +12,6 @@ from qgis.PyQt.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -94,7 +93,7 @@ class EditProjectDialog(QDialog):
         self.description_input.setPlaceholderText(self.tr("Enter project description"))
         self.description_input.setMaximumHeight(100)
         self.description_input.textChanged.connect(self._limit_description)
-        self.description_input.setPlainText(self.initial_description)
+        self.description_input.setPlainText(self.initial_description or "")
         layout.addWidget(self.description_input)
 
         # Buttons
