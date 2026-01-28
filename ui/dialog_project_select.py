@@ -83,8 +83,7 @@ class EditProjectDialog(QDialog):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText(self.tr("Enter project name"))
         self.name_input.setMaxLength(MAX_CHARACTERS_PROJECT_NAME)
-        if self.initial_name:
-            self.name_input.setText(self.initial_name)
+        self.name_input.setText(self.initial_name)
         layout.addWidget(self.name_input)
 
         # Description field
@@ -95,8 +94,8 @@ class EditProjectDialog(QDialog):
         self.description_input.setPlaceholderText(self.tr("Enter project description"))
         self.description_input.setMaximumHeight(100)
         self.description_input.textChanged.connect(self._limit_description)
-        if self.initial_description:
             self.description_input.setPlainText(self.initial_description)
+        self.description_input.setPlainText(self.initial_description)
         layout.addWidget(self.description_input)
 
         # Buttons
@@ -969,12 +968,32 @@ class ProjectItemWidget(QWidget):
         if not org:
             return
 
+        try:
+            # Fetch full project details to get the description
+            project_detail = api.project.get_project(self.project.id)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                self.tr("Failed to load project details: {}").format(
+                    format_api_error(e)
+                ),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                self.parent_dialog,
+                self.tr("Error"),
+                self.tr("Failed to load project details: {}").format(
+                    format_api_error(e)
+                ),
+            )
+            return
+
         # Show edit dialog with current project data
         edit_dialog = EditProjectDialog(
             org.name,
             self.parent_dialog,
-            initial_name=self.project.name,
-            initial_description=self.project.description,
+            initial_name=project_detail.name,
+            initial_description=project_detail.description,
         )
         edit_dialog.setWindowTitle(self.tr("Edit Project"))
 
@@ -986,8 +1005,8 @@ class ProjectItemWidget(QWidget):
 
         # Check if anything changed
         if (
-            new_name == self.project.name
-            and new_description == self.project.description
+            new_name == project_detail.name
+            and new_description == project_detail.description
         ):
             return
 
@@ -1007,12 +1026,8 @@ class ProjectItemWidget(QWidget):
             self.project = updated_project
 
             # Refresh the project list
-            if self.parent_dialog:
-                org = self.parent_dialog.get_selected_organization()
-                if org:
-                    self.parent_dialog.load_projects(org)
-                    # Re-select the updated project
-                    self.parent_dialog._select_project_by_id(self.project.id)
+            self.parent_dialog.load_projects(org)
+            self.parent_dialog._select_project_by_id(self.project.id)
 
             QMessageBox.information(
                 self.parent_dialog,
