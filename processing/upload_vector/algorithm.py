@@ -364,7 +364,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             self._raise_if_canceled(feedback)
-            feedback.setProgress(10)
 
             # Create silent feedback for child algorithms
             silent_feedback = _SilentFeedback(feedback)
@@ -374,13 +373,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 layer, context, silent_feedback
             )
             self._raise_if_canceled(feedback)
-            feedback.setProgress(20)
 
             field_mapping = self._build_field_mapping(
                 normalized_layer,
                 feedback,
                 selected_fields if selected_fields else None,
             )
+            feedback.setProgress(10)
 
             processed_layer = self._process_layer_geometry(
                 normalized_layer,
