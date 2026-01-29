@@ -34,6 +34,32 @@ class _UserCanceled(Exception):
     """Internal exception used to short-circuit on user cancellation"""
 
 
+class _SilentFeedback(QgsProcessingFeedback):
+    """Feedback that ignores progress updates but allows cancellation and messages"""
+
+    def __init__(self, parent_feedback: QgsProcessingFeedback):
+        super().__init__()
+        self.parent_feedback = parent_feedback
+        # Connect cancellation from parent
+        parent_feedback.canceled.connect(self.cancel)
+
+    def setProgress(self, progress: float) -> None:
+        # Ignore progress updates from child algorithms
+        pass
+
+    def pushInfo(self, info: str) -> None:
+        # Forward info messages to parent
+        self.parent_feedback.pushInfo(info)
+
+    def reportError(self, error: str, fatalError: bool = False) -> None:
+        # Forward errors to parent
+        self.parent_feedback.reportError(error, fatalError)
+
+    def pushWarning(self, warning: str) -> None:
+        # Forward warnings to parent
+        self.parent_feedback.pushWarning(warning)
+
+
 def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
     """Determine geometry type and check for multipart"""
     wkb_type = layer.wkbType()
@@ -277,6 +303,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         vector = None
 
         try:
+            feedback.setProgress(0)
             self._raise_if_canceled(feedback)
 
             # Get input layer
@@ -337,10 +364,17 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             self._raise_if_canceled(feedback)
+            feedback.setProgress(10)
+
+            # Create silent feedback for child algorithms
+            silent_feedback = _SilentFeedback(feedback)
 
             # Normalize field types first (convert JSON types to string)
-            normalized_layer = self._normalize_field_types(layer, context, feedback)
+            normalized_layer = self._normalize_field_types(
+                layer, context, silent_feedback
+            )
             self._raise_if_canceled(feedback)
+            feedback.setProgress(20)
 
             field_mapping = self._build_field_mapping(
                 normalized_layer,
@@ -352,10 +386,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 normalized_layer,
                 field_mapping,
                 context,
-                feedback,
+                silent_feedback,
             )
 
             self._raise_if_canceled(feedback)
+            feedback.setProgress(30)
 
             # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
             proc_feature_count = processed_layer.featureCount()
@@ -383,6 +418,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             self._raise_if_canceled(feedback)
+            feedback.setProgress(40)
 
             # Add attributes to vector
             api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
@@ -393,8 +429,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             self._raise_if_canceled(feedback)
+            feedback.setProgress(50)
 
-            # Upload features
+            # Upload features (50-100%)
             self._upload_features(vector.id, processed_layer, feedback)
 
             return {"VECTOR_ID": vector.id}
@@ -797,12 +834,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         accumulated_features, valid_fields_layer.featureCount()
                     )
                 )
-                feedback.setProgress(
-                    50
-                    + int(
-                        (accumulated_features / valid_fields_layer.featureCount()) * 50
-                    )
+                # Map to 80-100% range
+                progress_ratio = (
+                    accumulated_features / valid_fields_layer.featureCount()
                 )
+                feedback.setProgress(50 + int(progress_ratio * 50))
                 cur_features = []
             cur_features.append(f)
 

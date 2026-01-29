@@ -97,7 +97,7 @@ def convert_to_kumoy(
         progress_dialog.setWindowTitle(tr("Kumoy Upload"))
         progress_dialog.setWindowModality(QT_APPLICATION_MODAL)
         progress_dialog.setMinimumDuration(0)
-        progress_dialog.setValue(10)
+        progress_dialog.setValue(0)
         progress_dialog.show()
 
         # Issue #356: ensure dialog is drawn properly on Windows
@@ -113,8 +113,8 @@ def convert_to_kumoy(
         # Connect feedback to progress dialog
         def update_progress(progress):
             if progress_dialog:
-                # Scale progress: 10-90% for upload
-                progress_dialog.setValue(10 + int(progress * 0.8))
+                # Map algorithm progress (0-100%) to dialog progress (0-100%)
+                progress_dialog.setValue(int(progress))
 
         feedback.progressChanged.connect(update_progress)
 
