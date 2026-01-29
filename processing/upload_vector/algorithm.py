@@ -34,8 +34,8 @@ class _UserCanceled(Exception):
     """Internal exception used to short-circuit on user cancellation"""
 
 
-class _SilentFeedback(QgsProcessingFeedback):
-    """Feedback that ignores progress updates but allows cancellation and messages"""
+class _ChildProgressFeedback(QgsProcessingFeedback):
+    """Feedback that forwards progress updates from child algorithms"""
 
     def __init__(self, parent_feedback: QgsProcessingFeedback):
         super().__init__()
@@ -44,19 +44,16 @@ class _SilentFeedback(QgsProcessingFeedback):
         parent_feedback.canceled.connect(self.cancel)
 
     def setProgress(self, progress: float) -> None:
-        # Ignore progress updates from child algorithms
-        pass
+        # Forward progress updates to parent
+        self.parent_feedback.setProgress(int(progress))
 
     def pushInfo(self, info: str) -> None:
-        # Forward info messages to parent
         self.parent_feedback.pushInfo(info)
 
     def reportError(self, error: str, fatalError: bool = False) -> None:
-        # Forward errors to parent
         self.parent_feedback.reportError(error, fatalError)
 
     def pushWarning(self, warning: str) -> None:
-        # Forward warnings to parent
         self.parent_feedback.pushWarning(warning)
 
 
@@ -364,32 +361,35 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
 
             self._raise_if_canceled(feedback)
+            feedback.setProgress(3)
 
-            # Create silent feedback for child algorithms
-            silent_feedback = _SilentFeedback(feedback)
+            # Create separate feedback for child algorithm progress
+            child_feedback = _ChildProgressFeedback(feedback)
 
             # Normalize field types first (convert JSON types to string)
             normalized_layer = self._normalize_field_types(
-                layer, context, silent_feedback
+                layer, context, child_feedback
             )
             self._raise_if_canceled(feedback)
+            feedback.setProgress(5)
 
             field_mapping = self._build_field_mapping(
                 normalized_layer,
                 feedback,
                 selected_fields if selected_fields else None,
             )
-            feedback.setProgress(10)
 
+            # Process layer geometry
+            feedback.setProgress(10)
             processed_layer = self._process_layer_geometry(
                 normalized_layer,
                 field_mapping,
                 context,
-                silent_feedback,
+                child_feedback,
             )
+            feedback.setProgress(40)
 
             self._raise_if_canceled(feedback)
-            feedback.setProgress(30)
 
             # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
             proc_feature_count = processed_layer.featureCount()
@@ -417,7 +417,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
 
             self._raise_if_canceled(feedback)
-            feedback.setProgress(40)
+            feedback.setProgress(45)
 
             # Add attributes to vector
             api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
@@ -529,6 +529,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         )
 
         self._raise_if_canceled(feedback)
+        feedback.setProgress(15)
 
         filtered_count = filtered_layer.featureCount()
         if filtered_count < layer.featureCount():
@@ -559,6 +560,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 context,
                 feedback,
             )
+            feedback.setProgress(20)
 
         self._raise_if_canceled(feedback)
 
@@ -573,6 +575,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             context,
             feedback,
         )
+        feedback.setProgress(25)
 
         self._raise_if_canceled(feedback)
 
@@ -588,6 +591,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 context,
                 feedback,
             )
+            feedback.setProgress(30)
 
         self._raise_if_canceled(feedback)
 
@@ -608,6 +612,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 context,
                 feedback,
             )
+            feedback.setProgress(35)
 
         self._raise_if_canceled(feedback)
 
@@ -763,7 +768,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # No conversion needed, return original layer
             return layer
 
-        return self._run_child_algorithm(
+        result = self._run_child_algorithm(
             "native:refactorfields",
             {
                 "INPUT": layer,
@@ -773,6 +778,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             context,
             feedback,
         )
+        return result
 
     def _run_child_algorithm(
         self,
