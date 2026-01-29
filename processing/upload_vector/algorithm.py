@@ -430,7 +430,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self._raise_if_canceled(feedback)
             feedback.setProgress(50)
 
-            # Upload features (50-100%)
+            # Upload features
             self._upload_features(vector.id, processed_layer, feedback)
 
             return {"VECTOR_ID": vector.id}
@@ -839,7 +839,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         accumulated_features, valid_fields_layer.featureCount()
                     )
                 )
-                # Map to 80-100% range
+                # Map to 50-100% range
                 progress_ratio = (
                     accumulated_features / valid_fields_layer.featureCount()
                 )

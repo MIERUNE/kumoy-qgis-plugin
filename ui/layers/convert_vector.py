@@ -113,7 +113,6 @@ def convert_to_kumoy(
         # Connect feedback to progress dialog
         def update_progress(progress):
             if progress_dialog:
-                # Map algorithm progress (0-100%) to dialog progress (0-100%)
                 progress_dialog.setValue(int(progress))
 
         feedback.progressChanged.connect(update_progress)
