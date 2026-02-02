@@ -35,7 +35,10 @@ class _UserCanceled(Exception):
 
 
 class _ChildProgressFeedback(QgsProcessingFeedback):
-    """Feedback that forwards progress updates from child algorithms"""
+    """Feedback that forwards progress updates from child algorithms to parent algorithm.
+    Child feedback is separated from parent feedback to report progress
+    without reinitializing the parent feedback.
+    """
 
     def __init__(self, parent_feedback: QgsProcessingFeedback):
         super().__init__()
@@ -44,7 +47,7 @@ class _ChildProgressFeedback(QgsProcessingFeedback):
         parent_feedback.canceled.connect(self.cancel)
 
     def setProgress(self, progress: float) -> None:
-        # Forward progress updates to parent
+        # Forward progress updates to parent algorithm feedback
         self.parent_feedback.setProgress(int(progress))
 
     def pushInfo(self, info: str) -> None:
@@ -363,7 +366,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self._raise_if_canceled(feedback)
             feedback.setProgress(3)
 
-            # Create separate feedback for child algorithm progress
+            # Create separate feedback for child algorithm
+            # to update progress to parent algorithm feedback without reinitializing it
             child_feedback = _ChildProgressFeedback(feedback)
 
             # Normalize field types first (convert JSON types to string)
@@ -378,9 +382,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 feedback,
                 selected_fields if selected_fields else None,
             )
-
-            # Process layer geometry
             feedback.setProgress(10)
+
+            # Process layer geometry (progress 10-40%)
             processed_layer = self._process_layer_geometry(
                 normalized_layer,
                 field_mapping,
@@ -430,7 +434,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self._raise_if_canceled(feedback)
             feedback.setProgress(50)
 
-            # Upload features
+            # Upload features (progress 50-100%)
             self._upload_features(vector.id, processed_layer, feedback)
 
             return {"VECTOR_ID": vector.id}
@@ -480,7 +484,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> QgsVectorLayer:
-        """Run processing-based pipeline to prepare geometries"""
+        """Run processing-based pipeline to prepare geometries
+        feedback progress: 10-40%"""
 
         source_crs = layer.crs()
         if not source_crs.isValid():
@@ -839,7 +844,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         accumulated_features, valid_fields_layer.featureCount()
                     )
                 )
-                # Map to 50-100% range
+                # Progress mapped to 50-100% range
                 progress_ratio = (
                     accumulated_features / valid_fields_layer.featureCount()
                 )
