@@ -7,6 +7,8 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProject,
+    QgsReadWriteContext,
+    QgsMapLayer,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
@@ -14,6 +16,7 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
     QProgressDialog,
 )
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.utils import iface
 
 from ...kumoy import api, constants
@@ -188,9 +191,8 @@ def convert_to_kumoy(
                 config.setReadOnly(field_idx, True)
                 kumoy_layer.setEditFormConfig(config)
 
-            original_renderer = layer.renderer()
-            if original_renderer:
-                kumoy_layer.setRenderer(original_renderer.clone())
+            # Copy layer style from original layer
+            _copy_layer_style(layer, kumoy_layer)
 
             # Get original layer position in legend
             root = QgsProject.instance().layerTreeRoot()
@@ -241,3 +243,17 @@ def convert_to_kumoy(
             Qgis.Critical,
         )
         return (False, error_msg)
+
+
+def _copy_layer_style(
+    source_layer: QgsVectorLayer, target_layer: QgsVectorLayer
+) -> None:
+    """Copy style from source layer to target layer"""
+    doc = QDomDocument()
+    elem = doc.createElement("qgis")
+    doc.appendChild(elem)
+    context = QgsReadWriteContext()
+
+    source_layer.writeStyle(elem, doc, "", context, QgsMapLayer.AllStyleCategories)
+    target_layer.readStyle(elem, "", context, QgsMapLayer.AllStyleCategories)
+    target_layer.triggerRepaint()
