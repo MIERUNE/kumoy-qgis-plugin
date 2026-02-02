@@ -176,8 +176,27 @@ class KumoyPlugin:
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
         action.triggered.connect(partial(on_convert_to_kumoy_clicked, layer))
-        menu.addSeparator()
-        menu.addAction(action)
+
+        # Actions to be added after the last separator
+        actions = menu.actions()
+        last_separator = None
+
+        for a in actions:
+            if a.isSeparator():
+                last_separator = a
+
+        if last_separator:
+            index = actions.index(last_separator)
+            if index + 1 < len(actions):
+                menu.insertAction(actions[index + 1], action)
+                menu.insertSeparator(actions[index + 1])
+            else:
+                menu.addAction(action)
+                menu.addSeparator()
+        else:
+            # Fallback: add to the end of the menu
+            menu.addSeparator()
+            menu.addAction(action)
 
     def initGui(self):
         self.dip = DataItemProvider()
