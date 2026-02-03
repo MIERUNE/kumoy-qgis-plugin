@@ -32,7 +32,11 @@ from ...pyqt_version import (
     exec_dialog,
 )
 from ...settings_manager import get_settings
-from ...ui.layers.convert_vector import convert_to_kumoy
+from ...ui.layers.convert_vector import (
+    get_local_vector_layers,
+    check_vector_layers_modified,
+    convert_multiple_layers_to_kumoy,
+)
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
 
@@ -471,19 +475,19 @@ class StyledMapRoot(QgsDataItem):
             layer.extent()
 
         # Find local layers in current QGIS project
-        local_layers = self._get_local_vector_layers()
+        local_layers = get_local_vector_layers()
 
         # Check if any local layer has unsaved edits
-        for layer in local_layers:
-            if isinstance(layer, QgsVectorLayer) and layer.isModified():
-                QMessageBox.warning(
-                    None,
-                    self.tr("Cannot Add Map"),
-                    self.tr(
-                        "Please save or discard your local layer edits before saving map."
-                    ),
-                )
-                return
+        is_modified = check_vector_layers_modified(local_layers)
+        if is_modified:
+            QMessageBox.warning(
+                None,
+                self.tr("Cannot Add Map"),
+                self.tr(
+                    "Please save or discard your local layer edits before saving map."
+                ),
+            )
+            return
 
         try:
             # Check plan limits before creating styled map
@@ -579,11 +583,9 @@ class StyledMapRoot(QgsDataItem):
                     Q_MESSAGEBOX_STD_BUTTON.Yes,
                 )
                 if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-                    conversion_errors = []  # Store failed conversions
-                    for layer in local_layers:
-                        success, error = convert_to_kumoy(layer, self.project.id)
-                        if not success:
-                            conversion_errors.append((layer.name(), error))
+                    conversion_errors = convert_multiple_layers_to_kumoy(
+                        local_layers, self.project.id
+                    )
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -706,22 +708,3 @@ class StyledMapRoot(QgsDataItem):
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
             )
-
-    def _get_local_vector_layers(self):
-        """Get all local vector layers in current QGIS project"""
-        local_layers = []
-        for layer in QgsProject.instance().mapLayers().values():
-            # skip if it is not a valid vector layer
-            if (
-                not layer
-                or not layer.isValid()
-                or not isinstance(layer, QgsVectorLayer)
-            ):
-                continue
-            provider = layer.dataProvider()
-            if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
-                continue
-
-            local_layers.append(layer)
-
-        return local_layers

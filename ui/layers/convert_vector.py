@@ -69,6 +69,43 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
         )
 
 
+def get_local_vector_layers() -> list[QgsVectorLayer]:
+    """Get all local vector layers in current QGIS project"""
+    local_layers = []
+    for layer in QgsProject.instance().mapLayers().values():
+        # skip if it is not a valid vector layer
+        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
+            continue
+        provider = layer.dataProvider()
+        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
+            continue
+
+        local_layers.append(layer)
+
+    return local_layers
+
+
+def check_vector_layers_modified(layers: list[QgsVectorLayer]) -> bool:
+    for layer in layers:
+        if isinstance(layer, QgsVectorLayer) and layer.isModified():
+            return True
+    return False
+
+
+def convert_multiple_layers_to_kumoy(
+    layers: list[QgsVectorLayer], project_id: str
+) -> list[tuple[str, str]]:
+    """Convert multiple layers to Kumoy
+    Returns: list of (layer_name, error_message) for failed conversions
+    """
+    conversion_errors = []
+    for layer in layers:
+        success, error = convert_to_kumoy(layer, project_id)
+        if not success:
+            conversion_errors.append((layer.name(), error))
+    return conversion_errors
+
+
 def convert_to_kumoy(
     layer: QgsVectorLayer, project_id: str
 ) -> tuple[bool, Optional[str]]:
