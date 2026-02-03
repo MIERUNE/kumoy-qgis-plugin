@@ -24,14 +24,13 @@ from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (
     QT_APPLICATION_MODAL,
 )
-from ...settings_manager import get_settings
 
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
+def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
     # Validate layer before proceeding
     if not layer or not layer.isValid():
         QMessageBox.warning(
@@ -42,7 +41,6 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
         return
 
     layer_name = layer.name()
-    project_id = get_settings().selected_project_id
 
     if not project_id:
         QMessageBox.warning(
