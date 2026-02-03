@@ -21,9 +21,7 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import (
-    QT_APPLICATION_MODAL,
-)
+from ...pyqt_version import QT_APPLICATION_MODAL, Q_MESSAGEBOX_STD_BUTTON
 
 
 def tr(message: str, context: str = "@default") -> str:
@@ -67,22 +65,6 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
         )
 
 
-def get_local_vector_layers() -> list[QgsVectorLayer]:
-    """Get all local vector layers in current QGIS project"""
-    local_layers = []
-    for layer in QgsProject.instance().mapLayers().values():
-        # skip if it is not a valid vector layer
-        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
-            continue
-        provider = layer.dataProvider()
-        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
-            continue
-
-        local_layers.append(layer)
-
-    return local_layers
-
-
 def convert_local_layers(
     project_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
@@ -96,11 +78,18 @@ def convert_local_layers(
                has_unsaved_edits=True means process must be blocked
                conversion_errors: list of (layer_name, error_message) for failed conversions
     """
-    from qgis.PyQt.QtWidgets import QMessageBox
-    from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
     # Get local layers
-    local_layers = get_local_vector_layers()
+    local_layers = []
+    for layer in QgsProject.instance().mapLayers().values():
+        # skip if it is not a valid vector layer
+        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
+            continue
+        provider = layer.dataProvider()
+        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
+            continue
+
+        local_layers.append(layer)
 
     if not local_layers:
         return (False, [])

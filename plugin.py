@@ -1,5 +1,4 @@
 import os
-from functools import partial
 
 from qgis.core import (
     Qgis,
@@ -181,9 +180,7 @@ class KumoyPlugin:
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
 
         project_id = get_kumoy_settings().selected_project_id
-        action.triggered.connect(
-            partial(on_convert_to_kumoy_clicked, layer, project_id)
-        )
+        action.triggered.connect(lambda: on_convert_to_kumoy_clicked(layer, project_id))
 
         # Actions to be added after the last separator
         actions = menu.actions()
