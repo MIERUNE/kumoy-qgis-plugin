@@ -7,7 +7,6 @@ from qgis.core import (
     QgsDataItem,
     QgsMessageLog,
     QgsProject,
-    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
@@ -276,6 +275,37 @@ class StyledMapItem(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
+        # Convert local layers to Kumoy layers if any
+        local_layers = get_local_vector_layers()
+
+        if local_layers:
+            # Check if any local layer has unsaved edits
+            is_modified = check_vector_layers_modified(local_layers)
+            if is_modified:
+                QMessageBox.warning(
+                    None,
+                    self.tr("Cannot Save Map"),
+                    self.tr(
+                        "Please save or discard your local layer edits before saving map."
+                    ),
+                )
+                return
+
+            convert_confirm = QMessageBox.question(
+                None,
+                self.tr("Convert Local Layers to Kumoy Layers"),
+                self.tr(
+                    "There are {} local vector layers in the current project.\n"
+                    "Do you want to convert them to Kumoy layers?"
+                ).format(len(local_layers)),
+                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+                Q_MESSAGEBOX_STD_BUTTON.Yes,
+            )
+            if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+                conversion_errors = convert_multiple_layers_to_kumoy(
+                    local_layers, self.styled_map.projectId
+                )
+
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
@@ -305,12 +335,38 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
-        iface.messageBar().pushSuccess(
-            self.tr("Success"),
-            self.tr("Map '{}' has been saved successfully.").format(
-                self.styled_map.name
-            ),
-        )
+        # Show success message with conversion errors summary if any
+        if (
+            local_layers
+            and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
+            and conversion_errors
+        ):
+            error_details = "\n".join(
+                [
+                    f"• {layer_name}\n{error}\n"
+                    for layer_name, error in conversion_errors
+                ]
+            )
+            # Limit error details length
+            msg_max_length = 1000
+            if len(error_details) > msg_max_length:
+                error_details = error_details[:msg_max_length] + "..."
+
+            QMessageBox.warning(
+                None,
+                self.tr("Map Saved with Warnings"),
+                self.tr(
+                    "Map '{}' has been saved successfully.\n\n"
+                    "Warning: {} layers could not be converted:\n\n{}"
+                ).format(self.styled_map.name, len(conversion_errors), error_details),
+            )
+        else:
+            iface.messageBar().pushSuccess(
+                self.tr("Success"),
+                self.tr("Map '{}' has been saved successfully.").format(
+                    self.styled_map.name
+                ),
+            )
 
     def delete_styled_map(self):
         # 削除確認
