@@ -23,7 +23,7 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.local_cache.map import write_qgsfile
+from ...kumoy.local_cache.map import write_qgsfile, show_map_save_result
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_DIALOG_BUTTON_CANCEL,
@@ -35,7 +35,6 @@ from ...ui.layers.convert_vector import (
     get_local_vector_layers,
     check_vector_layers_modified,
     prompt_and_convert_local_layers,
-    show_map_save_result,
 )
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
@@ -279,9 +278,6 @@ class StyledMapItem(QgsDataItem):
         # Convert local layers to Kumoy layers if any
         user_confirmed, conversion_errors = prompt_and_convert_local_layers(
             self.styled_map.projectId,
-            self.tr,
-            check_unsaved_edits=True,
-            error_title=self.tr("Cannot Save Map"),
         )
 
         # If blocked by unsaved edits, return early
@@ -322,7 +318,6 @@ class StyledMapItem(QgsDataItem):
         # Show success message with conversion errors summary if any
         show_map_save_result(
             self.styled_map.name,
-            self.tr,
             user_confirmed,
             conversion_errors,
             action="saved",
@@ -490,21 +485,6 @@ class StyledMapRoot(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        # Find local layers in current QGIS project
-        local_layers = get_local_vector_layers()
-
-        # Check if any local layer has unsaved edits
-        is_modified = check_vector_layers_modified(local_layers)
-        if is_modified:
-            QMessageBox.warning(
-                None,
-                self.tr("Cannot Add Map"),
-                self.tr(
-                    "Please save or discard your local layer edits before saving map."
-                ),
-            )
-            return
-
         try:
             # Check plan limits before creating styled map
             plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
@@ -589,8 +569,6 @@ class StyledMapRoot(QgsDataItem):
             # Convert local layers to Kumoy layers
             user_confirmed, conversion_errors = prompt_and_convert_local_layers(
                 self.project.id,
-                self.tr,
-                check_unsaved_edits=False,  # Already checked earlier
             )
 
             qgisproject = write_qgsfile(self.project.id)
@@ -618,7 +596,6 @@ class StyledMapRoot(QgsDataItem):
             # Show success message with conversion errors summary if any
             show_map_save_result(
                 name,
-                self.tr,
                 user_confirmed,
                 conversion_errors,
                 action="created",

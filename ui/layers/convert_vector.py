@@ -106,27 +106,19 @@ def convert_multiple_layers_to_kumoy(
 
 def prompt_and_convert_local_layers(
     project_id: str,
-    tr_func,
-    check_unsaved_edits: bool = True,
-    error_title: str = None,
 ) -> tuple[bool, list[tuple[str, str]]]:
     """Prompt user to convert local layers and execute if confirmed.
 
     Args:
         project_id: Project ID to convert layers to
-        tr_func: Translation function to use for messages
-        check_unsaved_edits: If True, check for unsaved edits and block if found
         error_title: Title for error dialog (default: "Cannot Save Map")
 
     Returns:
-        tuple: (user_confirmed: bool, conversion_errors: list)
-               user_confirmed is False if user declined or if unsaved edits blocked
+        tuple: (conversion_done: bool, conversion_errors: list)
+               conversion_done is False if user declined or if unsaved edits blocked
     """
     from qgis.PyQt.QtWidgets import QMessageBox
     from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-
-    if error_title is None:
-        error_title = tr_func("Cannot Save Map")
 
     # Get local layers
     local_layers = get_local_vector_layers()
@@ -135,23 +127,20 @@ def prompt_and_convert_local_layers(
         return (False, [])
 
     # Check if any local layer has unsaved edits
-    if check_unsaved_edits:
-        is_modified = check_vector_layers_modified(local_layers)
-        if is_modified:
+    for layer in local_layers:
+        if isinstance(layer, QgsVectorLayer) and layer.isModified():
             QMessageBox.warning(
                 None,
-                error_title,
-                tr_func(
-                    "Please save or discard your local layer edits before saving map."
-                ),
+                tr("Cannot Save Map"),
+                tr("Please save or discard your local layer edits before saving map."),
             )
-            return (False, [])
+        return (False, [])
 
     # Ask user for confirmation
     convert_confirm = QMessageBox.question(
         None,
-        tr_func("Convert Local Layers to Kumoy Layers"),
-        tr_func(
+        tr("Convert Local Layers to Kumoy Layers"),
+        tr(
             "There are {} local vector layers in the current project.\n"
             "Do you want to convert them to Kumoy layers?"
         ).format(len(local_layers)),
@@ -165,52 +154,6 @@ def prompt_and_convert_local_layers(
     # Convert layers
     conversion_errors = convert_multiple_layers_to_kumoy(local_layers, project_id)
     return (True, conversion_errors)
-
-
-def show_map_save_result(
-    map_name: str,
-    tr_func,
-    user_confirmed_conversion: bool,
-    conversion_errors: list[tuple[str, str]],
-    action: str = "saved",
-) -> None:
-    """Show success or warning message after map save/create operation.
-
-    Args:
-        map_name: Name of the map
-        tr_func: Translation function to use for messages
-        user_confirmed_conversion: Whether user confirmed layer conversion
-        conversion_errors: List of (layer_name, error_message) tuples
-        action: Action performed ('saved' or 'created')
-    """
-    from qgis.PyQt.QtWidgets import QMessageBox
-    from qgis.utils import iface
-
-    if user_confirmed_conversion and conversion_errors:
-        error_details = "\n".join(
-            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
-        )
-        # Limit error details length
-        msg_max_length = 1000
-        if len(error_details) > msg_max_length:
-            error_details = error_details[:msg_max_length] + "..."
-
-        warning_title = (
-            tr_func("Map Saved with Warnings")
-            if action == "saved"
-            else tr_func("Map Created with Warnings")
-        )
-        success_msg = tr_func(
-            "Map '{}' has been {} successfully.\n\n"
-            "Warning: {} layers could not be converted:\n\n{}"
-        ).format(map_name, action, len(conversion_errors), error_details)
-
-        QMessageBox.warning(None, warning_title, success_msg)
-    else:
-        success_msg = tr_func("Map '{}' has been {} successfully.").format(
-            map_name, action
-        )
-        iface.messageBar().pushSuccess(tr_func("Success"), success_msg)
 
 
 def convert_to_kumoy(

@@ -10,7 +10,6 @@ from .. import api
 from ..api.error import format_api_error
 from ...ui.layers.convert_vector import (
     prompt_and_convert_local_layers,
-    show_map_save_result,
 )
 
 from qgis.utils import iface
@@ -24,6 +23,45 @@ is_updating = False
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
+
+
+def show_map_save_result(
+    map_name: str,
+    user_confirmed_conversion: bool,
+    conversion_errors: list[tuple[str, str]],
+    action: str = "saved",
+) -> None:
+    """Show success or warning message after map save/create operation.
+
+    Args:
+        map_name: Name of the map
+        user_confirmed_conversion: Whether user confirmed layer conversion
+        conversion_errors: List of (layer_name, error_message) tuples
+        action: Action performed ('saved' or 'created')
+    """
+    if user_confirmed_conversion and conversion_errors:
+        error_details = "\n".join(
+            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
+        )
+        # Limit error details length
+        msg_max_length = 1000
+        if len(error_details) > msg_max_length:
+            error_details = error_details[:msg_max_length] + "..."
+
+        warning_title = (
+            tr("Map Saved with Warnings")
+            if action == "saved"
+            else tr("Map Created with Warnings")
+        )
+        success_msg = tr(
+            "Map '{}' has been {} successfully.\n\n"
+            "Warning: {} layers could not be converted:\n\n{}"
+        ).format(map_name, action, len(conversion_errors), error_details)
+
+        QMessageBox.warning(None, warning_title, success_msg)
+    else:
+        success_msg = tr("Map '{}' has been {} successfully.").format(map_name, action)
+        iface.messageBar().pushSuccess(tr("Success"), success_msg)
 
 
 def _get_cache_dir() -> str:
@@ -219,27 +257,28 @@ def handle_project_saved() -> None:
 
     # Convert local layers to Kumoy layers if any
     user_confirmed, conversion_errors = prompt_and_convert_local_layers(
-        styled_map_detail.projectId,
-        tr,
-        check_unsaved_edits=True,
-        error_title=tr("Cannot Save Map"),
+        styled_map_detail.projectId
     )
-    
+
     # If user cancelled conversion check, return early
     if user_confirmed is False and conversion_errors == []:
         # Check if it was blocked by unsaved edits
-        from ...ui.layers.convert_vector import get_local_vector_layers, check_vector_layers_modified
+        from ...ui.layers.convert_vector import (
+            get_local_vector_layers,
+            check_vector_layers_modified,
+        )
+
         local_layers = get_local_vector_layers()
         if local_layers and check_vector_layers_modified(local_layers):
             return
-    
+
     # Save project to qgs file
     if user_confirmed:
         # Save converted layers to map before update to Kumoy
         qgsproject_str = write_qgsfile(styled_map_id)
     else:
         qgsproject_str = _get_qgs_str(file_path)
-    
+
     try:
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
@@ -265,7 +304,6 @@ def handle_project_saved() -> None:
     # Show success message with conversion errors summary if any
     show_map_save_result(
         updated_styled_map.name,
-        tr,
         user_confirmed,
         conversion_errors,
         action="saved",
