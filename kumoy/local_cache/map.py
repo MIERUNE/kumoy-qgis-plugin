@@ -9,7 +9,7 @@ from ..constants import LOG_CATEGORY
 from .. import api
 from ..api.error import format_api_error
 from ...ui.layers.convert_vector import (
-    prompt_and_convert_local_layers,
+    convert_local_layers,
 )
 
 from qgis.utils import iface
@@ -248,11 +248,11 @@ def handle_project_saved() -> None:
         return
 
     # Convert local layers to Kumoy layers if any
-    should_stop, conversion_errors = prompt_and_convert_local_layers(
+    has_unsaved_edits, conversion_errors = convert_local_layers(
         styled_map_detail.projectId
     )
 
-    if should_stop:
+    if has_unsaved_edits:
         return  # Blocked by unsaved edits
 
     # Save project to qgs file

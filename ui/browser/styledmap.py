@@ -32,9 +32,7 @@ from ...pyqt_version import (
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
-    get_local_vector_layers,
-    check_vector_layers_modified,
-    prompt_and_convert_local_layers,
+    convert_local_layers,
 )
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
@@ -276,11 +274,11 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         # Convert local layers to Kumoy layers if any
-        should_stop, conversion_errors = prompt_and_convert_local_layers(
+        has_unsaved_edits, conversion_errors = convert_local_layers(
             self.styled_map.projectId,
         )
 
-        if should_stop:
+        if has_unsaved_edits:
             return  # Blocked by unsaved edits
 
         try:
@@ -562,11 +560,11 @@ class StyledMapRoot(QgsDataItem):
                 QgsProject.instance().clear()
 
             # Convert local layers to Kumoy layers
-            should_stop, conversion_errors = prompt_and_convert_local_layers(
+            has_unsaved_edits, conversion_errors = convert_local_layers(
                 self.project.id,
             )
 
-            if should_stop:
+            if has_unsaved_edits:
                 return  # Blocked by unsaved edits
 
             qgisproject = write_qgsfile(self.project.id)

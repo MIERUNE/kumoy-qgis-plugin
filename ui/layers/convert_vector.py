@@ -83,28 +83,7 @@ def get_local_vector_layers() -> list[QgsVectorLayer]:
     return local_layers
 
 
-def check_vector_layers_modified(layers: list[QgsVectorLayer]) -> bool:
-    for layer in layers:
-        if isinstance(layer, QgsVectorLayer) and layer.isModified():
-            return True
-    return False
-
-
-def convert_multiple_layers_to_kumoy(
-    layers: list[QgsVectorLayer], project_id: str
-) -> list[tuple[str, str]]:
-    """Convert multiple layers to Kumoy
-    Returns: list of (layer_name, error_message) for failed conversions
-    """
-    conversion_errors = []
-    for layer in layers:
-        success, error = convert_to_kumoy(layer, project_id)
-        if not success:
-            conversion_errors.append((layer.name(), error))
-    return conversion_errors
-
-
-def prompt_and_convert_local_layers(
+def convert_local_layers(
     project_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
     """Prompt user to convert local layers and execute if confirmed.
@@ -113,9 +92,8 @@ def prompt_and_convert_local_layers(
         project_id: Project ID to convert layers to
 
     Returns:
-        tuple: (should_stop: bool, conversion_errors: list)
-               should_stop=True means process must be blocked (unsaved edits found)
-               should_stop=False means continue (user declined or converted successfully)
+        tuple: (has_unsaved_edits: bool, conversion_errors: list)
+               has_unsaved_edits=True means process must be blocked
                conversion_errors: list of (layer_name, error_message) for failed conversions
     """
     from qgis.PyQt.QtWidgets import QMessageBox
@@ -153,7 +131,12 @@ def prompt_and_convert_local_layers(
         return (False, [])  # User declined, but don't block
 
     # Convert layers
-    conversion_errors = convert_multiple_layers_to_kumoy(local_layers, project_id)
+    conversion_errors = []
+    for layer in local_layers:
+        success, error = convert_to_kumoy(layer, project_id)
+        if not success:
+            conversion_errors.append((layer.name(), error))
+
     return (False, conversion_errors)  # Continue with results
 
 
