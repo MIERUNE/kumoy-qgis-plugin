@@ -10,6 +10,7 @@ from .. import api
 from ..api.error import format_api_error
 from ...ui.layers.convert_vector import (
     prompt_and_convert_local_layers,
+    show_map_save_result,
 )
 
 from qgis.utils import iface
@@ -262,25 +263,10 @@ def handle_project_saved() -> None:
         return
 
     # Show success message with conversion errors summary if any
-    if user_confirmed and conversion_errors:
-        error_details = "\n".join(
-            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
-        )
-        # Limit error details length
-        msg_max_length = 1000
-        if len(error_details) > msg_max_length:
-            error_details = error_details[:msg_max_length] + "..."
-
-        QMessageBox.warning(
-            None,
-            tr("Map Saved with Warnings"),
-            tr(
-                "Map '{}' has been saved successfully.\n\n"
-                "Warning: {} layers could not be converted:\n\n{}"
-            ).format(updated_styled_map.name, len(conversion_errors), error_details),
-        )
-    else:
-        iface.messageBar().pushSuccess(
-            tr("Success"),
-            tr("Map '{}' has been saved successfully.").format(updated_styled_map.name),
-        )
+    show_map_save_result(
+        updated_styled_map.name,
+        tr,
+        user_confirmed,
+        conversion_errors,
+        action="saved",
+    )

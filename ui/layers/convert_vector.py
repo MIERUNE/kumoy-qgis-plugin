@@ -167,6 +167,52 @@ def prompt_and_convert_local_layers(
     return (True, conversion_errors)
 
 
+def show_map_save_result(
+    map_name: str,
+    tr_func,
+    user_confirmed_conversion: bool,
+    conversion_errors: list[tuple[str, str]],
+    action: str = "saved",
+) -> None:
+    """Show success or warning message after map save/create operation.
+
+    Args:
+        map_name: Name of the map
+        tr_func: Translation function to use for messages
+        user_confirmed_conversion: Whether user confirmed layer conversion
+        conversion_errors: List of (layer_name, error_message) tuples
+        action: Action performed ('saved' or 'created')
+    """
+    from qgis.PyQt.QtWidgets import QMessageBox
+    from qgis.utils import iface
+
+    if user_confirmed_conversion and conversion_errors:
+        error_details = "\n".join(
+            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
+        )
+        # Limit error details length
+        msg_max_length = 1000
+        if len(error_details) > msg_max_length:
+            error_details = error_details[:msg_max_length] + "..."
+
+        warning_title = (
+            tr_func("Map Saved with Warnings")
+            if action == "saved"
+            else tr_func("Map Created with Warnings")
+        )
+        success_msg = tr_func(
+            "Map '{}' has been {} successfully.\n\n"
+            "Warning: {} layers could not be converted:\n\n{}"
+        ).format(map_name, action, len(conversion_errors), error_details)
+
+        QMessageBox.warning(None, warning_title, success_msg)
+    else:
+        success_msg = tr_func("Map '{}' has been {} successfully.").format(
+            map_name, action
+        )
+        iface.messageBar().pushSuccess(tr_func("Success"), success_msg)
+
+
 def convert_to_kumoy(
     layer: QgsVectorLayer, project_id: str
 ) -> tuple[bool, Optional[str]]:

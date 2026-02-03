@@ -35,6 +35,7 @@ from ...ui.layers.convert_vector import (
     get_local_vector_layers,
     check_vector_layers_modified,
     prompt_and_convert_local_layers,
+    show_map_save_result,
 )
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
@@ -319,37 +320,13 @@ class StyledMapItem(QgsDataItem):
         self.refresh()
 
         # Show success message with conversion errors summary if any
-        if (
-            local_layers
-            and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
-            and conversion_errors
-        ):
-            error_details = "\n".join(
-                [
-                    f"• {layer_name}\n{error}\n"
-                    for layer_name, error in conversion_errors
-                ]
-            )
-            # Limit error details length
-            msg_max_length = 1000
-            if len(error_details) > msg_max_length:
-                error_details = error_details[:msg_max_length] + "..."
-
-            QMessageBox.warning(
-                None,
-                self.tr("Map Saved with Warnings"),
-                self.tr(
-                    "Map '{}' has been saved successfully.\n\n"
-                    "Warning: {} layers could not be converted:\n\n{}"
-                ).format(self.styled_map.name, len(conversion_errors), error_details),
-            )
-        else:
-            iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("Map '{}' has been saved successfully.").format(
-                    self.styled_map.name
-                ),
-            )
+        show_map_save_result(
+            self.styled_map.name,
+            self.tr,
+            user_confirmed,
+            conversion_errors,
+            action="saved",
+        )
 
     def delete_styled_map(self):
         # 削除確認
@@ -639,31 +616,13 @@ class StyledMapRoot(QgsDataItem):
             self.parent().refresh()
 
             # Show success message with conversion errors summary if any
-            if user_confirmed and conversion_errors:
-                error_details = "\n".join(
-                    [
-                        f"• {layer_name}\n{error}\n"
-                        for layer_name, error in conversion_errors
-                    ]
-                )
-                # Limit error details length
-                msg_max_length = 1000
-                if len(error_details) > msg_max_length:
-                    error_details = error_details[:msg_max_length] + "..."
-
-                QMessageBox.warning(
-                    None,
-                    self.tr("Map Created with Warnings"),
-                    self.tr(
-                        "Map '{}' has been created successfully.\n\n"
-                        "Warning: {} layers could not be converted:\n\n{}"
-                    ).format(name, len(conversion_errors), error_details),
-                )
-            else:
-                iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("Map '{}' has been created successfully.").format(name),
-                )
+            show_map_save_result(
+                name,
+                self.tr,
+                user_confirmed,
+                conversion_errors,
+                action="created",
+            )
             QgsProject.instance().setDirty(False)
         except Exception as e:
             error_text = format_api_error(e)
