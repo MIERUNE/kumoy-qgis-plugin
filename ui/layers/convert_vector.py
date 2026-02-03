@@ -104,6 +104,69 @@ def convert_multiple_layers_to_kumoy(
     return conversion_errors
 
 
+def prompt_and_convert_local_layers(
+    project_id: str,
+    tr_func,
+    check_unsaved_edits: bool = True,
+    error_title: str = None,
+) -> tuple[bool, list[tuple[str, str]]]:
+    """Prompt user to convert local layers and execute if confirmed.
+
+    Args:
+        project_id: Project ID to convert layers to
+        tr_func: Translation function to use for messages
+        check_unsaved_edits: If True, check for unsaved edits and block if found
+        error_title: Title for error dialog (default: "Cannot Save Map")
+
+    Returns:
+        tuple: (user_confirmed: bool, conversion_errors: list)
+               user_confirmed is False if user declined or if unsaved edits blocked
+    """
+    from qgis.PyQt.QtWidgets import QMessageBox
+    from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+
+    if error_title is None:
+        error_title = tr_func("Cannot Save Map")
+
+    # Get local layers
+    local_layers = get_local_vector_layers()
+
+    if not local_layers:
+        return (False, [])
+
+    # Check if any local layer has unsaved edits
+    if check_unsaved_edits:
+        is_modified = check_vector_layers_modified(local_layers)
+        if is_modified:
+            QMessageBox.warning(
+                None,
+                error_title,
+                tr_func(
+                    "Please save or discard your local layer edits before saving map."
+                ),
+            )
+            return (False, [])
+
+    # Ask user for confirmation
+    convert_confirm = QMessageBox.question(
+        None,
+        tr_func("Convert Local Layers to Kumoy Layers"),
+        tr_func(
+            "There are {} local vector layers in the current project.\n"
+            "Do you want to convert them to Kumoy layers?"
+        ).format(len(local_layers)),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.Yes,
+    )
+
+    if convert_confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return (False, [])
+
+    # Convert layers
+    conversion_errors = convert_multiple_layers_to_kumoy(local_layers, project_id)
+    return (True, conversion_errors)
+
+
 def convert_to_kumoy(
     layer: QgsVectorLayer, project_id: str
 ) -> tuple[bool, Optional[str]]:

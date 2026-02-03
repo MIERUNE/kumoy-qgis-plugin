@@ -34,7 +34,7 @@ from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
     get_local_vector_layers,
     check_vector_layers_modified,
-    convert_multiple_layers_to_kumoy,
+    prompt_and_convert_local_layers,
 )
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
@@ -276,35 +276,18 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         # Convert local layers to Kumoy layers if any
-        local_layers = get_local_vector_layers()
+        user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+            self.styled_map.projectId,
+            self.tr,
+            check_unsaved_edits=True,
+            error_title=self.tr("Cannot Save Map"),
+        )
 
-        if local_layers:
-            # Check if any local layer has unsaved edits
-            is_modified = check_vector_layers_modified(local_layers)
-            if is_modified:
-                QMessageBox.warning(
-                    None,
-                    self.tr("Cannot Save Map"),
-                    self.tr(
-                        "Please save or discard your local layer edits before saving map."
-                    ),
-                )
+        # If blocked by unsaved edits, return early
+        if user_confirmed is False and conversion_errors == []:
+            local_layers = get_local_vector_layers()
+            if local_layers and check_vector_layers_modified(local_layers):
                 return
-
-            convert_confirm = QMessageBox.question(
-                None,
-                self.tr("Convert Local Layers to Kumoy Layers"),
-                self.tr(
-                    "There are {} local vector layers in the current project.\n"
-                    "Do you want to convert them to Kumoy layers?"
-                ).format(len(local_layers)),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.Yes,
-            )
-            if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-                conversion_errors = convert_multiple_layers_to_kumoy(
-                    local_layers, self.styled_map.projectId
-                )
 
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
@@ -627,21 +610,11 @@ class StyledMapRoot(QgsDataItem):
                 QgsProject.instance().clear()
 
             # Convert local layers to Kumoy layers
-            if local_layers:
-                convert_confirm = QMessageBox.question(
-                    None,
-                    self.tr("Convert Local Layers to Kumoy Layers"),
-                    self.tr(
-                        "There are {} local vector layers in the current project.\n"
-                        "Do you want to convert them to Kumoy layers?"
-                    ).format(len(local_layers)),
-                    Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                    Q_MESSAGEBOX_STD_BUTTON.Yes,
-                )
-                if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-                    conversion_errors = convert_multiple_layers_to_kumoy(
-                        local_layers, self.project.id
-                    )
+            user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+                self.project.id,
+                self.tr,
+                check_unsaved_edits=False,  # Already checked earlier
+            )
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -666,11 +639,7 @@ class StyledMapRoot(QgsDataItem):
             self.parent().refresh()
 
             # Show success message with conversion errors summary if any
-            if (
-                local_layers
-                and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
-                and conversion_errors
-            ):
+            if user_confirmed and conversion_errors:
                 error_details = "\n".join(
                     [
                         f"• {layer_name}\n{error}\n"

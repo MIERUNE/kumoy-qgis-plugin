@@ -9,9 +9,7 @@ from ..constants import LOG_CATEGORY
 from .. import api
 from ..api.error import format_api_error
 from ...ui.layers.convert_vector import (
-    get_local_vector_layers,
-    check_vector_layers_modified,
-    convert_multiple_layers_to_kumoy,
+    prompt_and_convert_local_layers,
 )
 
 from qgis.utils import iface
@@ -219,37 +217,29 @@ def handle_project_saved() -> None:
         return
 
     # Convert local layers to Kumoy layers if any
-    local_layers = get_local_vector_layers()
-
-    if local_layers:
-        # Check if any local layer has unsaved edits
-        is_modified = check_vector_layers_modified(local_layers)
-        if is_modified:
-            QMessageBox.warning(
-                None,
-                tr("Cannot Save Map"),
-                tr("Please save or discard your local layer edits before saving map."),
-            )
+    user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+        styled_map_detail.projectId,
+        tr,
+        check_unsaved_edits=True,
+        error_title=tr("Cannot Save Map"),
+    )
+    
+    # If user cancelled conversion check, return early
+    if user_confirmed is False and conversion_errors == []:
+        # Check if it was blocked by unsaved edits
+        from ...ui.layers.convert_vector import get_local_vector_layers, check_vector_layers_modified
+        local_layers = get_local_vector_layers()
+        if local_layers and check_vector_layers_modified(local_layers):
             return
-
-        convert_confirm = QMessageBox.question(
-            None,
-            tr("Convert Local Layers to Kumoy Layers"),
-            tr(
-                "There are {} local vector layers in the current project.\n"
-                "Do you want to convert them to Kumoy layers?"
-            ).format(len(local_layers)),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.Yes,
-        )
-        if convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            conversion_errors = convert_multiple_layers_to_kumoy(
-                local_layers, styled_map_detail.projectId
-            )
-
-    try:
+    
+    # Save project to qgs file
+    if user_confirmed:
+        # Save converted layers to map before update to Kumoy
+        qgsproject_str = write_qgsfile(styled_map_id)
+    else:
         qgsproject_str = _get_qgs_str(file_path)
-
+    
+    try:
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
@@ -272,11 +262,7 @@ def handle_project_saved() -> None:
         return
 
     # Show success message with conversion errors summary if any
-    if (
-        local_layers
-        and convert_confirm == Q_MESSAGEBOX_STD_BUTTON.Yes
-        and conversion_errors
-    ):
+    if user_confirmed and conversion_errors:
         error_details = "\n".join(
             [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
         )
