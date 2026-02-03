@@ -255,10 +255,10 @@ def handle_project_saved() -> None:
     if has_unsaved_edits:
         return  # Don't proceed if local layers have unsaved edits
 
-    # Save project with converted layers
-    qgsproject_str = write_qgsfile(styled_map_id)
-
     try:
+        # Save project with converted layers
+        qgsproject_str = write_qgsfile(styled_map_id)
+
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
