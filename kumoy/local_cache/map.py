@@ -27,19 +27,15 @@ def tr(message: str, context: str = "@default") -> str:
 
 def show_map_save_result(
     map_name: str,
-    user_confirmed_conversion: bool,
     conversion_errors: list[tuple[str, str]],
-    action: str = "saved",
 ) -> None:
-    """Show success or warning message after map save/create operation.
+    """Show success or warning message after map save operation.
 
     Args:
         map_name: Name of the map
-        user_confirmed_conversion: Whether user confirmed layer conversion
         conversion_errors: List of (layer_name, error_message) tuples
-        action: Action performed ('saved' or 'created')
     """
-    if user_confirmed_conversion and conversion_errors:
+    if conversion_errors:
         error_details = "\n".join(
             [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
         )
@@ -48,20 +44,16 @@ def show_map_save_result(
         if len(error_details) > msg_max_length:
             error_details = error_details[:msg_max_length] + "..."
 
-        warning_title = (
-            tr("Map Saved with Warnings")
-            if action == "saved"
-            else tr("Map Created with Warnings")
-        )
-        success_msg = tr(
-            "Map '{}' has been {} successfully.\n\n"
+        report_msg = tr(
+            "Map '{}' has been saved successfully.\n\n"
             "Warning: {} layers could not be converted:\n\n{}"
-        ).format(map_name, action, len(conversion_errors), error_details)
+        ).format(map_name, len(conversion_errors), error_details)
 
-        QMessageBox.warning(None, warning_title, success_msg)
+        QMessageBox.warning(None, tr("Map Saved with Warnings"), report_msg)
     else:
-        success_msg = tr("Map '{}' has been {} successfully.").format(map_name, action)
-        iface.messageBar().pushSuccess(tr("Success"), success_msg)
+        # No conversion errors means also no local layers to convert
+        report_msg = tr("Map '{}' has been saved successfully.").format(map_name)
+        iface.messageBar().pushSuccess(tr("Success"), report_msg)
 
 
 def _get_cache_dir() -> str:
@@ -256,28 +248,17 @@ def handle_project_saved() -> None:
         return
 
     # Convert local layers to Kumoy layers if any
-    user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+    should_stop, conversion_errors = prompt_and_convert_local_layers(
         styled_map_detail.projectId
     )
 
-    # If user cancelled conversion check, return early
-    if user_confirmed is False and conversion_errors == []:
-        # Check if it was blocked by unsaved edits
-        from ...ui.layers.convert_vector import (
-            get_local_vector_layers,
-            check_vector_layers_modified,
-        )
-
-        local_layers = get_local_vector_layers()
-        if local_layers and check_vector_layers_modified(local_layers):
-            return
+    if should_stop:
+        return  # Blocked by unsaved edits
 
     # Save project to qgs file
-    if user_confirmed:
-        # Save converted layers to map before update to Kumoy
+    if conversion_errors or not conversion_errors:
+        # Always save after conversion attempt or if user declined
         qgsproject_str = write_qgsfile(styled_map_id)
-    else:
-        qgsproject_str = _get_qgs_str(file_path)
 
     try:
         # Overwrite styled map
@@ -302,9 +283,4 @@ def handle_project_saved() -> None:
         return
 
     # Show success message with conversion errors summary if any
-    show_map_save_result(
-        updated_styled_map.name,
-        user_confirmed,
-        conversion_errors,
-        action="saved",
-    )
+    show_map_save_result(updated_styled_map.name, conversion_errors)

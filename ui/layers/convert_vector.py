@@ -111,11 +111,12 @@ def prompt_and_convert_local_layers(
 
     Args:
         project_id: Project ID to convert layers to
-        error_title: Title for error dialog (default: "Cannot Save Map")
 
     Returns:
-        tuple: (conversion_done: bool, conversion_errors: list)
-               conversion_done is False if user declined or if unsaved edits blocked
+        tuple: (should_stop: bool, conversion_errors: list)
+               should_stop=True means process must be blocked (unsaved edits found)
+               should_stop=False means continue (user declined or converted successfully)
+               conversion_errors: list of (layer_name, error_message) for failed conversions
     """
     from qgis.PyQt.QtWidgets import QMessageBox
     from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
@@ -134,7 +135,7 @@ def prompt_and_convert_local_layers(
                 tr("Cannot Save Map"),
                 tr("Please save or discard your local layer edits before saving map."),
             )
-        return (False, [])
+            return (True, [])  # Block the process
 
     # Ask user for confirmation
     convert_confirm = QMessageBox.question(
@@ -149,11 +150,11 @@ def prompt_and_convert_local_layers(
     )
 
     if convert_confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-        return (False, [])
+        return (False, [])  # User declined, but don't block
 
     # Convert layers
     conversion_errors = convert_multiple_layers_to_kumoy(local_layers, project_id)
-    return (True, conversion_errors)
+    return (False, conversion_errors)  # Continue with results
 
 
 def convert_to_kumoy(

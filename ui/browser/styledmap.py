@@ -276,15 +276,12 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         # Convert local layers to Kumoy layers if any
-        user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+        should_stop, conversion_errors = prompt_and_convert_local_layers(
             self.styled_map.projectId,
         )
 
-        # If blocked by unsaved edits, return early
-        if user_confirmed is False and conversion_errors == []:
-            local_layers = get_local_vector_layers()
-            if local_layers and check_vector_layers_modified(local_layers):
-                return
+        if should_stop:
+            return  # Blocked by unsaved edits
 
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
@@ -318,9 +315,7 @@ class StyledMapItem(QgsDataItem):
         # Show success message with conversion errors summary if any
         show_map_save_result(
             self.styled_map.name,
-            user_confirmed,
             conversion_errors,
-            action="saved",
         )
 
     def delete_styled_map(self):
@@ -567,9 +562,12 @@ class StyledMapRoot(QgsDataItem):
                 QgsProject.instance().clear()
 
             # Convert local layers to Kumoy layers
-            user_confirmed, conversion_errors = prompt_and_convert_local_layers(
+            should_stop, conversion_errors = prompt_and_convert_local_layers(
                 self.project.id,
             )
+
+            if should_stop:
+                return  # Blocked by unsaved edits
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -596,9 +594,7 @@ class StyledMapRoot(QgsDataItem):
             # Show success message with conversion errors summary if any
             show_map_save_result(
                 name,
-                user_confirmed,
                 conversion_errors,
-                action="created",
             )
             QgsProject.instance().setDirty(False)
         except Exception as e:
