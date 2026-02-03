@@ -253,12 +253,10 @@ def handle_project_saved() -> None:
     )
 
     if has_unsaved_edits:
-        return  # Blocked by unsaved edits
+        return  # Don't proceed if local layers have unsaved edits
 
-    # Save project to qgs file
-    if conversion_errors or not conversion_errors:
-        # Always save after conversion attempt or if user declined
-        qgsproject_str = write_qgsfile(styled_map_id)
+    # Save project with converted layers
+    qgsproject_str = write_qgsfile(styled_map_id)
 
     try:
         # Overwrite styled map

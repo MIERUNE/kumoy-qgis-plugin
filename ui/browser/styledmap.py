@@ -279,7 +279,7 @@ class StyledMapItem(QgsDataItem):
         )
 
         if has_unsaved_edits:
-            return  # Blocked by unsaved edits
+            return  # Don't proceed if local layers have unsaved edits
 
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
@@ -310,7 +310,7 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
-        # Show success message with conversion errors summary if any
+        # Show result message with conversion errors summary if any
         show_map_save_result(
             self.styled_map.name,
             conversion_errors,
@@ -565,7 +565,7 @@ class StyledMapRoot(QgsDataItem):
             )
 
             if has_unsaved_edits:
-                return  # Blocked by unsaved edits
+                return  # Don't proceed if local layers have unsaved edits
 
             qgisproject = write_qgsfile(self.project.id)
 
@@ -589,7 +589,7 @@ class StyledMapRoot(QgsDataItem):
             # reload browser panel
             self.parent().refresh()
 
-            # Show success message with conversion errors summary if any
+            # Show result message with conversion errors summary if any
             show_map_save_result(
                 name,
                 conversion_errors,
