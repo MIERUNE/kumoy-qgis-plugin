@@ -22,7 +22,11 @@ from .processing.close_all_processing_dialogs import close_all_processing_dialog
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
-from .settings_manager import get_settings, reset_settings, store_setting
+from .settings_manager import (
+    reset_settings,
+    store_setting,
+    get_settings as get_kumoy_settings,
+)
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
 from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
@@ -176,7 +180,7 @@ class KumoyPlugin:
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
 
-        project_id = get_settings().selected_project_id
+        project_id = get_kumoy_settings().selected_project_id
         action.triggered.connect(
             partial(on_convert_to_kumoy_clicked, layer, project_id)
         )
