@@ -1,7 +1,7 @@
 import json
 import urllib.request
 import webbrowser
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
@@ -219,6 +219,26 @@ class DialogLogin(QDialog):
                 cognito_client_id,
                 port=9248,
             )
+
+        except URLError as e:
+            error_details = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit network error
+            error_message = self.tr(
+                "Network connection error.\n"
+                "Please check your internet connection and server URL.\n\n"
+                "Details: {}"
+            ).format(error_details)
+
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                error_message,
+            )
+            return
+
         except HTTPError as e:
             error_body = e.read().decode("utf-8")
             try:
@@ -229,13 +249,11 @@ class DialogLogin(QDialog):
             QgsMessageLog.logMessage(
                 f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit network error
+            # Explicit server error
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
-                self.tr("An error occurred while logging in: {}").format(
-                    str(error_message)
-                ),
+                self.tr("Server error: {}").format(str(error_message)),
             )
             return
         except Exception as e:
@@ -243,7 +261,7 @@ class DialogLogin(QDialog):
             QgsMessageLog.logMessage(
                 f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit network error
+            # Explicit error
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
