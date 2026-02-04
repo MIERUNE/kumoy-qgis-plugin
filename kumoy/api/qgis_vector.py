@@ -2,7 +2,7 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QVariant, QDateTime, QDate, QTime
 
 from .. import constants
 from .client import ApiClient
@@ -85,6 +85,23 @@ def add_features(
                 and feature["properties"][k].isNull()
             ):
                 feature["properties"][k] = None
+
+            # HACK: Replace Qt datetime objects to string
+            # attribute of f.attributes() become QDateTime/QDate/QTime when the field type is written in date time format
+            # input: PyQt.QtCore.QDateTime(2026, 2, 4, 10, 29, 41, 859)
+            # output: '2026-02-04T10:29:41.859'
+            elif isinstance(feature["properties"][k], QDateTime):
+                feature["properties"][k] = feature["properties"][k].toString(
+                    "yyyy-MM-ddTHH:mm:ss.zzz"
+                )
+            elif isinstance(feature["properties"][k], QDate):
+                feature["properties"][k] = feature["properties"][k].toString(
+                    "yyyy-MM-dd"
+                )
+            elif isinstance(feature["properties"][k], QTime):
+                feature["properties"][k] = feature["properties"][k].toString(
+                    "HH:mm:ss.zzz"
+                )
 
     ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
 
