@@ -250,6 +250,9 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
+        QgsProject.instance().setTitle(updated_styled_map.name)
+        QgsProject.instance().setDirty(False)
+
         iface.messageBar().pushSuccess(
             self.tr("Success"),
             self.tr("Map '{}' has been updated successfully.").format(new_name),
@@ -310,9 +313,12 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
+        QgsProject.instance().setTitle(updated_styled_map.name)
+        QgsProject.instance().setDirty(False)
+
         # Show result message with conversion errors summary if any
         show_map_save_result(
-            self.styled_map.name,
+            updated_styled_map.name,
             conversion_errors,
         )
 
