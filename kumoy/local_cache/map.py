@@ -280,5 +280,9 @@ def handle_project_saved() -> None:
         )
         return
 
+    # Update map name if changed by other users
+    QgsProject.instance().setTitle(updated_styled_map.name)
+    QgsProject.instance().setDirty(False)
+
     # Show success message with conversion errors summary if any
     show_map_save_result(updated_styled_map.name, conversion_errors)
