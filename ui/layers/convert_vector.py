@@ -21,17 +21,14 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import (
-    QT_APPLICATION_MODAL,
-)
-from ...settings_manager import get_settings
+from ...pyqt_version import QT_APPLICATION_MODAL, Q_MESSAGEBOX_STD_BUTTON
 
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
+def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
     # Validate layer before proceeding
     if not layer or not layer.isValid():
         QMessageBox.warning(
@@ -42,7 +39,6 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
         return
 
     layer_name = layer.name()
-    project_id = get_settings().selected_project_id
 
     if not project_id:
         QMessageBox.warning(
@@ -67,6 +63,70 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer) -> None:
             tr("Conversion Failed"),
             tr("Failed to convert layer '{}' to Kumoy:\n{}").format(layer_name, error),
         )
+
+
+def convert_local_layers(
+    project_id: str,
+) -> tuple[bool, list[tuple[str, str]]]:
+    """Prompt user to convert local layers and execute if confirmed.
+
+    Args:
+        project_id: Project ID to convert layers to
+
+    Returns:
+        tuple: (has_unsaved_edits: bool, conversion_errors: list)
+               has_unsaved_edits=True means process must be blocked
+               conversion_errors: list of (layer_name, error_message) for failed conversions
+    """
+
+    # Get local layers
+    local_layers = []
+    for layer in QgsProject.instance().mapLayers().values():
+        # skip if it is not a valid vector layer
+        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
+            continue
+        provider = layer.dataProvider()
+        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
+            continue
+
+        local_layers.append(layer)
+
+    if not local_layers:
+        return (False, [])
+
+    # Check if any local layer has unsaved edits
+    for layer in local_layers:
+        if isinstance(layer, QgsVectorLayer) and layer.isModified():
+            QMessageBox.warning(
+                None,
+                tr("Cannot Save Map"),
+                tr("Please save or discard your local layer edits before saving map."),
+            )
+            return (True, [])  # Block the process
+
+    # Ask user for confirmation
+    convert_confirm = QMessageBox.question(
+        None,
+        tr("Convert Local Layers to Kumoy Layers"),
+        tr(
+            "There are {} local vector layers in the current project.\n"
+            "Do you want to convert them to Kumoy layers?"
+        ).format(len(local_layers)),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.Yes,
+    )
+
+    if convert_confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return (False, [])  # User declined, but don't block
+
+    # Convert layers
+    conversion_errors = []
+    for layer in local_layers:
+        success, error = convert_to_kumoy(layer, project_id)
+        if not success:
+            conversion_errors.append((layer.name(), error))
+
+    return (False, conversion_errors)  # Continue with results
 
 
 def convert_to_kumoy(

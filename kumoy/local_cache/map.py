@@ -8,6 +8,9 @@ from ..constants import LOG_CATEGORY
 
 from .. import api
 from ..api.error import format_api_error
+from ...ui.layers.convert_vector import (
+    convert_local_layers,
+)
 
 from qgis.utils import iface
 
@@ -20,6 +23,37 @@ is_updating = False
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
+
+
+def show_map_save_result(
+    map_name: str,
+    conversion_errors: list[tuple[str, str]],
+) -> None:
+    """Show success or warning message after map save operation.
+
+    Args:
+        map_name: Name of the map
+        conversion_errors: List of (layer_name, error_message) tuples
+    """
+    if conversion_errors:
+        error_details = "\n".join(
+            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
+        )
+        # Limit error details length
+        msg_max_length = 1000
+        if len(error_details) > msg_max_length:
+            error_details = error_details[:msg_max_length] + "..."
+
+        report_msg = tr(
+            "Map '{}' has been saved successfully.\n\n"
+            "Warning: {} layers could not be converted:\n\n{}"
+        ).format(map_name, len(conversion_errors), error_details)
+
+        QMessageBox.warning(None, tr("Map Saved with Warnings"), report_msg)
+    else:
+        # No conversion errors means also no local layers to convert
+        report_msg = tr("Map '{}' has been saved successfully.").format(map_name)
+        iface.messageBar().pushSuccess(tr("Success"), report_msg)
 
 
 def _get_cache_dir() -> str:
@@ -213,8 +247,17 @@ def handle_project_saved() -> None:
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
+    # Convert local layers to Kumoy layers if any
+    has_unsaved_edits, conversion_errors = convert_local_layers(
+        styled_map_detail.projectId
+    )
+
+    if has_unsaved_edits:
+        return  # Don't proceed if local layers have unsaved edits
+
     try:
-        qgsproject_str = _get_qgs_str(file_path)
+        # Save project with converted layers
+        qgsproject_str = write_qgsfile(styled_map_id)
 
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
@@ -237,7 +280,5 @@ def handle_project_saved() -> None:
         )
         return
 
-    iface.messageBar().pushSuccess(
-        tr("Success"),
-        tr("Map '{}' has been saved successfully.").format(updated_styled_map.name),
-    )
+    # Show success message with conversion errors summary if any
+    show_map_save_result(updated_styled_map.name, conversion_errors)
