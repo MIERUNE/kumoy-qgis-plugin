@@ -95,6 +95,8 @@ def raise_error(error: dict):
         raise ConflictError(message, error.get("error", ""))
     elif message == "Under Maintenance":
         raise UnderMaintenanceError(message, error.get("error", ""))
+    elif message:
+        raise Exception(f"{message}. {error.get('error', '')}")
     else:
         raise Exception(error)
 
