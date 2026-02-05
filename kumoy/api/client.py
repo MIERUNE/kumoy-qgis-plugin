@@ -61,7 +61,12 @@ class ApiClient:
         err = blocking_request.get(req, forceRefresh=True)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            api_error.raise_error(content)
+            # Handle empty content when network error occurs
+            if not content:
+                error_message = blocking_request.errorMessage()
+                api_error.raise_error({"message": error_message, "error": ""})
+            else:
+                api_error.raise_error(content)
 
         return content
 
@@ -101,7 +106,11 @@ class ApiClient:
         err = blocking_request.post(req, byte_array)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            api_error.raise_error(content)
+            if not content:
+                error_message = blocking_request.errorMessage()
+                api_error.raise_error({"message": error_message, "error": ""})
+            else:
+                api_error.raise_error(content)
 
         return content
 
@@ -141,7 +150,11 @@ class ApiClient:
         err = blocking_request.put(req, byte_array)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            api_error.raise_error(content)
+            if not content:
+                error_message = blocking_request.errorMessage()
+                api_error.raise_error({"message": error_message, "error": ""})
+            else:
+                api_error.raise_error(content)
 
         return content
 
@@ -175,6 +188,10 @@ class ApiClient:
         err = blocking_request.deleteResource(req)
         content = handle_blocking_reply(blocking_request.reply().content())
         if err != QgsBlockingNetworkRequest.NoError:
-            api_error.raise_error(content)
+            if not content:
+                error_message = blocking_request.errorMessage()
+                api_error.raise_error({"message": error_message})
+            else:
+                api_error.raise_error(content)
 
         return content
