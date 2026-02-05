@@ -356,7 +356,9 @@ class StyledMapItem(QgsDataItem):
                     Qgis.Critical,
                 )
                 QMessageBox.critical(
-                    None, self.tr("Error"), self.tr("Failed to delete the map.")
+                    None,
+                    self.tr("Error"),
+                    self.tr("Failed to delete the map: {}").format(error_text),
                 )
 
             # Remove cached qgs file
