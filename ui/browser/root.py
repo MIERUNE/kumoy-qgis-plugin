@@ -53,6 +53,7 @@ class RootCollection(QgsDataCollectionItem):
 
         self.organization_data = None
         self.project_data = None
+        self.current_project_role = None
 
         self.project_select_dialog = None
         self.account_setting_dialog = None
@@ -68,6 +69,7 @@ class RootCollection(QgsDataCollectionItem):
     def load_organization_project(self):
         self.organization_data = None
         self.project_data = None
+        self.current_project_role = None
 
         settings = get_settings()
         if (
@@ -82,6 +84,8 @@ class RootCollection(QgsDataCollectionItem):
             settings.selected_organization_id
         )
         self.project_data = api.project.get_project(settings.selected_project_id)
+        self.current_project_role = self.project_data.role
+
         self.setName(
             f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
         )

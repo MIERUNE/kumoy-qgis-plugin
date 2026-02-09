@@ -180,26 +180,20 @@ class KumoyPlugin:
 
         project_id = get_kumoy_settings().selected_project_id
 
+        # Get current project role from browser panel
+        registry = QgsApplication.instance().dataItemProviderRegistry()
+        providers = registry.providers()
+
+        current_role = None
+        for prov in providers:
+            if prov.name() == PLUGIN_NAME:
+                root = prov.createDataItem("", None)
+                if root:
+                    current_role = root.current_project_role
+                    break
+
         # Role must be ADMIN or OWNER
-        try:
-            project_details = get_project(project_id)
-            if project_details.role not in [
-                "ADMIN",
-                "OWNER",
-            ]:
-                return
-        except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error getting project: {}").format(error_text),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error getting project: {}").format(error_text),
-            )
+        if current_role not in ["ADMIN", "OWNER"]:
             return
 
         # Create and add convert action
