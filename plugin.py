@@ -14,7 +14,9 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
-from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
+from .kumoy.api.error import format_api_error
+from .kumoy.api.project import get_project
+from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
@@ -176,10 +178,33 @@ class KumoyPlugin:
         if not provider or provider.name() == DATA_PROVIDER_KEY:
             return
 
+        project_id = get_kumoy_settings().selected_project_id
+
+        # Role must be ADMIN or OWNER
+        try:
+            project_role = get_project(project_id)
+            if project_role.role not in [
+                "ADMIN",
+                "OWNER",
+            ]:
+                return
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                self.tr("Error loading map: {}").format(error_text),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error loading map: {}").format(error_text),
+            )
+            return
+
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
 
-        project_id = get_kumoy_settings().selected_project_id
         action.triggered.connect(lambda: on_convert_to_kumoy_clicked(layer, project_id))
 
         # Actions to be added after the last separator
