@@ -492,8 +492,8 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return True
 
     def addAttributes(self, attributes: List[QgsField]) -> bool:
-        # Convert QgsField list to dictionary of name:type
-        attr_dict = {}
+        # Convert QgsField list to list of {name, type}
+        attr_list = []
         for field in attributes:
             # Map QGIS field types to our supported types
             field_type = "string"  # Default to string
@@ -504,13 +504,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
             elif field.type() == QVariant.Bool:
                 field_type = "boolean"
 
-            column_name = field.name()
-            attr_dict[column_name] = field_type
+            attr_list.append({"name": field.name(), "type": field_type})
 
         # Call the API to add attributes
         try:
             api.qgis_vector.add_attributes(
-                vector_id=self.kumoy_vector.id, attributes=attr_dict
+                vector_id=self.kumoy_vector.id, attributes=attr_list
             )
         except Exception:
             return False
