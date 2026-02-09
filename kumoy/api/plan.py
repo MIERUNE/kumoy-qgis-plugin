@@ -14,7 +14,7 @@ class PlanLimits:
     maxVectorAttributes: int
 
 
-PlanType = Literal["FREE", "OPERATOR", "TEAM", "CUSTOM"]
+PlanType = Literal["FREE", "TEAM", "CUSTOM"]
 
 
 def get_plan_limits(plan: PlanType) -> PlanLimits:

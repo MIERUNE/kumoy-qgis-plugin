@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Literal, Optional
 
+from matplotlib.image import thumbnail
+
 from .client import ApiClient
 from .organization import Organization
 from .project import Project
@@ -63,19 +65,15 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
                         name=styled_map_data.get("project", {})
                         .get("team", {})
                         .get("name", ""),
-                        description=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("description", ""),
                         createdAt=styled_map_data.get("project", {})
                         .get("team", {})
                         .get("createdAt", ""),
                         updatedAt=styled_map_data.get("project", {})
                         .get("team", {})
                         .get("updatedAt", ""),
-                        organization_id=styled_map_data.get("project", {})
+                        organizationId=styled_map_data.get("project", {})
                         .get("team", {})
-                        .get("organization", {})
-                        .get("id", ""),
+                        .get("organizationId", ""),
                         organization=Organization(
                             id=styled_map_data.get("project", {})
                             .get("team", {})
@@ -156,19 +154,15 @@ def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
             team=Team(
                 id=response.get("project", {}).get("team", {}).get("id", ""),
                 name=response.get("project", {}).get("team", {}).get("name", ""),
-                description=response.get("project", {})
-                .get("team", {})
-                .get("description", ""),
                 createdAt=response.get("project", {})
                 .get("team", {})
                 .get("createdAt", ""),
                 updatedAt=response.get("project", {})
                 .get("team", {})
                 .get("updatedAt", ""),
-                organization_id=response.get("project", {})
+                organizationId=response.get("project", {})
                 .get("team", {})
-                .get("organization", {})
-                .get("id", ""),
+                .get("organizationId", ""),
                 organization=Organization(
                     id=response.get("project", {})
                     .get("team", {})
@@ -224,9 +218,22 @@ class AddStyledMapOptions:
     isPublic: Optional[bool] = None
 
 
+@dataclass
+class AddStyledMapResponse:
+    id: str
+    name: str
+    thumbnailImageUrl: Optional[str]
+    qgisproject: str
+    projectId: str
+    attribution: str
+    isPublic: bool
+    createdAt: str
+    updatedAt: str
+
+
 def add_styled_map(
     project_id: str, options: AddStyledMapOptions
-) -> KumoyStyledMapDetail:
+) -> AddStyledMapResponse:
     """
     プロジェクトに新しいスタイルマップを追加する
 
@@ -251,67 +258,12 @@ def add_styled_map(
 
     response = ApiClient.post(f"/project/{project_id}/styled-map", payload)
 
-    return KumoyStyledMap(
+    return AddStyledMapResponse(
         id=response.get("id", ""),
         name=response.get("name", ""),
         isPublic=response.get("isPublic", False),
         projectId=project_id,
-        project=Project(
-            id=response.get("project", {}).get("id", ""),
-            name=response.get("project", {}).get("name", ""),
-            description=response.get("project", {}).get("description", ""),
-            createdAt=response.get("project", {}).get("createdAt", ""),
-            updatedAt=response.get("project", {}).get("updatedAt", ""),
-            teamId=response.get("project", {}).get("team", {}).get("id", ""),
-            team=Team(
-                id=response.get("project", {}).get("team", {}).get("id", ""),
-                name=response.get("project", {}).get("team", {}).get("name", ""),
-                description=response.get("project", {})
-                .get("team", {})
-                .get("description", ""),
-                createdAt=response.get("project", {})
-                .get("team", {})
-                .get("createdAt", ""),
-                updatedAt=response.get("project", {})
-                .get("team", {})
-                .get("updatedAt", ""),
-                organization_id=response.get("project", {})
-                .get("team", {})
-                .get("organization", {})
-                .get("id", ""),
-                organization=Organization(
-                    id=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("id", ""),
-                    name=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("name", ""),
-                    subscriptionPlan=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("stripeCustomerId", ""),
-                    storageUnits=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("storageUnits", 0),
-                    createdAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("createdAt", ""),
-                    updatedAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("updatedAt", ""),
-                ),
-            ),
-        ),
-        description=response.get("description", ""),
+        qgisproject=response.get("qgisproject", ""),
         attribution=response.get("attribution", ""),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
         createdAt=response.get("createdAt", ""),
@@ -319,7 +271,7 @@ def add_styled_map(
     )
 
 
-def delete_styled_map(styled_map_id: str) -> bool:
+def delete_styled_map(styled_map_id: str):
     """
     スタイルマップを削除する
 
@@ -347,7 +299,7 @@ class UpdateStyledMapOptions:
 
 def update_styled_map(
     styled_map_id: str, options: UpdateStyledMapOptions
-) -> KumoyStyledMapDetail:
+) -> KumoyStyledMap:
     """
     スタイルマップを更新する
 
@@ -390,19 +342,15 @@ def update_styled_map(
             team=Team(
                 id=response.get("project", {}).get("team", {}).get("id", ""),
                 name=response.get("project", {}).get("team", {}).get("name", ""),
-                description=response.get("project", {})
-                .get("team", {})
-                .get("description", ""),
                 createdAt=response.get("project", {})
                 .get("team", {})
                 .get("createdAt", ""),
                 updatedAt=response.get("project", {})
                 .get("team", {})
                 .get("updatedAt", ""),
-                organization_id=response.get("project", {})
+                organizationId=response.get("project", {})
                 .get("team", {})
-                .get("organization", {})
-                .get("id", ""),
+                .get("organizationId", ""),
                 organization=Organization(
                     id=response.get("project", {})
                     .get("team", {})

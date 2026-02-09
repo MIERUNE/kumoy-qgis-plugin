@@ -5,13 +5,13 @@ from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
+from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
-from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
 
 
-def handle_blocking_reply(content: QByteArray) -> dict:
+def handle_blocking_reply(content: QByteArray) -> Any:
     """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
     if not content or content.isEmpty():
         return {}
@@ -26,7 +26,7 @@ class ApiClient:
     """Base API client for Kumoy backend"""
 
     @staticmethod
-    def get(endpoint: str, params: Optional[Dict] = None) -> dict:
+    def get(endpoint: str, params: Optional[Dict] = None) -> Any:
         """
         Args:
             endpoint (str): _description_
@@ -71,7 +71,7 @@ class ApiClient:
         return content
 
     @staticmethod
-    def post(endpoint: str, data: Any) -> dict:
+    def post(endpoint: str, data: Any) -> Any:
         """Make POST request to API endpoint
 
         Args:
@@ -115,7 +115,7 @@ class ApiClient:
         return content
 
     @staticmethod
-    def put(endpoint: str, data: Any) -> dict:
+    def put(endpoint: str, data: Any) -> Any:
         """Make PUT request to API endpoint
 
         Args:
@@ -159,7 +159,7 @@ class ApiClient:
         return content
 
     @staticmethod
-    def delete(endpoint: str) -> dict:
+    def delete(endpoint: str) -> Any:
         """Make DELETE request to API endpoint
 
         Args:

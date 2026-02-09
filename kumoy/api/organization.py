@@ -141,7 +141,7 @@ def update_organization(organization_id: str, name: str) -> Organization:
     )
 
 
-def delete_organization(organization_id: str):
+def delete_organization(organization_id: str) -> None:
     """
     Delete an organization
 

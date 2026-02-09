@@ -55,12 +55,9 @@ def create_project(team_id: str, name: str, description: str) -> ProjectWithThum
         team=Team(
             id=response.get("team", {}).get("id", ""),
             name=response.get("team", {}).get("name", ""),
-            description=response.get("team", {}).get("description", ""),
             createdAt=response.get("team", {}).get("createdAt", ""),
             updatedAt=response.get("team", {}).get("updatedAt", ""),
-            organization_id=response.get("team", {})
-            .get("organization", {})
-            .get("id", ""),
+            organizationId=response.get("team", {}).get("organizationId", ""),
             organization=Organization(
                 id=response.get("team", {}).get("organization", {}).get("id", ""),
                 name=response.get("team", {}).get("organization", {}).get("name", ""),
@@ -117,12 +114,9 @@ def update_project(
         team=Team(
             id=response.get("team", {}).get("id", ""),
             name=response.get("team", {}).get("name", ""),
-            description=response.get("team", {}).get("description", ""),
             createdAt=response.get("team", {}).get("createdAt", ""),
             updatedAt=response.get("team", {}).get("updatedAt", ""),
-            organization_id=response.get("team", {})
-            .get("organization", {})
-            .get("id", ""),
+            organizationId=response.get("team", {}).get("organizationId", ""),
             organization=Organization(
                 id=response.get("team", {}).get("organization", {}).get("id", ""),
                 name=response.get("team", {}).get("organization", {}).get("name", ""),
@@ -146,7 +140,7 @@ def update_project(
     )
 
 
-def delete_project(project_id: str):
+def delete_project(project_id: str) -> None:
     """
     Delete a project
 
@@ -192,12 +186,9 @@ def get_projects_by_organization(organization_id: str) -> List[ProjectsInOrganiz
                 team=Team(
                     id=project.get("team", {}).get("id", ""),
                     name=project.get("team", {}).get("name", ""),
-                    description=project.get("team", {}).get("description", ""),
                     createdAt=project.get("team", {}).get("createdAt", ""),
                     updatedAt=project.get("team", {}).get("updatedAt", ""),
-                    organization_id=project.get("team", {})
-                    .get("organization", {})
-                    .get("id", ""),
+                    organizationId=project.get("team", {}).get("organizationId", ""),
                     organization=Organization(
                         id=project.get("team", {})
                         .get("organization", {})
@@ -261,12 +252,9 @@ def get_project(project_id: str) -> ProjectDetail:
         team=Team(
             id=response.get("team", {}).get("id", ""),
             name=response.get("team", {}).get("name", ""),
-            description=response.get("team", {}).get("description", ""),
             createdAt=response.get("team", {}).get("createdAt", ""),
             updatedAt=response.get("team", {}).get("updatedAt", ""),
-            organization_id=response.get("team", {})
-            .get("organization", {})
-            .get("id", ""),
+            organizationId=response.get("team", {}).get("organizationId", ""),
             organization=Organization(
                 id=response.get("team", {}).get("organization", {}).get("id", ""),
                 name=response.get("team", {}).get("organization", {}).get("name", ""),

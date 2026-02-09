@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import List, Literal
 
 from .client import ApiClient
 from .organization import Organization
@@ -9,10 +9,9 @@ from .organization import Organization
 class Team:
     id: str
     name: str
-    description: str
     createdAt: str
     updatedAt: str
-    organization_id: str
+    organizationId: str
     organization: Organization
 
 
@@ -21,7 +20,7 @@ class TeamDetail(Team):
     role: Literal["OWNER", "ADMIN", "MEMBER"]
 
 
-def get_teams(organization_id: str) -> Team:
+def get_teams(organization_id: str) -> List[Team]:
     """
     Get a list of teams in an organization
 
@@ -39,10 +38,9 @@ def get_teams(organization_id: str) -> Team:
             Team(
                 id=team.get("id", ""),
                 name=team.get("name", ""),
-                description=team.get("description", ""),
                 createdAt=team.get("createdAt", ""),
                 updatedAt=team.get("updatedAt", ""),
-                organization_id=organization_id,
+                organizationId=organization_id,
                 organization=Organization(
                     id=team.get("organization", {}).get("id", ""),
                     name=team.get("organization", {}).get("name", ""),
