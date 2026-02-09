@@ -31,6 +31,64 @@ def _get_cache_dir() -> str:
     return cache_dir
 
 
+def _adjust_columns(vlayer: QgsVectorLayer, fields: QgsFields):
+    """レイヤーのカラムをサーバーのスキーマに合わせて追加・削除する"""
+    # サーバーに存在しないカラムをキャッシュから削除
+    for cache_colname in vlayer.fields().names():
+        if cache_colname == "kumoy_id":
+            continue
+        if fields.indexOf(cache_colname) == -1:
+            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
+
+    # サーバーだけに存在するカラムをキャッシュに追加
+    for name in fields.names():
+        if vlayer.fields().indexOf(name) == -1:
+            vlayer.addAttribute(QgsField(name, fields[name].type()))
+
+
+def _fetch_and_add_features(
+    vector_id: str,
+    fields: QgsFields,
+    add_feature_fn: Callable[[QgsFeature], None],
+    progress_callback: Optional[Callable[[int], None]] = None,
+):
+    """サーバーから全地物をバッチ取得し、add_feature_fnで追加する"""
+    BATCH_SIZE = 5000
+    after_id = None
+    processed_features = 0
+    while True:
+        features = api.qgis_vector.get_features(
+            vector_id=vector_id,
+            limit=BATCH_SIZE,
+            after_id=after_id,
+        )
+
+        for feature in features:
+            qgsfeature = QgsFeature()
+            g = QgsGeometry()
+            g.fromWkb(feature["kumoy_wkb"])
+            qgsfeature.setGeometry(g)
+
+            qgsfeature.setFields(fields)
+            for name in fields.names():
+                if name == "kumoy_id":
+                    qgsfeature["kumoy_id"] = feature["kumoy_id"]
+                else:
+                    qgsfeature[name] = feature["properties"][name]
+
+            qgsfeature.setValid(True)
+            add_feature_fn(qgsfeature)
+
+            if progress_callback is not None:
+                processed_features += 1
+                progress_callback(processed_features)
+
+        if len(features) < BATCH_SIZE:
+            break
+
+        after_id = features[-1]["kumoy_id"]
+
+
 def _create_new_cache(
     cache_file: str,
     vector_id: str,
@@ -74,47 +132,9 @@ def _create_new_cache(
         "%Y-%m-%dT%H:%M:%SZ"
     )
 
-    BATCH_SIZE = 5000  # Number of features to fetch in each batch
-    after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
-    processed_features = 0
-    while True:
-        # Fetch features in batches
-        features = api.qgis_vector.get_features(
-            vector_id=vector_id,
-            limit=BATCH_SIZE,
-            after_id=after_id,
-        )
-
-        for feature in features:
-            qgsfeature = QgsFeature()
-            # Set geometry
-            g = QgsGeometry()
-            g.fromWkb(feature["kumoy_wkb"])
-            qgsfeature.setGeometry(g)
-
-            # Set attributes
-            qgsfeature.setFields(fields)
-            for name in fields.names():
-                if name == "kumoy_id":
-                    qgsfeature["kumoy_id"] = feature["kumoy_id"]
-                else:
-                    qgsfeature[name] = feature["properties"][name]
-
-            # Set feature ID and validity
-            qgsfeature.setValid(True)
-            # 地物を書き込み
-            writer.addFeature(qgsfeature)
-
-            if progress_callback is not None:
-                processed_features += 1
-                progress_callback(processed_features)
-
-        if len(features) < BATCH_SIZE:
-            # 取得終了
-            break
-
-        # Update after_id for the next batch
-        after_id = features[-1]["kumoy_id"]
+    _fetch_and_add_features(
+        vector_id, fields, lambda f: writer.addFeature(f), progress_callback
+    )
     del writer
 
     return updated_at
@@ -131,18 +151,7 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
     vlayer.startEditing()
 
-    # サーバーに存在しないカラムをキャッシュから削除
-    for cache_colname in vlayer.fields().names():
-        if cache_colname == "kumoy_id":
-            continue
-        # キャッシュにはあるが、現在のサーバー上のカラムには存在しないキャッシュのカラムを削除
-        if fields.indexOf(cache_colname) == -1:
-            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
-
-    # サーバーだけに存在するカラムをキャッシュに追加
-    for name in fields.names():
-        if vlayer.fields().indexOf(name) == -1:
-            vlayer.addAttribute(QgsField(name, fields[name].type()))
+    _adjust_columns(vlayer, fields)
 
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -191,6 +200,71 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
     return updated_at
 
 
+def _truncate_cache(cache_file: str) -> bool:
+    """キャッシュファイルのレコードを全て削除する。
+    Returns True if successful, False otherwise.
+    """
+    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
+    if not vlayer.isValid():
+        return False
+    vlayer.startEditing()
+    fids = vlayer.allFeatureIds()
+    if len(fids) > 0:
+        vlayer.deleteFeatures(fids)
+    return vlayer.commitChanges()
+
+
+def _repopulate_cache(
+    cache_file: str,
+    vector_id: str,
+    fields: QgsFields,
+    geometry_type: QgsWkbTypes.GeometryType,
+    progress_callback: Optional[Callable[[int], None]] = None,
+) -> str:
+    """
+    既存のキャッシュファイルの内容を全て削除し、サーバーから再取得して格納する
+
+    Returns:
+        updated_at: 最終更新日時
+    """
+    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
+    if not vlayer.isValid():
+        # フォールバック: ファイル削除を試行し新規作成する
+        try:
+            os.unlink(cache_file)
+        except OSError:
+            raise Exception(f"Cannot open or delete cache file: {cache_file}")
+        return _create_new_cache(
+            cache_file, vector_id, fields, geometry_type, progress_callback
+        )
+
+    vlayer.startEditing()
+
+    _adjust_columns(vlayer, fields)
+
+    # 全地物を削除
+    fids = vlayer.allFeatureIds()
+    if len(fids) > 0:
+        vlayer.deleteFeatures(fids)
+
+    # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
+    # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
+    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    # サーバーから全地物を取得して追加
+    _fetch_and_add_features(
+        vector_id,
+        vlayer.fields(),
+        lambda f: vlayer.addFeature(f),
+        progress_callback,
+    )
+
+    vlayer.commitChanges()
+    return updated_at
+
+
 def sync_local_cache(
     vector_id: str,
     fields: QgsFields,
@@ -207,42 +281,13 @@ def sync_local_cache(
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
 
     last_updated = get_last_updated(vector_id)
-    if last_updated is None and os.path.exists(cache_file):
-        # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
-        # 不整合が生じているので既存ファイルを削除する
-        clear(vector_id)
+
+    # 不整合チェック: タイムスタンプあり・ファイルなし
     if last_updated is not None and not os.path.exists(cache_file):
-        # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
-        # 不整合が生じているので最終更新日時を削除する
         delete_last_updated(vector_id)
         last_updated = None
 
-    if os.path.exists(cache_file):
-        # 既存キャッシュファイルを更新
-        try:
-            # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
-            diff = api.qgis_vector.get_diff(vector_id, last_updated)
-            # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-            updated_at = _update_existing_cache(cache_file, fields, diff)
-        except api.error.AppError as e:
-            if e.error == "MAX_DIFF_COUNT_EXCEEDED":
-                # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
-                QgsMessageLog.logMessage(
-                    f"Diff for vector {vector_id} is too large, recreating cache file.",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                clear(vector_id)
-                updated_at = _create_new_cache(
-                    cache_file,
-                    vector_id,
-                    fields,
-                    geometry_type,
-                    progress_callback=progress_callback,
-                )
-            else:
-                raise e
-    else:
+    if not os.path.exists(cache_file):
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(
             cache_file,
@@ -251,6 +296,37 @@ def sync_local_cache(
             geometry_type,
             progress_callback=progress_callback,
         )
+    elif last_updated is None:
+        # ファイルあり・タイムスタンプなし（キャッシュクリア後、または不整合）
+        # → サーバーから全件再取得
+        updated_at = _repopulate_cache(
+            cache_file,
+            vector_id,
+            fields,
+            geometry_type,
+            progress_callback=progress_callback,
+        )
+    else:
+        # 既存キャッシュファイルを差分更新
+        try:
+            diff = api.qgis_vector.get_diff(vector_id, last_updated)
+            updated_at = _update_existing_cache(cache_file, fields, diff)
+        except api.error.AppError as e:
+            if e.error == "MAX_DIFF_COUNT_EXCEEDED":
+                QgsMessageLog.logMessage(
+                    f"Diff for vector {vector_id} is too large, repopulating cache.",
+                    LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                updated_at = _repopulate_cache(
+                    cache_file,
+                    vector_id,
+                    fields,
+                    geometry_type,
+                    progress_callback=progress_callback,
+                )
+            else:
+                raise e
 
     store_last_updated(vector_id, updated_at)
 
@@ -272,69 +348,45 @@ def get_layer(vector_id: str) -> QgsVectorLayer:
 
 
 def clear_all() -> bool:
-    """Clear all cached GPKG files. Returns True if all files were deleted successfully."""
-
+    """全てのキャッシュGPKGファイルのレコードを削除する。
+    Returns True if all caches were truncated successfully.
+    """
     cache_dir = _get_cache_dir()
     success = True
 
-    # Remove all files in cache directory
     for filename in os.listdir(cache_dir):
+        if not filename.endswith(".gpkg"):
+            continue
         file_path = os.path.join(cache_dir, filename)
-        try:
-            os.unlink(file_path)
-            if filename.endswith(".gpkg"):
-                project_id = filename.split(".gpkg")[0]
-                delete_last_updated(project_id)
-        except PermissionError as e:
-            # Ignore Permission denied error and continue
+        if not _truncate_cache(file_path):
             QgsMessageLog.logMessage(
-                f"Ignored file access error: {e}",
+                f"Failed to truncate cache file: {file_path}",
                 LOG_CATEGORY,
                 Qgis.Info,
             )
-            success = False  # Flag unsucceed deletion
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Unexpected error for {file_path}: {e}",
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            success = False  # Flag unsucceed
+            success = False
+        vector_id = filename[:-5]  # strip .gpkg
+        delete_last_updated(vector_id)
 
     return success
 
 
 def clear(vector_id: str) -> bool:
-    """Clear cache for a specific vector.
-    Returns True if all files were deleted successfully, False otherwise.
+    """指定ベクターのキャッシュレコードを全て削除する。
+    Returns True if successful, False otherwise.
     """
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-    gpkg_shm_file = f"{cache_file}-shm"
-    gpkg_wal_file = f"{cache_file}-wal"
-    gpkg_journal_file = f"{cache_file}-journal"
 
-    files_to_remove = [cache_file, gpkg_shm_file, gpkg_wal_file, gpkg_journal_file]
     success = True
+    if os.path.exists(cache_file):
+        success = _truncate_cache(cache_file)
+        if not success:
+            QgsMessageLog.logMessage(
+                f"Failed to truncate cache file: {cache_file}",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
 
-    # Remove cache file if it exists
-    for f in files_to_remove:
-        if os.path.exists(f):
-            try:
-                os.unlink(f)
-            except PermissionError as e:
-                QgsMessageLog.logMessage(
-                    f"Ignored file access error for {f}: {e}", LOG_CATEGORY, Qgis.Info
-                )
-                success = False  # Flag unsucceed deletion
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Unexpected error for {f}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-            success = False  # Flag unsucceed
-    # Delete last updated timestamp
     delete_last_updated(vector_id)
-
     return success
