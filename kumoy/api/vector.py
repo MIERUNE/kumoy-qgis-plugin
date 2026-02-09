@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
@@ -15,7 +15,6 @@ class KumoyVector:
     projectId: str
     project: Project
     attribution: str
-    uri: str
     storageUnits: float
     createdAt: str
     updatedAt: str
@@ -27,7 +26,7 @@ class KumoyVectorDetail(KumoyVector):
     role: Literal["ADMIN", "OWNER", "MEMBER"]
     extent: List[float]
     count: int
-    columns: Dict[str, str]
+    columns: List[dict]
 
 
 @dataclass
@@ -41,7 +40,7 @@ class KumoyVectorInProject:
     updatedAt: str
 
 
-def get_vectors(project_id: str) -> List[KumoyVectorInProject]:
+def get_vectors(project_id: str) -> List[KumoyVector]:
     """
     Get a list of vectors for a specific project
 
@@ -52,15 +51,69 @@ def get_vectors(project_id: str) -> List[KumoyVectorInProject]:
         List of KumoyVector objects
     """
     response = ApiClient.get(f"/project/{project_id}/vector")
-    vectors: List[KumoyVectorInProject] = []
+    vectors: List[KumoyVector] = []
     for vector_data in response:
         vectors.append(
-            KumoyVectorInProject(
+            KumoyVector(
                 id=vector_data.get("id", ""),
                 name=vector_data.get("name", ""),
-                uri=vector_data.get("uri", ""),
                 type=vector_data.get("type", "POINT"),
-                bytes=vector_data.get("bytes", 0),
+                projectId=vector_data.get("projectId", ""),
+                project=Project(
+                    id=vector_data.get("project", {}).get("id", ""),
+                    name=vector_data.get("project", {}).get("name", ""),
+                    description=vector_data.get("project", {}).get("description", ""),
+                    createdAt=vector_data.get("project", {}).get("createdAt", ""),
+                    updatedAt=vector_data.get("project", {}).get("updatedAt", ""),
+                    teamId=vector_data.get("project", {}).get("team", {}).get("id", ""),
+                    team=Team(
+                        id=vector_data.get("project", {}).get("team", {}).get("id", ""),
+                        name=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("name", ""),
+                        createdAt=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("createdAt", ""),
+                        updatedAt=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("updatedAt", ""),
+                        organizationId=vector_data.get("project", {})
+                        .get("team", {})
+                        .get("organizationId", ""),
+                        organization=Organization(
+                            id=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("id", ""),
+                            name=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("name", ""),
+                            subscriptionPlan=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("subscriptionPlan", ""),
+                            stripeCustomerId=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("stripeCustomerId", ""),
+                            storageUnits=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("storageUnits", 0),
+                            createdAt=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("createdAt", ""),
+                            updatedAt=vector_data.get("project", {})
+                            .get("team", {})
+                            .get("organization", {})
+                            .get("updatedAt", ""),
+                        ),
+                    ),
+                ),
+                attribution=vector_data.get("attribution", ""),
+                storageUnits=vector_data.get("storageUnits", 0),
                 createdAt=vector_data.get("createdAt", ""),
                 updatedAt=vector_data.get("updatedAt", ""),
             )
@@ -77,7 +130,6 @@ def get_vector(vector_id: str) -> KumoyVectorDetail:
     vector = KumoyVectorDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        uri=response.get("uri", ""),
         type=response.get("type", "POINT"),
         projectId=response.get("projectId", ""),
         project=Project(
@@ -137,7 +189,7 @@ def get_vector(vector_id: str) -> KumoyVectorDetail:
         updatedAt=response.get("updatedAt", ""),
         extent=response.get("extent", []),
         count=response.get("count", 0),
-        columns=response.get("columns", {}),
+        columns=response.get("columns", []),
         role=response.get("role", "MEMBER"),
     )
 

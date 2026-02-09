@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Literal, Optional
 
-from matplotlib.image import thumbnail
-
 from .client import ApiClient
 from .organization import Organization
 from .project import Project
@@ -222,6 +220,7 @@ class AddStyledMapOptions:
 class AddStyledMapResponse:
     id: str
     name: str
+    description: str
     thumbnailImageUrl: Optional[str]
     qgisproject: str
     projectId: str
@@ -261,6 +260,7 @@ def add_styled_map(
     return AddStyledMapResponse(
         id=response.get("id", ""),
         name=response.get("name", ""),
+        description=response.get("description", ""),
         isPublic=response.get("isPublic", False),
         projectId=project_id,
         qgisproject=response.get("qgisproject", ""),
@@ -297,9 +297,23 @@ class UpdateStyledMapOptions:
     attribution: Optional[str] = None
 
 
+@dataclass
+class UpdateStyledMapResponse:
+    id: str
+    name: str
+    description: str
+    thumbnailImageUrl: Optional[str]
+    qgisproject: str
+    projectId: str
+    isPublic: bool
+    attribution: str
+    createdAt: str
+    updatedAt: str
+
+
 def update_styled_map(
     styled_map_id: str, options: UpdateStyledMapOptions
-) -> KumoyStyledMap:
+) -> UpdateStyledMapResponse:
     """
     スタイルマップを更新する
 
@@ -308,7 +322,7 @@ def update_styled_map(
         options: 更新オプション
 
     Returns:
-        更新されたKumoyStyledMapオブジェクトまたは更新失敗時はNone
+        更新されたUpdateStyledMapResponseオブジェクト
     """
     update_data = {}
     if options.name is not None:
@@ -327,63 +341,13 @@ def update_styled_map(
         update_data,
     )
 
-    return KumoyStyledMap(
+    return UpdateStyledMapResponse(
         id=response.get("id", ""),
         name=response.get("name", ""),
+        description=response.get("description", ""),
         isPublic=response.get("isPublic", False),
         projectId=response.get("projectId", ""),
-        project=Project(
-            id=response.get("project", {}).get("id", ""),
-            name=response.get("project", {}).get("name", ""),
-            description=response.get("project", {}).get("description", ""),
-            createdAt=response.get("project", {}).get("createdAt", ""),
-            updatedAt=response.get("project", {}).get("updatedAt", ""),
-            teamId=response.get("project", {}).get("team", {}).get("id", ""),
-            team=Team(
-                id=response.get("project", {}).get("team", {}).get("id", ""),
-                name=response.get("project", {}).get("team", {}).get("name", ""),
-                createdAt=response.get("project", {})
-                .get("team", {})
-                .get("createdAt", ""),
-                updatedAt=response.get("project", {})
-                .get("team", {})
-                .get("updatedAt", ""),
-                organizationId=response.get("project", {})
-                .get("team", {})
-                .get("organizationId", ""),
-                organization=Organization(
-                    id=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("id", ""),
-                    name=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("name", ""),
-                    subscriptionPlan=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("stripeCustomerId", ""),
-                    storageUnits=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("storageUnits", 0),
-                    createdAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("createdAt", ""),
-                    updatedAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("updatedAt", ""),
-                ),
-            ),
-        ),
-        description=response.get("description", ""),
+        qgisproject=response.get("qgisproject", ""),
         attribution=response.get("attribution", ""),
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
         createdAt=response.get("createdAt", ""),

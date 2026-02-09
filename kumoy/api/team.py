@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
@@ -18,6 +18,15 @@ class Team:
 @dataclass
 class TeamDetail(Team):
     role: Literal["OWNER", "ADMIN", "MEMBER"]
+
+
+@dataclass
+class TeamMutationResult:
+    id: str
+    name: str
+    organizationId: str
+    createdAt: str
+    updatedAt: str
 
 
 def get_teams(organization_id: str) -> List[Team]:
@@ -58,3 +67,98 @@ def get_teams(organization_id: str) -> List[Team]:
         )
 
     return teams
+
+
+def get_team(team_id: str) -> TeamDetail:
+    """
+    Get a team by ID
+
+    Args:
+        team_id: Team ID
+
+    Returns:
+        TeamDetail object
+    """
+    response = ApiClient.get(f"/team/{team_id}")
+
+    return TeamDetail(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
+        organizationId=response.get("organization", {}).get("id", ""),
+        organization=Organization(
+            id=response.get("organization", {}).get("id", ""),
+            name=response.get("organization", {}).get("name", ""),
+            subscriptionPlan=response.get("organization", {}).get(
+                "subscriptionPlan", ""
+            ),
+            stripeCustomerId=response.get("organization", {}).get(
+                "stripeCustomerId", ""
+            ),
+            storageUnits=response.get("organization", {}).get("storageUnits", 0),
+            createdAt=response.get("organization", {}).get("createdAt", ""),
+            updatedAt=response.get("organization", {}).get("updatedAt", ""),
+        ),
+        role=response.get("role", "MEMBER"),
+    )
+
+
+def create_team(name: str, organization_id: str) -> TeamMutationResult:
+    """
+    Create a new team
+
+    Args:
+        name: Team name
+        organization_id: Organization ID
+
+    Returns:
+        TeamMutationResult object
+    """
+    response = ApiClient.post(
+        "/team", {"name": name, "organizationId": organization_id}
+    )
+
+    return TeamMutationResult(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        organizationId=response.get("organizationId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
+    )
+
+
+def update_team(team_id: str, name: Optional[str] = None) -> TeamMutationResult:
+    """
+    Update a team
+
+    Args:
+        team_id: Team ID
+        name: New team name
+
+    Returns:
+        TeamMutationResult object
+    """
+    payload = {}
+    if name is not None:
+        payload["name"] = name
+
+    response = ApiClient.put(f"/team/{team_id}", payload)
+
+    return TeamMutationResult(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        organizationId=response.get("organizationId", ""),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
+    )
+
+
+def delete_team(team_id: str) -> None:
+    """
+    Delete a team
+
+    Args:
+        team_id: Team ID
+    """
+    ApiClient.delete(f"/team/{team_id}")
