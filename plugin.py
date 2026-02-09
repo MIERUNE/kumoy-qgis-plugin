@@ -175,7 +175,7 @@ class KumoyPlugin:
         if not provider or provider.name() == DATA_PROVIDER_KEY:
             return
 
-        # Get current project id and role
+        # Get current project id and role from browser root collection
         current_root = self.dip.root_collection
         project_id = current_root.project_data.id
         current_role = current_root.current_project_role
