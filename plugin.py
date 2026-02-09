@@ -178,7 +178,7 @@ class KumoyPlugin:
         # Get current project id and role from browser root collection
         current_root = self.dip.root_collection
         project_id = current_root.project_data.id
-        current_role = current_root.current_project_role
+        current_role = current_root.project_data.role
 
         # Role must be ADMIN or OWNER
         if current_role not in ["ADMIN", "OWNER"]:
