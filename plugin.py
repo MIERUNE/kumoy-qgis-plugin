@@ -14,9 +14,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
-from .kumoy.api.error import format_api_error
-from .kumoy.api.project import get_project
-from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
+from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
