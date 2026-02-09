@@ -24,7 +24,6 @@ from .sentry import init_sentry
 from .settings_manager import (
     reset_settings,
     store_setting,
-    get_settings as get_kumoy_settings,
 )
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
@@ -176,19 +175,10 @@ class KumoyPlugin:
         if not provider or provider.name() == DATA_PROVIDER_KEY:
             return
 
-        project_id = get_kumoy_settings().selected_project_id
-
-        # Get current project role from browser panel
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        providers = registry.providers()
-
-        current_role = None
-        for prov in providers:
-            if prov.name() == PLUGIN_NAME:
-                root = prov.createDataItem("", None)
-                if root:
-                    current_role = root.current_project_role
-                    break
+        # Get current project id and role
+        current_root = self.dip.root_collection
+        project_id = current_root.project_data.id
+        current_role = current_root.current_project_role
 
         # Role must be ADMIN or OWNER
         if current_role not in ["ADMIN", "OWNER"]:
