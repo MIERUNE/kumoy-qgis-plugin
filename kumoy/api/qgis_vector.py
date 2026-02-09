@@ -2,7 +2,7 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QCoreApplication, QVariant, QDateTime, QDate, QTime
+from qgis.PyQt.QtCore import QCoreApplication, QDate, QDateTime, QTime, QVariant
 
 from .. import constants
 from .client import ApiClient
@@ -168,17 +168,18 @@ def update_columns(
 
 def add_attributes(
     vector_id: str,
-    attributes: dict,
+    attributes: List[dict],
 ):
     """
     Add new attributes to a vector layer
 
     Args:
         vector_id: The ID of the vector layer
-        attributes: Dictionary mapping attribute names to data types ('integer', 'float', 'string', 'boolean')
+        attributes: List of dicts with 'name' and 'type' keys.
+                    type is one of 'integer', 'float', 'string', 'boolean'
     """
     ApiClient.post(
-        f"/_qgis/vector/{vector_id}/add-attributes", {"attributes": attributes}
+        f"/_qgis/vector/{vector_id}/add-attributes-v2", {"attributes": attributes}
     )
 
 

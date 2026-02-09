@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from qgis.core import (
     Qgis,
@@ -90,9 +90,9 @@ def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
     return vector_type
 
 
-def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]:
-    """Convert QgsField list to dictionary of name:type"""
-    attr_dict = {}
+def _create_attribute_list(valid_fields_layer: QgsVectorLayer) -> List[dict]:
+    """Convert QgsField list to list of {name, type} dicts"""
+    attr_list = []
     for field in valid_fields_layer.fields():
         # Map QGIS field types to our supported types
         if field.type() == QVariant.String:
@@ -109,9 +109,9 @@ def _create_attribute_dict(valid_fields_layer: QgsVectorLayer) -> Dict[str, str]
                 f"Unexpected field type for field '{field.name()}': {field.type()}"
             )
 
-        attr_dict[field.name()] = field_type
+        attr_list.append({"name": field.name(), "type": field_type})
 
-    return attr_dict
+    return attr_list
 
 
 class UploadVectorAlgorithm(QgsProcessingAlgorithm):
@@ -405,8 +405,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     ).format(proc_feature_count, plan_limits.maxVectorFeatures)
                 )
 
-            # Create attribute dictionary
-            attr_dict = _create_attribute_dict(processed_layer)
+            # Create attribute list
+            attr_list = _create_attribute_list(processed_layer)
 
             # Create vector
             options = api.vector.AddVectorOptions(
@@ -424,10 +424,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             feedback.setProgress(45)
 
             # Add attributes to vector
-            api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_dict)
+            api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_list)
             feedback.pushInfo(
                 self.tr("Added attributes to vector layer '{}': {}").format(
-                    vector_name, ", ".join(attr_dict.keys())
+                    vector_name, ", ".join(a["name"] for a in attr_list)
                 )
             )
 
@@ -469,7 +469,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "field_mapping": (
                             field_mapping if "field_mapping" in locals() else ""
                         ),
-                        "attr_dict": attr_dict if "attr_dict" in locals() else "",
+                        "attr_list": attr_list if "attr_list" in locals() else "",
                     },
                 )
                 # Re-raise the original exception
