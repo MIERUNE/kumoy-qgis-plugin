@@ -176,18 +176,19 @@ class KumoyPlugin:
             return
 
         # Get current project id and role from browser root collection
-        current_root = self.dip.root_collection
-        project_id = current_root.project_data.id
-        current_role = current_root.project_data.role
+        root = self.dip.root_collection
+        if not root.project_data:
+            return
 
         # Role must be ADMIN or OWNER
-        if current_role not in ["ADMIN", "OWNER"]:
+        if root.project_data.role not in ["ADMIN", "OWNER"]:
             return
 
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-
-        action.triggered.connect(lambda: on_convert_to_kumoy_clicked(layer, project_id))
+        action.triggered.connect(
+            lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
+        )
 
         # Actions to be added after the last separator
         actions = menu.actions()
