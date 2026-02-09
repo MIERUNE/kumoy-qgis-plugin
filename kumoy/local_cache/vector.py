@@ -132,9 +132,7 @@ def _create_new_cache(
         "%Y-%m-%dT%H:%M:%SZ"
     )
 
-    _fetch_and_add_features(
-        vector_id, fields, lambda f: writer.addFeature(f), progress_callback
-    )
+    _fetch_and_add_features(vector_id, fields, writer.addFeature, progress_callback)
     del writer
 
     return updated_at
