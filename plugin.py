@@ -182,8 +182,8 @@ class KumoyPlugin:
 
         # Role must be ADMIN or OWNER
         try:
-            project_role = get_project(project_id)
-            if project_role.role not in [
+            project_details = get_project(project_id)
+            if project_details.role not in [
                 "ADMIN",
                 "OWNER",
             ]:
@@ -191,14 +191,14 @@ class KumoyPlugin:
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(error_text),
+                self.tr("Error getting project: {}").format(error_text),
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Error loading map: {}").format(error_text),
+                self.tr("Error getting project: {}").format(error_text),
             )
             return
 
