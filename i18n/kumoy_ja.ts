@@ -382,42 +382,42 @@ Details: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="237"/>
+        <location filename="../plugin.py" line="248"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="77"/>
+        <location filename="../plugin.py" line="79"/>
         <source>Are you sure you want to reset all settings for the &quot;Kumoy&quot; plugin? This will clear your current project.</source>
         <translation type="unfinished">プラグインの設定を削除してもよろしいですか？現在のプロジェクトが閉じられます。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="90"/>
+        <location filename="../plugin.py" line="92"/>
         <source>You have unsaved changes. Resetting settings will clear your current project. Continue?</source>
         <translation type="unfinished">現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="114"/>
+        <location filename="../plugin.py" line="116"/>
         <source>Plugin settings have been reset successfully.</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="232"/>
+        <location filename="../plugin.py" line="243"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="123"/>
+        <location filename="../plugin.py" line="125"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="149"/>
+        <location filename="../plugin.py" line="151"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="180"/>
+        <location filename="../plugin.py" line="191"/>
         <source>Convert to Kumoy Vector</source>
         <translation type="unfinished">Kumoyベクターに変換する</translation>
     </message>
@@ -523,74 +523,74 @@ to open in Kumoy.</source>
         <translation type="unfinished">ウェブUIで開く</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="904"/>
+        <location filename="../ui/dialog_project_select.py" line="902"/>
         <source>Edit Project</source>
         <translation type="unfinished">プロジェクトを編集</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="817"/>
+        <location filename="../ui/dialog_project_select.py" line="815"/>
         <source>Delete Project</source>
         <translation type="unfinished">プロジェクトを削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="805"/>
+        <location filename="../ui/dialog_project_select.py" line="803"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="817"/>
+        <location filename="../ui/dialog_project_select.py" line="815"/>
         <source>Are you sure you want to delete project &apos;{}&apos;?
 This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクト 「{}」を削除してもよろしいですか？
 この操作は取り消しできません。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="848"/>
+        <location filename="../ui/dialog_project_select.py" line="846"/>
         <source>Project Deleted</source>
         <translation type="unfinished">プロジェクトの削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="833"/>
+        <location filename="../ui/dialog_project_select.py" line="831"/>
         <source>Project &apos;{}&apos; deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="861"/>
+        <location filename="../ui/dialog_project_select.py" line="859"/>
         <source>Failed to delete project: {}</source>
         <translation type="unfinished">プロジェクトの削除に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="949"/>
+        <location filename="../ui/dialog_project_select.py" line="947"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="938"/>
+        <location filename="../ui/dialog_project_select.py" line="936"/>
         <source>Project Updated</source>
         <translation type="unfinished">プロジェクトが更新しました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="949"/>
+        <location filename="../ui/dialog_project_select.py" line="947"/>
         <source>Failed to update project: {}</source>
         <translation type="unfinished">プロジェクトの更新に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="848"/>
+        <location filename="../ui/dialog_project_select.py" line="846"/>
         <source>Project &apos;{}&apos; has been deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="925"/>
+        <location filename="../ui/dialog_project_select.py" line="923"/>
         <source>Project &apos;{}&apos; updated successfully</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="938"/>
+        <location filename="../ui/dialog_project_select.py" line="936"/>
         <source>Project &apos;{}&apos; has been updated successfully.</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="888"/>
+        <location filename="../ui/dialog_project_select.py" line="886"/>
         <source>Failed to load project details: {}</source>
         <translation type="unfinished">プロジェクト内容を取得できませんでした: {}</translation>
     </message>
@@ -731,77 +731,77 @@ This action can&apos;t be undone.</source>
 <context>
     <name>RootCollection</name>
     <message>
-        <location filename="../ui/browser/root.py" line="104"/>
+        <location filename="../ui/browser/root.py" line="106"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="109"/>
+        <location filename="../ui/browser/root.py" line="111"/>
         <source>Select Project</source>
         <translation>プロジェクト選択</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="113"/>
+        <location filename="../ui/browser/root.py" line="115"/>
         <source>Refresh</source>
         <translation>再読み込み</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="150"/>
+        <location filename="../ui/browser/root.py" line="152"/>
         <source>Change Project</source>
         <translation type="unfinished">プロジェクト変更</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="190"/>
+        <location filename="../ui/browser/root.py" line="192"/>
         <source>Project Changed</source>
         <translation type="unfinished">プロジェクトが変更しました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="190"/>
+        <location filename="../ui/browser/root.py" line="192"/>
         <source>Your QGIS project was cleared because the active project changed.</source>
         <translation type="unfinished">QGISプロジェクトはプロジェクト変更により消去されました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="117"/>
+        <location filename="../ui/browser/root.py" line="119"/>
         <source>Account</source>
         <translation type="unfinished">アカウント</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="150"/>
+        <location filename="../ui/browser/root.py" line="152"/>
         <source>Switching projects will discard the current map state. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="129"/>
+        <location filename="../ui/browser/root.py" line="131"/>
         <source>Error loading organization/project data: {}</source>
         <translation type="unfinished">組織/プロジェクトデータの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="211"/>
+        <location filename="../ui/browser/root.py" line="213"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="175"/>
+        <location filename="../ui/browser/root.py" line="177"/>
         <source>Error loading project selection dialog: {}</source>
         <translation type="unfinished">プロジェクト選択ダイアログの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="207"/>
+        <location filename="../ui/browser/root.py" line="209"/>
         <source>Error loading account settings dialog: {}</source>
         <translation type="unfinished">アカウント設定ダイアログの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="231"/>
+        <location filename="../ui/browser/root.py" line="233"/>
         <source>Please select a project</source>
         <translation type="unfinished">プロジェクトが指定されていません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="238"/>
+        <location filename="../ui/browser/root.py" line="240"/>
         <source>Vectors</source>
         <translation type="unfinished">ベクター</translation>
     </message>
     <message>
-        <location filename="../ui/browser/root.py" line="250"/>
+        <location filename="../ui/browser/root.py" line="252"/>
         <source>Maps</source>
         <translation type="unfinished">マップ</translation>
     </message>
@@ -1330,7 +1330,7 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation>削除エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="359"/>
+        <location filename="../ui/browser/vector.py" line="374"/>
         <source>Clear Cache Data</source>
         <translation type="unfinished">キャッシュクリア</translation>
     </message>
@@ -1345,17 +1345,17 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation type="unfinished">ベクタの更新に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="376"/>
+        <location filename="../ui/browser/vector.py" line="391"/>
         <source>Cache cleared for vector &apos;{}&apos;</source>
         <translation type="unfinished">ベクタ 「{}」のキャッシュが正常に消去されました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="381"/>
+        <location filename="../ui/browser/vector.py" line="396"/>
         <source>Success</source>
         <translation type="unfinished">成功</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="381"/>
+        <location filename="../ui/browser/vector.py" line="396"/>
         <source>Cache cleared successfully for vector &apos;{}&apos;.</source>
         <translation type="unfinished">ベクタ 「{}」のキャッシュが正常に消去されました。</translation>
     </message>
@@ -1380,12 +1380,12 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation type="unfinished">ベクター「{}」のキャッシュを完全にクリアできませんでした。QGISを再起動後、ベクターを開いていない状態で再度お試しください</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="388"/>
+        <location filename="../ui/browser/vector.py" line="403"/>
         <source>Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="388"/>
+        <location filename="../ui/browser/vector.py" line="403"/>
         <source>Cache could not be cleared for vector &apos;{}&apos;. Please try again while vector is not open after restarting QGIS</source>
         <translation type="unfinished">ベクター「{}」のキャッシュを完全にクリアできませんでした。QGISを再起動後、ベクターを開いていない状態で再度お試しください</translation>
     </message>
@@ -1395,7 +1395,7 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation type="unfinished">出典:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="359"/>
+        <location filename="../ui/browser/vector.py" line="374"/>
         <source>This will clear the local cache for vector &apos;{}&apos;.
 The cached data will be re-downloaded when you access it next time.
 Do you want to continue?</source>
@@ -1403,96 +1403,106 @@ Do you want to continue?</source>
 キャッシュデータは次回アクセス時に再ダウンロードされます。
 続行しますか？</translation>
     </message>
+    <message>
+        <location filename="../ui/browser/vector.py" line="364"/>
+        <source>Cannot Clear Cache</source>
+        <translation type="unfinished">失敗</translation>
+    </message>
+    <message>
+        <location filename="../ui/browser/vector.py" line="364"/>
+        <source>Cannot clear cache for vector &apos;{}&apos; while it is loaded on the map. Please close the map first.</source>
+        <translation type="unfinished">ベクター「{}」がプロジェクトに読み込まれているため、キャッシュを削除できません。先にマップを閉じてください。</translation>
+    </message>
 </context>
 <context>
     <name>VectorRoot</name>
     <message>
-        <location filename="../ui/browser/vector.py" line="430"/>
+        <location filename="../ui/browser/vector.py" line="445"/>
         <source>Create Vector</source>
         <translation type="unfinished">新規作成</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="435"/>
+        <location filename="../ui/browser/vector.py" line="450"/>
         <source>Upload Vector</source>
         <translation type="unfinished">アップロード</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="546"/>
+        <location filename="../ui/browser/vector.py" line="561"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="454"/>
+        <location filename="../ui/browser/vector.py" line="469"/>
         <source>You have reached your plan&apos;s limit of {} vector layers. Please delete one or upgrade your plan to continue.</source>
         <translation type="unfinished">新しいベクタレイヤを作成できません。現在のプランでは最大{}個のベクタが許可されていますが、制限に達しています。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="465"/>
+        <location filename="../ui/browser/vector.py" line="480"/>
         <source>Create New Vector Layer</source>
         <translation type="unfinished">新規ベクタレイヤの作成</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="475"/>
+        <location filename="../ui/browser/vector.py" line="490"/>
         <source>Name:</source>
         <translation type="unfinished">名前:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="482"/>
+        <location filename="../ui/browser/vector.py" line="497"/>
         <source>Geometry Type:</source>
         <translation type="unfinished">ジオメトリタイプ:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="488"/>
+        <location filename="../ui/browser/vector.py" line="503"/>
         <source>This will create an empty vector layer in the project.</source>
         <translation type="unfinished">プロジェクトに空のベクタレイヤを作成します。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="522"/>
+        <location filename="../ui/browser/vector.py" line="537"/>
         <source>Please enter a name for your vector layer.</source>
         <translation type="unfinished">ベクタ名は空にできません。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="531"/>
+        <location filename="../ui/browser/vector.py" line="546"/>
         <source>Successfully created vector layer &apos;{}&apos; in project &apos;{}&apos;</source>
         <translation type="unfinished">プロジェクト 「{}」 に新しいベクタレイヤ 「{}」 を作成しました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="546"/>
+        <location filename="../ui/browser/vector.py" line="561"/>
         <source>Error adding vector: {}</source>
         <translation type="unfinished">ベクター追加エラー {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="566"/>
+        <location filename="../ui/browser/vector.py" line="581"/>
         <source>No project selected</source>
         <translation type="unfinished">プロジェクトが選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="577"/>
+        <location filename="../ui/browser/vector.py" line="592"/>
         <source>Error loading vectors</source>
         <translation type="unfinished">ベクターの取得エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="580"/>
+        <location filename="../ui/browser/vector.py" line="595"/>
         <source>No vector layers found in this project</source>
         <translation type="unfinished">プロジェクトにベクターが存在しません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="618"/>
+        <location filename="../ui/browser/vector.py" line="644"/>
         <source>Success</source>
         <translation type="unfinished">成功</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="440"/>
+        <location filename="../ui/browser/vector.py" line="455"/>
         <source>Clear Vector Cache Data</source>
         <translation type="unfinished">ベクターキャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="596"/>
+        <location filename="../ui/browser/vector.py" line="623"/>
         <source>Clear Vector Cache</source>
         <translation type="unfinished">ベクターキャッシュを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="596"/>
+        <location filename="../ui/browser/vector.py" line="623"/>
         <source>This will clear all locally cached vector files. Data will be re-downloaded next time you access vectors.
 
 Continue?</source>
@@ -1501,24 +1511,34 @@ Continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="613"/>
+        <location filename="../ui/browser/vector.py" line="639"/>
         <source>All vector cache files cleared successfully.</source>
         <translation type="unfinished">ベクターデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="618"/>
+        <location filename="../ui/browser/vector.py" line="644"/>
         <source>All vector cache files have been cleared successfully.</source>
         <translation type="unfinished">ベクターデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="623"/>
+        <location filename="../ui/browser/vector.py" line="649"/>
         <source>Vector Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="623"/>
+        <location filename="../ui/browser/vector.py" line="649"/>
         <source>Some vector cache files could not be cleared. Please try again after closing QGIS or ensure no files are locked.</source>
         <translation type="unfinished">キャッシュを完全にクリアできませんでした。QGISを再起動後、ベクターを開いていない状態で再度お試しください</translation>
+    </message>
+    <message>
+        <location filename="../ui/browser/vector.py" line="613"/>
+        <source>Cannot clear vector cache while vector layers are loaded on the map. Please close your map first.</source>
+        <translation type="unfinished">ベクターがプロジェクトに読み込まれているため、キャッシュを削除できません。先にマップを閉じてください。</translation>
+    </message>
+    <message>
+        <location filename="../ui/browser/vector.py" line="613"/>
+        <source>Cannot Clear Cache</source>
+        <translation type="unfinished">失敗</translation>
     </message>
 </context>
 </TS>
