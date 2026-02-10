@@ -13,7 +13,7 @@ from .api import config as api_config
 from .api.error import format_api_error, raise_error
 
 
-class RefreshTokenExpiredError(Exception):
+class TokenExpiredOrInvalidError(Exception):
     """Exception raised when refresh token is expired or invalid"""
 
     pass
@@ -27,13 +27,12 @@ def _clear_authentication_state() -> None:
     print("Session expired - clearing authentication state")
 
     # Show message to user
-    if iface:
-        iface.messageBar().pushMessage(
-            "Kumoy",
-            "Session expired. Please reconnect again.",
-            level=Qgis.Warning,
-            duration=10,
-        )
+    iface.messageBar().pushMessage(
+        "Kumoy",
+        "Session expired. Please reconnect again.",
+        level=Qgis.Warning,
+        duration=10,
+    )
 
     # Clear all tokens
     store_setting("id_token", "")
@@ -98,7 +97,7 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
         # Handle HTTP errors specifically
         if e.code == 401:
             print("Refresh token expired or invalid (401)")
-            raise RefreshTokenExpiredError("Refresh token is no longer valid")
+            raise TokenExpiredOrInvalidError("Refresh token is no longer valid")
         # Other HTTP errors
         error_body = e.read().decode("utf-8")
         raise_error(json.loads(error_body))
@@ -190,6 +189,6 @@ def get_token() -> Optional[str]:
                 return refresh_response["id_token"]
             else:
                 print("Token refresh failed, will try with credentials")
-        except RefreshTokenExpiredError:
+        except TokenExpiredOrInvalidError:
             _clear_authentication_state()
             return None
