@@ -2,8 +2,8 @@
 name=Kumoy
 qgisMinimumVersion=3.40
 qgisMaximumVersion=4.99
-about=Kumoy Plugin
-description=QGIS plugin for managing Kumoy projects
+description=Turn your QGIS into cloud-native
+about=Kumoy lets you seamlessly push your QGIS projects to the web, safely manage data, and enable efficient teamwork.
 version=dev
 
 #Plugin main icon
@@ -13,8 +13,8 @@ supportsQt6=True
 
 author=MIERUNE Inc.
 email=info@mierune.co.jp
-homepage=
-tracker=
+homepage=https://www.kumoy.io/
+tracker=https://github.com/MIERUNE/kumoy-qgis-plugin/issues
 repository=https://github.com/MIERUNE/kumoy-qgis-plugin
-tags=
-category=
+tags=web,webmap,webmaps,synchronization,backup,data,mobile
+category=Web
