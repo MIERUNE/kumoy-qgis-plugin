@@ -362,10 +362,10 @@ class VectorItem(QgsDataItem):
                 and layer.dataProvider().vector_id == self.vector.id
             ):
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Unavailable"),
+                    self.tr("Cannot Clear Cache"),
                     self.tr(
                         "Cannot clear cache for vector '{}' while it is loaded on the map. "
-                        "Please remove the layer from the map first."
+                        "Please close the map first."
                     ).format(self.vector.name),
                 )
                 return
@@ -611,7 +611,7 @@ class VectorRoot(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             if layer.providerType() == constants.DATA_PROVIDER_KEY:
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Unavailable"),
+                    self.tr("Cannot Clear Cache"),
                     self.tr(
                         "Cannot clear vector cache while vector layers are loaded on the map. "
                         "Please close your map first."
