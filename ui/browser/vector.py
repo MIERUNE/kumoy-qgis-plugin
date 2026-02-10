@@ -355,6 +355,21 @@ class VectorItem(QgsDataItem):
 
     def clear_cache(self):
         """Clear cache for this specific vector"""
+        # Check if vector is currently loaded on the map
+        for layer in QgsProject.instance().mapLayers().values():
+            if (
+                layer.providerType() == constants.DATA_PROVIDER_KEY
+                and layer.dataProvider().vector_id == self.vector.id
+            ):
+                iface.messageBar().pushMessage(
+                    self.tr("Cache Clear Unavailable"),
+                    self.tr(
+                        "Cannot clear cache for vector '{}' while it is loaded on the map. "
+                        "Please remove the layer from the map first."
+                    ).format(self.vector.name),
+                )
+                return
+
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
@@ -592,6 +607,18 @@ class VectorRoot(QgsDataItem):
 
     def clear_cache(self):
         """Clear all vector cache data"""
+        # Check if any kumoy vector layer is currently loaded on the map
+        for layer in QgsProject.instance().mapLayers().values():
+            if layer.providerType() == constants.DATA_PROVIDER_KEY:
+                iface.messageBar().pushMessage(
+                    self.tr("Cache Clear Unavailable"),
+                    self.tr(
+                        "Cannot clear vector cache while vector layers are loaded on the map. "
+                        "Please remove all vector layers from the map first."
+                    ),
+                )
+                return
+
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
@@ -606,7 +633,6 @@ class VectorRoot(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # Get cache directory path
             cache_cleared = local_cache.vector.clear_all()
 
             if cache_cleared:
