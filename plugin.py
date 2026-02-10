@@ -24,7 +24,6 @@ from .sentry import init_sentry
 from .settings_manager import (
     reset_settings,
     store_setting,
-    get_settings as get_kumoy_settings,
 )
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
@@ -176,11 +175,20 @@ class KumoyPlugin:
         if not provider or provider.name() == DATA_PROVIDER_KEY:
             return
 
+        # Get current project id and role from browser root collection
+        root = self.dip.root_collection
+        if not root.project_data:
+            return
+
+        # Role must be ADMIN or OWNER
+        if root.project_data.role not in ["ADMIN", "OWNER"]:
+            return
+
         # Create and add convert action
         action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-
-        project_id = get_kumoy_settings().selected_project_id
-        action.triggered.connect(lambda: on_convert_to_kumoy_clicked(layer, project_id))
+        action.triggered.connect(
+            lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
+        )
 
         # Actions to be added after the last separator
         actions = menu.actions()

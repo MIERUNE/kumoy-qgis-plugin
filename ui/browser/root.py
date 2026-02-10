@@ -28,6 +28,7 @@ class DataItemProvider(QgsDataItemProvider):
 
     def __init__(self):
         QgsDataItemProvider.__init__(self)
+        self.root_collection = RootCollection()
 
     def name(self):
         return constants.PLUGIN_NAME
@@ -36,7 +37,7 @@ class DataItemProvider(QgsDataItemProvider):
         return QgsDataProvider.Net
 
     def createDataItem(self, path, parent):
-        return RootCollection()
+        return self.root_collection
 
 
 class RootCollection(QgsDataCollectionItem):
@@ -82,6 +83,7 @@ class RootCollection(QgsDataCollectionItem):
             settings.selected_organization_id
         )
         self.project_data = api.project.get_project(settings.selected_project_id)
+
         self.setName(
             f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
         )
