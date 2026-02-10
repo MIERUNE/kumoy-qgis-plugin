@@ -5,9 +5,40 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 from urllib.error import HTTPError
 
+from qgis.core import Qgis
+from qgis.utils import iface
+
 from ..settings_manager import get_settings, store_setting
 from .api import config as api_config
 from .api.error import format_api_error, raise_error
+
+
+class TokenExpiredOrInvalidError(Exception):
+    """Exception raised when refresh token is expired or invalid"""
+
+    pass
+
+
+def _clear_authentication_state() -> None:
+    """
+    Clear all authentication data when session is completely expired.
+    """
+
+    print("Session expired - clearing authentication state")
+
+    # Show message to user
+    iface.messageBar().pushMessage(
+        "Kumoy",
+        "Session expired. Please reconnect again.",
+        level=Qgis.Warning,
+        duration=10,
+    )
+
+    # Clear all tokens
+    store_setting("id_token", "")
+    store_setting("refresh_token", "")
+    store_setting("token_expires_at", "")
+    store_setting("user_info", "")
 
 
 def _refresh_token(refresh_token: str) -> Optional[Dict]:
@@ -63,7 +94,11 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
                 "token_type": response_data.get("token_type"),
             }
     except HTTPError as e:
-        # HTTPエラーの詳細を出力
+        # Handle HTTP errors specifically
+        if e.code == 401:
+            print("Refresh token expired or invalid (401)")
+            raise TokenExpiredOrInvalidError("Refresh token is no longer valid")
+        # Other HTTP errors
         error_body = e.read().decode("utf-8")
         raise_error(json.loads(error_body))
     except Exception as e:
@@ -145,11 +180,15 @@ def get_token() -> Optional[str]:
     if cached_refresh_token:
         print("Attempting to refresh token...")
 
-        refresh_response = _refresh_token(cached_refresh_token)
+        try:
+            refresh_response = _refresh_token(cached_refresh_token)
 
-        if refresh_response and "id_token" in refresh_response:
-            # Save the refreshed token to cache
-            _save_token_to_cache(refresh_response)
-            return refresh_response["id_token"]
-        else:
-            print("Token refresh failed, will try with credentials")
+            if refresh_response and "id_token" in refresh_response:
+                # Save the refreshed token to cache
+                _save_token_to_cache(refresh_response)
+                return refresh_response["id_token"]
+            else:
+                print("Token refresh failed, will try with credentials")
+        except TokenExpiredOrInvalidError:
+            _clear_authentication_state()
+            return None
