@@ -18,3 +18,5 @@ tracker=https://github.com/MIERUNE/kumoy-qgis-plugin/issues
 repository=https://github.com/MIERUNE/kumoy-qgis-plugin
 tags=web,webmap,webmaps,synchronization,backup,data,mobile
 category=Web
+
+hasProcessingProvider=yes
