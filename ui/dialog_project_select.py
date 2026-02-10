@@ -795,9 +795,7 @@ class ProjectItemWidget(QWidget):
 
         config = api.config.get_api_config()
         base_url = config.SERVER_URL.rstrip("/")
-        project_url = (
-            f"{base_url}/organization/{self.organization_id}/project/{self.project.id}"
-        )
+        project_url = f"{base_url}/organization/{self.organization_id}/team/{self.project.teamId}/project/{self.project.id}"
 
         try:
             webbrowser.open(project_url)
