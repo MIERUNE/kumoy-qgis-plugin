@@ -15,7 +15,6 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
 from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
-from .kumoy.get_token import get_session_manager
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
@@ -158,30 +157,6 @@ class KumoyPlugin:
         self.dip = DataItemProvider()
         registry.addProvider(self.dip)
 
-    def on_session_expired(self):
-        """Handle session expiration - notify user and prompt for re-login"""
-        QgsMessageLog.logMessage(
-            "Session expired - authentication tokens cleared", PLUGIN_NAME, Qgis.Warning
-        )
-
-        QMessageBox.warning(
-            self.win,
-            self.tr("Session Expired"),
-            self.tr(
-                "Your session has expired. Please log in again to continue using Kumoy."
-            ),
-            Q_MESSAGEBOX_STD_BUTTON.Ok,
-        )
-
-        # Refresh browser panel to reflect logged-out state
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        registry.removeProvider(self.dip)
-        self.dip = DataItemProvider()
-        registry.addProvider(self.dip)
-
-        # Update logout action visibility
-        self.update_logout_action_visibility()
-
     def show_layer_context_menu(self, menu: QMenu):
         """Add custom action to layer context menu"""
         # Get the current layer from the layer tree view
@@ -277,9 +252,6 @@ class KumoyPlugin:
         )
         self.update_logout_action_visibility()
 
-        # Connect to session expiration signal
-        get_session_manager().session_expired.connect(self.on_session_expired)
-
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
         is_logged_in = bool(get_settings().id_token)
@@ -319,6 +291,5 @@ class KumoyPlugin:
             self.iface.pluginMenu().aboutToShow.disconnect(
                 self.update_logout_action_visibility
             )
-            get_session_manager().session_expired.disconnect(self.on_session_expired)
         except TypeError:
             pass

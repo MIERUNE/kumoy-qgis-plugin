@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 from urllib.error import HTTPError
 
-from qgis.PyQt.QtCore import QObject, pyqtSignal
+from qgis.core import Qgis
+from qgis.utils import iface
 
 from ..settings_manager import get_settings, store_setting
 from .api import config as api_config
@@ -18,31 +19,23 @@ class RefreshTokenExpiredError(Exception):
     pass
 
 
-class SessionManager(QObject):
-    """Singleton to manage session expiration signals"""
-
-    session_expired = pyqtSignal()
-
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(SessionManager, cls).__new__(cls)
-            QObject.__init__(cls._instance)
-        return cls._instance
-
-
-def get_session_manager() -> SessionManager:
-    """Get the SessionManager singleton instance"""
-    return SessionManager()
-
-
 def _clear_authentication_state() -> None:
     """
-    Clear all authentication data from cache.
-    Used when session is completely expired.
+    Clear all authentication data when session is completely expired.
     """
-    print("Clearing authentication state due to expired session")
+
+    print("Session expired - clearing authentication state")
+
+    # Show message to user
+    if iface:
+        iface.messageBar().pushMessage(
+            "Kumoy",
+            "Session expired. Please reconnect again.",
+            level=Qgis.Warning,
+            duration=10,
+        )
+
+    # Clear all tokens
     store_setting("id_token", "")
     store_setting("refresh_token", "")
     store_setting("token_expires_at", "")
@@ -198,8 +191,5 @@ def get_token() -> Optional[str]:
             else:
                 print("Token refresh failed, will try with credentials")
         except RefreshTokenExpiredError:
-            print("Session completely expired - clearing authentication state")
             _clear_authentication_state()
-            # Emit session expired signal
-            get_session_manager().session_expired.emit()
             return None
