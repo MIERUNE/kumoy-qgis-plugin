@@ -1,9 +1,11 @@
+from typing import Optional
+
 from qgis.PyQt.QtCore import QSettings
 
 SETTING_GROUP = "/Kumoy/local_cache"
 
 
-def get_last_updated(vector_id: str) -> str | None:
+def get_last_updated(vector_id: str) -> Optional[str]:
     """
     Get the last updated timestamp for a vector ID from settings.
     Returns None if not found.
