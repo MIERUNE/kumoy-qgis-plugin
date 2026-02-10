@@ -5,9 +5,48 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 from urllib.error import HTTPError
 
+from qgis.PyQt.QtCore import QObject, pyqtSignal
+
 from ..settings_manager import get_settings, store_setting
 from .api import config as api_config
 from .api.error import format_api_error, raise_error
+
+
+class RefreshTokenExpiredError(Exception):
+    """Exception raised when refresh token is expired or invalid"""
+
+    pass
+
+
+class SessionManager(QObject):
+    """Singleton to manage session expiration signals"""
+
+    session_expired = pyqtSignal()
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SessionManager, cls).__new__(cls)
+            QObject.__init__(cls._instance)
+        return cls._instance
+
+
+def get_session_manager() -> SessionManager:
+    """Get the SessionManager singleton instance"""
+    return SessionManager()
+
+
+def _clear_authentication_state() -> None:
+    """
+    Clear all authentication data from cache.
+    Used when session is completely expired.
+    """
+    print("Clearing authentication state due to expired session")
+    store_setting("id_token", "")
+    store_setting("refresh_token", "")
+    store_setting("token_expires_at", "")
+    store_setting("user_info", "")
 
 
 def _refresh_token(refresh_token: str) -> Optional[Dict]:
@@ -63,7 +102,11 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
                 "token_type": response_data.get("token_type"),
             }
     except HTTPError as e:
-        # HTTPエラーの詳細を出力
+        # Handle HTTP errors specifically
+        if e.code == 401:
+            print("Refresh token expired or invalid (401)")
+            raise RefreshTokenExpiredError("Refresh token is no longer valid")
+        # Other HTTP errors
         error_body = e.read().decode("utf-8")
         raise_error(json.loads(error_body))
     except Exception as e:
@@ -145,11 +188,18 @@ def get_token() -> Optional[str]:
     if cached_refresh_token:
         print("Attempting to refresh token...")
 
-        refresh_response = _refresh_token(cached_refresh_token)
+        try:
+            refresh_response = _refresh_token(cached_refresh_token)
 
-        if refresh_response and "id_token" in refresh_response:
-            # Save the refreshed token to cache
-            _save_token_to_cache(refresh_response)
-            return refresh_response["id_token"]
-        else:
-            print("Token refresh failed, will try with credentials")
+            if refresh_response and "id_token" in refresh_response:
+                # Save the refreshed token to cache
+                _save_token_to_cache(refresh_response)
+                return refresh_response["id_token"]
+            else:
+                print("Token refresh failed, will try with credentials")
+        except RefreshTokenExpiredError:
+            print("Session completely expired - clearing authentication state")
+            _clear_authentication_state()
+            # Emit session expired signal
+            get_session_manager().session_expired.emit()
+            return None
