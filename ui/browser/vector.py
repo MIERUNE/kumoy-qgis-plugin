@@ -614,7 +614,7 @@ class VectorRoot(QgsDataItem):
                     self.tr("Cache Clear Unavailable"),
                     self.tr(
                         "Cannot clear vector cache while vector layers are loaded on the map. "
-                        "Please remove all vector layers from the map first."
+                        "Please close your map first."
                     ),
                 )
                 return
