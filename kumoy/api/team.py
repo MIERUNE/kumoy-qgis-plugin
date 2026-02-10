@@ -53,6 +53,7 @@ def get_teams(organization_id: str) -> List[Team]:
                 organization=Organization(
                     id=team.get("organization", {}).get("id", ""),
                     name=team.get("organization", {}).get("name", ""),
+                    # MEMO: 以下のフィールドはAPIからはまだ返ってきていない
                     subscriptionPlan=team.get("organization", {}).get(
                         "subscriptionPlan", ""
                     ),
@@ -90,6 +91,7 @@ def get_team(team_id: str) -> TeamDetail:
         organization=Organization(
             id=response.get("organization", {}).get("id", ""),
             name=response.get("organization", {}).get("name", ""),
+            # MEMO: 以下のフィールドはAPIからはまだ返ってきていない
             subscriptionPlan=response.get("organization", {}).get(
                 "subscriptionPlan", ""
             ),
