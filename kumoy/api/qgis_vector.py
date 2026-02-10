@@ -51,7 +51,7 @@ class WkbTooLargeError(Exception):
 def add_features(
     vector_id: str,
     features: List[QgsFeature],
-):
+) -> None:
     """
     Add features to a vector layer
     """
@@ -109,7 +109,7 @@ def add_features(
 def delete_features(
     vector_id: str,
     kumoy_ids: List[int],
-):
+) -> None:
     """
     Delete features from a vector layer
     """
@@ -121,7 +121,7 @@ def delete_features(
 def change_attribute_values(
     vector_id: str,
     attribute_items: List[Dict],
-):
+) -> None:
     """
     Change attribute values of a feature in a vector layer
     """
@@ -134,7 +134,7 @@ def change_attribute_values(
 def change_geometry_values(
     vector_id: str,
     geometry_items: List[Dict],
-):
+) -> None:
     """
     Change geometry values of a feature in a vector layer
     """
@@ -155,7 +155,7 @@ def change_geometry_values(
 def update_columns(
     vector_id: str,
     columns: dict,
-):
+) -> None:
     """
     Update column types in a vector layer
 
@@ -169,7 +169,7 @@ def update_columns(
 def add_attributes(
     vector_id: str,
     attributes: List[dict],
-):
+) -> None:
     """
     Add new attributes to a vector layer
 
@@ -186,7 +186,7 @@ def add_attributes(
 def delete_attributes(
     vector_id: str,
     attribute_names: List[str],
-):
+) -> None:
     """
     Delete attributes from a vector layer
 
@@ -203,7 +203,7 @@ def delete_attributes(
 def rename_attributes(
     vector_id: str,
     attribute_map: dict,
-):
+) -> None:
     """
     Rename attributes in a vector layer
 
@@ -217,7 +217,7 @@ def rename_attributes(
     )
 
 
-def get_diff(vector_id: str, last_updated: str) -> List[Dict]:
+def get_diff(vector_id: str, last_updated: str) -> Dict:
     """
     Get the difference of features in a vector layer since the last updated time.
 

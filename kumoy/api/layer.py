@@ -140,7 +140,7 @@ def update_layer(
     )
 
 
-def delete_layer(layer_id: str):
+def delete_layer(layer_id: str) -> None:
     """
     Delete a layer
 

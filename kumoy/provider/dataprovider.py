@@ -72,7 +72,7 @@ class SyncWorker(QThread):
 
 def parse_uri(
     uri: str,
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     kumoyProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
         constants.DATA_PROVIDER_KEY
     )

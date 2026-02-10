@@ -22,6 +22,9 @@ from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .sentry import init_sentry
 from .settings_manager import (
+    get_settings as get_kumoy_settings,
+)
+from .settings_manager import (
     reset_settings,
     store_setting,
 )

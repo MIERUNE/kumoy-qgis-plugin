@@ -218,7 +218,11 @@ def sync_local_cache(
         last_updated = None
 
     if os.path.exists(cache_file):
-        # 既存キャッシュファイルを更新
+        # 既存キャッシュファイルを更新（ファイルが存在するのでlast_updatedはNoneではないはず）
+        if last_updated is None:
+            raise Exception(
+                "Inconsistent state: cache file exists but last_updated is None"
+            )
         try:
             # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
