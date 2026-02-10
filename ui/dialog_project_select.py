@@ -655,6 +655,7 @@ class ProjectItemWidget(QWidget):
     ):
         super().__init__()
         self.project = project
+        self.team = project.teamId
         self.organization_id = organization_id
         self.parent_dialog = parent_dialog
         self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
@@ -795,9 +796,7 @@ class ProjectItemWidget(QWidget):
 
         config = api.config.get_api_config()
         base_url = config.SERVER_URL.rstrip("/")
-        project_url = (
-            f"{base_url}/organization/{self.organization_id}/project/{self.project.id}"
-        )
+        project_url = f"{base_url}/organization/{self.organization_id}/team/{self.team}/project/{self.project.id}"
 
         try:
             webbrowser.open(project_url)
