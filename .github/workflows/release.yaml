@@ -4,7 +4,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: kumoy-plugin
+  PLUGIN_NAME: kumoy-qgis-plugin
 jobs:
   release:
     runs-on: ubuntu-latest
