@@ -25,7 +25,6 @@ import processing
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
-from ...sentry import capture_exception
 from ...settings_manager import get_settings
 from .normalize_field_name import normalize_field_name
 
@@ -457,22 +456,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     )
 
             if not isinstance(e, _UserCanceled):
-                capture_exception(
-                    e,
-                    {
-                        "algorithm": "UploadVectorAlgorithm",
-                        "project_id": project_id if "project_id" in locals() else "",
-                        "vector_name": vector_name if "vector_name" in locals() else "",
-                        "geometry_type": (
-                            geometry_type if "geometry_type" in locals() else ""
-                        ),
-                        "field_mapping": (
-                            field_mapping if "field_mapping" in locals() else ""
-                        ),
-                        "attr_list": attr_list if "attr_list" in locals() else "",
-                    },
-                )
-                # Re-raise the original exception
                 raise e
             else:
                 return {}

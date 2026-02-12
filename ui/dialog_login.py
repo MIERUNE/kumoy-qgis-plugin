@@ -25,7 +25,6 @@ from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
 from ..read_version import read_version
-from ..sentry import init_sentry
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
@@ -196,7 +195,6 @@ class DialogLogin(QDialog):
         # Update the UI
         self.update_login_status()
         self.accept()
-        init_sentry()  # 利用規約・プライバシポリシーを確認したログイン後にSentryを有効化
 
     def login(self):
         """Initiate the Google OAuth login flow via Supabase"""

@@ -37,7 +37,3 @@ https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 ## Documents
 
 <https://kumoy.io/>
-
-## External Libraries
-
-- <https://github.com/getsentry/sentry-python> v2.44.0: MIT License

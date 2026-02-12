@@ -20,7 +20,6 @@ from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .sentry import init_sentry
 from .settings_manager import (
     get_settings as get_kumoy_settings,
 )
@@ -56,9 +55,6 @@ class KumoyPlugin:
         # Initialize menu actions
         self.reset_plugin_settings = None
         self.logout_action = None
-
-        if get_settings().id_token:
-            init_sentry()
 
     def init_translation(self):
         """Initialize translation for the plugin"""
