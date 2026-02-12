@@ -94,13 +94,21 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
                 "token_type": response_data.get("token_type"),
             }
     except HTTPError as e:
-        # Handle HTTP errors specifically
-        if e.code == 401:
-            print("Refresh token expired or invalid (401)")
+        error_body = e.read().decode("utf-8")
+        try:
+            error_data = json.loads(error_body)
+        except json.JSONDecodeError:
+            error_data = {}
+
+        # Handle invalid_grant from Cognito (HTTP 400)
+        if error_data.get("error") == "invalid_grant":
+            print(
+                f"Refresh token expired or invalid ({e.code}): "
+                f"{error_data.get('error', '')}"
+            )
             raise TokenExpiredOrInvalidError("Refresh token is no longer valid")
         # Other HTTP errors
-        error_body = e.read().decode("utf-8")
-        raise_error(json.loads(error_body))
+        raise_error(error_data)
     except Exception as e:
         print(f"Error occurred during Cognito token refresh: {format_api_error(e)}")
         return None
