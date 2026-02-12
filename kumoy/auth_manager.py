@@ -436,16 +436,10 @@ class _Handler(BaseHTTPRequestHandler):
         if "code" in query_params:
             # Verify state parameter to prevent CSRF
             state = query_params.get("state")
-            # デバッグ情報を出力
-            print(f"Received state: {state}")
-            print(f"Expected state: {self.server.expected_state}")
-
-            # 一時的にstate検証をスキップ（デバッグ用）
             if state != self.server.expected_state:
-                print("State mismatch detected, but continuing for debugging")
-                # self.server.error = "State mismatch, possible CSRF attack"
-                # self._send_response()
-                # return
+                self.server.error = "State mismatch, possible CSRF attack"
+                self._send_response()
+                return
 
             # Store the authorization code
             self.server.auth_code = query_params["code"]
