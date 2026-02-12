@@ -41,7 +41,7 @@ DELETE_MAX_FEATURE_COUNT = 1000
 class SyncWorker(QThread):
     """Worker thread for sync_local_cache operation"""
 
-    finished = pyqtSignal()
+    # finished は QThread 組み込みシグナルを使用する（run()終了時に自動emit）
     error = pyqtSignal(str)
     progress = pyqtSignal(int)
 
@@ -65,7 +65,6 @@ class SyncWorker(QThread):
                 self.wkb_type,
                 progress_callback=on_progress_update,
             )
-            self.finished.emit()
         except Exception as e:
             self.error.emit(format_api_error(e))
 
