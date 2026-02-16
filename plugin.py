@@ -234,6 +234,17 @@ class KumoyPlugin:
         layer.triggerRepaint()
         self.iface.mapCanvas().refresh()
 
+    def _connect_sync_on_editing_started(self, layers):
+        """Kumoy Vectorレイヤーの編集開始時にsyncを実行するようシグナルを接続する"""
+        for layer in layers:
+            if not isinstance(layer, QgsVectorLayer):
+                continue
+            provider = layer.dataProvider()
+            if provider and provider.name() == DATA_PROVIDER_KEY:
+                layer.beforeEditingStarted.connect(
+                    lambda _layer=layer: self._sync_kumoy_layer(_layer)
+                )
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -258,6 +269,7 @@ class KumoyPlugin:
             update_kumoy_indicator
         )
         QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
+        QgsProject.instance().layersAdded.connect(self._connect_sync_on_editing_started)
 
         # Add menu action for logout
         self.logout_action = QAction(self.tr("Logout"), self.win)
@@ -305,6 +317,9 @@ class KumoyPlugin:
             )
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
+            QgsProject.instance().layersAdded.disconnect(
+                self._connect_sync_on_editing_started
+            )
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
                 update_kumoy_indicator
             )
