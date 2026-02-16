@@ -12,6 +12,7 @@ from qgis.PyQt.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
@@ -39,7 +40,7 @@ from ..pyqt_version import (
 )
 from ..settings_manager import get_settings, store_setting
 from .dialog_project_edit import ProjectEditDialog
-from .icons import MAP_ICON, RELOAD_ICON, VECTOR_ICON
+from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 
 
@@ -90,7 +91,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project一覧パネル
         self.project_section = self._create_project_section()
-        layout.addWidget(self.project_section["project_list"])
+        layout.addWidget(self.project_section["project_frame"])
 
         # 末尾ボタン類
         self.button_panel = self._create_button_panel()
@@ -227,15 +228,44 @@ class ProjectSelectDialog(QDialog):
         }
 
     def _create_project_section(self):
-        """Create project list section"""
+        """Create project list section with search"""
+        # Container frame
+        project_frame = QFrame()
+        project_frame.setStyleSheet(
+            """
+            QFrame {
+                border-radius: 6px;
+            }
+        """
+        )
+        frame_layout = QVBoxLayout()
+        frame_layout.setContentsMargins(8, 8, 8, 8)
+        frame_layout.setSpacing(6)
+
+        # Search box
+        search_input = QLineEdit()
+        search_input.setPlaceholderText(self.tr("Search..."))
+        search_input.setClearButtonEnabled(True)
+        search_input.addAction(SEARCH_ICON, QLineEdit.LeadingPosition)
+        search_input.setStyleSheet(
+            """
+            QLineEdit {
+                padding: 6px 8px;
+                border-radius: 4px;
+            }
+        """
+        )
+        search_input.textChanged.connect(self.filter_projects)
+        frame_layout.addWidget(search_input)
+
         # Project list
         project_list = QListWidget()
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
             QListWidget {
-                border-radius: 6px;
-                padding: 8px;
+                border: none;
+                padding: 0px;
             }
             QListWidget::item {
                 border-radius: 6px;
@@ -251,7 +281,14 @@ class ProjectSelectDialog(QDialog):
         """
         )
         project_list.itemSelectionChanged.connect(self.on_project_selected)
-        return {"project_list": project_list}
+        frame_layout.addWidget(project_list)
+
+        project_frame.setLayout(frame_layout)
+        return {
+            "project_frame": project_frame,
+            "search_input": search_input,
+            "project_list": project_list,
+        }
 
     def _create_button_panel(self):
         """Create bottom button panel"""
@@ -339,6 +376,7 @@ class ProjectSelectDialog(QDialog):
     def on_organization_changed(self, index):
         """Reset project selection when organization changes"""
         self.project_section["project_list"].setCurrentItem(None)
+        self.project_section["search_input"].clear()
         org_data = self.account_org_panel["org_combo"].itemData(index)
         if org_data:
             self.load_organization_detail(org_data)
@@ -549,6 +587,17 @@ class ProjectSelectDialog(QDialog):
             current_item.data(QT_USER_ROLE) if current_item else None
         )
         self.button_panel["ok_btn"].setEnabled(bool(self.selected_project))
+
+    def filter_projects(self, text: str):
+        """Filter project list by partial name match"""
+        search_text = text.lower()
+        project_list = self.project_section["project_list"]
+        for i in range(project_list.count()):
+            item = project_list.item(i)
+            project = item.data(QT_USER_ROLE)
+            if project is None:
+                continue
+            item.setHidden(search_text not in project.name.lower())
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
         """Get the selected organization"""
