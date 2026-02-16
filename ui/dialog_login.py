@@ -99,6 +99,18 @@ class DialogLogin(QDialog):
         version_and_credits_label.setOpenExternalLinks(True)
         verticalLayout.addWidget(version_and_credits_label)
 
+        # Login buttons layout
+        self.login_button = QPushButton()
+        self.login_button.setText(self.tr("Login"))
+        self.login_button.clicked.connect(self.login)
+        verticalLayout.addWidget(self.login_button)
+
+        # Status label
+        self.login_status_label = QLabel()
+        self.login_status_label.setText("")
+        self.login_status_label.setAlignment(QT_ALIGN.AlignCenter)
+        verticalLayout.addWidget(self.login_status_label)
+
         # Collapsible group box for server config
         self.custom_server_config_group = QgsCollapsibleGroupBox()
         self.custom_server_config_group.setEnabled(True)
@@ -121,18 +133,6 @@ class DialogLogin(QDialog):
         gridLayout.addWidget(self.kumoy_server_url_input, 1, 1)
 
         verticalLayout.addWidget(self.custom_server_config_group)
-
-        # Status label
-        self.login_status_label = QLabel()
-        self.login_status_label.setText("")
-        self.login_status_label.setAlignment(QT_ALIGN.AlignCenter)
-        verticalLayout.addWidget(self.login_status_label)
-
-        # Login buttons layout
-        self.login_button = QPushButton()
-        self.login_button.setText(self.tr("Login"))
-        self.login_button.clicked.connect(self.login)
-        verticalLayout.addWidget(self.login_button)
 
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
