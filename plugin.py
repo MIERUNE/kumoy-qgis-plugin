@@ -171,7 +171,16 @@ class KumoyPlugin:
             return
 
         provider = layer.dataProvider()
-        if not provider or provider.name() == DATA_PROVIDER_KEY:
+        if not provider:
+            return
+
+        if provider.name() == DATA_PROVIDER_KEY:
+            # Kumoyレイヤーの場合: 同期アクションを追加
+            sync_action = QAction(MAIN_ICON, self.tr("Sync Data"), menu)
+            sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
+            if layer.isEditable():
+                sync_action.setEnabled(False)
+            self._insert_action_after_last_separator(menu, sync_action)
             return
 
         # Get current project id and role from browser root collection
@@ -188,11 +197,12 @@ class KumoyPlugin:
         action.triggered.connect(
             lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
         )
+        self._insert_action_after_last_separator(menu, action)
 
-        # Actions to be added after the last separator
+    def _insert_action_after_last_separator(self, menu: QMenu, action: QAction):
+        """Insert an action after the last separator in the menu."""
         actions = menu.actions()
         last_separator = None
-
         for a in actions:
             if a.isSeparator():
                 last_separator = a
@@ -206,9 +216,23 @@ class KumoyPlugin:
                 menu.addAction(action)
                 menu.addSeparator()
         else:
-            # Fallback: add to the end of the menu
             menu.addSeparator()
             menu.addAction(action)
+
+    def _sync_kumoy_layer(self, layer: QgsVectorLayer):
+        """Sync a Kumoy vector layer with the latest server data"""
+        provider = layer.dataProvider()
+        try:
+            provider._reload_vector()
+        except Exception as e:
+            QMessageBox.warning(
+                self.win,
+                self.tr("Sync Error"),
+                str(e),
+            )
+            return
+        layer.triggerRepaint()
+        self.iface.mapCanvas().refresh()
 
     def initGui(self):
         self.dip = DataItemProvider()
