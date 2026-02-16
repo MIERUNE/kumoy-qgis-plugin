@@ -171,7 +171,34 @@ class KumoyPlugin:
             return
 
         provider = layer.dataProvider()
-        if not provider or provider.name() == DATA_PROVIDER_KEY:
+        if not provider:
+            return
+
+        if provider.name() == DATA_PROVIDER_KEY:
+            # Kumoyレイヤーの場合: 同期アクションを追加
+            sync_action = QAction(MAIN_ICON, self.tr("Sync Data"), menu)
+            sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
+            if layer.isEditable():
+                sync_action.setEnabled(False)
+
+            # Convert to Kumoy Vector と同じ位置に配置
+            actions = menu.actions()
+            last_separator = None
+            for a in actions:
+                if a.isSeparator():
+                    last_separator = a
+
+            if last_separator:
+                index = actions.index(last_separator)
+                if index + 1 < len(actions):
+                    menu.insertAction(actions[index + 1], sync_action)
+                    menu.insertSeparator(actions[index + 1])
+                else:
+                    menu.addAction(sync_action)
+                    menu.addSeparator()
+            else:
+                menu.addSeparator()
+                menu.addAction(sync_action)
             return
 
         # Get current project id and role from browser root collection
@@ -209,6 +236,21 @@ class KumoyPlugin:
             # Fallback: add to the end of the menu
             menu.addSeparator()
             menu.addAction(action)
+
+    def _sync_kumoy_layer(self, layer: QgsVectorLayer):
+        """Sync a Kumoy vector layer with the latest server data"""
+        provider = layer.dataProvider()
+        try:
+            provider._reload_vector()
+        except Exception as e:
+            QMessageBox.warning(
+                self.win,
+                self.tr("Sync Error"),
+                str(e),
+            )
+            return
+        layer.triggerRepaint()
+        self.iface.mapCanvas().refresh()
 
     def initGui(self):
         self.dip = DataItemProvider()
