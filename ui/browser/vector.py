@@ -499,6 +499,11 @@ class VectorRoot(QgsDataItem):
                 type_field,
             )
 
+            # Attribution field
+            attribution_field = QLineEdit()
+            attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
+            form_layout.addRow(self.tr("Attribution:"), attribution_field)
+
             # Add description
             description = QLabel(
                 self.tr("This will create an empty vector layer in the project.")
@@ -541,7 +546,10 @@ class VectorRoot(QgsDataItem):
                 )
                 return
 
-            options = api.vector.AddVectorOptions(name=name, type=vector_type)
+            attribution = attribution_field.text()
+            options = api.vector.AddVectorOptions(
+                name=name, type=vector_type, attribution=attribution
+            )
             api.vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
                 self.tr(
