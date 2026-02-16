@@ -180,25 +180,7 @@ class KumoyPlugin:
             sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
             if layer.isEditable():
                 sync_action.setEnabled(False)
-
-            # Convert to Kumoy Vector と同じ位置に配置
-            actions = menu.actions()
-            last_separator = None
-            for a in actions:
-                if a.isSeparator():
-                    last_separator = a
-
-            if last_separator:
-                index = actions.index(last_separator)
-                if index + 1 < len(actions):
-                    menu.insertAction(actions[index + 1], sync_action)
-                    menu.insertSeparator(actions[index + 1])
-                else:
-                    menu.addAction(sync_action)
-                    menu.addSeparator()
-            else:
-                menu.addSeparator()
-                menu.addAction(sync_action)
+            self._insert_action_after_last_separator(menu, sync_action)
             return
 
         # Get current project id and role from browser root collection
@@ -215,11 +197,12 @@ class KumoyPlugin:
         action.triggered.connect(
             lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
         )
+        self._insert_action_after_last_separator(menu, action)
 
-        # Actions to be added after the last separator
+    def _insert_action_after_last_separator(self, menu: QMenu, action: QAction):
+        """Insert an action after the last separator in the menu."""
         actions = menu.actions()
         last_separator = None
-
         for a in actions:
             if a.isSeparator():
                 last_separator = a
@@ -233,7 +216,6 @@ class KumoyPlugin:
                 menu.addAction(action)
                 menu.addSeparator()
         else:
-            # Fallback: add to the end of the menu
             menu.addSeparator()
             menu.addAction(action)
 
