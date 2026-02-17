@@ -441,18 +441,16 @@ class StyledMapRoot(QgsDataItem):
     def actions(self, parent):
         actions = []
 
-        if self.project.role not in ["ADMIN", "OWNER"]:
-            return actions
+        if self.project.role in ["ADMIN", "OWNER"]:
+            # 空のMapを作成する
+            empty_map_action = QAction(self.tr("Create New Map"), parent)
+            empty_map_action.triggered.connect(self.add_empty_map)
+            actions.append(empty_map_action)
 
-        # 空のMapを作成する
-        empty_map_action = QAction(self.tr("Create New Map"), parent)
-        empty_map_action.triggered.connect(self.add_empty_map)
-        actions.append(empty_map_action)
-
-        # Upload current QGIS project as new Kumoy styled map
-        new_action = QAction(self.tr("Save Current Project As..."), parent)
-        new_action.triggered.connect(self.add_styled_map)
-        actions.append(new_action)
+            # Upload current QGIS project as new Kumoy styled map
+            new_action = QAction(self.tr("Save Current Project As..."), parent)
+            new_action.triggered.connect(self.add_styled_map)
+            actions.append(new_action)
 
         # Clear map cache data
         clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
