@@ -1070,7 +1070,7 @@ Do you want to continue?</source>
         <source>This will clear all locally cached map files. Data will be re-downloaded next time you access maps.
 
 Continue?</source>
-        <translation type="unfinished">マップ「{}」のローカルキャッシュをクリアします。
+        <translation type="unfinished">マップのローカルキャッシュをクリアします。
 キャッシュデータは次回アクセス時に再ダウンロードされます。
 続行しますか？</translation>
     </message>
