@@ -193,23 +193,6 @@ def delete_attributes(
     )
 
 
-def rename_attributes(
-    vector_id: str,
-    attribute_map: dict,
-) -> None:
-    """
-    Rename attributes in a vector layer
-
-    Args:
-        vector_id: The ID of the vector layer
-        attribute_map: Dictionary mapping old attribute names to new attribute names
-    """
-    ApiClient.post(
-        f"/_qgis/vector/{vector_id}/rename-attributes",
-        {"attributeMap": attribute_map},
-    )
-
-
 def get_diff(vector_id: str, last_updated: str) -> Dict:
     """
     Get the difference of features in a vector layer since the last updated time.
