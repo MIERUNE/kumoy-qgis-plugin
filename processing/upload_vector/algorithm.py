@@ -274,6 +274,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         organization = api.organization.get_organization(project.team.organizationId)
         plan_limits = api.plan.get_plan_limits(organization.subscriptionPlan)
 
+        # Check role
+        if project.role not in ["ADMIN", "OWNER"]:
+            raise QgsProcessingException(
+                self.tr(
+                    "You do not have permission to upload vectors to this project. "
+                )
+            )
+
         # Check vector count limit
         current_vectors = api.vector.get_vectors(project_id)
         upload_vector_count = len(current_vectors) + 1
