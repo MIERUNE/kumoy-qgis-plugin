@@ -21,6 +21,8 @@ def get_features(
     Get features from a vector layer
     """
     options = {
+        "kumoy_ids": [],
+        "bbox": None,
         "limit": limit,
     }
     if after_id is not None:
