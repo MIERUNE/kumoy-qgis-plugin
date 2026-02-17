@@ -26,7 +26,7 @@ def get_features(
     if after_id is not None:
         options["after_id"] = after_id
 
-    response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features-v2", options)
+    response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features", options)
 
     # decode base64
     for feature in response:
