@@ -14,20 +14,15 @@ def tr(message: str) -> str:
 
 def get_features(
     vector_id: str,
-    kumoy_ids: Optional[List[int]] = None,
-    bbox: Optional[List[float]] = None,
     limit: Optional[int] = None,
     after_id: Optional[int] = None,
 ) -> list:
     """
     Get features from a vector layer
     """
-    if kumoy_ids is None:
-        kumoy_ids = []
-
     options = {
-        "kumoy_ids": kumoy_ids,
-        "bbox": bbox,
+        "kumoy_ids": [],
+        "bbox": None,
         "limit": limit,
     }
     if after_id is not None:
@@ -197,23 +192,6 @@ def delete_attributes(
     ApiClient.post(
         f"/_qgis/vector/{vector_id}/delete-attributes",
         {"attributeNames": attribute_names},
-    )
-
-
-def rename_attributes(
-    vector_id: str,
-    attribute_map: dict,
-) -> None:
-    """
-    Rename attributes in a vector layer
-
-    Args:
-        vector_id: The ID of the vector layer
-        attribute_map: Dictionary mapping old attribute names to new attribute names
-    """
-    ApiClient.post(
-        f"/_qgis/vector/{vector_id}/rename-attributes",
-        {"attributeMap": attribute_map},
     )
 
 
