@@ -486,25 +486,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     "Please assign a valid CRS to the layer before uploading."
                 )
             )
-
-        if not field_mapping:
-            raise QgsProcessingException(
-                self.tr(
-                    "No attributes available for upload. Select at least one attribute."
-                )
-            )
-
         # Step 1: attribute refactor
-        mapping_list = [
-            field_mapping[field.name()]
-            for field in layer.fields()
-            if field.name() in field_mapping
-        ]
+        mapping_list = []
 
-        if not mapping_list:
-            raise QgsProcessingException(
-                self.tr("Could not create the field mapping using the selected fields.")
-            )
+        if field_mapping:
+            mapping_list = [
+                field_mapping[field.name()]
+                for field in layer.fields()
+                if field.name() in field_mapping
+            ]
 
         geometry_filter_expr = self._build_geometry_filter_expression(layer)
         feedback.pushInfo(
