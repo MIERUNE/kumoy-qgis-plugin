@@ -193,11 +193,13 @@ class KumoyPlugin:
             return
 
         # Create and add convert action
-        action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
-        action.triggered.connect(
+        convert_action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
+        convert_action.triggered.connect(
             lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
         )
-        self._insert_action_after_last_separator(menu, action)
+        if layer.isModified():
+            convert_action.setEnabled(False)
+        self._insert_action_after_last_separator(menu, convert_action)
 
     def _insert_action_after_last_separator(self, menu: QMenu, action: QAction):
         """Insert an action after the last separator in the menu."""
