@@ -487,15 +487,14 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
         # Step 1: attribute refactor
+        mapping_list = []
+
         if field_mapping:
             mapping_list = [
                 field_mapping[field.name()]
                 for field in layer.fields()
                 if field.name() in field_mapping
             ]
-
-        else:
-            mapping_list = []
 
         geometry_filter_expr = self._build_geometry_filter_expression(layer)
         feedback.pushInfo(
