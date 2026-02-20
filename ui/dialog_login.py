@@ -117,7 +117,7 @@ class DialogLogin(QDialog):
         self.custom_server_config_group.setTitle(self.tr("Custom server configuration"))
         self.custom_server_config_group.setCheckable(True)
         self.custom_server_config_group.setChecked(False)
-        self.custom_server_config_group.setCollapsed(False)
+        self.custom_server_config_group.setCollapsed(True)
         self.custom_server_config_group.setSaveCheckedState(False)
 
         # Grid layout for server config
