@@ -1,19 +1,24 @@
 [project]
-name = "qgis-plugin-template"
+name = "kumoy-qgis-plugin"
 version = "0.1.0"
-description = "Add your description here"
+description = "QGIS plugin for Kumoy - Turn your QGIS into cloud-native"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+authors = [
+    { name = "MIERUNE Inc.", email = "info@mierune.co.jp" }
+]
 dependencies = []
 
 [dependency-groups]
 dev = [
     "pyqt5-stubs>=5.15.6.0",
-    "ruff>=0.8.2",
+    "PyQt6-stubs>=6.4.0.0",
+    "ruff>=0.14.0",
 ]
 
 [tool.ruff]
+target-version = "py310"
 extend-exclude = ["vendor"]
 
 [tool.ruff.lint]
-ignore = ["F401"]
+ignore = ["N802", "E501", "RUF001", "F401"]
