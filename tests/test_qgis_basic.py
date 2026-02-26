@@ -2,6 +2,7 @@
 
 import unittest
 
+import pytest
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsVectorLayer,
@@ -47,6 +48,7 @@ class TestQgisBasic(unittest.TestCase):
         self.assertEqual(layer.fields().at(1).name(), "value")
 
 
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestPluginImport(unittest.TestCase):
     """プラグインモジュールがimportできることを検証する"""
 

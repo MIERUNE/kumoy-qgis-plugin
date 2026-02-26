@@ -4,6 +4,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 # The plugin root is this directory. For relative imports like
 # `from ...kumoy` (in processing/upload_vector/algorithm.py) to work,
 # the plugin root must be importable as a package — not as top-level.
@@ -25,13 +27,16 @@ if str(_symlink.parent) not in sys.path:
 _plugin_root_str = str(_plugin_root)
 sys.path[:] = [p for p in sys.path if p not in (_plugin_root_str, "")]
 
-# Add QGIS's built-in plugin directory to sys.path so that
-# `import processing` finds QGIS's processing framework.
-try:
+
+@pytest.fixture(scope="session")
+def qgis_plugin_path(qgis_app):
+    """Add QGIS's built-in plugin directory to sys.path.
+
+    Depends on qgis_app (provided by pytest-qgis) to ensure
+    QgsApplication is fully initialized before querying pkgDataPath().
+    """
     from qgis.core import QgsApplication
 
-    _qgis_plugins = os.path.join(QgsApplication.pkgDataPath(), "python", "plugins")
-    if os.path.isdir(_qgis_plugins) and _qgis_plugins not in sys.path:
-        sys.path.append(_qgis_plugins)
-except ImportError:
-    pass
+    qgis_plugins = os.path.join(QgsApplication.pkgDataPath(), "python", "plugins")
+    if os.path.isdir(qgis_plugins) and qgis_plugins not in sys.path:
+        sys.path.append(qgis_plugins)
