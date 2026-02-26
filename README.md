@@ -50,7 +50,7 @@ QGIS環境でのテスト（Docker）:
 docker run --rm \
   -v "$(pwd)":/plugin \
   -w /plugin \
-  qgis/qgis:release-3_40 \
+  qgis/qgis:3.40 \
   sh -c "
     pip3 install --break-system-packages pytest pytest-qgis &&
     xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
