@@ -18,7 +18,6 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPlainTextEdit,
-    QSizePolicy,
     QVBoxLayout,
 )
 from qgis.utils import iface
@@ -28,6 +27,7 @@ from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import write_qgsfile, show_map_save_result
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
+    Q_SIZE_POLICY,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     exec_dialog,
@@ -88,7 +88,7 @@ def _edit_styled_map_dialog(
     attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
 
     description_field = QPlainTextEdit(description)
-    description_field.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
     description_field.textChanged.connect(
         lambda: _limit_text_length(
             description_field, constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION
