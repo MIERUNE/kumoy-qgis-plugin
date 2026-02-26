@@ -47,5 +47,20 @@ class TestQgisBasic(unittest.TestCase):
         self.assertEqual(layer.fields().at(1).name(), "value")
 
 
+class TestPluginImport(unittest.TestCase):
+    """プラグインモジュールがimportできることを検証する"""
+
+    def test_import_get_geometry_type(self):
+        from plugin_dir.processing.upload_vector.algorithm import _get_geometry_type
+
+        layer = QgsVectorLayer("Point?crs=EPSG:4326", "test", "memory")
+        self.assertEqual(_get_geometry_type(layer), "POINT")
+
+    def test_import_constants(self):
+        from plugin_dir.kumoy.constants import PLUGIN_NAME
+
+        self.assertIsInstance(PLUGIN_NAME, str)
+
+
 if __name__ == "__main__":
     unittest.main()

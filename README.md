@@ -34,17 +34,21 @@ Population Analysis for Location Optimization<br />
 https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 </a>
 
+---
+
 ## Development
 
-### テストの実行
-
-QGIS非依存のテスト（ローカル）:
+### venv Setup
 
 ```bash
-python -m pytest tests/ -v
+# macOS QGIS LTR(3.40)
+uv venv --python /Applications/QGIS-LTR.app/Contents/MacOS/bin/python3 --system-site-packages
 ```
 
-QGIS環境でのテスト（Docker）:
+### Running Tests
+
+All tests (Docker):
+
 
 ```bash
 docker run --rm \
@@ -57,7 +61,3 @@ docker run --rm \
       python3 -m pytest tests/ -v
   "
 ```
-
-## Documents
-
-<https://kumoy.io/>

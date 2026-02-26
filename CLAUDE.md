@@ -9,7 +9,7 @@ QGIS用クラウド連携プラグイン。QGISプロジェクトをWebに公開
 - Lint: `uv run ruff check .`
 - フォーマットチェック: `uv run ruff format . --check --diff`
 - フォーマット修正: `uv run ruff format .`
-- テスト: `python -m pytest tests/`（QGIS依存テストにはQGIS環境が必要。CIではDockerで実行）
+- テスト: `uv run pytest tests/`（QGIS依存テストにはQGIS環境が必要。CIではDockerで実行）
 
 ## コードスタイル
 
