@@ -1,6 +1,6 @@
 import os
 import webbrowser
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Tuple
 
 from qgis.core import (
     Qgis,
