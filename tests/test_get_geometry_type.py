@@ -1,8 +1,25 @@
+"""QGIS依存テストの例: メモリレイヤーのジオメトリタイプ判定"""
+
+import importlib.util
 import unittest
+from pathlib import Path
 
-from qgis.core import QgsVectorLayer
+from qgis.core import QgsVectorLayer, QgsWkbTypes
 
-from processing.upload_vector.algorithm import _get_geometry_type
+# processing パッケージの __init__.py を経由すると相対importで失敗するため、
+# モジュールを直接ロードする
+_MODULE_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "processing"
+    / "upload_vector"
+    / "algorithm.py"
+)
+_spec = importlib.util.spec_from_file_location("algorithm_module", _MODULE_PATH)
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_spec.loader.exec_module(_module)
+_get_geometry_type = _module._get_geometry_type
 
 
 class TestGetGeometryType(unittest.TestCase):
