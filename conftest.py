@@ -1,5 +1,6 @@
 """pytest conftest: make plugin importable as 'plugin_dir' package."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -23,3 +24,14 @@ if str(_symlink.parent) not in sys.path:
 # Plugin modules must be imported via 'plugin_dir.xxx' instead.
 _plugin_root_str = str(_plugin_root)
 sys.path[:] = [p for p in sys.path if p not in (_plugin_root_str, "")]
+
+# Add QGIS's built-in plugin directory to sys.path so that
+# `import processing` finds QGIS's processing framework.
+try:
+    from qgis.core import QgsApplication
+
+    _qgis_plugins = os.path.join(QgsApplication.pkgDataPath(), "python", "plugins")
+    if os.path.isdir(_qgis_plugins) and _qgis_plugins not in sys.path:
+        sys.path.append(_qgis_plugins)
+except ImportError:
+    pass
