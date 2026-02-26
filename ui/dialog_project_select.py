@@ -33,6 +33,7 @@ from ..pyqt_version import (
     QDIALOG_CODE,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
+    QT_LINEEDIT_ACTION_POSITION,
     QT_NO_ITEM_FLAGS,
     QT_USER_ROLE,
     exec_dialog,
@@ -246,7 +247,7 @@ class ProjectSelectDialog(QDialog):
         search_input = QLineEdit()
         search_input.setPlaceholderText(self.tr("Search..."))
         search_input.setClearButtonEnabled(True)
-        search_input.addAction(SEARCH_ICON, QLineEdit.LeadingPosition)
+        search_input.addAction(SEARCH_ICON, QT_LINEEDIT_ACTION_POSITION.LeadingPosition)
         search_input.setStyleSheet(
             """
             QLineEdit {
