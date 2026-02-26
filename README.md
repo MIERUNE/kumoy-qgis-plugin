@@ -34,6 +34,30 @@ Population Analysis for Location Optimization<br />
 https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 </a>
 
+## Development
+
+### テストの実行
+
+QGIS非依存のテスト（ローカル）:
+
+```bash
+python -m pytest tests/ -v
+```
+
+QGIS環境でのテスト（Docker）:
+
+```bash
+docker run --rm \
+  -v "$(pwd)":/plugin \
+  -w /plugin \
+  qgis/qgis:release-3_40 \
+  sh -c "
+    pip3 install --break-system-packages pytest pytest-qgis &&
+    xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
+      python3 -m pytest tests/ -v
+  "
+```
+
 ## Documents
 
 <https://kumoy.io/>
