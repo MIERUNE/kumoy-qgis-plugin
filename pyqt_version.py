@@ -1,11 +1,12 @@
 """Qt5/Qt6 compatibility layer"""
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer
-from qgis.PyQt.QtGui import QRegion, QPainter
+from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QLineEdit,
     QMessageBox,
     QSizePolicy,
 )
@@ -147,6 +148,22 @@ QT_NO_ITEM_FLAGS = Qt.NoItemFlags if QT_VERSION_INT <= 5 else Qt.ItemFlag.NoItem
 """Qt item flag: no flags
 Qt5: Qt.NoItemFlags
 Qt6: Qt.ItemFlag.NoItemFlags
+"""
+
+QT_LINEEDIT_ACTION_POSITION = (
+    QLineEdit if QT_VERSION_INT <= 5 else QLineEdit.ActionPosition
+)
+"""QLineEdit action position
+Qt5: QLineEdit.LeadingPosition, QLineEdit.TrailingPosition
+Qt6: QLineEdit.ActionPosition.LeadingPosition, QLineEdit.ActionPosition.TrailingPosition
+"""
+
+QT_TEXTCURSOR_MOVE_OPERATION = (
+    QTextCursor if QT_VERSION_INT <= 5 else QTextCursor.MoveOperation
+)
+"""QTextCursor move operation
+Qt5: QTextCursor.End, QTextCursor.Start, etc.
+Qt6: QTextCursor.MoveOperation.End, QTextCursor.MoveOperation.Start, etc.
 """
 
 QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode

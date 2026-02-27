@@ -1,6 +1,6 @@
 import os
 import webbrowser
-from typing import Literal
+from typing import Literal, Tuple
 
 from qgis.core import (
     Qgis,
@@ -17,6 +17,7 @@ from qgis.PyQt.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QMessageBox,
+    QPlainTextEdit,
     QVBoxLayout,
 )
 from qgis.utils import iface
@@ -26,8 +27,10 @@ from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import write_qgsfile, show_map_save_result
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
+    Q_SIZE_POLICY,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
+    QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
 )
 from ...settings_manager import get_settings
@@ -36,6 +39,88 @@ from ...ui.layers.convert_vector import (
 )
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
+
+
+def tr(message: str, context: str = "@default") -> str:
+    return QCoreApplication.translate(context, message)
+
+
+def _create_styled_map_dialog(
+    title: str,
+    name: str = "",
+    description: str = "",
+    attribution: str = "",
+    is_public: bool = False,
+) -> Tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
+    """Create a styled map dialog with common fields.
+
+    Args:
+        title: Dialog window title
+        name: Initial name value
+        description: Initial description value
+        attribution: Initial attribution value
+        is_public: Initial public checkbox state
+
+    Returns:
+        Tuple of (dialog, name_field, description_field, attribution_field, is_public_field)
+    """
+    dialog = QDialog()
+    dialog.setWindowTitle(title)
+
+    # Layout
+    layout = QVBoxLayout()
+    form_layout = QFormLayout()
+
+    # Fields
+    name_field = QLineEdit(name)
+    name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
+
+    attribution_field = QLineEdit(attribution)
+    attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
+
+    description_field = QPlainTextEdit(description)
+    description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
+
+    # Limit text length (integrated as part of UI construction)
+    def limit_description_length():
+        text = description_field.toPlainText()
+        if len(text) > constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION:
+            description_field.setPlainText(
+                text[: constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION]
+            )
+            cursor = description_field.textCursor()
+            cursor.movePosition(QT_TEXTCURSOR_MOVE_OPERATION.End)
+            description_field.setTextCursor(cursor)
+
+    description_field.textChanged.connect(limit_description_length)
+
+    is_public_field = QCheckBox(tr("Make Public"))
+    is_public_field.setChecked(is_public)
+
+    # Add fields to form
+    form_layout.addRow(tr("Name:") + ' <span style="color: red;">*</span>', name_field)
+    form_layout.addRow(tr("Description:"), description_field)
+    form_layout.addRow(tr("Attribution:"), attribution_field)
+    form_layout.addRow(tr("Public:"), is_public_field)
+
+    # Buttons
+    button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
+    button_box.accepted.connect(dialog.accept)
+    button_box.rejected.connect(dialog.reject)
+
+    # Disable OK if name is empty
+    ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+    ok_button.setEnabled(bool(name_field.text().strip()))
+    name_field.textChanged.connect(
+        lambda text: ok_button.setEnabled(bool(text.strip()))
+    )
+
+    # Add layouts to dialog
+    layout.addLayout(form_layout)
+    layout.addWidget(button_box)
+    dialog.setLayout(layout)
+
+    return dialog, name_field, description_field, attribution_field, is_public_field
 
 
 class StyledMapItem(QgsDataItem):
@@ -163,61 +248,28 @@ class StyledMapItem(QgsDataItem):
         return True
 
     def update_metadata_styled_map(self):
-        # ダイアログ作成
-        dialog = QDialog()
-        dialog.setWindowTitle(self.tr("Edit Map"))
-
-        # レイアウト作成
-        layout = QVBoxLayout()
-        form_layout = QFormLayout()
-
-        # フィールド作成（タイトルのみ編集可）
-        name_field = QLineEdit(self.styled_map.name)
-        name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
-        is_public_field = QCheckBox(self.tr("Make Public"))
-        is_public_field.setChecked(self.styled_map.isPublic)
-        attribution_field = QLineEdit(self.styled_map.attribution)
-        attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
-        description_field = QLineEdit(self.styled_map.description)
-        description_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION)
-
-        # フォームにフィールドを追加
-        form_layout.addRow(
-            self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
-        )
-        form_layout.addRow(self.tr("Public:"), is_public_field)
-        form_layout.addRow(self.tr("Description:"), description_field)
-        form_layout.addRow(self.tr("Attribution:"), attribution_field)
-
-        # ボタン作成
-        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.reject)
-
-        # Disable OK if name is empty
-        ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
-        ok_button.setEnabled(bool(name_field.text().strip()))
-        name_field.textChanged.connect(
-            lambda text: ok_button.setEnabled(bool(text.strip()))
+        # Create dialog
+        dialog, name_field, description_field, attribution_field, is_public_field = (
+            _create_styled_map_dialog(
+                self.tr("Edit Map"),
+                name=self.styled_map.name,
+                description=self.styled_map.description,
+                attribution=self.styled_map.attribution,
+                is_public=self.styled_map.isPublic,
+            )
         )
 
-        # ダイアログにレイアウトを追加
-        layout.addLayout(form_layout)
-        layout.addWidget(button_box)
-        dialog.setLayout(layout)
-
-        # ダイアログ表示
-        result = exec_dialog(dialog)
-        if not result:
+        # Show dialog
+        if not exec_dialog(dialog):
             return
 
-        # 値を取得（タイトルと公開設定のみ）
+        # Get values
         new_name = name_field.text()
-        new_is_public = is_public_field.isChecked()
+        new_description = description_field.toPlainText()
         new_attribution = attribution_field.text()
-        new_description = description_field.text()
+        new_is_public = is_public_field.isChecked()
 
-        if new_name == "":
+        if not new_name:
             return
 
         try:
@@ -500,62 +552,25 @@ class StyledMapRoot(QgsDataItem):
                 )
                 return
 
-            # ダイアログ作成
-            dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Add Map"))
-
-            # レイアウト作成
-            layout = QVBoxLayout()
-            form_layout = QFormLayout()
-
-            # フィールド作成（タイトルのみ編集可）
-            name_field = QLineEdit()
-            name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
-            attribution_field = QLineEdit()
-            attribution_field.setMaxLength(
-                constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION
-            )
-            description_field = QLineEdit()
-            description_field.setMaxLength(
-                constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION
-            )
-            is_public_field = QCheckBox(self.tr("Make Public"))
-
-            # フォームにフィールドを追加
-            form_layout.addRow(
-                self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
-            )
-            form_layout.addRow(self.tr("Description:"), description_field)
-            form_layout.addRow(self.tr("Attribution:"), attribution_field)
-            form_layout.addRow(self.tr("Public:"), is_public_field)
-
-            # ボタン作成
-            button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-
-            # Disable OK if name is empty
-            ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
-            ok_button.setEnabled(bool(name_field.text().strip()))
-            name_field.textChanged.connect(
-                lambda text: ok_button.setEnabled(bool(text.strip()))
+            # Create dialog
+            (
+                dialog,
+                name_field,
+                description_field,
+                attribution_field,
+                is_public_field,
+            ) = _create_styled_map_dialog(
+                self.tr("Add Map"),
             )
 
-            # ダイアログにレイアウトを追加
-            layout.addLayout(form_layout)
-            layout.addWidget(button_box)
-            dialog.setLayout(layout)
-
-            # ダイアログ表示
-            result = exec_dialog(dialog)
-
-            if not result:
+            # Show dialog
+            if not exec_dialog(dialog):
                 return
 
-            # 値を取得（タイトルと公開設定のみ）
+            # Get values
             name = name_field.text()
+            description = description_field.toPlainText()
             attribution = attribution_field.text()
-            description = description_field.text()
             is_public = is_public_field.isChecked()
 
             if not name:
