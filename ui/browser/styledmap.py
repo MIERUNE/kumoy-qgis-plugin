@@ -30,6 +30,7 @@ from ...pyqt_version import (
     Q_SIZE_POLICY,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
+    QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
 )
 from ...settings_manager import get_settings
@@ -88,7 +89,7 @@ def _create_styled_map_dialog(
                 text[: constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION]
             )
             cursor = description_field.textCursor()
-            cursor.movePosition(cursor.End)
+            cursor.movePosition(QT_TEXTCURSOR_MOVE_OPERATION.End)
             description_field.setTextCursor(cursor)
 
     description_field.textChanged.connect(limit_description_length)
