@@ -1,6 +1,6 @@
 import os
 import webbrowser
-from typing import Literal, Optional, Tuple
+from typing import Literal, Tuple
 
 from qgis.core import (
     Qgis,
@@ -44,23 +44,13 @@ def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def _limit_text_length(text_field, max_length):
-    """Limit text length in a QPlainTextEdit"""
-    text = text_field.toPlainText()
-    if len(text) > max_length:
-        text_field.setPlainText(text[:max_length])
-        cursor = text_field.textCursor()
-        cursor.movePosition(cursor.End)
-        text_field.setTextCursor(cursor)
-
-
-def _edit_styled_map_dialog(
+def _create_styled_map_dialog(
     title: str,
     name: str = "",
     description: str = "",
     attribution: str = "",
     is_public: bool = False,
-) -> Optional[Tuple[str, str, str, bool]]:
+) -> Tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
     """Create a styled map dialog with common fields.
 
     Args:
@@ -71,7 +61,7 @@ def _edit_styled_map_dialog(
         is_public: Initial public checkbox state
 
     Returns:
-        Tuple of (name, description, attribution, is_public) or None if cancelled
+        Tuple of (dialog, name_field, description_field, attribution_field, is_public_field)
     """
     dialog = QDialog()
     dialog.setWindowTitle(title)
@@ -89,11 +79,19 @@ def _edit_styled_map_dialog(
 
     description_field = QPlainTextEdit(description)
     description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
-    description_field.textChanged.connect(
-        lambda: _limit_text_length(
-            description_field, constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION
-        )
-    )
+
+    # Limit text length (integrated as part of UI construction)
+    def limit_description_length():
+        text = description_field.toPlainText()
+        if len(text) > constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION:
+            description_field.setPlainText(
+                text[: constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION]
+            )
+            cursor = description_field.textCursor()
+            cursor.movePosition(cursor.End)
+            description_field.setTextCursor(cursor)
+
+    description_field.textChanged.connect(limit_description_length)
 
     is_public_field = QCheckBox(tr("Make Public"))
     is_public_field.setChecked(is_public)
@@ -121,18 +119,7 @@ def _edit_styled_map_dialog(
     layout.addWidget(button_box)
     dialog.setLayout(layout)
 
-    # Show dialog
-    result = exec_dialog(dialog)
-
-    if not result:
-        return None
-
-    return (
-        name_field.text(),
-        description_field.toPlainText(),
-        attribution_field.text(),
-        is_public_field.isChecked(),
-    )
+    return dialog, name_field, description_field, attribution_field, is_public_field
 
 
 class StyledMapItem(QgsDataItem):
@@ -260,19 +247,26 @@ class StyledMapItem(QgsDataItem):
         return True
 
     def update_metadata_styled_map(self):
-        # Show dialog
-        dialog_result = _edit_styled_map_dialog(
-            self.tr("Edit Map"),
-            name=self.styled_map.name,
-            description=self.styled_map.description,
-            attribution=self.styled_map.attribution,
-            is_public=self.styled_map.isPublic,
+        # Create dialog
+        dialog, name_field, description_field, attribution_field, is_public_field = (
+            _create_styled_map_dialog(
+                self.tr("Edit Map"),
+                name=self.styled_map.name,
+                description=self.styled_map.description,
+                attribution=self.styled_map.attribution,
+                is_public=self.styled_map.isPublic,
+            )
         )
 
-        if not dialog_result:
+        # Show dialog
+        if not exec_dialog(dialog):
             return
 
-        new_name, new_description, new_attribution, new_is_public = dialog_result
+        # Get values
+        new_name = name_field.text()
+        new_description = description_field.toPlainText()
+        new_attribution = attribution_field.text()
+        new_is_public = is_public_field.isChecked()
 
         if not new_name:
             return
@@ -557,15 +551,26 @@ class StyledMapRoot(QgsDataItem):
                 )
                 return
 
-            # Show dialog
-            dialog_result = _edit_styled_map_dialog(
+            # Create dialog
+            (
+                dialog,
+                name_field,
+                description_field,
+                attribution_field,
+                is_public_field,
+            ) = _create_styled_map_dialog(
                 self.tr("Add Map"),
             )
 
-            if not dialog_result:
+            # Show dialog
+            if not exec_dialog(dialog):
                 return
 
-            name, description, attribution, is_public = dialog_result
+            # Get values
+            name = name_field.text()
+            description = description_field.toPlainText()
+            attribution = attribution_field.text()
+            is_public = is_public_field.isChecked()
 
             if not name:
                 return
