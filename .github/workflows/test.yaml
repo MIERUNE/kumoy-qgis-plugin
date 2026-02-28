@@ -6,7 +6,6 @@ on:
       - main
 
 env:
-  # Docker settings
   DOCKER_IMAGE: qgis/qgis
 
 jobs:
@@ -15,29 +14,24 @@ jobs:
 
     strategy:
       matrix:
-        docker_tags: [release-3_36]
+        docker_tags: ["3.40"]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Export requirements.txt
-        run: |
-          pip3 install uv
-          uv export -o requirements.txt --no-dev --no-hashes
-
-      - name: Docker pull and create qgis-testing-environment
+      - name: Docker pull QGIS
         run: |
           docker pull "$DOCKER_IMAGE":${{ matrix.docker_tags }}
-          docker run -d --name qgis-testing-environment -v .:/tests_directory/plugin_dir -e DISPLAY=:99 "$DOCKER_IMAGE":${{ matrix.docker_tags }}
 
-      - name: Docker set up QGIS
+      - name: Run tests
         run: |
-          docker exec qgis-testing-environment sh -c "qgis_setup.sh plugin_dir"
-          docker exec qgis-testing-environment sh -c "rm -f /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/plugin_dir"
-          docker exec qgis-testing-environment sh -c "ln -s /tests_directory/plugin_dir /root/.local/share/QGIS/QGIS3/profiles/default/python/plugins/plugin_dir"
-          docker exec qgis-testing-environment sh -c "pip3 install -r /tests_directory/plugin_dir/requirements.txt"
-
-      - name: Docker run plugin tests
-        run: |
-          docker exec qgis-testing-environment sh -c "qgis_testrunner.sh plugin_dir.test_suite.test_package"
+          docker run --rm \
+            -v "${{ github.workspace }}":/plugin \
+            -w /plugin \
+            "$DOCKER_IMAGE":${{ matrix.docker_tags }} \
+            sh -c "
+              pip3 install --break-system-packages pytest pytest-qgis &&
+              xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
+                python3 -m pytest tests/ -v
+            "

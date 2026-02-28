@@ -34,6 +34,30 @@ Population Analysis for Location Optimization<br />
 https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 </a>
 
-## Documents
+---
 
-<https://kumoy.io/>
+## Development
+
+### venv Setup
+
+```bash
+# macOS QGIS LTR(3.40)
+uv venv --python /Applications/QGIS-LTR.app/Contents/MacOS/bin/python3 --system-site-packages
+```
+
+### Running Tests
+
+All tests (Docker):
+
+
+```bash
+docker run --rm \
+  -v "$(pwd)":/plugin \
+  -w /plugin \
+  qgis/qgis:3.40 \
+  sh -c "
+    pip3 install --break-system-packages pytest pytest-qgis &&
+    xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
+      python3 -m pytest tests/ -v
+  "
+```
