@@ -15,7 +15,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
 from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
-from .kumoy.local_cache.map import handle_project_saved, check_kumoy_project
+from .kumoy.local_cache.map import handle_project_saved, check_kumoy_project_on_load
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
@@ -247,7 +247,7 @@ class KumoyPlugin:
         )
 
         # Connect project loaded signal
-        self.iface.projectRead.connect(check_kumoy_project)
+        self.iface.projectRead.connect(check_kumoy_project_on_load)
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -305,7 +305,7 @@ class KumoyPlugin:
             self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
                 self.show_layer_context_menu
             )
-            self.iface.projectRead.disconnect(check_kumoy_project)
+            self.iface.projectRead.disconnect(check_kumoy_project_on_load)
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(

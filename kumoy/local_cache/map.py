@@ -181,7 +181,7 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
-def check_kumoy_project() -> None:
+def check_kumoy_project_on_load() -> None:
     """Check if the loaded project is associated with the current Kumoy project"""
     project = QgsProject.instance()
 
@@ -196,11 +196,10 @@ def check_kumoy_project() -> None:
     try:
         get_and_validate_map(styled_map_id)
     except Exception:
+        # close project
+        QgsProject.instance().clear()
         # Error already shown (API error or project mismatch), abort
         return
-
-    # close project
-    QgsProject.instance().clear()
 
 
 def get_and_validate_map(
