@@ -24,7 +24,11 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.local_cache.map import write_qgsfile, show_map_save_result
+from ...kumoy.local_cache.map import (
+    write_qgsfile,
+    show_map_save_result,
+    get_and_validate_map,
+)
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -552,17 +556,16 @@ class StyledMapRoot(QgsDataItem):
                 )
                 return
 
-            # Avoid save a Kumoy map to a wrong project
-            settings = get_settings()
-            if settings.selected_project_id != current_styled_maps:
-                QMessageBox.critical(
-                    None,
-                    self.tr("Wrong Project"),
-                    self.tr(
-                        "Please switch to the correct Kumoy project to create a map."
-                    ),
-                )
-                return
+            # Avoid saving a Kumoy map to a wrong project
+            custom_vars = QgsProject.instance().customVariables()
+            existing_map_id = custom_vars.get("kumoy_map_id")
+
+            if existing_map_id:
+                try:
+                    get_and_validate_map(existing_map_id)
+                except Exception:
+                    # API/validation error already shown, abort
+                    return
 
             # Create dialog
             (
