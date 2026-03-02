@@ -193,7 +193,12 @@ def check_kumoy_project() -> None:
     if not styled_map_id:
         return
 
-    styled_map_detail = _get_and_validate_map(styled_map_id)
+    try:
+        styled_map_detail = _get_and_validate_map(styled_map_id)
+    except Exception:
+        # API error already shown, abort
+        return
+
     if not styled_map_detail:
         QMessageBox.critical(
             None,
@@ -213,7 +218,10 @@ def _get_and_validate_map(
         kumoy_map_id: The Kumoy map ID to retrieve and validate
 
     Returns:
-        KumoyStyledMapDetail if valid and belongs to current project, None otherwise
+        KumoyStyledMapDetail if valid, None if project mismatch
+
+    Raises:
+        Exception: If API error occurs (error dialog already shown)
     """
     try:
         styled_map_detail = api.styledmap.get_styled_map(kumoy_map_id)
@@ -237,7 +245,8 @@ def _get_and_validate_map(
             tr("Error"),
             tr("Error loading map: {}").format(error_text),
         )
-        return None
+        # Re-raise to abort further processing
+        raise
 
 
 def handle_project_saved() -> None:
@@ -256,8 +265,12 @@ def handle_project_saved() -> None:
     if not styled_map_id:
         return
 
-    # Get and validate map
-    styled_map_detail = _get_and_validate_map(styled_map_id)
+    try:
+        styled_map_detail = _get_and_validate_map(styled_map_id)
+    except Exception:
+        # API error already shown, abort
+        return
+
     if not styled_map_detail:
         QMessageBox.critical(
             None,

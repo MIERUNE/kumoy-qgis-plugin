@@ -247,7 +247,7 @@ class KumoyPlugin:
         )
 
         # Connect project loaded signal
-        QgsProject.instance().readProject.connect(check_kumoy_project)
+        self.iface.projectRead.connect(check_kumoy_project)
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -305,7 +305,7 @@ class KumoyPlugin:
             self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
                 self.show_layer_context_menu
             )
-            QgsProject.instance().readProject.disconnect(check_kumoy_project)
+            self.iface.projectRead.disconnect(check_kumoy_project)
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
