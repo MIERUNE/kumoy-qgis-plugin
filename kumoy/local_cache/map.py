@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
@@ -192,18 +193,37 @@ def check_kumoy_project() -> None:
     if not styled_map_id:
         return
 
+    styled_map_detail = _get_and_validate_map(styled_map_id)
+    if not styled_map_detail:
+        QMessageBox.critical(
+            None,
+            tr("Wrong Project"),
+            tr("Please switch to the correct Kumoy project to open this map."),
+        )
+        # close project
+        QgsProject.instance().clear()
+
+
+def _get_and_validate_map(
+    kumoy_map_id: str,
+) -> "Optional[api.styledmap.KumoyStyledMapDetail]":
+    """Get styled map and validate it belongs to current project.
+
+    Args:
+        kumoy_map_id: The Kumoy map ID to retrieve and validate
+
+    Returns:
+        KumoyStyledMapDetail if valid and belongs to current project, None otherwise
+    """
     try:
-        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+        styled_map_detail = api.styledmap.get_styled_map(kumoy_map_id)
         settings = settings_manager.get_settings()
 
+        # Validate project match
         if settings.selected_project_id != styled_map_detail.projectId:
-            QMessageBox.critical(
-                None,
-                tr("Warning"),
-                tr("Please switch to the correct Kumoy project to open this map."),
-            )
-            # close project
-            QgsProject.instance().clear()
+            return None
+
+        return styled_map_detail
 
     except Exception as e:
         error_text = format_api_error(e)
@@ -217,6 +237,7 @@ def check_kumoy_project() -> None:
             tr("Error"),
             tr("Error loading map: {}").format(error_text),
         )
+        return None
 
 
 def handle_project_saved() -> None:
@@ -235,6 +256,16 @@ def handle_project_saved() -> None:
     if not styled_map_id:
         return
 
+    # Get and validate map
+    styled_map_detail = _get_and_validate_map(styled_map_id)
+    if not styled_map_detail:
+        QMessageBox.critical(
+            None,
+            tr("Wrong Project"),
+            tr("Please switch to the correct Kumoy project to save this map."),
+        )
+        return
+
     # Check if project file is saved in local cache
     file_path = os.path.abspath(project.absoluteFilePath())
     local_cache_dir = os.path.abspath(_get_cache_dir())
@@ -247,22 +278,6 @@ def handle_project_saved() -> None:
     # Clear custom variables and don't proceed if the project file not saved in local cache
     if not in_cache:
         QgsProject.instance().setCustomVariables({})
-        return
-
-    try:
-        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
-    except Exception as e:
-        error_text = format_api_error(e)
-        QgsMessageLog.logMessage(
-            tr("Error loading map: {}").format(error_text),
-            LOG_CATEGORY,
-            Qgis.Critical,
-        )
-        QMessageBox.critical(
-            None,
-            tr("Error"),
-            tr("Error loading map: {}").format(error_text),
-        )
         return
 
     # don't process if role cannot edit
