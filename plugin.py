@@ -246,7 +246,7 @@ class KumoyPlugin:
             self.show_layer_context_menu
         )
 
-        # Connect project loaded signal (before layers are loaded)
+        # Connect project loaded signal
         QgsProject.instance().readProject.connect(check_kumoy_project)
 
         # Connect project saved signal

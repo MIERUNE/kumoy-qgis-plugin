@@ -554,13 +554,7 @@ class StyledMapRoot(QgsDataItem):
 
             # Avoid save a Kumoy map to a wrong project
             settings = get_settings()
-            qgs_project_map_id = (
-                QgsProject.instance().customVariables().get("kumoy_map_id")
-            )
-            if (
-                qgs_project_map_id
-                and settings.selected_project_id != qgs_project_map_id
-            ):
+            if settings.selected_project_id != current_styled_maps:
                 QMessageBox.critical(
                     None,
                     self.tr("Wrong Project"),
