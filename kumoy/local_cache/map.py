@@ -14,7 +14,7 @@ from ...ui.layers.convert_vector import (
 
 from qgis.utils import iface
 
-
+from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
 # Flag to prevent double updates when handling project saved event
@@ -178,6 +178,45 @@ def _get_qgs_str(map_path: str) -> str:
         raise Exception(err)
 
     return qgs_str
+
+
+def check_kumoy_project() -> None:
+    """Check if the loaded project is associated with the current Kumoy project"""
+    project = QgsProject.instance()
+
+    # Get styled map ID from custom variables
+    custom_vars = project.customVariables()
+    styled_map_id = custom_vars.get("kumoy_map_id")
+
+    # No need to check if not a kumoy map
+    if not styled_map_id:
+        return
+
+    try:
+        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+        settings = settings_manager.get_settings()
+
+        if settings.selected_project_id != styled_map_detail.projectId:
+            QMessageBox.critical(
+                None,
+                tr("Warning"),
+                tr("Please switch to the correct Kumoy project to open this map."),
+            )
+            # close project
+            QgsProject.instance().clear()
+
+    except Exception as e:
+        error_text = format_api_error(e)
+        QgsMessageLog.logMessage(
+            tr("Error loading map: {}").format(error_text),
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        QMessageBox.critical(
+            None,
+            tr("Error"),
+            tr("Error loading map: {}").format(error_text),
+        )
 
 
 def handle_project_saved() -> None:

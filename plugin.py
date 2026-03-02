@@ -15,14 +15,11 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy.api.config import get_settings
 from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
-from .kumoy.local_cache.map import handle_project_saved
+from .kumoy.local_cache.map import handle_project_saved, check_kumoy_project
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .settings_manager import (
-    get_settings as get_kumoy_settings,
-)
 from .settings_manager import (
     reset_settings,
     store_setting,
@@ -249,6 +246,9 @@ class KumoyPlugin:
             self.show_layer_context_menu
         )
 
+        # Connect project loaded signal (before layers are loaded)
+        QgsProject.instance().readProject.connect(check_kumoy_project)
+
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
 
@@ -305,6 +305,7 @@ class KumoyPlugin:
             self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
                 self.show_layer_context_menu
             )
+            QgsProject.instance().readProject.disconnect(check_kumoy_project)
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
