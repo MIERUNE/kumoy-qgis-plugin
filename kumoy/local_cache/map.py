@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
@@ -193,34 +192,11 @@ def check_kumoy_project_on_load() -> None:
     if not styled_map_id:
         return
 
+    # Validate that the map belongs to current project
     try:
-        get_and_validate_map(styled_map_id)
-    except Exception:
-        # close project
-        QgsProject.instance().clear()
-        # Error already shown (API error or project mismatch), abort
-        return
-
-
-def get_and_validate_map(
-    kumoy_map_id: str,
-) -> "api.styledmap.KumoyStyledMapDetail":
-    """Get styled map and validate it belongs to current project.
-
-    Args:
-        kumoy_map_id: The Kumoy map ID to retrieve and validate
-
-    Returns:
-        KumoyStyledMapDetail if valid
-
-    Raises:
-        Exception: If API error or project mismatch
-    """
-    try:
-        styled_map_detail = api.styledmap.get_styled_map(kumoy_map_id)
+        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
         settings = settings_manager.get_settings()
 
-        # Validate project match
         if settings.selected_project_id != styled_map_detail.projectId:
             QMessageBox.critical(
                 None,
@@ -230,13 +206,8 @@ def get_and_validate_map(
                     "Please switch to the correct project."
                 ),
             )
-            raise ValueError("Project mismatch")
-
-        return styled_map_detail
-
-    except ValueError:
-        # Project mismatch, re-raise
-        raise
+            QgsProject.instance().clear()
+            return
     except Exception as e:
         error_text = format_api_error(e)
         QgsMessageLog.logMessage(
@@ -249,8 +220,8 @@ def get_and_validate_map(
             tr("Error"),
             tr("Error loading map: {}").format(error_text),
         )
-        # Re-raise to abort further processing
-        raise
+        QgsProject.instance().clear()
+        return
 
 
 def handle_project_saved() -> None:
@@ -269,10 +240,33 @@ def handle_project_saved() -> None:
     if not styled_map_id:
         return
 
+    # Get and validate map belongs to current project
     try:
-        styled_map_detail = get_and_validate_map(styled_map_id)
-    except Exception:
-        # Error already shown (API error or project mismatch), abort
+        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+        settings = settings_manager.get_settings()
+
+        if settings.selected_project_id != styled_map_detail.projectId:
+            QMessageBox.critical(
+                None,
+                tr("Wrong Project"),
+                tr(
+                    "This map belongs to a different Kumoy project. "
+                    "Please switch to the correct project."
+                ),
+            )
+            return
+    except Exception as e:
+        error_text = format_api_error(e)
+        QgsMessageLog.logMessage(
+            tr("Error loading map: {}").format(error_text),
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        QMessageBox.critical(
+            None,
+            tr("Error"),
+            tr("Error loading map: {}").format(error_text),
+        )
         return
 
     # Check if project file is saved in local cache
