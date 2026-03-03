@@ -24,7 +24,6 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
-from ...kumoy.constants import LOG_CATEGORY
 from ...kumoy.local_cache.map import (
     write_qgsfile,
     show_map_save_result,
