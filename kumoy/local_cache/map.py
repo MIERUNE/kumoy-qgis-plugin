@@ -196,6 +196,20 @@ def handle_project_saved() -> None:
     if not styled_map_id:
         return
 
+    # Check if project file is saved in local cache
+    file_path = os.path.abspath(project.absoluteFilePath())
+    local_cache_dir = os.path.abspath(_get_cache_dir())
+
+    try:
+        in_cache = os.path.commonpath([file_path, local_cache_dir]) == local_cache_dir
+    except ValueError:
+        in_cache = False
+
+    # Clear custom variables and don't proceed if the project file not saved in local cache
+    if not in_cache:
+        QgsProject.instance().setCustomVariables({})
+        return
+
     # Get and validate map belongs to current project
     try:
         styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
@@ -223,20 +237,6 @@ def handle_project_saved() -> None:
             tr("Error"),
             tr("Error loading map: {}").format(error_text),
         )
-        return
-
-    # Check if project file is saved in local cache
-    file_path = os.path.abspath(project.absoluteFilePath())
-    local_cache_dir = os.path.abspath(_get_cache_dir())
-
-    try:
-        in_cache = os.path.commonpath([file_path, local_cache_dir]) == local_cache_dir
-    except ValueError:
-        in_cache = False
-
-    # Clear custom variables and don't proceed if the project file not saved in local cache
-    if not in_cache:
-        QgsProject.instance().setCustomVariables({})
         return
 
     # don't process if role cannot edit
