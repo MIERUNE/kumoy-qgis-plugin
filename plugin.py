@@ -1,4 +1,6 @@
+import json
 import os
+import urllib.request
 
 from qgis.core import (
     Qgis,
@@ -20,6 +22,7 @@ from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .read_version import is_plugin_version_compatible
 from .settings_manager import (
     get_settings,
     reset_settings,
@@ -277,6 +280,42 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             return
 
+    def check_plugin_version(self):
+        """Check if the plugin version is compatible with the minimum required version"""
+        api_config = api.config.get_api_config()
+        params_response = urllib.request.urlopen(
+            f"{api_config.SERVER_URL}/api/_public/params"
+        )
+        params_data = json.loads(params_response.read().decode("utf-8"))
+
+        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+        if not is_plugin_version_compatible(min_qgisplugin_version):
+            QMessageBox.critical(
+                None,
+                self.tr("Plugin Version Error"),
+                self.tr(
+                    "Please update the Kumoy plugin.\nMinimum required version: {}"
+                ).format(min_qgisplugin_version),
+            )
+            # Force logout to prevent potential issues with incompatible versions
+            # Clear stored settings
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
+            store_setting("selected_organization_id", "")
+
+            QgsMessageLog.logMessage(
+                "Logged out due to incompatible plugin version", PLUGIN_NAME, Qgis.Info
+            )
+
+            # Refresh browser panel
+            registry = QgsApplication.instance().dataItemProviderRegistry()
+            registry.removeProvider(self.dip)
+            self.dip = DataItemProvider()
+            registry.addProvider(self.dip)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -320,6 +359,9 @@ class KumoyPlugin:
             self.update_logout_action_visibility
         )
         self.update_logout_action_visibility()
+
+        # Check plugin version compatibility
+        self.check_plugin_version()
 
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
