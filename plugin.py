@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+from urllib.error import URLError
 
 from qgis.core import (
     Qgis,
@@ -16,6 +17,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
+from .kumoy.api.error import format_api_error
 from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME, LOG_CATEGORY
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
@@ -282,39 +284,60 @@ class KumoyPlugin:
 
     def check_plugin_version(self):
         """Check if the plugin version is compatible with the minimum required version"""
-        api_config = api.config.get_api_config()
-        params_response = urllib.request.urlopen(
-            f"{api_config.SERVER_URL}/api/_public/params"
-        )
-        params_data = json.loads(params_response.read().decode("utf-8"))
-
-        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
-
-        if not is_plugin_version_compatible(min_qgisplugin_version):
-            QMessageBox.critical(
-                None,
-                self.tr("Plugin Version Error"),
-                self.tr(
-                    "Please update the Kumoy plugin.\nMinimum required version: {}"
-                ).format(min_qgisplugin_version),
+        try:
+            api_config = api.config.get_api_config()
+            params_response = urllib.request.urlopen(
+                f"{api_config.SERVER_URL}/api/_public/params"
             )
-            # Force logout to prevent potential issues with incompatible versions
-            # Clear stored settings
-            store_setting("id_token", "")
-            store_setting("refresh_token", "")
-            store_setting("user_info", "")
-            store_setting("selected_project_id", "")
-            store_setting("selected_organization_id", "")
+            params_data = json.loads(params_response.read().decode("utf-8"))
 
+            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+            if not is_plugin_version_compatible(min_qgisplugin_version):
+                QMessageBox.critical(
+                    None,
+                    self.tr("Plugin Version Error"),
+                    self.tr(
+                        "Please update the Kumoy plugin.\nMinimum required version: {}"
+                    ).format(min_qgisplugin_version),
+                )
+                # Force logout to prevent potential issues with incompatible versions
+                # Clear stored settings
+                store_setting("id_token", "")
+                store_setting("refresh_token", "")
+                store_setting("user_info", "")
+                store_setting("selected_project_id", "")
+                store_setting("selected_organization_id", "")
+
+                QgsMessageLog.logMessage(
+                    "Logged out due to incompatible plugin version",
+                    PLUGIN_NAME,
+                    Qgis.Info,
+                )
+
+                # Refresh browser panel
+                registry = QgsApplication.instance().dataItemProviderRegistry()
+                registry.removeProvider(self.dip)
+                self.dip = DataItemProvider()
+                registry.addProvider(self.dip)
+        except URLError as e:
+            error_details = format_api_error(e)
             QgsMessageLog.logMessage(
-                "Logged out due to incompatible plugin version", PLUGIN_NAME, Qgis.Info
+                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
             )
+            # Explicit network error
+            error_message = self.tr(
+                "Network connection error.\n"
+                "Please check your internet connection and server URL.\n\n"
+                "Details: {}"
+            ).format(error_details)
 
-            # Refresh browser panel
-            registry = QgsApplication.instance().dataItemProviderRegistry()
-            registry.removeProvider(self.dip)
-            self.dip = DataItemProvider()
-            registry.addProvider(self.dip)
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                error_message,
+            )
+            return
 
     def initGui(self):
         self.dip = DataItemProvider()
