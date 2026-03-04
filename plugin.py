@@ -334,7 +334,7 @@ class KumoyPlugin:
 
             QMessageBox.critical(
                 self,
-                self.tr("Login Error"),
+                self.tr("Error"),
                 error_message,
             )
             return
