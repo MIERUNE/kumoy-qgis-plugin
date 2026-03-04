@@ -9,37 +9,37 @@
         <translation type="unfinished">プロジェクトファイルのサイズが大きすぎます。上限: {} バイト、現在: {} バイト</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="265"/>
+        <location filename="../kumoy/local_cache/map.py" line="221"/>
         <source>Error loading map: {}</source>
         <translation type="unfinished">マップの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="333"/>
+        <location filename="../kumoy/local_cache/map.py" line="289"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="288"/>
+        <location filename="../kumoy/local_cache/map.py" line="244"/>
         <source>Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="288"/>
+        <location filename="../kumoy/local_cache/map.py" line="244"/>
         <source>You do not have permission to save this map to Kumoy.</source>
         <translation type="unfinished">このマップをKumoyに保存する権限がありません。</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="295"/>
+        <location filename="../kumoy/local_cache/map.py" line="251"/>
         <source>Save Map</source>
         <translation type="unfinished">マップを保存</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="295"/>
+        <location filename="../kumoy/local_cache/map.py" line="251"/>
         <source>Are you sure you want to overwrite the map &apos;{}&apos; with the current project state?</source>
         <translation type="unfinished">現在のプロジェクト状態でマップ「{}」を上書きしてもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="333"/>
+        <location filename="../kumoy/local_cache/map.py" line="289"/>
         <source>Error saving map: {}</source>
         <translation type="unfinished">マップの保存エラー: {}</translation>
     </message>
@@ -181,37 +181,37 @@ Warning: {} layers could not be converted:
         <translation type="unfinished">マップは警告付きで作成されました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="102"/>
+        <location filename="../ui/browser/styledmap.py" line="101"/>
         <source>Make Public</source>
         <translation type="unfinished">公開する</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="106"/>
+        <location filename="../ui/browser/styledmap.py" line="105"/>
         <source>Name:</source>
         <translation type="unfinished">名前:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="107"/>
+        <location filename="../ui/browser/styledmap.py" line="106"/>
         <source>Description:</source>
         <translation type="unfinished">説明:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="108"/>
+        <location filename="../ui/browser/styledmap.py" line="107"/>
         <source>Attribution:</source>
         <translation type="unfinished">出典:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="109"/>
+        <location filename="../ui/browser/styledmap.py" line="108"/>
         <source>Public:</source>
         <translation type="unfinished">公開:</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="249"/>
+        <location filename="../kumoy/local_cache/map.py" line="205"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../kumoy/local_cache/map.py" line="249"/>
+        <location filename="../kumoy/local_cache/map.py" line="205"/>
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
@@ -417,54 +417,74 @@ Details: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="270"/>
+        <location filename="../plugin.py" line="314"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="72"/>
+        <location filename="../plugin.py" line="73"/>
         <source>Are you sure you want to reset all settings for the &quot;Kumoy&quot; plugin? This will clear your current project.</source>
         <translation type="unfinished">プラグインの設定を削除してもよろしいですか？現在のプロジェクトが閉じられます。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="85"/>
+        <location filename="../plugin.py" line="86"/>
         <source>You have unsaved changes. Resetting settings will clear your current project. Continue?</source>
         <translation type="unfinished">現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="109"/>
+        <location filename="../plugin.py" line="110"/>
         <source>Plugin settings have been reset successfully.</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="265"/>
+        <location filename="../plugin.py" line="309"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="118"/>
+        <location filename="../plugin.py" line="119"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="144"/>
+        <location filename="../plugin.py" line="145"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="193"/>
+        <location filename="../plugin.py" line="194"/>
         <source>Convert to Kumoy Vector</source>
         <translation type="unfinished">Kumoyベクターに変換する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="176"/>
+        <location filename="../plugin.py" line="177"/>
         <source>Sync Data</source>
         <translation type="unfinished">データを同期する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="227"/>
+        <location filename="../plugin.py" line="228"/>
         <source>Sync Error</source>
         <translation type="unfinished">同期エラー</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="255"/>
+        <source>Wrong Project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="255"/>
+        <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="272"/>
+        <source>Error loading map: {}</source>
+        <translation type="unfinished">Mapの読み込みエラー: {}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="272"/>
+        <source>Error</source>
+        <translation type="unfinished">エラー</translation>
     </message>
 </context>
 <context>
@@ -750,12 +770,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="431"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="435"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="344"/>
@@ -859,97 +879,97 @@ This action can&apos;t be undone.</source>
 <context>
     <name>StyledMapItem</name>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="163"/>
+        <location filename="../ui/browser/styledmap.py" line="162"/>
         <source>Load into QGIS</source>
         <translation>QGISに読み込む</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="185"/>
+        <location filename="../ui/browser/styledmap.py" line="184"/>
         <source>Edit Metadata</source>
         <translation>メタデータ編集</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="190"/>
+        <location filename="../ui/browser/styledmap.py" line="189"/>
         <source>Delete</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="455"/>
+        <location filename="../ui/browser/styledmap.py" line="454"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="415"/>
+        <location filename="../ui/browser/styledmap.py" line="414"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="229"/>
+        <location filename="../ui/browser/styledmap.py" line="228"/>
         <source>Error loading map: {}</source>
         <translation>Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="257"/>
+        <location filename="../ui/browser/styledmap.py" line="256"/>
         <source>Edit Map</source>
         <translation>Map編集</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="313"/>
+        <location filename="../ui/browser/styledmap.py" line="312"/>
         <source>Map &apos;{}&apos; has been updated successfully.</source>
         <translation type="unfinished">マップ 「{}」が正常に更新されました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="298"/>
+        <location filename="../ui/browser/styledmap.py" line="297"/>
         <source>Error updating map: {}</source>
         <translation>更新エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="384"/>
+        <location filename="../ui/browser/styledmap.py" line="383"/>
         <source>Delete Map</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="384"/>
+        <location filename="../ui/browser/styledmap.py" line="383"/>
         <source>Are you sure you want to delete map &apos;{}&apos;?</source>
         <translation type="unfinished">マップ 「{}」を削除してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="401"/>
+        <location filename="../ui/browser/styledmap.py" line="400"/>
         <source>Map &apos;{}&apos; has been deleted successfully.</source>
         <translation type="unfinished">マップ「{}」が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="410"/>
+        <location filename="../ui/browser/styledmap.py" line="409"/>
         <source>Error deleting map: {}</source>
         <translation type="unfinished">削除エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="180"/>
+        <location filename="../ui/browser/styledmap.py" line="179"/>
         <source>Overwrite with current state</source>
         <translation type="unfinished">現在の状態で上書き</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="169"/>
+        <location filename="../ui/browser/styledmap.py" line="168"/>
         <source>Open Public Page</source>
         <translation type="unfinished">公開ページをブラウザで開く</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="208"/>
+        <location filename="../ui/browser/styledmap.py" line="207"/>
         <source>Load Map</source>
         <translation type="unfinished">マップを読み込む</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="208"/>
+        <location filename="../ui/browser/styledmap.py" line="207"/>
         <source>Are you sure you want to load the map &apos;{}&apos;? This will replace your current project.</source>
         <translation type="unfinished">マップ 「{}」を読み込んでもよろしいですか？現在のプロジェクトが置き換えられます。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="174"/>
+        <location filename="../ui/browser/styledmap.py" line="173"/>
         <source>Clear Cache Data</source>
         <translation type="unfinished">キャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="433"/>
+        <location filename="../ui/browser/styledmap.py" line="432"/>
         <source>This will clear the local cache for map &apos;{}&apos;.
 The cached data will be re-downloaded when you access it next time.
 Do you want to continue?</source>
@@ -958,47 +978,47 @@ Do you want to continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="450"/>
+        <location filename="../ui/browser/styledmap.py" line="449"/>
         <source>Cache cleared for map &apos;{}&apos;</source>
         <translation type="unfinished">マップ「{}」のキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="455"/>
+        <location filename="../ui/browser/styledmap.py" line="454"/>
         <source>Cache cleared successfully for map &apos;{}&apos;.</source>
         <translation type="unfinished">マップ「{}」のキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="462"/>
+        <location filename="../ui/browser/styledmap.py" line="461"/>
         <source>Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="462"/>
+        <location filename="../ui/browser/styledmap.py" line="461"/>
         <source>Cache could not be cleared for map &apos;{}&apos;. </source>
         <translation type="unfinished">マップ「{}」のキャッシュをクリアできませんでした</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="433"/>
+        <location filename="../ui/browser/styledmap.py" line="432"/>
         <source>Clear Map Cache Data</source>
         <translation type="unfinished">マップキャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="320"/>
+        <location filename="../ui/browser/styledmap.py" line="319"/>
         <source>Save Map</source>
         <translation type="unfinished">マップを保存</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="320"/>
+        <location filename="../ui/browser/styledmap.py" line="319"/>
         <source>Are you sure you want to overwrite the map &apos;{}&apos; with the current project state?</source>
         <translation type="unfinished">現在のプロジェクト状態でマップ「{}」を上書きしてもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="361"/>
+        <location filename="../ui/browser/styledmap.py" line="360"/>
         <source>Error saving map: {}</source>
         <translation type="unfinished">マップの保存エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="415"/>
+        <location filename="../ui/browser/styledmap.py" line="414"/>
         <source>Failed to delete the map: {}</source>
         <translation type="unfinished">マップの削除に失敗しました: {}</translation>
     </message>
@@ -1006,67 +1026,67 @@ Do you want to continue?</source>
 <context>
     <name>StyledMapRoot</name>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="586"/>
+        <location filename="../ui/browser/styledmap.py" line="585"/>
         <source>Add Map</source>
         <translation>マップを追加</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="650"/>
+        <location filename="../ui/browser/styledmap.py" line="649"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="699"/>
+        <location filename="../ui/browser/styledmap.py" line="698"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="660"/>
+        <location filename="../ui/browser/styledmap.py" line="659"/>
         <source>No project selected</source>
         <translation>プロジェクトが選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="666"/>
+        <location filename="../ui/browser/styledmap.py" line="665"/>
         <source>No maps available.</source>
         <translation>利用可能なマップがありません。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="550"/>
+        <location filename="../ui/browser/styledmap.py" line="549"/>
         <source>Cannot create new map. Your plan allows up to {} maps, but you have reached the limit.</source>
         <translation type="unfinished">新しいマップを作成できません。ご契約のプランでは最大{}マップまでですが、すでに上限に達しています。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="650"/>
+        <location filename="../ui/browser/styledmap.py" line="649"/>
         <source>Error adding map: {}</source>
         <translation type="unfinished">マップの追加に失敗しました:{}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="521"/>
+        <location filename="../ui/browser/styledmap.py" line="520"/>
         <source>Creating an new map will clear your current project. Continue?</source>
         <translation type="unfinished">新規マップを作成すると現在のプロジェクトの内容が消去されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="521"/>
+        <location filename="../ui/browser/styledmap.py" line="520"/>
         <source>Create new Map</source>
         <translation type="unfinished">新規マップを作成</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="503"/>
+        <location filename="../ui/browser/styledmap.py" line="502"/>
         <source>Create New Map</source>
         <translation type="unfinished">新規マップを作成</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="513"/>
+        <location filename="../ui/browser/styledmap.py" line="512"/>
         <source>Clear Map Cache Data</source>
         <translation type="unfinished">マップキャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="678"/>
+        <location filename="../ui/browser/styledmap.py" line="677"/>
         <source>Clear Map Cache</source>
         <translation type="unfinished">マップキャッシュを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="678"/>
+        <location filename="../ui/browser/styledmap.py" line="677"/>
         <source>This will clear all locally cached map files. Data will be re-downloaded next time you access maps.
 
 Continue?</source>
@@ -1075,37 +1095,37 @@ Continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="694"/>
+        <location filename="../ui/browser/styledmap.py" line="693"/>
         <source>All map cache files cleared successfully.</source>
         <translation type="unfinished">マップデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="699"/>
+        <location filename="../ui/browser/styledmap.py" line="698"/>
         <source>All map cache files have been cleared successfully.</source>
         <translation type="unfinished">マップデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="704"/>
+        <location filename="../ui/browser/styledmap.py" line="703"/>
         <source>Map Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="704"/>
+        <location filename="../ui/browser/styledmap.py" line="703"/>
         <source>Some map cache files could not be cleared. Please try again after closing QGIS or ensure no files are locked.</source>
         <translation type="unfinished">キャッシュを完全にクリアできませんでした。QGISを再起動後、Mapを開いていない状態で再度お試しください。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="508"/>
+        <location filename="../ui/browser/styledmap.py" line="507"/>
         <source>Save Current Project As...</source>
         <translation type="unfinished">現在のプロジェクトを名前を付けて保存…</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="570"/>
+        <location filename="../ui/browser/styledmap.py" line="569"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="570"/>
+        <location filename="../ui/browser/styledmap.py" line="569"/>
         <source>Please switch to the correct Kumoy project to create a map.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいKumoyプロジェクトに切り替えてください。</translation>
     </message>
