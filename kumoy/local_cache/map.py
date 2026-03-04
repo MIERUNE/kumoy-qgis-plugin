@@ -14,7 +14,7 @@ from ...ui.layers.convert_vector import (
 
 from qgis.utils import iface
 
-
+from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
 # Flag to prevent double updates when handling project saved event
@@ -210,8 +210,21 @@ def handle_project_saved() -> None:
         QgsProject.instance().setCustomVariables({})
         return
 
+    # Get and validate map belongs to current project
     try:
         styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+        settings = settings_manager.get_settings()
+
+        if settings.selected_project_id != styled_map_detail.projectId:
+            QMessageBox.critical(
+                None,
+                tr("Wrong Project"),
+                tr(
+                    "This map belongs to a different Kumoy project. "
+                    "Please switch to the correct project."
+                ),
+            )
+            return
     except Exception as e:
         error_text = format_api_error(e)
         QgsMessageLog.logMessage(
