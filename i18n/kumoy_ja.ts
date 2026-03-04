@@ -215,18 +215,6 @@ Warning: {} layers could not be converted:
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
-    <message>
-        <location filename="../kumoy/get_token.py" line="83"/>
-        <source>Plugin Version Error</source>
-        <translation type="unfinished">プラグインのバージョンエラー</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/get_token.py" line="83"/>
-        <source>Please update the Kumoy plugin.
-Minimum required version: {}</source>
-        <translation type="unfinished">Kumoy プラグインを更新してください。
-必要な最小バージョン： {}</translation>
-    </message>
 </context>
 <context>
     <name>DialogAccount</name>
@@ -441,74 +429,86 @@ Minimum required version: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="314"/>
+        <location filename="../plugin.py" line="353"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="73"/>
+        <location filename="../plugin.py" line="76"/>
         <source>Are you sure you want to reset all settings for the &quot;Kumoy&quot; plugin? This will clear your current project.</source>
         <translation type="unfinished">プラグインの設定を削除してもよろしいですか？現在のプロジェクトが閉じられます。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="86"/>
+        <location filename="../plugin.py" line="89"/>
         <source>You have unsaved changes. Resetting settings will clear your current project. Continue?</source>
         <translation type="unfinished">現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="110"/>
+        <location filename="../plugin.py" line="113"/>
         <source>Plugin settings have been reset successfully.</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="309"/>
+        <location filename="../plugin.py" line="348"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="119"/>
+        <location filename="../plugin.py" line="122"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="145"/>
+        <location filename="../plugin.py" line="148"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="194"/>
+        <location filename="../plugin.py" line="197"/>
         <source>Convert to Kumoy Vector</source>
         <translation type="unfinished">Kumoyベクターに変換する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="177"/>
+        <location filename="../plugin.py" line="180"/>
         <source>Sync Data</source>
         <translation type="unfinished">データを同期する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="228"/>
+        <location filename="../plugin.py" line="231"/>
         <source>Sync Error</source>
         <translation type="unfinished">同期エラー</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="255"/>
+        <location filename="../plugin.py" line="258"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="255"/>
+        <location filename="../plugin.py" line="258"/>
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="272"/>
+        <location filename="../plugin.py" line="275"/>
         <source>Error loading map: {}</source>
         <translation type="unfinished">Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="272"/>
+        <location filename="../plugin.py" line="275"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="294"/>
+        <source>Plugin Version Error</source>
+        <translation type="unfinished">プラグインのバージョンエラー</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="294"/>
+        <source>Please update the Kumoy plugin.
+Minimum required version: {}</source>
+        <translation type="unfinished">Kumoy プラグインを更新してください。
+必要な最小バージョン： {}</translation>
     </message>
 </context>
 <context>
