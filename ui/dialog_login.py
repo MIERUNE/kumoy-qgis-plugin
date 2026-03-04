@@ -217,8 +217,7 @@ class DialogLogin(QDialog):
                     self,
                     self.tr("Plugin Version Error"),
                     self.tr(
-                        "Please update the Kumoy plugin.\n"
-                        "Minimum required version: {}"
+                        "Please update the Kumoy plugin.\nMinimum required version: {}"
                     ).format(min_qgisplugin_version),
                 )
                 return

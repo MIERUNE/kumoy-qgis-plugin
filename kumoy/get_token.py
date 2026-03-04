@@ -84,7 +84,7 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
                 None,
                 tr("Plugin Version Error"),
                 tr(
-                    "Please update the Kumoy plugin.\n" "Minimum required version: {}"
+                    "Please update the Kumoy plugin.\nMinimum required version: {}"
                 ).format(min_qgisplugin_version),
             )
             raise PluginVersionIncompatibleError(
