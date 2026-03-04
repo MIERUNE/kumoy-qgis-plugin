@@ -694,7 +694,12 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 self.tr("Filtering failed due to an unsupported geometry type.")
             )
 
-        return f"NOT is_empty_or_null($geometry) AND geometry_type($geometry) = '{allowed_type}'"
+        return (
+            f"NOT is_empty_or_null($geometry)"
+            f" AND geometry_type($geometry) = '{allowed_type}'"
+            f" AND x_min($geometry) <= x_max($geometry)"  # NaN除外のイディオム
+            f" AND y_min($geometry) <= y_max($geometry)"  # NaN除外のイディオム
+        )
 
     def _normalize_field_types(
         self,
