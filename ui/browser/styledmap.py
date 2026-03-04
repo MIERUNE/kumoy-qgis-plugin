@@ -328,7 +328,7 @@ class StyledMapItem(QgsDataItem):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
-                # Avoid saving a Kumoy map to a wrong project
+        # Avoid saving a Kumoy map to a wrong project
         custom_vars = QgsProject.instance().customVariables()
         existing_map_id = custom_vars.get("kumoy_map_id")
 
