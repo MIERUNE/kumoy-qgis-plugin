@@ -59,4 +59,10 @@ def is_plugin_version_compatible(min_version: str) -> bool:
     if not min_version or plugin_version == "dev":
         return True
 
-    return _parse_version(plugin_version) >= _parse_version(min_version)
+    current = _parse_version(plugin_version)
+    minimum = _parse_version(min_version)
+    # Pad the shorter version with zeros for proper comparison (e.g. (1, 0) -> (1, 0, 0))
+    length = max(len(current), len(minimum))
+    current = current + (0,) * (length - len(current))
+    minimum = minimum + (0,) * (length - len(minimum))
+    return current >= minimum
