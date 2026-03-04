@@ -1,7 +1,7 @@
 import json
 import os
 import urllib.request
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 from qgis.core import (
     Qgis,
@@ -334,10 +334,38 @@ class KumoyPlugin:
 
             QMessageBox.critical(
                 None,
-                self.tr("Login Error"),
+                self.tr("Error"),
                 error_message,
             )
             return
+        except HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("error", format_api_error(e))
+            except Exception:
+                error_message = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit server error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Server error: {}").format(str(error_message)),
+            )
+            return
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("An error occurred: {}").format(error_text),
+            )
 
     def initGui(self):
         self.dip = DataItemProvider()

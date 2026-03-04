@@ -429,7 +429,7 @@ Minimum required version: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="376"/>
+        <location filename="../plugin.py" line="404"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
@@ -449,7 +449,7 @@ Minimum required version: {}</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="371"/>
+        <location filename="../plugin.py" line="399"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
@@ -494,7 +494,7 @@ Minimum required version: {}</source>
         <translation type="unfinished">Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="335"/>
+        <location filename="../plugin.py" line="364"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
@@ -520,6 +520,16 @@ Details: {}</source>
 インターネット接続とサーバーURLをご確認ください。
 
 詳細：{}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="352"/>
+        <source>Server error: {}</source>
+        <translation type="unfinished">サーバーエラー：{}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="364"/>
+        <source>An error occurred: {}</source>
+        <translation type="unfinished">エラーが発生しました: {}</translation>
     </message>
 </context>
 <context>
@@ -805,12 +815,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="431"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="435"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="344"/>
