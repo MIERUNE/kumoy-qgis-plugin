@@ -22,3 +22,26 @@ def read_version():
             Qgis.Warning,
         )
     return version
+
+
+def _parse_version(v: str) -> tuple:
+    return tuple(int(x) for x in v.lstrip("v").split("."))
+
+
+def is_plugin_version_compatible(min_version: str) -> bool:
+    """
+    Check if current plugin version meets the minimum required version.
+    Returns True if compatible (or if version is 'dev').
+
+    Args:
+        min_version: Minimum required version string (e.g. 'v1.0.0')
+
+    Returns:
+        bool: True if compatible, False if too old
+    """
+    plugin_version = read_version()
+
+    if not min_version or plugin_version == "dev":
+        return True
+
+    return _parse_version(plugin_version) >= _parse_version(min_version)

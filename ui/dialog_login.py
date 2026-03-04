@@ -5,8 +5,7 @@ from urllib.error import HTTPError, URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
-from qgis.PyQt.QtCore import QCoreApplication, Qt
-from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -24,7 +23,7 @@ from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
-from ..read_version import read_version
+from ..read_version import read_version, is_plugin_version_compatible
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
@@ -209,6 +208,21 @@ class DialogLogin(QDialog):
                 f"{api_config.SERVER_URL}/api/_public/params"
             )
             params_data = json.loads(params_response.read().decode("utf-8"))
+
+            # Check plugin version compatibility
+            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+            if not is_plugin_version_compatible(min_qgisplugin_version):
+                QMessageBox.critical(
+                    self,
+                    self.tr("Plugin Version Error"),
+                    self.tr(
+                        "Please update the Kumoy plugin.\n"
+                        "Minimum required version: {}"
+                    ).format(min_qgisplugin_version),
+                )
+                return
+
             cognito_url = f"https://{params_data['cognitoDomain']}"
             cognito_client_id = params_data["cognitoClientId"]
 
