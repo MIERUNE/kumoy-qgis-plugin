@@ -215,6 +215,18 @@ Warning: {} layers could not be converted:
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
+    <message>
+        <location filename="../kumoy/get_token.py" line="83"/>
+        <source>Plugin Version Error</source>
+        <translation type="unfinished">プラグインのバージョンエラー</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/get_token.py" line="83"/>
+        <source>Please update the Kumoy plugin.
+Minimum required version: {}</source>
+        <translation type="unfinished">Kumoy プラグインを更新してください 
+必要な最小バージョン： {}</translation>
+    </message>
 </context>
 <context>
     <name>DialogAccount</name>
@@ -279,62 +291,62 @@ Warning: {} layers could not be converted:
 <context>
     <name>DialogLogin</name>
     <message>
-        <location filename="../ui/dialog_login.py" line="48"/>
+        <location filename="../ui/dialog_login.py" line="47"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="82"/>
+        <location filename="../ui/dialog_login.py" line="81"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="343"/>
+        <location filename="../ui/dialog_login.py" line="357"/>
         <source>Server URL</source>
         <translation type="unfinished">サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="104"/>
+        <location filename="../ui/dialog_login.py" line="103"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="152"/>
+        <location filename="../ui/dialog_login.py" line="151"/>
         <source>Logged in</source>
         <translation type="unfinished">ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="283"/>
+        <location filename="../ui/dialog_login.py" line="297"/>
         <source>Login Error</source>
         <translation type="unfinished">ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="172"/>
+        <location filename="../ui/dialog_login.py" line="171"/>
         <source>Authentication failed: {}</source>
         <translation type="unfinished">認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="263"/>
+        <location filename="../ui/dialog_login.py" line="277"/>
         <source>An error occurred while logging in: {}</source>
         <translation type="unfinished">ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="283"/>
+        <location filename="../ui/dialog_login.py" line="297"/>
         <source>Failed to start authentication: {}</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="304"/>
+        <location filename="../ui/dialog_login.py" line="318"/>
         <source>Waiting for browser authentication...</source>
         <translation type="unfinished">ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="353"/>
+        <location filename="../ui/dialog_login.py" line="367"/>
         <source>Custom Server Configuration Error</source>
         <translation type="unfinished">カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="343"/>
+        <location filename="../ui/dialog_login.py" line="357"/>
         <source>Some required settings are missing:
 {}
 
@@ -345,22 +357,22 @@ Please update your configuration before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="353"/>
+        <location filename="../ui/dialog_login.py" line="367"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="275"/>
+        <location filename="../ui/dialog_login.py" line="289"/>
         <source>Signing you in...</source>
         <translation type="unfinished">ログイン中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="117"/>
+        <location filename="../ui/dialog_login.py" line="116"/>
         <source>Custom server configuration</source>
         <translation type="unfinished">カスタムサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="227"/>
+        <location filename="../ui/dialog_login.py" line="241"/>
         <source>Network connection error.
 Please check your internet connection and server URL.
 
@@ -371,9 +383,21 @@ Details: {}</source>
 詳細：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="251"/>
+        <location filename="../ui/dialog_login.py" line="265"/>
         <source>Server error: {}</source>
         <translation type="unfinished">サーバーエラー：{}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login.py" line="216"/>
+        <source>Plugin Version Error</source>
+        <translation type="unfinished">プラグインのバージョンエラー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login.py" line="216"/>
+        <source>Please update the Kumoy plugin.
+Minimum required version: {}</source>
+        <translation type="unfinished">Kumoy プラグインを更新してください 
+必要な最小バージョン： {}</translation>
     </message>
 </context>
 <context>
