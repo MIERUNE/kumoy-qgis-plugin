@@ -328,6 +328,24 @@ class StyledMapItem(QgsDataItem):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
+                # Avoid saving a Kumoy map to a wrong project
+        custom_vars = QgsProject.instance().customVariables()
+        existing_map_id = custom_vars.get("kumoy_map_id")
+
+        if existing_map_id:
+            # Validate that existing map belongs to current project
+            styled_map_detail = api.styledmap.get_styled_map(existing_map_id)
+
+            if self.styled_map.projectId != styled_map_detail.projectId:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Wrong Project"),
+                    self.tr(
+                        "Please switch to the correct Kumoy project to create a map."
+                    ),
+                )
+                return
+
         # HACK: to ensure extents of all layers are calculated - Issue #311
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
