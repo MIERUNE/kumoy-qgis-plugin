@@ -6,12 +6,9 @@ from typing import Dict, Optional
 from urllib.error import HTTPError
 
 from qgis.core import Qgis
-from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 from ..settings_manager import get_settings, store_setting
-from ..read_version import is_plugin_version_compatible
 from .api import config as api_config
 from .api.error import format_api_error, raise_error
 
@@ -20,16 +17,6 @@ class TokenExpiredOrInvalidError(Exception):
     """Exception raised when refresh token is expired or invalid"""
 
     pass
-
-
-class PluginVersionIncompatibleError(Exception):
-    """Exception raised when plugin version is too old"""
-
-    pass
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def _clear_authentication_state() -> None:
@@ -75,21 +62,6 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
             f"{config.SERVER_URL}/api/_public/params"
         )
         params_data = json.loads(params_response.read().decode("utf-8"))
-
-        # Check plugin version compatibility
-        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
-
-        if not is_plugin_version_compatible(min_qgisplugin_version):
-            QMessageBox.critical(
-                None,
-                tr("Plugin Version Error"),
-                tr(
-                    "Please update the Kumoy plugin.\nMinimum required version: {}"
-                ).format(min_qgisplugin_version),
-            )
-            raise PluginVersionIncompatibleError(
-                f"Plugin version too old. Minimum required: {min_qgisplugin_version}"
-            )
 
         cognito_domain = params_data.get("cognitoDomain")
         cognito_client_id = params_data.get("cognitoClientId")
@@ -228,6 +200,4 @@ def get_token() -> Optional[str]:
                 print("Token refresh failed, will try with credentials")
         except TokenExpiredOrInvalidError:
             _clear_authentication_state()
-            return None
-        except PluginVersionIncompatibleError:
             return None
