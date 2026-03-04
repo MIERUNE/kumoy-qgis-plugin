@@ -180,50 +180,6 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
-def check_kumoy_project_on_load() -> None:
-    """Check if the loaded project is associated with the current Kumoy project"""
-    project = QgsProject.instance()
-
-    # Get styled map ID from custom variables
-    custom_vars = project.customVariables()
-    styled_map_id = custom_vars.get("kumoy_map_id")
-
-    # No need to check if not a kumoy map
-    if not styled_map_id:
-        return
-
-    # Validate that the map belongs to current project
-    try:
-        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
-        settings = settings_manager.get_settings()
-
-        if settings.selected_project_id != styled_map_detail.projectId:
-            QMessageBox.critical(
-                None,
-                tr("Wrong Project"),
-                tr(
-                    "This map belongs to a different Kumoy project. "
-                    "Please switch to the correct project."
-                ),
-            )
-            QgsProject.instance().clear()
-            return
-    except Exception as e:
-        error_text = format_api_error(e)
-        QgsMessageLog.logMessage(
-            tr("Error loading map: {}").format(error_text),
-            LOG_CATEGORY,
-            Qgis.Critical,
-        )
-        QMessageBox.critical(
-            None,
-            tr("Error"),
-            tr("Error loading map: {}").format(error_text),
-        )
-        QgsProject.instance().clear()
-        return
-
-
 def handle_project_saved() -> None:
     """Update current project to Kumoy when QGIS project is saved"""
     # Do not proceed if already updating from styled map item

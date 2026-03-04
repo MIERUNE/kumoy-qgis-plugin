@@ -13,14 +13,15 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from .kumoy.api.config import get_settings
-from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
-from .kumoy.local_cache.map import handle_project_saved, check_kumoy_project_on_load
+from .kumoy import api
+from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME, LOG_CATEGORY
+from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .settings_manager import (
+    get_settings,
     reset_settings,
     store_setting,
 )
@@ -233,6 +234,49 @@ class KumoyPlugin:
         layer.triggerRepaint()
         self.iface.mapCanvas().refresh()
 
+    def check_kumoy_project_on_load(self) -> None:
+        """Check if the loaded project is associated with the current Kumoy project"""
+        project = QgsProject.instance()
+
+        # Get styled map ID from custom variables
+        custom_vars = project.customVariables()
+        styled_map_id = custom_vars.get("kumoy_map_id")
+
+        # No need to check if not a kumoy map
+        if not styled_map_id:
+            return
+
+        # Validate that the map belongs to current project
+        try:
+            styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+            settings = get_settings()
+
+            if settings.selected_project_id != styled_map_detail.projectId:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Wrong Project"),
+                    self.tr(
+                        "This map belongs to a different Kumoy project. "
+                        "Please switch to the correct project."
+                    ),
+                )
+                QgsProject.instance().clear()
+                return
+        except Exception as e:
+            error_text = api.error.format_api_error(e)
+            QgsMessageLog.logMessage(
+                self.tr("Error loading map: {}").format(error_text),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error loading map: {}").format(error_text),
+            )
+            QgsProject.instance().clear()
+            return
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -247,7 +291,7 @@ class KumoyPlugin:
         )
 
         # Connect project loaded signal
-        self.iface.projectRead.connect(check_kumoy_project_on_load)
+        self.iface.projectRead.connect(self.check_kumoy_project_on_load)
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -279,7 +323,7 @@ class KumoyPlugin:
 
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
-        is_logged_in = bool(get_settings().id_token)
+        is_logged_in = bool(api.config.get_settings().id_token)
         self.logout_action.setVisible(is_logged_in)
 
     def unload(self):
@@ -305,7 +349,7 @@ class KumoyPlugin:
             self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
                 self.show_layer_context_menu
             )
-            self.iface.projectRead.disconnect(check_kumoy_project_on_load)
+            self.iface.projectRead.disconnect(self.check_kumoy_project_on_load)
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
