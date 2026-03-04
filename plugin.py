@@ -333,7 +333,7 @@ class KumoyPlugin:
             ).format(error_details)
 
             QMessageBox.critical(
-                self,
+                None,
                 self.tr("Login Error"),
                 error_message,
             )
