@@ -224,7 +224,7 @@ Warning: {} layers could not be converted:
         <location filename="../kumoy/get_token.py" line="83"/>
         <source>Please update the Kumoy plugin.
 Minimum required version: {}</source>
-        <translation type="unfinished">Kumoy プラグインを更新してください 
+        <translation type="unfinished">Kumoy プラグインを更新してください。
 必要な最小バージョン： {}</translation>
     </message>
 </context>
@@ -396,7 +396,7 @@ Details: {}</source>
         <location filename="../ui/dialog_login.py" line="216"/>
         <source>Please update the Kumoy plugin.
 Minimum required version: {}</source>
-        <translation type="unfinished">Kumoy プラグインを更新してください 
+        <translation type="unfinished">Kumoy プラグインを更新してください。
 必要な最小バージョン： {}</translation>
     </message>
 </context>
