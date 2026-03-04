@@ -301,7 +301,7 @@ Minimum required version: {}</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="356"/>
         <source>Server URL</source>
         <translation type="unfinished">サーバーURL</translation>
     </message>
@@ -316,7 +316,7 @@ Minimum required version: {}</source>
         <translation type="unfinished">ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="297"/>
+        <location filename="../ui/dialog_login.py" line="296"/>
         <source>Login Error</source>
         <translation type="unfinished">ログインエラー</translation>
     </message>
@@ -326,27 +326,27 @@ Minimum required version: {}</source>
         <translation type="unfinished">認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="277"/>
+        <location filename="../ui/dialog_login.py" line="276"/>
         <source>An error occurred while logging in: {}</source>
         <translation type="unfinished">ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="297"/>
+        <location filename="../ui/dialog_login.py" line="296"/>
         <source>Failed to start authentication: {}</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="318"/>
+        <location filename="../ui/dialog_login.py" line="317"/>
         <source>Waiting for browser authentication...</source>
         <translation type="unfinished">ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="367"/>
+        <location filename="../ui/dialog_login.py" line="366"/>
         <source>Custom Server Configuration Error</source>
         <translation type="unfinished">カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="356"/>
         <source>Some required settings are missing:
 {}
 
@@ -357,12 +357,12 @@ Please update your configuration before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="367"/>
+        <location filename="../ui/dialog_login.py" line="366"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="289"/>
+        <location filename="../ui/dialog_login.py" line="288"/>
         <source>Signing you in...</source>
         <translation type="unfinished">ログイン中...</translation>
     </message>
@@ -372,7 +372,7 @@ Please update your configuration before logging in.</source>
         <translation type="unfinished">カスタムサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="241"/>
+        <location filename="../ui/dialog_login.py" line="240"/>
         <source>Network connection error.
 Please check your internet connection and server URL.
 
@@ -383,7 +383,7 @@ Details: {}</source>
 詳細：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="265"/>
+        <location filename="../ui/dialog_login.py" line="264"/>
         <source>Server error: {}</source>
         <translation type="unfinished">サーバーエラー：{}</translation>
     </message>
@@ -794,12 +794,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="431"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="435"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="344"/>
