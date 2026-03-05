@@ -74,14 +74,12 @@ def _create_new_cache(
         "%Y-%m-%dT%H:%M:%SZ"
     )
 
-    BATCH_SIZE = 5000  # Number of features to fetch in each batch
     after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
     processed_features = 0
     while True:
         # Fetch features in batches
         features = api.qgis_vector.get_features(
             vector_id=vector_id,
-            limit=BATCH_SIZE,
             after_id=after_id,
         )
 
@@ -109,6 +107,7 @@ def _create_new_cache(
                 processed_features += 1
                 progress_callback(processed_features)
 
+        BATCH_SIZE = 5000  # 1回のバッチで取得する最大レコード数。API仕様として固定値
         if len(features) < BATCH_SIZE:
             # 取得終了
             break
