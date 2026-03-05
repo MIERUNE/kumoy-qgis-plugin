@@ -14,7 +14,6 @@ def tr(message: str) -> str:
 
 def get_features(
     vector_id: str,
-    limit: Optional[int] = None,
     after_id: Optional[int] = None,
 ) -> list:
     """
