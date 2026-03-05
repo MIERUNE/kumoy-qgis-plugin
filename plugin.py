@@ -1,4 +1,7 @@
+import json
 import os
+import urllib.request
+from urllib.error import HTTPError, URLError
 
 from qgis.core import (
     Qgis,
@@ -13,17 +16,17 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from .kumoy.api.config import get_settings
-from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME
+from .kumoy import api
+from .kumoy.api.error import format_api_error
+from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .qgis_version import is_plugin_version_compatible, read_version
 from .settings_manager import (
-    get_settings as get_kumoy_settings,
-)
-from .settings_manager import (
+    get_settings,
     reset_settings,
     store_setting,
 )
@@ -236,6 +239,135 @@ class KumoyPlugin:
         layer.triggerRepaint()
         self.iface.mapCanvas().refresh()
 
+    def check_kumoy_project_on_load(self) -> None:
+        """Check if the loaded project is associated with the current Kumoy project"""
+        project = QgsProject.instance()
+
+        # Get styled map ID from custom variables
+        custom_vars = project.customVariables()
+        styled_map_id = custom_vars.get("kumoy_map_id")
+
+        # No need to check if not a kumoy map
+        if not styled_map_id:
+            return
+
+        # Validate that the map belongs to current project
+        try:
+            styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+            settings = get_settings()
+
+            if settings.selected_project_id != styled_map_detail.projectId:
+                QMessageBox.critical(
+                    None,
+                    self.tr("Wrong Project"),
+                    self.tr(
+                        "This map belongs to a different Kumoy project. "
+                        "Please switch to the correct project."
+                    ),
+                )
+                QgsProject.instance().clear()
+                return
+        except Exception as e:
+            error_text = api.error.format_api_error(e)
+            QgsMessageLog.logMessage(
+                self.tr("Error loading map: {}").format(error_text),
+                LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Error loading map: {}").format(error_text),
+            )
+            QgsProject.instance().clear()
+            return
+
+    def check_plugin_version(self):
+        """Check if the plugin version is compatible with the minimum required version"""
+        try:
+            api_config = api.config.get_api_config()
+            params_response = urllib.request.urlopen(
+                f"{api_config.SERVER_URL}/api/_public/params"
+            )
+            params_data = json.loads(params_response.read().decode("utf-8"))
+        except HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("error", format_api_error(e))
+            except Exception:
+                error_message = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit server error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Server error: {}").format(str(error_message)),
+            )
+            return
+        except URLError as e:
+            error_details = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit network error
+            error_message = self.tr(
+                "Network connection error.\n"
+                "Please check your internet connection and server URL.\n\n"
+                "Details: {}"
+            ).format(error_details)
+
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                error_message,
+            )
+            return
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("An error occurred: {}").format(error_text),
+            )
+            return
+
+        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+        if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
+            QMessageBox.critical(
+                None,
+                self.tr("Plugin Version Error"),
+                self.tr(
+                    "Please update the Kumoy plugin.\nMinimum required version: {}"
+                ).format(min_qgisplugin_version),
+            )
+            # Force logout to prevent potential issues with incompatible versions
+            # Clear stored settings
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
+            store_setting("selected_organization_id", "")
+
+            QgsMessageLog.logMessage(
+                "Logged out due to incompatible plugin version",
+                PLUGIN_NAME,
+                Qgis.Info,
+            )
+
+            # Refresh browser panel
+            registry = QgsApplication.instance().dataItemProviderRegistry()
+            registry.removeProvider(self.dip)
+            self.dip = DataItemProvider()
+            registry.addProvider(self.dip)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -248,6 +380,9 @@ class KumoyPlugin:
         self.iface.layerTreeView().contextMenuAboutToShow.connect(
             self.show_layer_context_menu
         )
+
+        # Connect project loaded signal
+        self.iface.projectRead.connect(self.check_kumoy_project_on_load)
 
         # Connect project saved signal
         QgsProject.instance().projectSaved.connect(handle_project_saved)
@@ -277,9 +412,12 @@ class KumoyPlugin:
         )
         self.update_logout_action_visibility()
 
+        # Check plugin version compatibility
+        self.check_plugin_version()
+
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
-        is_logged_in = bool(get_settings().id_token)
+        is_logged_in = bool(api.config.get_settings().id_token)
         self.logout_action.setVisible(is_logged_in)
 
     def unload(self):
@@ -305,6 +443,7 @@ class KumoyPlugin:
             self.iface.layerTreeView().contextMenuAboutToShow.disconnect(
                 self.show_layer_context_menu
             )
+            self.iface.projectRead.disconnect(self.check_kumoy_project_on_load)
             QgsProject.instance().projectSaved.disconnect(handle_project_saved)
             QgsProject.instance().layersAdded.disconnect(update_kumoy_indicator)
             QgsProject.instance().layerTreeRoot().removedChildren.disconnect(
