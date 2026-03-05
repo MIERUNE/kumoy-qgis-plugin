@@ -21,7 +21,7 @@ from ..pyqt_version import (
     QT_CURSOR_SHAPE,
     QT_TEXT_INTERACTION,
 )
-from ..read_version import read_version
+from ..qgis_version import read_version
 from ..settings_manager import store_setting
 from .icons import MAIN_ICON
 from .remote_image_label import RemoteImageLabel

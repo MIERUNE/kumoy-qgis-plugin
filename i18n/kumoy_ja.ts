@@ -279,62 +279,62 @@ Warning: {} layers could not be converted:
 <context>
     <name>DialogLogin</name>
     <message>
-        <location filename="../ui/dialog_login.py" line="48"/>
+        <location filename="../ui/dialog_login.py" line="47"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="82"/>
+        <location filename="../ui/dialog_login.py" line="81"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="343"/>
+        <location filename="../ui/dialog_login.py" line="356"/>
         <source>Server URL</source>
         <translation type="unfinished">サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="104"/>
+        <location filename="../ui/dialog_login.py" line="103"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="152"/>
+        <location filename="../ui/dialog_login.py" line="151"/>
         <source>Logged in</source>
         <translation type="unfinished">ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="283"/>
+        <location filename="../ui/dialog_login.py" line="296"/>
         <source>Login Error</source>
         <translation type="unfinished">ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="172"/>
+        <location filename="../ui/dialog_login.py" line="171"/>
         <source>Authentication failed: {}</source>
         <translation type="unfinished">認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="263"/>
+        <location filename="../ui/dialog_login.py" line="276"/>
         <source>An error occurred while logging in: {}</source>
         <translation type="unfinished">ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="283"/>
+        <location filename="../ui/dialog_login.py" line="296"/>
         <source>Failed to start authentication: {}</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="304"/>
+        <location filename="../ui/dialog_login.py" line="317"/>
         <source>Waiting for browser authentication...</source>
         <translation type="unfinished">ブラウザでの認証を待機中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="353"/>
+        <location filename="../ui/dialog_login.py" line="366"/>
         <source>Custom Server Configuration Error</source>
         <translation type="unfinished">カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="343"/>
+        <location filename="../ui/dialog_login.py" line="356"/>
         <source>Some required settings are missing:
 {}
 
@@ -345,22 +345,22 @@ Please update your configuration before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="353"/>
+        <location filename="../ui/dialog_login.py" line="366"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="275"/>
+        <location filename="../ui/dialog_login.py" line="288"/>
         <source>Signing you in...</source>
         <translation type="unfinished">ログイン中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="117"/>
+        <location filename="../ui/dialog_login.py" line="116"/>
         <source>Custom server configuration</source>
         <translation type="unfinished">カスタムサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="227"/>
+        <location filename="../ui/dialog_login.py" line="240"/>
         <source>Network connection error.
 Please check your internet connection and server URL.
 
@@ -371,9 +371,21 @@ Details: {}</source>
 詳細：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="251"/>
+        <location filename="../ui/dialog_login.py" line="264"/>
         <source>Server error: {}</source>
         <translation type="unfinished">サーバーエラー：{}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login.py" line="216"/>
+        <source>Plugin Version Error</source>
+        <translation type="unfinished">プラグインのバージョンエラー</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login.py" line="216"/>
+        <source>Please update the Kumoy plugin.
+Minimum required version: {}</source>
+        <translation type="unfinished">Kumoy プラグインを更新してください。
+必要な最小バージョン： {}</translation>
     </message>
 </context>
 <context>
@@ -417,74 +429,107 @@ Details: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="314"/>
+        <location filename="../plugin.py" line="404"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="73"/>
+        <location filename="../plugin.py" line="78"/>
         <source>Are you sure you want to reset all settings for the &quot;Kumoy&quot; plugin? This will clear your current project.</source>
         <translation type="unfinished">プラグインの設定を削除してもよろしいですか？現在のプロジェクトが閉じられます。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="86"/>
+        <location filename="../plugin.py" line="91"/>
         <source>You have unsaved changes. Resetting settings will clear your current project. Continue?</source>
         <translation type="unfinished">現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="110"/>
+        <location filename="../plugin.py" line="115"/>
         <source>Plugin settings have been reset successfully.</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="309"/>
+        <location filename="../plugin.py" line="399"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="119"/>
+        <location filename="../plugin.py" line="124"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="145"/>
+        <location filename="../plugin.py" line="150"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="194"/>
+        <location filename="../plugin.py" line="199"/>
         <source>Convert to Kumoy Vector</source>
         <translation type="unfinished">Kumoyベクターに変換する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="177"/>
+        <location filename="../plugin.py" line="182"/>
         <source>Sync Data</source>
         <translation type="unfinished">データを同期する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="228"/>
+        <location filename="../plugin.py" line="233"/>
         <source>Sync Error</source>
         <translation type="unfinished">同期エラー</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="255"/>
+        <location filename="../plugin.py" line="260"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="255"/>
+        <location filename="../plugin.py" line="260"/>
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="272"/>
+        <location filename="../plugin.py" line="277"/>
         <source>Error loading map: {}</source>
         <translation type="unfinished">Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="272"/>
+        <location filename="../plugin.py" line="364"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="297"/>
+        <source>Plugin Version Error</source>
+        <translation type="unfinished">プラグインのバージョンエラー</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="297"/>
+        <source>Please update the Kumoy plugin.
+Minimum required version: {}</source>
+        <translation type="unfinished">Kumoy プラグインを更新してください。
+必要な最小バージョン： {}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="329"/>
+        <source>Network connection error.
+Please check your internet connection and server URL.
+
+Details: {}</source>
+        <translation type="unfinished">ネットワーク接続エラー。
+インターネット接続とサーバーURLをご確認ください。
+
+詳細：{}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="352"/>
+        <source>Server error: {}</source>
+        <translation type="unfinished">サーバーエラー：{}</translation>
+    </message>
+    <message>
+        <location filename="../plugin.py" line="364"/>
+        <source>An error occurred: {}</source>
+        <translation type="unfinished">エラーが発生しました: {}</translation>
     </message>
 </context>
 <context>
@@ -770,12 +815,12 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="431"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="435"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_project_select.py" line="344"/>

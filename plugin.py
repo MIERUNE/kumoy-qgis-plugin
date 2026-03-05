@@ -1,4 +1,7 @@
+import json
 import os
+import urllib.request
+from urllib.error import HTTPError, URLError
 
 from qgis.core import (
     Qgis,
@@ -14,12 +17,14 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
-from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME, LOG_CATEGORY
+from .kumoy.api.error import format_api_error
+from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .qgis_version import is_plugin_version_compatible, read_version
 from .settings_manager import (
     get_settings,
     reset_settings,
@@ -277,6 +282,92 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             return
 
+    def check_plugin_version(self):
+        """Check if the plugin version is compatible with the minimum required version"""
+        try:
+            api_config = api.config.get_api_config()
+            params_response = urllib.request.urlopen(
+                f"{api_config.SERVER_URL}/api/_public/params"
+            )
+            params_data = json.loads(params_response.read().decode("utf-8"))
+        except HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("error", format_api_error(e))
+            except Exception:
+                error_message = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit server error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Server error: {}").format(str(error_message)),
+            )
+            return
+        except URLError as e:
+            error_details = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit network error
+            error_message = self.tr(
+                "Network connection error.\n"
+                "Please check your internet connection and server URL.\n\n"
+                "Details: {}"
+            ).format(error_details)
+
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                error_message,
+            )
+            return
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("An error occurred: {}").format(error_text),
+            )
+            return
+
+        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+        if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
+            QMessageBox.critical(
+                None,
+                self.tr("Plugin Version Error"),
+                self.tr(
+                    "Please update the Kumoy plugin.\nMinimum required version: {}"
+                ).format(min_qgisplugin_version),
+            )
+            # Force logout to prevent potential issues with incompatible versions
+            # Clear stored settings
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
+            store_setting("selected_organization_id", "")
+
+            QgsMessageLog.logMessage(
+                "Logged out due to incompatible plugin version",
+                PLUGIN_NAME,
+                Qgis.Info,
+            )
+
+            # Refresh browser panel
+            registry = QgsApplication.instance().dataItemProviderRegistry()
+            registry.removeProvider(self.dip)
+            self.dip = DataItemProvider()
+            registry.addProvider(self.dip)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
@@ -320,6 +411,9 @@ class KumoyPlugin:
             self.update_logout_action_visibility
         )
         self.update_logout_action_visibility()
+
+        # Check plugin version compatibility
+        self.check_plugin_version()
 
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
