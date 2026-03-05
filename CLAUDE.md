@@ -9,7 +9,7 @@ QGIS用クラウド連携プラグイン。QGISプロジェクトをWebに公開
 - Lint: `uv run ruff check .`
 - フォーマットチェック: `uv run ruff format . --check --diff`
 - フォーマット修正: `uv run ruff format .`
-- テスト: `python test_suite.py`（ローカル実行にはQGIS環境が必要）
+- テスト: `uv run pytest tests/`（QGIS依存テストにはQGIS環境が必要。CIではDockerで実行）
 
 ## コードスタイル
 
@@ -27,7 +27,7 @@ QGIS用クラウド連携プラグイン。QGISプロジェクトをWebに公開
 - `kumoy/auth_manager.py` — OAuth2認証（PKCE、ローカルHTTPサーバ port 9248）
 - `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI）
 - `processing/` — QGIS Processing アルゴリズム（ベクターアップロード等）
-- `tests/` — unittest ベースのテスト
+- `tests/` — pytest ベースのテスト（pytest-qgis使用）
 - `i18n/` — 国際化（英語デフォルト、日本語対応済み）
 
 ## 注意事項
