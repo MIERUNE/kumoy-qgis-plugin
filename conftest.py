@@ -2,6 +2,7 @@
 
 import os
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -10,16 +11,14 @@ import pytest
 # `from ...kumoy` (in processing/upload_vector/algorithm.py) to work,
 # the plugin root must be importable as a package — not as top-level.
 #
-# We create a symlink so the plugin can always be imported as 'plugin_dir'
-# regardless of the actual directory name.
+# Register a virtual 'plugin_dir' package whose __path__ points to the
+# plugin root.  This avoids creating a filesystem symlink outside the
+# project directory (which can fail in Docker / read-only environments).
 _plugin_root = Path(__file__).resolve().parent
-_symlink = _plugin_root.parent / "plugin_dir"
 
-if not _symlink.exists():
-    _symlink.symlink_to(_plugin_root)
-
-if str(_symlink.parent) not in sys.path:
-    sys.path.insert(0, str(_symlink.parent))
+_pkg = types.ModuleType("plugin_dir")
+_pkg.__path__ = [str(_plugin_root)]
+sys.modules["plugin_dir"] = _pkg
 
 # Remove the plugin root from sys.path so that plugin subpackages
 # (e.g. 'processing/') don't shadow QGIS built-in modules.
