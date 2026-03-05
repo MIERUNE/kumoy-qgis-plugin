@@ -409,8 +409,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def addFeatures(self, features: List[QgsFeature], flags=None):
         candidates: list[QgsFeature] = list(
             filter(
-                lambda f: f.hasGeometry()
-                and (f.geometry().wkbType() == self.wkbType()),
+                lambda f: (
+                    f.hasGeometry() and (f.geometry().wkbType() == self.wkbType())
+                ),
                 features,
             )
         )
