@@ -290,6 +290,23 @@ class KumoyPlugin:
                 f"{api_config.SERVER_URL}/api/_public/params"
             )
             params_data = json.loads(params_response.read().decode("utf-8"))
+        except HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("error", format_api_error(e))
+            except Exception:
+                error_message = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit server error
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr("Server error: {}").format(str(error_message)),
+            )
+            return
         except URLError as e:
             error_details = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -306,23 +323,6 @@ class KumoyPlugin:
                 None,
                 self.tr("Error"),
                 error_message,
-            )
-            return
-        except HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            try:
-                error_data = json.loads(error_body)
-                error_message = error_data.get("error", format_api_error(e))
-            except Exception:
-                error_message = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
-            )
-            # Explicit server error
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Server error: {}").format(str(error_message)),
             )
             return
         except Exception as e:

@@ -231,6 +231,23 @@ class DialogLogin(QDialog):
                 port=9248,
             )
 
+        except HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                error_data = json.loads(error_body)
+                error_message = error_data.get("error", format_api_error(e))
+            except Exception:
+                error_message = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+            )
+            # Explicit server error
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                self.tr("Server error: {}").format(str(error_message)),
+            )
+            return
         except URLError as e:
             error_details = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -247,24 +264,6 @@ class DialogLogin(QDialog):
                 self,
                 self.tr("Login Error"),
                 error_message,
-            )
-            return
-
-        except HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            try:
-                error_data = json.loads(error_body)
-                error_message = error_data.get("error", format_api_error(e))
-            except Exception:
-                error_message = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
-            )
-            # Explicit server error
-            QMessageBox.critical(
-                self,
-                self.tr("Login Error"),
-                self.tr("Server error: {}").format(str(error_message)),
             )
             return
         except Exception as e:
