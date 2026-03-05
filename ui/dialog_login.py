@@ -23,7 +23,7 @@ from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
-from ..read_version import read_version, is_plugin_version_compatible
+from ..qgis_version import is_plugin_version_compatible, read_version
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
@@ -212,7 +212,7 @@ class DialogLogin(QDialog):
             # Check plugin version compatibility
             min_qgisplugin_version = params_data.get("minQgisPluginVersion")
 
-            if not is_plugin_version_compatible(min_qgisplugin_version):
+            if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
                 QMessageBox.critical(
                     self,
                     self.tr("Plugin Version Error"),

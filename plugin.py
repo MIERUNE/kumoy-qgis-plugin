@@ -1,7 +1,7 @@
 import json
 import os
 import urllib.request
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 
 from qgis.core import (
     Qgis,
@@ -18,13 +18,13 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
 from .kumoy.api.error import format_api_error
-from .kumoy.constants import DATA_PROVIDER_KEY, PLUGIN_NAME, LOG_CATEGORY
+from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .read_version import is_plugin_version_compatible
+from .qgis_version import is_plugin_version_compatible, read_version
 from .settings_manager import (
     get_settings,
     reset_settings,
@@ -293,7 +293,7 @@ class KumoyPlugin:
 
             min_qgisplugin_version = params_data.get("minQgisPluginVersion")
 
-            if not is_plugin_version_compatible(min_qgisplugin_version):
+            if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
                 QMessageBox.critical(
                     None,
                     self.tr("Plugin Version Error"),
