@@ -290,36 +290,6 @@ class KumoyPlugin:
                 f"{api_config.SERVER_URL}/api/_public/params"
             )
             params_data = json.loads(params_response.read().decode("utf-8"))
-
-            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
-
-            if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
-                QMessageBox.critical(
-                    None,
-                    self.tr("Plugin Version Error"),
-                    self.tr(
-                        "Please update the Kumoy plugin.\nMinimum required version: {}"
-                    ).format(min_qgisplugin_version),
-                )
-                # Force logout to prevent potential issues with incompatible versions
-                # Clear stored settings
-                store_setting("id_token", "")
-                store_setting("refresh_token", "")
-                store_setting("user_info", "")
-                store_setting("selected_project_id", "")
-                store_setting("selected_organization_id", "")
-
-                QgsMessageLog.logMessage(
-                    "Logged out due to incompatible plugin version",
-                    PLUGIN_NAME,
-                    Qgis.Info,
-                )
-
-                # Refresh browser panel
-                registry = QgsApplication.instance().dataItemProviderRegistry()
-                registry.removeProvider(self.dip)
-                self.dip = DataItemProvider()
-                registry.addProvider(self.dip)
         except URLError as e:
             error_details = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -366,6 +336,37 @@ class KumoyPlugin:
                 self.tr("Error"),
                 self.tr("An error occurred: {}").format(error_text),
             )
+            return
+
+        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+
+        if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
+            QMessageBox.critical(
+                None,
+                self.tr("Plugin Version Error"),
+                self.tr(
+                    "Please update the Kumoy plugin.\nMinimum required version: {}"
+                ).format(min_qgisplugin_version),
+            )
+            # Force logout to prevent potential issues with incompatible versions
+            # Clear stored settings
+            store_setting("id_token", "")
+            store_setting("refresh_token", "")
+            store_setting("user_info", "")
+            store_setting("selected_project_id", "")
+            store_setting("selected_organization_id", "")
+
+            QgsMessageLog.logMessage(
+                "Logged out due to incompatible plugin version",
+                PLUGIN_NAME,
+                Qgis.Info,
+            )
+
+            # Refresh browser panel
+            registry = QgsApplication.instance().dataItemProviderRegistry()
+            registry.removeProvider(self.dip)
+            self.dip = DataItemProvider()
+            registry.addProvider(self.dip)
 
     def initGui(self):
         self.dip = DataItemProvider()
