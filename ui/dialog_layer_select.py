@@ -1,0 +1,233 @@
+from typing import List
+
+from qgis.core import (
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsLayerTreeNode,
+    QgsProject,
+    QgsVectorLayer,
+)
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ..kumoy import constants
+from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
+
+
+def _get_usage_color(percentage: float) -> str:
+    """Get color based on usage percentage, matching dialog_project_select style."""
+    if percentage >= 100:
+        return "#f44336"
+    elif percentage >= 75:
+        return "#ffa726"
+    return "#8bc34a"
+
+
+class LayerSelectDialog(QDialog):
+    """Dialog for selecting which local layers to convert to Kumoy layers."""
+
+    def __init__(
+        self,
+        layers: List[QgsVectorLayer],
+        max_layers: int,
+        total_limit: int,
+        current_usage: int,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._layers = layers
+        self._max_layers = max_layers
+        self._total_limit = total_limit
+        self._current_usage = current_usage
+        self._checkboxes: List[QCheckBox] = []
+        self._setup_ui()
+        self._update_state()
+
+    def tr(self, message: str) -> str:
+        return QCoreApplication.translate("LayerSelectDialog", message)
+
+    @property
+    def selected_layers(self) -> List[QgsVectorLayer]:
+        return [
+            layer for layer, cb in zip(self._layers, self._checkboxes) if cb.isChecked()
+        ]
+
+    def _setup_ui(self) -> None:
+        self.setWindowTitle(self.tr("Select Layers to Convert"))
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(300)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Header
+        header_label = QLabel(self.tr("Select layers to convert to Kumoy layers."))
+        layout.addWidget(header_label)
+
+        if self._max_layers == 0:
+            limit_label = QLabel(
+                self.tr(
+                    "Layer limit ({}) has been reached. No more layers can be added.\n"
+                    "To upload more, delete existing layers from the cloud "
+                    "or upgrade your plan."
+                ).format(self._total_limit)
+            )
+        else:
+            limit_text = self.tr(
+                "Your plan allows up to {} layers. You can add {} more layers."
+            ).format(self._total_limit, self._max_layers)
+            if len(self._layers) > self._max_layers:
+                limit_text += "\n" + self.tr(
+                    "To upload more, delete existing layers from the cloud "
+                    "or upgrade your plan."
+                )
+            limit_label = QLabel(limit_text)
+        limit_label.setWordWrap(True)
+        layout.addWidget(limit_label)
+
+        # Select all / Deselect all buttons
+        button_row = QHBoxLayout()
+        self._select_all_btn = QPushButton(self.tr("Select all"))
+        self._select_all_btn.clicked.connect(self._select_all)
+        button_row.addWidget(self._select_all_btn)
+
+        self._deselect_all_btn = QPushButton(self.tr("Deselect all"))
+        self._deselect_all_btn.clicked.connect(self._deselect_all)
+        button_row.addWidget(self._deselect_all_btn)
+
+        button_row.addStretch()
+        layout.addLayout(button_row)
+
+        # Scrollable checkbox list
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        self._list_layout = QVBoxLayout(scroll_widget)
+        self._list_layout.setSpacing(4)
+
+        for i, layer in enumerate(self._layers):
+            cb = QCheckBox(layer.name())
+            cb.setChecked(i < self._max_layers)
+            cb.toggled.connect(self._on_checkbox_toggled)
+            self._checkboxes.append(cb)
+            self._list_layout.addWidget(cb)
+
+        self._list_layout.addStretch()
+        scroll_area.setWidget(scroll_widget)
+        layout.addWidget(scroll_area)
+
+        # Usage bar
+        usage_row = QHBoxLayout()
+        usage_row.setSpacing(10)
+        self._count_label = QLabel()
+        self._count_label.setFixedWidth(140)
+        usage_row.addWidget(self._count_label)
+
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setMinimumHeight(6)
+        self._progress_bar.setMaximumHeight(6)
+        self._progress_bar.setMaximum(max(self._max_layers, 1))
+        usage_row.addWidget(self._progress_bar, 1)
+        layout.addLayout(usage_row)
+
+        # OK / Cancel buttons
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        self._ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+        layout.addWidget(button_box)
+
+    def _get_checked_count(self) -> int:
+        return sum(1 for cb in self._checkboxes if cb.isChecked())
+
+    def _on_checkbox_toggled(self) -> None:
+        self._update_state()
+
+    def _update_state(self) -> None:
+        checked_count = self._get_checked_count()
+        at_limit = checked_count >= self._max_layers
+
+        for cb in self._checkboxes:
+            if not cb.isChecked():
+                cb.setEnabled(not at_limit)
+
+        if self._max_layers == 0:
+            self._count_label.setText(
+                self.tr("{} / {} used").format(self._current_usage, self._total_limit)
+            )
+        else:
+            self._count_label.setText(
+                self.tr("{} / {} selected").format(checked_count, self._max_layers)
+            )
+
+        if self._max_layers == 0:
+            percentage = 100.0
+            self._progress_bar.setValue(1)
+        else:
+            percentage = checked_count / self._max_layers * 100
+            self._progress_bar.setValue(min(checked_count, self._max_layers))
+
+        self._progress_bar.setStyleSheet(
+            f"""
+            QProgressBar {{
+                border: none;
+                border-radius: 3px;
+                background-color: #e0e0e0;
+            }}
+            QProgressBar::chunk {{
+                background-color: {_get_usage_color(percentage)};
+                border-radius: 3px;
+            }}
+        """
+        )
+        self._ok_button.setEnabled(checked_count > 0)
+        self._select_all_btn.setEnabled(not at_limit)
+
+    def _select_all(self) -> None:
+        count = 0
+        for cb in self._checkboxes:
+            if count < self._max_layers:
+                cb.setChecked(True)
+                count += 1
+            else:
+                cb.setChecked(False)
+
+    def _deselect_all(self) -> None:
+        for cb in self._checkboxes:
+            cb.setChecked(False)
+
+
+def get_local_vector_layers_in_tree_order() -> List[QgsVectorLayer]:
+    """Return local vector layers in layer panel order."""
+    root = QgsProject.instance().layerTreeRoot()
+    layers: List[QgsVectorLayer] = []
+
+    def _walk(node: QgsLayerTreeNode) -> None:
+        if isinstance(node, QgsLayerTreeLayer):
+            layer = node.layer()
+            if (
+                layer
+                and layer.isValid()
+                and isinstance(layer, QgsVectorLayer)
+                and layer.dataProvider()
+                and layer.dataProvider().name() != constants.DATA_PROVIDER_KEY
+            ):
+                layers.append(layer)
+        elif isinstance(node, QgsLayerTreeGroup):
+            for child in node.children():
+                _walk(child)
+
+    _walk(root)
+    return layers
