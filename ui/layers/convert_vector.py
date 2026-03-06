@@ -21,7 +21,15 @@ from qgis.utils import iface
 
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import QT_APPLICATION_MODAL, Q_MESSAGEBOX_STD_BUTTON
+from ...pyqt_version import (
+    QDIALOG_CODE,
+    QT_APPLICATION_MODAL,
+    exec_dialog,
+)
+from ..dialog_layer_select import (
+    LayerSelectDialog,
+    get_local_vector_layers_in_tree_order,
+)
 
 
 def tr(message: str, context: str = "@default") -> str:
@@ -68,7 +76,7 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
 def convert_local_layers(
     project_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
-    """Prompt user to convert local layers and execute if confirmed.
+    """Prompt user to select and convert local layers, then execute.
 
     Args:
         project_id: Project ID to convert layers to
@@ -79,17 +87,8 @@ def convert_local_layers(
                conversion_errors: list of (layer_name, error_message) for failed conversions
     """
 
-    # Get local layers
-    local_layers = []
-    for layer in QgsProject.instance().mapLayers().values():
-        # skip if it is not a valid vector layer
-        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
-            continue
-        provider = layer.dataProvider()
-        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
-            continue
-
-        local_layers.append(layer)
+    # Get local layers in layer panel order
+    local_layers = get_local_vector_layers_in_tree_order()
 
     if not local_layers:
         return (False, [])
@@ -104,29 +103,46 @@ def convert_local_layers(
             )
             return (True, [])  # Block the process
 
-    # Ask user for confirmation
-    convert_confirm = QMessageBox.question(
-        None,
-        tr("Convert Local Layers to Kumoy Layers"),
-        tr(
-            "There are {} local vector layers in the current project.\n"
-            "Do you want to convert them to Kumoy layers?"
-        ).format(len(local_layers)),
-        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-        Q_MESSAGEBOX_STD_BUTTON.Yes,
+    # Get quota info to determine max selectable layers
+    try:
+        project = api.project.get_project(project_id)
+        org = project.team.organization
+        plan_limits = api.plan.get_plan_limits(org.subscriptionPlan)
+        current_vectors = api.vector.get_vectors(project_id)
+        max_selectable = plan_limits.maxVectors - len(current_vectors)
+    except Exception as e:
+        error_msg = format_api_error(e)
+        QMessageBox.warning(
+            None,
+            tr("Error"),
+            tr("Failed to check layer limits: {}").format(error_msg),
+        )
+        return (False, [])
+
+    # Show layer selection dialog
+    dialog = LayerSelectDialog(
+        local_layers,
+        max(max_selectable, 0),
+        plan_limits.maxVectors,
+        len(current_vectors),
     )
+    if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
+        return (True, [])
 
-    if convert_confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-        return (False, [])  # User declined, but don't block
+    selected_layers = dialog.selected_layers
+    if not selected_layers:
+        return (True, [])
 
-    # Convert layers
+    # Convert selected layers
     conversion_errors = []
-    for layer in local_layers:
+    for layer in selected_layers:
         success, error = convert_to_kumoy(layer, project_id)
         if not success:
             conversion_errors.append((layer.name(), error))
 
-    return (False, conversion_errors)  # Continue with results
+    iface.mapCanvas().refresh()
+
+    return (False, conversion_errors)
 
 
 def convert_to_kumoy(
@@ -251,7 +267,7 @@ def convert_to_kumoy(
                 config.setReadOnly(field_idx, True)
                 kumoy_layer.setEditFormConfig(config)
 
-            # Copy layer style from original layer
+            # Copy style before removing original layer (removal invalidates the object)
             _copy_layer_style(layer, kumoy_layer)
 
             # Get original layer position in legend
@@ -280,6 +296,8 @@ def convert_to_kumoy(
 
                 # Set as current layer
                 iface.layerTreeView().setCurrentLayer(kumoy_layer)
+
+            kumoy_layer.triggerRepaint()
 
         else:
             error_msg = (
@@ -316,4 +334,3 @@ def _copy_layer_style(
 
     source_layer.writeStyle(elem, doc, "", context, QgsMapLayer.AllStyleCategories)
     target_layer.readStyle(elem, "", context, QgsMapLayer.AllStyleCategories)
-    target_layer.triggerRepaint()
