@@ -262,6 +262,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
             QgsMessageLog.logMessage(
                 self.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
             )
+            iface.messageBar().pushMessage(
+                self.tr("Sync error"),
+                self.tr("Failed to sync {}: {}").format(
+                    self.kumoy_vector.name, sync_error
+                ),
+                level=Qgis.Warning,
+            )
 
         # Delete existing cached_layer before reloading
         if hasattr(self, "cached_layer") and self.cached_layer is not None:
