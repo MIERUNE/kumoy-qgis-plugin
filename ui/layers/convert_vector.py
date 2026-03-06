@@ -140,6 +140,8 @@ def convert_local_layers(
         if not success:
             conversion_errors.append((layer.name(), error))
 
+    iface.mapCanvas().refresh()
+
     return (False, conversion_errors)
 
 
@@ -295,9 +297,7 @@ def convert_to_kumoy(
                 # Set as current layer
                 iface.layerTreeView().setCurrentLayer(kumoy_layer)
 
-            # Refresh canvas after layer is added to the project
             kumoy_layer.triggerRepaint()
-            iface.mapCanvas().refresh()
 
         else:
             error_msg = (
