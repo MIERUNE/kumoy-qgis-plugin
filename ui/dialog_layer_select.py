@@ -26,7 +26,7 @@ from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
 
 def _get_usage_color(percentage: float) -> str:
-    """Get color based on usage percentage, matching dialog_project_select style."""
+    """Get color based on usage percentage."""
     if percentage >= 100:
         return "#f44336"
     elif percentage >= 75:
