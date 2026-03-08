@@ -117,7 +117,7 @@ def convert_local_layers(
             tr("Error"),
             tr("Failed to check layer limits: {}").format(error_msg),
         )
-        return (False, [])
+        return (True, [])
 
     # Show layer selection dialog
     dialog = LayerSelectDialog(
