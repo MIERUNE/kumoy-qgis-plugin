@@ -47,7 +47,7 @@ from .remote_image_label import RemoteImageLabel
 
 
 def _normalize_isoformat(date_string: str) -> str:
-    """Normalize ISO 8601 dat strings for fromisoformat compatibility."""
+    """Normalize ISO 8601 datetime strings for fromisoformat compatibility."""
     date_string = date_string.replace("Z", "+00:00")
     # Fix bare timezone offset like '+00' or '-05' (missing minutes)
     date_string = re.sub(r"([+-]\d{2})$", r"\1:00", date_string)
