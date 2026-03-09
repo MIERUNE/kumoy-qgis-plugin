@@ -1,4 +1,5 @@
 import math
+import re
 import webbrowser
 from datetime import datetime
 from typing import Optional
@@ -43,6 +44,14 @@ from ..settings_manager import get_settings, store_setting
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
+
+
+def _normalize_isoformat(date_string: str) -> str:
+    """Normalize ISO 8601 dat strings for fromisoformat compatibility."""
+    date_string = date_string.replace("Z", "+00:00")
+    # Fix bare timezone offset like '+00' or '-05' (missing minutes)
+    date_string = re.sub(r"([+-]\d{2})$", r"\1:00", date_string)
+    return date_string
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -788,7 +797,7 @@ class ProjectItemWidget(QWidget):
         if not date_string:
             return "Never"
         try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(_normalize_isoformat(date_string))
             return dt.strftime("%Y-%m-%d %H:%M")
         except (ValueError, AttributeError):
             return date_string
@@ -798,7 +807,7 @@ class ProjectItemWidget(QWidget):
         if not date_string:
             return "Never"
         try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(_normalize_isoformat(date_string))
             now = datetime.now(dt.tzinfo)
             delta = now - dt
 
