@@ -742,7 +742,10 @@ class ProjectItemWidget(QWidget):
         info_layout.addWidget(name_label)
         # Last updated with icon
         updated_hlayout = QHBoxLayout()
+        updated_hlayout.setSpacing(4)
+        updated_hlayout.setContentsMargins(0, 0, 0, 0)
         updated_icon_label = QLabel()
+        updated_icon_label.setFixedSize(16, 16)
         updated_icon_label.setPixmap(RELOAD_ICON.pixmap(16, 16))
         updated_hlayout.addWidget(updated_icon_label)
         updated_label = QLabel(self._format_relative_date(self.project.updatedAt))
