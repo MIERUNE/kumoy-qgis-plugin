@@ -72,24 +72,24 @@ class LayerSelectDialog(QDialog):
         layout.setSpacing(12)
 
         # Header
-        header_label = QLabel(self.tr("Select layers to convert to Kumoy layers."))
+        header_label = QLabel(self.tr("Select layers to convert to Kumoy vectors."))
         layout.addWidget(header_label)
 
         if self._max_layers == 0:
             limit_label = QLabel(
                 self.tr(
-                    "Layer limit ({}) has been reached. No more layers can be added.\n"
-                    "To upload more, delete existing layers from the cloud "
+                    "Vector limit ({}) has been reached. No more vectors can be added.\n"
+                    "To upload more, delete existing vectors from the cloud "
                     "or upgrade your plan."
                 ).format(self._total_limit)
             )
         else:
             limit_text = self.tr(
-                "Your plan allows up to {} layers. You can add {} more layers."
+                "Your plan allows up to {} vectors. You can add {} more vectors."
             ).format(self._total_limit, self._max_layers)
             if len(self._layers) > self._max_layers:
                 limit_text += "\n" + self.tr(
-                    "To upload more, delete existing layers from the cloud "
+                    "To upload more, delete existing vectors from the cloud "
                     "or upgrade your plan."
                 )
             limit_label = QLabel(limit_text)
