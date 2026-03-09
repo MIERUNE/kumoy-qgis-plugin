@@ -106,10 +106,9 @@ def convert_local_layers(
     # Get quota info to determine max selectable layers
     try:
         project = api.project.get_project(project_id)
-        org = project.team.organization
-        plan_limits = api.plan.get_plan_limits(org.subscriptionPlan)
-        current_vectors = api.vector.get_vectors(project_id)
-        max_selectable = plan_limits.maxVectors - len(current_vectors)
+        org_id = project.team.organization.id
+        org_detail = api.organization.get_organization(org_id)
+        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
     except Exception as e:
         error_msg = format_api_error(e)
         QMessageBox.warning(
@@ -119,12 +118,15 @@ def convert_local_layers(
         )
         return (True, [])
 
+    current_vector_count = org_detail.usage.vectors
+    max_selectable = plan_limits.maxVectors - current_vector_count
+
     # Show layer selection dialog
     dialog = LayerSelectDialog(
         local_layers,
         max(max_selectable, 0),
         plan_limits.maxVectors,
-        len(current_vectors),
+        current_vector_count,
     )
     if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
         return (True, [])
