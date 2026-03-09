@@ -33,16 +33,15 @@ class LayerSelectDialog(QDialog):
     def __init__(
         self,
         layers: List[QgsVectorLayer],
-        max_layers: int,
         total_limit: int,
         current_usage: int,
         parent=None,
     ):
         super().__init__(parent)
         self._layers = layers
-        self._max_layers = max_layers
         self._total_limit = total_limit
         self._current_usage = current_usage
+        self._max_layers = max(total_limit - current_usage, 0)
         self._checkboxes: List[QCheckBox] = []
         self._setup_ui()
         self._update_state()

@@ -120,14 +120,12 @@ def check_vector_limit_reached(project_id: str) -> bool:
         return False
 
     current_vector_count = org_detail.usage.vectors
-    max_selectable = plan_limits.maxVectors - current_vector_count
 
-    if max_selectable > 0:
+    if plan_limits.maxVectors - current_vector_count > 0:
         return False
 
     dialog = LayerSelectDialog(
         local_layers,
-        0,
         plan_limits.maxVectors,
         current_vector_count,
     )
@@ -181,12 +179,10 @@ def convert_local_layers(
         return (True, [])
 
     current_vector_count = org_detail.usage.vectors
-    max_selectable = plan_limits.maxVectors - current_vector_count
 
     # Show layer selection dialog
     dialog = LayerSelectDialog(
         local_layers,
-        max(max_selectable, 0),
         plan_limits.maxVectors,
         current_vector_count,
     )
