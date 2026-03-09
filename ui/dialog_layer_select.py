@@ -33,15 +33,15 @@ class LayerSelectDialog(QDialog):
     def __init__(
         self,
         layers: List[QgsVectorLayer],
-        total_limit: int,
-        current_usage: int,
+        max_vectors: int,
+        current_vectors: int,
         parent=None,
     ):
         super().__init__(parent)
         self._layers = layers
-        self._total_limit = total_limit
-        self._current_usage = current_usage
-        self._max_layers = max(total_limit - current_usage, 0)
+        self._max_vectors = max_vectors
+        self._current_vectors = current_vectors
+        self._max_layers = max(max_vectors - current_vectors, 0)
         self._checkboxes: List[QCheckBox] = []
         self._setup_ui()
         self._update_state()
@@ -73,7 +73,7 @@ class LayerSelectDialog(QDialog):
                     "Vector limit ({}) has been reached. No more vectors can be added.\n"
                     "To upload more, delete existing vectors from the cloud "
                     "or upgrade your plan."
-                ).format(self._total_limit)
+                ).format(self._max_vectors)
             )
             limit_label.setWordWrap(True)
             layout.addWidget(limit_label)
@@ -92,7 +92,7 @@ class LayerSelectDialog(QDialog):
 
         limit_text = self.tr(
             "Your plan allows up to {} vectors. You can add {} more vectors."
-        ).format(self._total_limit, self._max_layers)
+        ).format(self._max_vectors, self._max_layers)
         if len(self._layers) > self._max_layers:
             limit_text += "\n" + self.tr(
                 "To upload more, delete existing vectors from the cloud "
@@ -171,7 +171,7 @@ class LayerSelectDialog(QDialog):
 
         if self._max_layers == 0:
             self._count_label.setText(
-                self.tr("{} / {} used").format(self._current_usage, self._total_limit)
+                self.tr("{} / {} used").format(self._current_vectors, self._max_vectors)
             )
         else:
             self._count_label.setText(
