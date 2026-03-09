@@ -39,6 +39,7 @@ from ...pyqt_version import (
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
+    check_vector_limit_reached,
     convert_local_layers,
 )
 from ..icons import BROWSER_MAP_ICON
@@ -592,6 +593,10 @@ class StyledMapRoot(QgsDataItem):
                         ),
                     )
                     return
+
+            # Check vector limit before showing map creation dialog
+            if check_vector_limit_reached(self.project.id):
+                return
 
             # Create dialog
             (

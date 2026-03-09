@@ -76,16 +76,30 @@ class LayerSelectDialog(QDialog):
                     "or upgrade your plan."
                 ).format(self._total_limit)
             )
-        else:
-            limit_text = self.tr(
-                "Your plan allows up to {} vectors. You can add {} more vectors."
-            ).format(self._total_limit, self._max_layers)
-            if len(self._layers) > self._max_layers:
-                limit_text += "\n" + self.tr(
-                    "To upload more, delete existing vectors from the cloud "
-                    "or upgrade your plan."
-                )
-            limit_label = QLabel(limit_text)
+            limit_label.setWordWrap(True)
+            layout.addWidget(limit_label)
+            layout.addStretch()
+
+            close_button_box = QDialogButtonBox(QT_DIALOG_BUTTON_CANCEL)
+            close_button_box.rejected.connect(self.reject)
+            layout.addWidget(close_button_box)
+
+            # Set dummy attributes for _update_state compatibility
+            self._select_all_btn = QPushButton()
+            self._count_label = QLabel()
+            self._progress_bar = QProgressBar()
+            self._ok_button = QPushButton()
+            return
+
+        limit_text = self.tr(
+            "Your plan allows up to {} vectors. You can add {} more vectors."
+        ).format(self._total_limit, self._max_layers)
+        if len(self._layers) > self._max_layers:
+            limit_text += "\n" + self.tr(
+                "To upload more, delete existing vectors from the cloud "
+                "or upgrade your plan."
+            )
+        limit_label = QLabel(limit_text)
         limit_label.setWordWrap(True)
         layout.addWidget(limit_label)
 

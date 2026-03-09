@@ -97,6 +97,44 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
         )
 
 
+def check_vector_limit_reached(project_id: str) -> bool:
+    """Check if vector upload limit is reached and show a message dialog if so.
+
+    Should be called before showing the map creation dialog so the user
+    is informed early without going through unnecessary steps.
+
+    Returns:
+        True if limit is reached (caller should abort), False otherwise.
+    """
+    local_layers = _get_local_vector_layers_in_tree_order()
+    if not local_layers:
+        return False
+
+    try:
+        project = api.project.get_project(project_id)
+        org_id = project.team.organization.id
+        org_detail = api.organization.get_organization(org_id)
+        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+    except Exception:
+        # Don't block on API errors; convert_local_layers will handle it later
+        return False
+
+    current_vector_count = org_detail.usage.vectors
+    max_selectable = plan_limits.maxVectors - current_vector_count
+
+    if max_selectable > 0:
+        return False
+
+    dialog = LayerSelectDialog(
+        local_layers,
+        0,
+        plan_limits.maxVectors,
+        current_vector_count,
+    )
+    exec_dialog(dialog)
+    return True
+
+
 def convert_local_layers(
     project_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
