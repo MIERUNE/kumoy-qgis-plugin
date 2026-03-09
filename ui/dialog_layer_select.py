@@ -1,12 +1,6 @@
 from typing import List
 
-from qgis.core import (
-    QgsLayerTreeGroup,
-    QgsLayerTreeLayer,
-    QgsLayerTreeNode,
-    QgsProject,
-    QgsVectorLayer,
-)
+from qgis.core import QgsVectorLayer
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
@@ -21,7 +15,6 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..kumoy import constants
 from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
 
@@ -207,27 +200,3 @@ class LayerSelectDialog(QDialog):
     def _deselect_all(self) -> None:
         for cb in self._checkboxes:
             cb.setChecked(False)
-
-
-def get_local_vector_layers_in_tree_order() -> List[QgsVectorLayer]:
-    """Return local vector layers in layer panel order."""
-    root = QgsProject.instance().layerTreeRoot()
-    layers: List[QgsVectorLayer] = []
-
-    def _walk(node: QgsLayerTreeNode) -> None:
-        if isinstance(node, QgsLayerTreeLayer):
-            layer = node.layer()
-            if (
-                layer
-                and layer.isValid()
-                and isinstance(layer, QgsVectorLayer)
-                and layer.dataProvider()
-                and layer.dataProvider().name() != constants.DATA_PROVIDER_KEY
-            ):
-                layers.append(layer)
-        elif isinstance(node, QgsLayerTreeGroup):
-            for child in node.children():
-                _walk(child)
-
-    _walk(root)
-    return layers

@@ -3,6 +3,9 @@ from typing import Optional
 
 from qgis.core import (
     Qgis,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsLayerTreeNode,
     QgsMessageLog,
     QgsProcessingContext,
     QgsProcessingFeedback,
@@ -26,14 +29,35 @@ from ...pyqt_version import (
     QT_APPLICATION_MODAL,
     exec_dialog,
 )
-from ..dialog_layer_select import (
-    LayerSelectDialog,
-    get_local_vector_layers_in_tree_order,
-)
+from ..dialog_layer_select import LayerSelectDialog
 
 
 def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
+
+
+def _get_local_vector_layers_in_tree_order() -> list[QgsVectorLayer]:
+    """Return local vector layers in layer panel order."""
+    root = QgsProject.instance().layerTreeRoot()
+    layers: list[QgsVectorLayer] = []
+
+    def _walk(node: QgsLayerTreeNode) -> None:
+        if isinstance(node, QgsLayerTreeLayer):
+            layer = node.layer()
+            if (
+                layer
+                and layer.isValid()
+                and isinstance(layer, QgsVectorLayer)
+                and layer.dataProvider()
+                and layer.dataProvider().name() != constants.DATA_PROVIDER_KEY
+            ):
+                layers.append(layer)
+        elif isinstance(node, QgsLayerTreeGroup):
+            for child in node.children():
+                _walk(child)
+
+    _walk(root)
+    return layers
 
 
 def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
@@ -88,7 +112,7 @@ def convert_local_layers(
     """
 
     # Get local layers in layer panel order
-    local_layers = get_local_vector_layers_in_tree_order()
+    local_layers = _get_local_vector_layers_in_tree_order()
 
     if not local_layers:
         return (False, [])
