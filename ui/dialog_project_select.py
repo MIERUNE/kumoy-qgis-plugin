@@ -1,4 +1,5 @@
 import math
+import re
 import webbrowser
 from datetime import datetime
 from typing import Optional
@@ -786,40 +787,38 @@ class ProjectItemWidget(QWidget):
 
         self.setLayout(main_layout)
 
-    def _format_date(self, date_string: str) -> str:
-        """Format ISO date string to readable format"""
-        if not date_string:
-            return "Never"
-        try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d %H:%M")
-        except (ValueError, AttributeError):
-            return date_string
-
     def _format_relative_date(self, date_string: str) -> str:
-        """Format date as relative time (e.g., '1 day ago')"""
-        if not date_string:
-            return "Never"
-        try:
-            dt = datetime.fromisoformat(date_string.replace("Z", "+00:00"))
-            now = datetime.now(dt.tzinfo)
-            delta = now - dt
-
-            if delta.days == 0:
-                if delta.seconds < 3600:
-                    return self.tr("{} minutes ago").format(delta.seconds // 60)
-                else:
-                    return self.tr("{} hours ago").format(delta.seconds // 3600)
-            elif delta.days == 1:
-                return self.tr("1 day ago")
-            elif delta.days < 30:
-                return self.tr("{} days ago").format(delta.days)
-            elif delta.days < 365:
-                return self.tr("{} months ago").format(delta.days // 30)
-            else:
-                return self.tr("{} years ago").format(delta.days // 365)
-        except (ValueError, AttributeError):
+        """Format date as relative time (e.g., '1 day ago')
+        Input: 2026-01-21 07:08:26.970209+00
+        Output: "3 days ago"
+        """
+        # PostgreSQL timestamptz format: YYYY-MM-DD HH:MM:SS[.fractional]+00
+        if not re.match(
+            r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?\+00$",
+            date_string,
+        ):
             return date_string
+
+        # +00 -> +00:00 for datetime.fromisoformat
+        date_string = date_string + ":00"
+
+        dt = datetime.fromisoformat(date_string)
+        now = datetime.now(dt.tzinfo)
+        delta = now - dt
+
+        if delta.days == 0:
+            if delta.seconds < 3600:
+                return self.tr("{} minutes ago").format(delta.seconds // 60)
+            else:
+                return self.tr("{} hours ago").format(delta.seconds // 3600)
+        elif delta.days == 1:
+            return self.tr("1 day ago")
+        elif delta.days < 30:
+            return self.tr("{} days ago").format(delta.days)
+        elif delta.days < 365:
+            return self.tr("{} months ago").format(delta.days // 30)
+        else:
+            return self.tr("{} years ago").format(delta.days // 365)
 
     def show_context_menu(self, position):
         """Show context menu for project item"""
