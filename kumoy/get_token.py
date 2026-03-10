@@ -64,7 +64,7 @@ def _refresh_token(refresh_token: str) -> Optional[Dict]:
         params_data = json.loads(params_response.read().decode("utf-8"))
 
         cognito_domain = params_data.get("cognitoDomain")
-        cognito_client_id = params_data.get("cognitoClientId")
+        cognito_client_id = params_data.get("cognitoQgisClientId")
 
         # Cognitoのトークンエンドポイントを使用
         token_url = f"https://{cognito_domain}/oauth2/token"
