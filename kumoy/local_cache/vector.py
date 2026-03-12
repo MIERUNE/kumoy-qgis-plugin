@@ -336,7 +336,7 @@ def clear(vector_id: str) -> bool:
                     LOG_CATEGORY,
                     Qgis.Critical,
                 )
-            success = False  # Flag unsucceed
+                success = False
     # Delete last updated timestamp
     delete_last_updated(vector_id)
 
