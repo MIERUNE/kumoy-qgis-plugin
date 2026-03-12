@@ -122,7 +122,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
-    project_ids: List[str] = []
+    project_ids: List[str]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.project_ids = []
 
     def tr(self, string: str) -> str:
         """Translate string"""
