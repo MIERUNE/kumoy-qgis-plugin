@@ -122,7 +122,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
-    project_map: Dict[str, str] = {}
+    project_ids: List[str] = []
 
     def tr(self, string: str) -> str:
         """Translate string"""
@@ -157,7 +157,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         """Initialize algorithm parameters"""
         project_options = []
-        self.project_map = {}
+        self.project_ids = []
 
         # Input vector layer
         self.addParameter(
@@ -176,14 +176,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Get all organizations first
             organizations = api.organization.get_organizations()
             project_options = []
-            project_ids = []
 
             # Get projects for each organization
             for org in organizations:
                 projects = api.project.get_projects_by_organization(org.id)
                 for project in projects:
                     project_options.append(f"{org.name} / {project.name}")
-                    project_ids.append(project.id)
+                    self.project_ids.append(project.id)
 
         except Exception as e:
             msg = self.tr("Error Initializing Processing: {}").format(
@@ -195,12 +194,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
             return
 
-        self.project_map = dict(zip(project_options, project_ids))
         default_project_index = 0
         selected_project_id = get_settings().selected_project_id
-        if selected_project_id and self.project_map:
+        if selected_project_id and self.project_ids:
             # Find the index for the selected project ID
-            for idx, (_, pid) in enumerate(self.project_map.items()):
+            for idx, pid in enumerate(self.project_ids):
                 if pid == selected_project_id:
                     default_project_index = idx
                     break
@@ -261,8 +259,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Get project information and validate limits"""
         # Get project ID
         project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        project_options = list(self.project_map.keys())
-        project_id = self.project_map[project_options[project_index]]
+        if project_index < 0 or project_index >= len(self.project_ids):
+            raise QgsProcessingException(
+                self.tr("Invalid destination project selection.")
+            )
+        project_id = self.project_ids[project_index]
 
         # Get vector name
         vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
