@@ -97,11 +97,19 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
         )
 
 
+def _get_vector_quota(org_id: str) -> tuple[int, int]:
+    """Fetch vector quota for an organization.
+
+    Returns:
+        tuple: (max_vectors, current_count)
+    """
+    org_detail = api.organization.get_organization(org_id)
+    plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+    return (plan_limits.maxVectors, org_detail.usage.vectors)
+
+
 def check_vector_limit_reached(org_id: str) -> bool:
     """Check if vector upload limit is reached.
-
-    Should be called before showing the map creation dialog so the user
-    is informed early without going through unnecessary steps.
 
     Returns:
         True if limit is reached (caller should abort), False otherwise.
@@ -111,13 +119,12 @@ def check_vector_limit_reached(org_id: str) -> bool:
         return False
 
     try:
-        org_detail = api.organization.get_organization(org_id)
-        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+        max_vectors, current_count = _get_vector_quota(org_id)
     except Exception:
-        # Don't block on API errors; convert_local_layers will handle it later
+        # Don't block on API errors
         return False
 
-    return plan_limits.maxVectors - org_detail.usage.vectors <= 0
+    return max_vectors - current_count <= 0
 
 
 def convert_local_layers(
@@ -154,8 +161,7 @@ def convert_local_layers(
 
     # Get quota info to determine max selectable layers
     try:
-        org_detail = api.organization.get_organization(org_id)
-        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+        max_vectors, current_count = _get_vector_quota(org_id)
     except Exception as e:
         error_msg = format_api_error(e)
         QMessageBox.warning(
@@ -165,13 +171,11 @@ def convert_local_layers(
         )
         return (True, [])
 
-    current_vector_count = org_detail.usage.vectors
-
     # Show layer selection dialog
     dialog = LayerSelectDialog(
         local_layers,
-        plan_limits.maxVectors,
-        current_vector_count,
+        max_vectors,
+        current_count,
     )
     if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
         return (True, [])
