@@ -1,5 +1,8 @@
+from typing import List, Optional
+
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QLabel,
@@ -25,13 +28,18 @@ class ProjectEditDialog(QDialog):
         parent=None,
         initial_name: str = "",
         initial_description: str = "",
+        teams: Optional[List] = None,
+        team_readonly: bool = False,
     ):
         super().__init__(parent)
         self.org_name = org_name
         self.project_name = ""
         self.project_description = ""
+        self.selected_team_id: Optional[str] = None
         self.initial_name = initial_name
         self.initial_description = initial_description
+        self.teams = teams or []
+        self.team_readonly = team_readonly
         self.setup_ui()
 
     def tr(self, message):
@@ -41,6 +49,21 @@ class ProjectEditDialog(QDialog):
         self.setWindowTitle(self.tr("New Project"))
 
         layout = QVBoxLayout()
+
+        # Team field
+        if self.teams:
+            team_label = QLabel(
+                self.tr("Team")
+                + ("" if self.team_readonly else ' <span style="color: red;">*</span>')
+            )
+            layout.addWidget(team_label)
+
+            self.team_combo = QComboBox()
+            for team in self.teams:
+                self.team_combo.addItem(team.name, team.id)
+            if self.team_readonly:
+                self.team_combo.setEnabled(False)
+            layout.addWidget(self.team_combo)
 
         # Name field
         name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
@@ -98,5 +121,8 @@ class ProjectEditDialog(QDialog):
                 self.tr("Project name cannot be empty."),
             )
             return
+
+        if self.teams:
+            self.selected_team_id = self.team_combo.currentData()
 
         super().accept()

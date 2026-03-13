@@ -636,20 +636,25 @@ class ProjectSelectDialog(QDialog):
             )
             return
 
-        new_project_dialog = ProjectEditDialog(org.name, self)
+        try:
+            teams = api.team.get_teams(org.id)
+        except Exception as e:
+            msg = self.tr("Failed to load teams: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, self.tr("Error"), msg)
+            return
+
+        new_project_dialog = ProjectEditDialog(org.name, self, teams=teams)
         if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
             return
 
         project_name = new_project_dialog.project_name
         project_description = new_project_dialog.project_description
+        team_id = new_project_dialog.selected_team_id
 
         try:
-            # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
-            teams = api.team.get_teams(org.id)
-            team = teams[0]  # デフォルトチームが必ず存在する
-
             new_project = api.project.create_project(
-                team_id=team.id, name=project_name, description=project_description
+                team_id=team_id, name=project_name, description=project_description
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),
@@ -957,6 +962,8 @@ class ProjectItemWidget(QWidget):
             self.parent_dialog,
             initial_name=project_detail.name,
             initial_description=project_detail.description,
+            teams=[project_detail.team],
+            team_readonly=True,
         )
         edit_dialog.setWindowTitle(self.tr("Edit Project"))
 
