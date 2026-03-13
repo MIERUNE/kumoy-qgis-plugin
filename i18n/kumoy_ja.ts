@@ -860,7 +860,7 @@ This action can&apos;t be undone.</source>
     <message>
         <location filename="../ui/dialog_project_select.py" line="642"/>
         <source>Failed to load teams: {}</source>
-        <translation type="unfinished">チームのと見込みエラー：{}</translation>
+        <translation type="unfinished">チームの読み込みに失敗しました: {}</translation>
     </message>
 </context>
 <context>
