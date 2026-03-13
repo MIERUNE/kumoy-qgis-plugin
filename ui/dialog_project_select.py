@@ -793,16 +793,23 @@ class ProjectItemWidget(QWidget):
         Output: "3 days ago"
         """
         # PostgreSQL timestamptz format: YYYY-MM-DD HH:MM:SS[.fractional]+00
-        if not re.match(
-            r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?\+00$",
+        # Pad fractional seconds to 6 digits (Python 3.9 requires 0, 3 or 6)
+        normalized = re.sub(
+            r"\.(\d+)(?=[+-Z]|$)",
+            lambda m: "." + (m.group(1) + "000000")[:6],
             date_string,
+        )
+        # +00 -> +00:00 for datetime.fromisoformat
+        normalized = re.sub(r"([+-]\d{2})$", r"\1:00", normalized)
+        normalized = normalized.replace("Z", "+00:00")
+
+        if not re.match(
+            r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{6})?[+-]\d{2}:\d{2}$",
+            normalized,
         ):
             return date_string
 
-        # +00 -> +00:00 for datetime.fromisoformat
-        date_string = date_string + ":00"
-
-        dt = datetime.fromisoformat(date_string)
+        dt = datetime.fromisoformat(normalized)
         now = datetime.now(dt.tzinfo)
         delta = now - dt
 
