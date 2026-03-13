@@ -53,7 +53,8 @@ class ProjectEditDialog(QDialog):
         # Team field
         if self.teams:
             team_label = QLabel(
-                self.tr("Team") + ("" if self.team_readonly else ' <span style="color: red;">*</span>')
+                self.tr("Team")
+                + ("" if self.team_readonly else ' <span style="color: red;">*</span>')
             )
             layout.addWidget(team_label)
 
