@@ -792,37 +792,40 @@ class ProjectItemWidget(QWidget):
         Input: 2026-01-21 07:08:26.970209+00
         Output: "3 days ago"
         """
-        try:
-            # PostgreSQL timestamptz format: YYYY-MM-DD HH:MM:SS[.fractional]+00
-            # Pad fractional seconds to 6 digits (Python 3.9 requires 0, 3 or 6)
-            normalized = re.sub(
-                r"\.(\d+)(?=[+-Z]|$)",
-                lambda m: "." + (m.group(1) + "000000")[:6],
-                date_string,
-            )
-            # +00 -> +00:00 for datetime.fromisoformat
-            normalized = re.sub(r"([+-]\d{2})$", r"\1:00", normalized)
-            normalized = normalized.replace("Z", "+00:00")
+        # PostgreSQL timestamptz format: YYYY-MM-DD HH:MM:SS[.fractional]+00
+        # Pad fractional seconds to 6 digits (Python 3.9 requires 0, 3 or 6)
+        normalized = re.sub(
+            r"\.(\d+)(?=[+-Z]|$)",
+            lambda m: "." + (m.group(1) + "000000")[:6],
+            date_string,
+        )
+        # +00 -> +00:00 for datetime.fromisoformat
+        normalized = re.sub(r"([+-]\d{2})$", r"\1:00", normalized)
+        normalized = normalized.replace("Z", "+00:00")
 
-            dt = datetime.fromisoformat(normalized)
-            now = datetime.now(dt.tzinfo)
-            delta = now - dt
-
-            if delta.days == 0:
-                if delta.seconds < 3600:
-                    return self.tr("{} minutes ago").format(delta.seconds // 60)
-                else:
-                    return self.tr("{} hours ago").format(delta.seconds // 3600)
-            elif delta.days == 1:
-                return self.tr("1 day ago")
-            elif delta.days < 30:
-                return self.tr("{} days ago").format(delta.days)
-            elif delta.days < 365:
-                return self.tr("{} months ago").format(delta.days // 30)
-            else:
-                return self.tr("{} years ago").format(delta.days // 365)
-        except (ValueError, AttributeError):
+        if not re.match(
+            r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{6})?[+-]\d{2}:\d{2}$",
+            normalized,
+        ):
             return date_string
+
+        dt = datetime.fromisoformat(normalized)
+        now = datetime.now(dt.tzinfo)
+        delta = now - dt
+
+        if delta.days == 0:
+            if delta.seconds < 3600:
+                return self.tr("{} minutes ago").format(delta.seconds // 60)
+            else:
+                return self.tr("{} hours ago").format(delta.seconds // 3600)
+        elif delta.days == 1:
+            return self.tr("1 day ago")
+        elif delta.days < 30:
+            return self.tr("{} days ago").format(delta.days)
+        elif delta.days < 365:
+            return self.tr("{} months ago").format(delta.days // 30)
+        else:
+            return self.tr("{} years ago").format(delta.days // 365)
 
     def show_context_menu(self, position):
         """Show context menu for project item"""
