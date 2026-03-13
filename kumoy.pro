@@ -20,7 +20,6 @@ SOURCES = __init__.py \
           kumoy/api/client.py \
           kumoy/api/config.py \
           kumoy/api/error.py \
-          kumoy/api/layer.py \
           kumoy/api/organization.py \
           kumoy/api/plan.py \
           kumoy/api/project.py \
