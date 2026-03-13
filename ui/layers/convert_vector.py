@@ -182,7 +182,7 @@ def convert_local_layers(
 
     selected_layers = dialog.selected_layers
     if not selected_layers:
-        return (True, [])
+        return (False, [])
 
     # Convert selected layers
     conversion_errors = []
