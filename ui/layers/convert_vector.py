@@ -97,8 +97,8 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
         )
 
 
-def check_vector_limit_reached(project_id: str) -> bool:
-    """Check if vector upload limit is reached and show a message dialog if so.
+def check_vector_limit_reached(org_id: str) -> bool:
+    """Check if vector upload limit is reached.
 
     Should be called before showing the map creation dialog so the user
     is informed early without going through unnecessary steps.
@@ -111,35 +111,24 @@ def check_vector_limit_reached(project_id: str) -> bool:
         return False
 
     try:
-        project = api.project.get_project(project_id)
-        org_id = project.team.organization.id
         org_detail = api.organization.get_organization(org_id)
         plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
     except Exception:
         # Don't block on API errors; convert_local_layers will handle it later
         return False
 
-    current_vector_count = org_detail.usage.vectors
-
-    if plan_limits.maxVectors - current_vector_count > 0:
-        return False
-
-    dialog = LayerSelectDialog(
-        local_layers,
-        plan_limits.maxVectors,
-        current_vector_count,
-    )
-    exec_dialog(dialog)
-    return True
+    return plan_limits.maxVectors - org_detail.usage.vectors <= 0
 
 
 def convert_local_layers(
     project_id: str,
+    org_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
     """Prompt user to select and convert local layers, then execute.
 
     Args:
         project_id: Project ID to convert layers to
+        org_id: Organization ID for quota check
 
     Returns:
         tuple: (has_unsaved_edits: bool, conversion_errors: list)
@@ -165,8 +154,6 @@ def convert_local_layers(
 
     # Get quota info to determine max selectable layers
     try:
-        project = api.project.get_project(project_id)
-        org_id = project.team.organization.id
         org_detail = api.organization.get_organization(org_id)
         plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
     except Exception as e:
