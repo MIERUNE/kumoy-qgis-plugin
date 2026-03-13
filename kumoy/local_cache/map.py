@@ -262,7 +262,8 @@ def handle_project_saved() -> None:
 
     # Convert local layers to Kumoy layers if any
     has_unsaved_edits, conversion_errors = convert_local_layers(
-        styled_map_detail.projectId
+        styled_map_detail.projectId,
+        styled_map_detail.project.team.organizationId,
     )
 
     if has_unsaved_edits:

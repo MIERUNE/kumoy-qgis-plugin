@@ -39,6 +39,7 @@ from ...pyqt_version import (
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
+    check_vector_limit_reached,
     convert_local_layers,
 )
 from ..icons import BROWSER_MAP_ICON
@@ -353,6 +354,7 @@ class StyledMapItem(QgsDataItem):
         # Convert local layers to Kumoy layers if any
         has_unsaved_edits, conversion_errors = convert_local_layers(
             self.styled_map.projectId,
+            self.styled_map.project.team.organizationId,
         )
 
         if has_unsaved_edits:
@@ -593,6 +595,18 @@ class StyledMapRoot(QgsDataItem):
                     )
                     return
 
+            # Check vector limit before showing map creation dialog
+            if check_vector_limit_reached(self.organization.id):
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Cannot upload more vectors. Your plan has reached "
+                        "the vector upload limit."
+                    ),
+                )
+                return
+
             # Create dialog
             (
                 dialog,
@@ -624,6 +638,7 @@ class StyledMapRoot(QgsDataItem):
             # Convert local layers to Kumoy layers
             has_unsaved_edits, conversion_errors = convert_local_layers(
                 self.project.id,
+                self.organization.id,
             )
 
             if has_unsaved_edits:
