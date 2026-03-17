@@ -95,3 +95,44 @@ def get_team(team_id: str) -> TeamDetail:
         ),
         role=response.get("role", "MEMBER"),
     )
+
+
+def get_organization_myteams(org_id: str) -> List[TeamDetail]:
+    """
+    Get teams that the authenticated user belongs to in an organization
+
+    Args:
+        org_id: Organization ID
+
+    Returns:
+        List of TeamDetail objects
+    """
+    response = ApiClient.get(f"/organization/{org_id}/myteams")
+
+    teams = []
+    for team in response:
+        teams.append(
+            TeamDetail(
+                id=team.get("id", ""),
+                name=team.get("name", ""),
+                createdAt=team.get("createdAt", ""),
+                updatedAt=team.get("updatedAt", ""),
+                organizationId=org_id,
+                organization=Organization(
+                    id=team.get("organization", {}).get("id", ""),
+                    name=team.get("organization", {}).get("name", ""),
+                    subscriptionPlan=team.get("organization", {}).get(
+                        "subscriptionPlan", ""
+                    ),
+                    stripeCustomerId=team.get("organization", {}).get(
+                        "stripeCustomerId", ""
+                    ),
+                    storageUnits=team.get("organization", {}).get("storageUnits", 0),
+                    createdAt=team.get("organization", {}).get("createdAt", ""),
+                    updatedAt=team.get("organization", {}).get("updatedAt", ""),
+                ),
+                role=team.get("role", "MEMBER"),
+            )
+        )
+
+    return teams

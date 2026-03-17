@@ -1,5 +1,8 @@
+from typing import List, Optional
+
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QLabel,
@@ -9,6 +12,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     MAX_CHARACTERS_PROJECT_NAME,
     MAX_CHARACTERS_PROJECT_DESCRIPTION,
@@ -22,14 +26,17 @@ class ProjectEditDialog(QDialog):
     def __init__(
         self,
         org_name: str,
+        teams: List[TeamDetail],
         parent=None,
         initial_name: str = "",
         initial_description: str = "",
     ):
         super().__init__(parent)
         self.org_name = org_name
+        self.teams = teams
         self.project_name = ""
         self.project_description = ""
+        self.selected_team: Optional[TeamDetail] = None
         self.initial_name = initial_name
         self.initial_description = initial_description
         self.setup_ui()
@@ -41,6 +48,15 @@ class ProjectEditDialog(QDialog):
         self.setWindowTitle(self.tr("New Project"))
 
         layout = QVBoxLayout()
+
+        # Team field (only shown when teams are provided)
+        self.team_combo = QComboBox()
+        if self.teams:
+            team_label = QLabel(self.tr("Team") + ' <span style="color: red;">*</span>')
+            layout.addWidget(team_label)
+            for team in self.teams:
+                self.team_combo.addItem(team.name, team)
+            layout.addWidget(self.team_combo)
 
         # Name field
         name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
@@ -90,6 +106,7 @@ class ProjectEditDialog(QDialog):
         """Validate and accept the dialog"""
         self.project_name = self.name_input.text().strip()
         self.project_description = self.description_input.toPlainText().strip()
+        self.selected_team = self.team_combo.currentData()
 
         if not self.project_name:
             QMessageBox.warning(
