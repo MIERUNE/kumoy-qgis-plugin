@@ -22,13 +22,13 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
+from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    write_qgsfile,
     show_map_save_result,
+    write_qgsfile,
 )
-from ... import settings_manager
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
