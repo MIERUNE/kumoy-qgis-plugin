@@ -2,7 +2,7 @@ import math
 import re
 import webbrowser
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Set
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QCoreApplication, Qt
@@ -41,6 +41,7 @@ from ..pyqt_version import (
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
+from ..kumoy.api.team import TeamDetail
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
@@ -67,6 +68,8 @@ class ProjectSelectDialog(QDialog):
         self.selected_project = None
         self.current_org_id = None
         self.details_visible = False
+        self.myteams: List[TeamDetail] = []
+        self.admin_team_ids: Set[str] = set()
         self.setup_ui()
         self.load_user_info()
         self.load_organizations()
@@ -381,8 +384,26 @@ class ProjectSelectDialog(QDialog):
         self.project_section["search_input"].clear()
         org_data = self.account_org_panel["org_combo"].itemData(index)
         if org_data:
+            self.load_myteams(org_data)
             self.load_organization_detail(org_data)
             self.load_projects(org_data)
+
+    def load_myteams(self, org: api.organization.Organization):
+        """Load teams the current user belongs to in the organization"""
+        try:
+            self.myteams = api.team.get_organization_myteams(org.id)
+            self.admin_team_ids = {
+                t.id for t in self.myteams if t.role in ("OWNER", "ADMIN")
+            }
+        except Exception as e:
+            self.myteams = []
+            self.admin_team_ids = set()
+            msg = self.tr("Failed to load teams: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, self.tr("Error"), msg)
+
+        # Show/hide "New Project" button based on admin teams
+        self.button_panel["new_project_btn"].setVisible(bool(self.admin_team_ids))
 
     def load_organization_detail(self, org: api.organization.Organization):
         """Load and display organization detail including usage"""
@@ -402,11 +423,6 @@ class ProjectSelectDialog(QDialog):
         # Update usage display
         self.update_usage_display(org_detail)
         self.org_details_panel["org_settings_button"].setEnabled(True)
-
-        if org_detail.role == "OWNER":
-            self.button_panel["new_project_btn"].setEnabled(True)
-        else:
-            self.button_panel["new_project_btn"].setEnabled(False)
 
     def load_user_info(self):
         """Load current user information"""
@@ -560,7 +576,9 @@ class ProjectSelectDialog(QDialog):
 
             for project_item in projects:
                 # Create custom widget
-                item_widget = ProjectItemWidget(project_item, self.current_org_id, self)
+                item_widget = ProjectItemWidget(
+                    project_item, self.current_org_id, self, self.admin_team_ids
+                )
 
                 # Create list item
                 list_item = QListWidgetItem(self.project_section["project_list"])
@@ -636,20 +654,20 @@ class ProjectSelectDialog(QDialog):
             )
             return
 
-        new_project_dialog = ProjectEditDialog(org.name, self)
+        admin_teams = [t for t in self.myteams if t.id in self.admin_team_ids]
+        new_project_dialog = ProjectEditDialog(org.name, admin_teams, self)
         if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
             return
 
         project_name = new_project_dialog.project_name
         project_description = new_project_dialog.project_description
+        selected_team = new_project_dialog.selected_team
 
         try:
-            # TODO: 今の所ユーザーはteamのことを知らない。UIに実装するまでハードコード
-            teams = api.team.get_teams(org.id)
-            team = teams[0]  # デフォルトチームが必ず存在する
-
             new_project = api.project.create_project(
-                team_id=team.id, name=project_name, description=project_description
+                team_id=selected_team.id,
+                name=project_name,
+                description=project_description,
             )
             QgsMessageLog.logMessage(
                 self.tr("Project '{}' created successfully").format(project_name),
@@ -703,11 +721,13 @@ class ProjectItemWidget(QWidget):
         project: api.project.ProjectsInOrganization,
         organization_id: str,
         parent_dialog: ProjectSelectDialog,
+        admin_team_ids: Set[str],
     ):
         super().__init__()
         self.project = project
         self.organization_id = organization_id
         self.parent_dialog = parent_dialog
+        self.is_admin = project.teamId in admin_team_ids
         self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
@@ -835,15 +855,16 @@ class ProjectItemWidget(QWidget):
         open_web_action = menu.addAction(self.tr("Open in Web App"))
         open_web_action.triggered.connect(self.open_in_web)
 
-        # Edit action
-        edit_action = menu.addAction(self.tr("Edit Project"))
-        edit_action.triggered.connect(self.edit_project)
+        if self.is_admin:
+            # Edit action
+            edit_action = menu.addAction(self.tr("Edit Project"))
+            edit_action.triggered.connect(self.edit_project)
 
-        menu.addSeparator()
+            menu.addSeparator()
 
-        # Delete action
-        delete_action = menu.addAction(self.tr("Delete Project"))
-        delete_action.triggered.connect(self.delete_project)
+            # Delete action
+            delete_action = menu.addAction(self.tr("Delete Project"))
+            delete_action.triggered.connect(self.delete_project)
 
         exec_menu(menu, self.mapToGlobal(position))
 
@@ -954,6 +975,7 @@ class ProjectItemWidget(QWidget):
         # Show edit dialog with current project data
         edit_dialog = ProjectEditDialog(
             org.name,
+            [],
             self.parent_dialog,
             initial_name=project_detail.name,
             initial_description=project_detail.description,
