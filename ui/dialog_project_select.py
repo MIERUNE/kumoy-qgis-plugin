@@ -1,4 +1,3 @@
-import html
 import math
 import re
 import webbrowser
@@ -681,13 +680,15 @@ class ProjectSelectDialog(QDialog):
             self.load_projects(org)
             self._select_project_by_id(new_project.id)
 
-            QMessageBox.information(
-                self,
-                self.tr("Project Created"),
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle(self.tr("Project Created"))
+            msg_box.setText(
                 self.tr("Project '{}' has been created successfully.").format(
-                    html.escape(project_name)
-                ),
+                    project_name
+                )
             )
+            msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+            exec_dialog(msg_box)
         except Exception as e:
             msg = self.tr("Failed to create project: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
@@ -895,16 +896,20 @@ class ProjectItemWidget(QWidget):
             return
 
         # Show confirmation dialog
-        reply = QMessageBox.question(
-            self.parent_dialog,
-            self.tr("Delete Project"),
+        msg_box = QMessageBox(self.parent_dialog)
+        msg_box.setWindowTitle(self.tr("Delete Project"))
+        msg_box.setText(
             self.tr(
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
-            ).format(html.escape(self.project.name)),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
+            ).format(self.project.name)
         )
+        msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+        msg_box.setStandardButtons(
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No
+        )
+        msg_box.setDefaultButton(Q_MESSAGEBOX_STD_BUTTON.No)
+        reply = exec_dialog(msg_box)
 
         if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
@@ -926,13 +931,15 @@ class ProjectItemWidget(QWidget):
                     self.parent_dialog.load_organization_detail(org)
                     self.parent_dialog.load_projects(org)
 
-                QMessageBox.information(
-                    self.parent_dialog,
-                    self.tr("Project Deleted"),
+                msg_box = QMessageBox(self.parent_dialog)
+                msg_box.setWindowTitle(self.tr("Project Deleted"))
+                msg_box.setText(
                     self.tr("Project '{}' has been deleted successfully.").format(
-                        html.escape(self.project.name)
-                    ),
+                        self.project.name
+                    )
                 )
+                msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+                exec_dialog(msg_box)
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Failed to delete project: {}").format(format_api_error(e)),
@@ -1017,13 +1024,15 @@ class ProjectItemWidget(QWidget):
             self.parent_dialog.load_projects(org)
             self.parent_dialog._select_project_by_id(self.project.id)
 
-            QMessageBox.information(
-                self.parent_dialog,
-                self.tr("Project Updated"),
+            msg_box = QMessageBox(self.parent_dialog)
+            msg_box.setWindowTitle(self.tr("Project Updated"))
+            msg_box.setText(
                 self.tr("Project '{}' has been updated successfully.").format(
-                    html.escape(new_name)
-                ),
+                    new_name
+                )
             )
+            msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+            exec_dialog(msg_box)
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Failed to update project: {}").format(format_api_error(e)),
