@@ -180,7 +180,7 @@ class KumoyPlugin:
         if provider.name() == DATA_PROVIDER_KEY:
             # Kumoyレイヤーの場合: 同期アクションを追加
             sync_action = QAction(MAIN_ICON, self.tr("Sync Data"), menu)
-            sync_action.setIconVisibleInMenu(True) 
+            sync_action.setIconVisibleInMenu(True)
             sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
             if layer.isEditable():
                 sync_action.setEnabled(False)
