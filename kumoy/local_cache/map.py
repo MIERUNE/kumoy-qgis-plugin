@@ -261,12 +261,9 @@ def handle_project_saved() -> None:
         return
 
     # Convert local layers to Kumoy layers if any
-    has_unsaved_edits, conversion_errors = convert_local_layers(
-        styled_map_detail.projectId
-    )
-
-    if has_unsaved_edits:
-        return  # Don't proceed if local layers have unsaved edits
+    cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
+    if cancelled:
+        return
 
     try:
         # Save project with converted layers
