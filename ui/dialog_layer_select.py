@@ -17,11 +17,6 @@ from qgis.PyQt.QtWidgets import (
 
 from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
-_UPGRADE_HINT = (
-    "To upload more, delete existing vectors from the cloud or upgrade your plan."
-)
-
-
 def _get_usage_color(percentage: float) -> str:
     """Get color based on usage percentage."""
     if percentage >= 100:
@@ -69,9 +64,8 @@ class LayerSelectDialog(QDialog):
         if self._max_layers == 0:
             limit_label = QLabel(
                 self.tr(
-                    "Vector limit ({}) has been reached. No more vectors can be added.\n"
-                    "{}"
-                ).format(self._max_vectors, self.tr(_UPGRADE_HINT))
+                    "Vector limit ({}) has been reached. No more vectors can be added."
+                ).format(self._max_vectors)
             )
             limit_label.setWordWrap(True)
             layout.addWidget(limit_label)
