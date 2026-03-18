@@ -71,7 +71,10 @@ class LayerSelectDialog(QDialog):
             layout.addWidget(limit_label)
             layout.addStretch()
 
-            close_button_box = QDialogButtonBox(QT_DIALOG_BUTTON_CANCEL)
+            close_button_box = QDialogButtonBox(
+                QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL
+            )
+            close_button_box.accepted.connect(self.accept)
             close_button_box.rejected.connect(self.reject)
             layout.addWidget(close_button_box)
             return
