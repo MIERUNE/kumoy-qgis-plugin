@@ -1,3 +1,4 @@
+import html
 import math
 import re
 import webbrowser
@@ -36,6 +37,7 @@ from ..pyqt_version import (
     QT_CUSTOM_CONTEXT_MENU,
     QT_LINEEDIT_ACTION_POSITION,
     QT_NO_ITEM_FLAGS,
+    QT_TEXT_FORMAT_PLAIN,
     QT_USER_ROLE,
     exec_dialog,
     exec_menu,
@@ -683,7 +685,7 @@ class ProjectSelectDialog(QDialog):
                 self,
                 self.tr("Project Created"),
                 self.tr("Project '{}' has been created successfully.").format(
-                    project_name
+                    html.escape(project_name)
                 ),
             )
         except Exception as e:
@@ -760,6 +762,7 @@ class ProjectItemWidget(QWidget):
         info_layout.setSpacing(2)
         # Project name
         name_label = QLabel(self.project.name)
+        name_label.setTextFormat(QT_TEXT_FORMAT_PLAIN)
         info_layout.addWidget(name_label)
         # Last updated with icon
         updated_hlayout = QHBoxLayout()
@@ -898,7 +901,7 @@ class ProjectItemWidget(QWidget):
             self.tr(
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
-            ).format(self.project.name),
+            ).format(html.escape(self.project.name)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -927,7 +930,7 @@ class ProjectItemWidget(QWidget):
                     self.parent_dialog,
                     self.tr("Project Deleted"),
                     self.tr("Project '{}' has been deleted successfully.").format(
-                        self.project.name
+                        html.escape(self.project.name)
                     ),
                 )
             except Exception as e:
@@ -1017,7 +1020,7 @@ class ProjectItemWidget(QWidget):
             QMessageBox.information(
                 self.parent_dialog,
                 self.tr("Project Updated"),
-                self.tr("Project '{}' has been updated successfully.").format(new_name),
+                self.tr("Project '{}' has been updated successfully.").format(html.escape(new_name)),
             )
         except Exception as e:
             QgsMessageLog.logMessage(

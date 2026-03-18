@@ -80,6 +80,12 @@ Qt5: Qt.RoundJoin, etc.
 Qt6: Qt.PenJoinStyle.RoundJoin, etc.
 """
 
+QT_TEXT_FORMAT_PLAIN = Qt.PlainText if QT_VERSION_INT <= 5 else Qt.TextFormat.PlainText
+"""Qt text format plain text
+Qt5: Qt.PlainText
+Qt6: Qt.TextFormat.PlainText
+"""
+
 QT_TEXT_INTERACTION = Qt if QT_VERSION_INT <= 5 else Qt.TextInteractionFlag
 """Qt text interaction flags
 Qt5: Qt.TextBrowserInteraction, Qt.TextSelectableByMouse, etc.
