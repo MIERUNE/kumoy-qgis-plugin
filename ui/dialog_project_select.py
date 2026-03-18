@@ -1020,7 +1020,9 @@ class ProjectItemWidget(QWidget):
             QMessageBox.information(
                 self.parent_dialog,
                 self.tr("Project Updated"),
-                self.tr("Project '{}' has been updated successfully.").format(html.escape(new_name)),
+                self.tr("Project '{}' has been updated successfully.").format(
+                    html.escape(new_name)
+                ),
             )
         except Exception as e:
             QgsMessageLog.logMessage(
