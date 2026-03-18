@@ -1027,9 +1027,7 @@ class ProjectItemWidget(QWidget):
             msg_box = QMessageBox(self.parent_dialog)
             msg_box.setWindowTitle(self.tr("Project Updated"))
             msg_box.setText(
-                self.tr("Project '{}' has been updated successfully.").format(
-                    new_name
-                )
+                self.tr("Project '{}' has been updated successfully.").format(new_name)
             )
             msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
             exec_dialog(msg_box)
