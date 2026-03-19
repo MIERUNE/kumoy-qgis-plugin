@@ -29,6 +29,7 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
 )
 from ... import settings_manager
+from ...qgis_version import restore_project_crs_if_invalid
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -234,9 +235,14 @@ class StyledMapItem(QgsDataItem):
 
         # XML文字列をQGISプロジェクトにロード
         qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
+
         with open(qgs_path, "w", encoding="utf-8") as f:
             f.write(styled_map_detail.qgisproject)
             iface.addProject(qgs_path)
+
+        # Restore CRS if it became invalid after loading
+        # (e.g. QGIS 4 project opened in QGIS 3)
+        restore_project_crs_if_invalid(styled_map_detail.qgisproject)
 
         QgsProject.instance().setTitle(self.styled_map.name)
         # store map kumoy info to project instance
