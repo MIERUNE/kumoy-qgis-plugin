@@ -1,14 +1,13 @@
-import processing
 from typing import Optional
 
 from qgis.core import (
     Qgis,
+    QgsMapLayer,
     QgsMessageLog,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProject,
     QgsReadWriteContext,
-    QgsMapLayer,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
@@ -19,9 +18,17 @@ from qgis.PyQt.QtWidgets import (
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.utils import iface
 
+import processing
+
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import QT_APPLICATION_MODAL, Q_MESSAGEBOX_STD_BUTTON
+from ...pyqt_version import (
+    QDIALOG_CODE,
+    QT_APPLICATION_MODAL,
+    exec_dialog,
+)
+from ..dialog_layer_select import LayerSelectDialog
+from ..utils import get_local_vector_layers
 
 
 def tr(message: str, context: str = "@default") -> str:
@@ -68,65 +75,63 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
 def convert_local_layers(
     project_id: str,
 ) -> tuple[bool, list[tuple[str, str]]]:
-    """Prompt user to convert local layers and execute if confirmed.
+    """Prompt user to select and convert local layers.
 
     Args:
         project_id: Project ID to convert layers to
 
     Returns:
-        tuple: (has_unsaved_edits: bool, conversion_errors: list)
-               has_unsaved_edits=True means process must be blocked
-               conversion_errors: list of (layer_name, error_message) for failed conversions
+        tuple: (cancelled, conversion_errors)
+            cancelled: True if user cancelled (map save should be aborted)
+            conversion_errors: list of (layer_name, error_message) for failed conversions
     """
 
-    # Get local layers
-    local_layers = []
-    for layer in QgsProject.instance().mapLayers().values():
-        # skip if it is not a valid vector layer
-        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
-            continue
-        provider = layer.dataProvider()
-        if not provider or provider.name() == constants.DATA_PROVIDER_KEY:
-            continue
-
-        local_layers.append(layer)
+    # Get local layers in layer panel order
+    local_layers = get_local_vector_layers()
 
     if not local_layers:
         return (False, [])
 
-    # Check if any local layer has unsaved edits
-    for layer in local_layers:
-        if isinstance(layer, QgsVectorLayer) and layer.isModified():
-            QMessageBox.warning(
-                None,
-                tr("Cannot Save Map"),
-                tr("Please save or discard your local layer edits before saving map."),
-            )
-            return (True, [])  # Block the process
+    # Get quota info to determine max selectable layers
+    try:
+        project = api.project.get_project(project_id)
+        org_id = project.team.organization.id
+        org_detail = api.organization.get_organization(org_id)
+        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+    except Exception as e:
+        error_msg = format_api_error(e)
+        QMessageBox.warning(
+            None,
+            tr("Error"),
+            tr("Failed to check layer limits: {}").format(error_msg),
+        )
+        return (True, [])
 
-    # Ask user for confirmation
-    convert_confirm = QMessageBox.question(
-        None,
-        tr("Convert Local Layers to Kumoy Layers"),
-        tr(
-            "There are {} local vector layers in the current project.\n"
-            "Do you want to convert them to Kumoy layers?"
-        ).format(len(local_layers)),
-        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-        Q_MESSAGEBOX_STD_BUTTON.Yes,
+    current_vector_count = org_detail.usage.vectors
+
+    # Show layer selection dialog
+    dialog = LayerSelectDialog(
+        local_layers,
+        plan_limits.maxVectors,
+        current_vector_count,
     )
+    if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
+        return (True, [])
 
-    if convert_confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-        return (False, [])  # User declined, but don't block
+    selected_layers = dialog.selected_layers
+    if not selected_layers:
+        return (False, [])
 
-    # Convert layers
+    # Convert selected layers
     conversion_errors = []
-    for layer in local_layers:
+    for layer in selected_layers:
         success, error = convert_to_kumoy(layer, project_id)
         if not success:
             conversion_errors.append((layer.name(), error))
 
-    return (False, conversion_errors)  # Continue with results
+    iface.mapCanvas().refresh()
+
+    return (False, conversion_errors)
 
 
 def convert_to_kumoy(

@@ -351,12 +351,11 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         # Convert local layers to Kumoy layers if any
-        has_unsaved_edits, conversion_errors = convert_local_layers(
+        cancelled, conversion_errors = convert_local_layers(
             self.styled_map.projectId,
         )
-
-        if has_unsaved_edits:
-            return  # Don't proceed if local layers have unsaved edits
+        if cancelled:
+            return
 
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
@@ -622,12 +621,11 @@ class StyledMapRoot(QgsDataItem):
                 QgsProject.instance().clear()
 
             # Convert local layers to Kumoy layers
-            has_unsaved_edits, conversion_errors = convert_local_layers(
+            cancelled, conversion_errors = convert_local_layers(
                 self.project.id,
             )
-
-            if has_unsaved_edits:
-                return  # Don't proceed if local layers have unsaved edits
+            if cancelled:
+                return
 
             qgisproject = write_qgsfile(self.project.id)
 
