@@ -78,8 +78,7 @@ def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
 
 
 def _extract_project_crs_authid(qgisproject_xml: str) -> str:
-    """Extract the projectCrs authid from a raw .qgs XML string.
-    """
+    """Extract the projectCrs authid from a raw .qgs XML string."""
 
     doc = QDomDocument()
     doc.setContent(qgisproject_xml)
