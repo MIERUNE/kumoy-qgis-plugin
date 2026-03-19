@@ -46,6 +46,7 @@ from ..kumoy.api.team import TeamDetail
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
+from .utils import show_plain_text_message
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -680,15 +681,13 @@ class ProjectSelectDialog(QDialog):
             self.load_projects(org)
             self._select_project_by_id(new_project.id)
 
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle(self.tr("Project Created"))
-            msg_box.setText(
+            show_plain_text_message(
+                self,
+                self.tr("Project Created"),
                 self.tr("Project '{}' has been created successfully.").format(
                     project_name
-                )
+                ),
             )
-            msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-            exec_dialog(msg_box)
         except Exception as e:
             msg = self.tr("Failed to create project: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
@@ -931,15 +930,13 @@ class ProjectItemWidget(QWidget):
                     self.parent_dialog.load_organization_detail(org)
                     self.parent_dialog.load_projects(org)
 
-                msg_box = QMessageBox(self.parent_dialog)
-                msg_box.setWindowTitle(self.tr("Project Deleted"))
-                msg_box.setText(
+                show_plain_text_message(
+                    self.parent_dialog,
+                    self.tr("Project Deleted"),
                     self.tr("Project '{}' has been deleted successfully.").format(
                         self.project.name
-                    )
+                    ),
                 )
-                msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-                exec_dialog(msg_box)
             except Exception as e:
                 QgsMessageLog.logMessage(
                     self.tr("Failed to delete project: {}").format(format_api_error(e)),
@@ -1024,13 +1021,13 @@ class ProjectItemWidget(QWidget):
             self.parent_dialog.load_projects(org)
             self.parent_dialog._select_project_by_id(self.project.id)
 
-            msg_box = QMessageBox(self.parent_dialog)
-            msg_box.setWindowTitle(self.tr("Project Updated"))
-            msg_box.setText(
-                self.tr("Project '{}' has been updated successfully.").format(new_name)
+            show_plain_text_message(
+                self.parent_dialog,
+                self.tr("Project Updated"),
+                self.tr("Project '{}' has been updated successfully.").format(
+                    new_name
+                ),
             )
-            msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-            exec_dialog(msg_box)
         except Exception as e:
             QgsMessageLog.logMessage(
                 self.tr("Failed to update project: {}").format(format_api_error(e)),
