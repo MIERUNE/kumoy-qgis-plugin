@@ -1,3 +1,7 @@
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
+from qgis.PyQt.QtXml import QDomDocument
+
+
 def _parse_version(v: str) -> tuple:
     """Parse version string to tuple of ints, ignoring pre-release suffixes.
 
@@ -39,3 +43,49 @@ def is_plugin_version_compatible(plugin_version: str, min_version: str) -> bool:
     current = current + (0,) * (length - len(current))
     minimum = minimum + (0,) * (length - len(minimum))
     return current >= minimum
+
+
+def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
+    """Restore the project CRS from its authid if it became invalid after loading.
+
+    This handles the case where a project saved by a newer QGIS version (e.g. QGIS 4)
+    contains a WKT that an older QGIS version (e.g. QGIS 3) cannot parse, resulting
+    in a null/invalid project CRS.
+
+    Should be called immediately after QgsProject is loaded.
+
+    Args:
+        qgisproject_xml: Raw XML string of the .qgs project file
+    """
+    project = QgsProject.instance()
+    if project.crs().isValid():
+        return
+
+    authid = _extract_project_crs_authid(qgisproject_xml)
+    if not authid:
+        return
+
+    crs = QgsCoordinateReferenceSystem(authid)
+    if not crs.isValid():
+        return
+
+    project.setCrs(crs)
+    QgsMessageLog.logMessage(
+        f"Project CRS was invalid after loading; restored to {authid}",
+        "Kumoy",
+        Qgis.Warning,
+    )
+
+
+def _extract_project_crs_authid(qgisproject_xml: str) -> str:
+    """Extract the projectCrs authid from a raw .qgs XML string."""
+
+    doc = QDomDocument()
+    doc.setContent(qgisproject_xml)
+    authid_el = (
+        doc.documentElement()
+        .firstChildElement("projectCrs")
+        .firstChildElement("spatialrefsys")
+        .firstChildElement("authid")
+    )
+    return authid_el.text() if not authid_el.isNull() else ""
