@@ -36,6 +36,7 @@ from ..pyqt_version import (
     QT_CUSTOM_CONTEXT_MENU,
     QT_LINEEDIT_ACTION_POSITION,
     QT_NO_ITEM_FLAGS,
+    QT_TEXT_FORMAT_PLAIN,
     QT_USER_ROLE,
     exec_dialog,
     exec_menu,
@@ -45,6 +46,7 @@ from ..kumoy.api.team import TeamDetail
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
+from .utils import show_plain_text_message
 
 
 def _get_usage_color(percentage: float) -> str:
@@ -679,7 +681,7 @@ class ProjectSelectDialog(QDialog):
             self.load_projects(org)
             self._select_project_by_id(new_project.id)
 
-            QMessageBox.information(
+            show_plain_text_message(
                 self,
                 self.tr("Project Created"),
                 self.tr("Project '{}' has been created successfully.").format(
@@ -760,6 +762,7 @@ class ProjectItemWidget(QWidget):
         info_layout.setSpacing(2)
         # Project name
         name_label = QLabel(self.project.name)
+        name_label.setTextFormat(QT_TEXT_FORMAT_PLAIN)
         info_layout.addWidget(name_label)
         # Last updated with icon
         updated_hlayout = QHBoxLayout()
@@ -892,16 +895,20 @@ class ProjectItemWidget(QWidget):
             return
 
         # Show confirmation dialog
-        reply = QMessageBox.question(
-            self.parent_dialog,
-            self.tr("Delete Project"),
+        msg_box = QMessageBox(self.parent_dialog)
+        msg_box.setWindowTitle(self.tr("Delete Project"))
+        msg_box.setText(
             self.tr(
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
-            ).format(self.project.name),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
+            ).format(self.project.name)
         )
+        msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+        msg_box.setStandardButtons(
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No
+        )
+        msg_box.setDefaultButton(Q_MESSAGEBOX_STD_BUTTON.No)
+        reply = exec_dialog(msg_box)
 
         if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
@@ -923,7 +930,7 @@ class ProjectItemWidget(QWidget):
                     self.parent_dialog.load_organization_detail(org)
                     self.parent_dialog.load_projects(org)
 
-                QMessageBox.information(
+                show_plain_text_message(
                     self.parent_dialog,
                     self.tr("Project Deleted"),
                     self.tr("Project '{}' has been deleted successfully.").format(
@@ -1014,7 +1021,7 @@ class ProjectItemWidget(QWidget):
             self.parent_dialog.load_projects(org)
             self.parent_dialog._select_project_by_id(self.project.id)
 
-            QMessageBox.information(
+            show_plain_text_message(
                 self.parent_dialog,
                 self.tr("Project Updated"),
                 self.tr("Project '{}' has been updated successfully.").format(new_name),
