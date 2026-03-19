@@ -11,6 +11,7 @@ from qgis.core import (
 from ..kumoy import constants
 from ..pyqt_version import QT_TEXT_FORMAT_PLAIN, exec_dialog
 
+
 def get_local_vector_layers() -> list[QgsVectorLayer]:
     """Return non-Kumoy vector layers in layer panel order."""
     root = QgsProject.instance().layerTreeRoot()

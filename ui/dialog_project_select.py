@@ -1024,9 +1024,7 @@ class ProjectItemWidget(QWidget):
             show_plain_text_message(
                 self.parent_dialog,
                 self.tr("Project Updated"),
-                self.tr("Project '{}' has been updated successfully.").format(
-                    new_name
-                ),
+                self.tr("Project '{}' has been updated successfully.").format(new_name),
             )
         except Exception as e:
             QgsMessageLog.logMessage(
