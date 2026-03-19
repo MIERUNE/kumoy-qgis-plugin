@@ -17,6 +17,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
+
 def _get_usage_color(percentage: float) -> str:
     """Get color based on usage percentage."""
     if percentage >= 100:
