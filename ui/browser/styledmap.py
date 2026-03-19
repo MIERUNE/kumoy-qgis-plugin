@@ -238,7 +238,7 @@ class StyledMapItem(QgsDataItem):
 
         with open(qgs_path, "w", encoding="utf-8") as f:
             f.write(styled_map_detail.qgisproject)
-            iface.addProject(qgs_path)
+        iface.addProject(qgs_path)
 
         # Restore CRS if it became invalid after loading
         # (e.g. QGIS 4 project opened in QGIS 3)
