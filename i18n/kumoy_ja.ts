@@ -554,8 +554,8 @@ Details: {}</source>
     </message>
     <message>
         <location filename="../ui/dialog_layer_select.py" line="159"/>
-        <source>{} / {} selected</source>
-        <translation type="unfinished">選択中：{}/{}</translation>
+        <source>{} selected ({} max)</source>
+        <translation type="unfinished">選択中：{}件 （最大：{}件）</translation>
     </message>
 </context>
 <context>
@@ -701,7 +701,7 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクトの削除に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1037"/>
+        <location filename="../ui/dialog_project_select.py" line="1035"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
@@ -711,7 +711,7 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクトが更新しました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1037"/>
+        <location filename="../ui/dialog_project_select.py" line="1035"/>
         <source>Failed to update project: {}</source>
         <translation type="unfinished">プロジェクトの更新に失敗しました: {}</translation>
     </message>
