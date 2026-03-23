@@ -46,7 +46,7 @@ def is_plugin_version_compatible(plugin_version: str, min_version: str) -> bool:
 
 
 def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
-    """Restore the project CRS from its authid if it became invalid after loading.
+    """Restore the project CRS if it became invalid after loading.
 
     This handles the case where a project saved by a newer QGIS version (e.g. QGIS 4)
     contains a WKT that an older QGIS version (e.g. QGIS 3) cannot parse, resulting
@@ -61,31 +61,60 @@ def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
     if project.crs().isValid():
         return
 
-    authid = _extract_project_crs_authid(qgisproject_xml)
-    if not authid:
-        return
-
-    crs = QgsCoordinateReferenceSystem(authid)
+    crs = _read_project_crs_from_xml(qgisproject_xml)
     if not crs.isValid():
         return
 
     project.setCrs(crs)
     QgsMessageLog.logMessage(
-        f"Project CRS was invalid after loading; restored to {authid}",
+        f"Project CRS was invalid after loading; restored to {crs.authid()}",
         "Kumoy",
         Qgis.Warning,
     )
 
 
-def _extract_project_crs_authid(qgisproject_xml: str) -> str:
-    """Extract the projectCrs authid from a raw .qgs XML string."""
+def _read_project_crs_from_xml(
+    qgisproject_xml: str,
+) -> QgsCoordinateReferenceSystem:
+    """Reconstruct the project CRS from a raw .qgs XML string.
 
+    Tries in order: authid (for standard EPSG-like CRS) → wkt → proj4
+    (for custom CRS where authid is absent or USER:-scoped).
+
+    Returns an invalid QgsCoordinateReferenceSystem if nothing works.
+    """
     doc = QDomDocument()
     doc.setContent(qgisproject_xml)
-    authid_el = (
+    srs_el = (
         doc.documentElement()
         .firstChildElement("projectCrs")
         .firstChildElement("spatialrefsys")
-        .firstChildElement("authid")
     )
-    return authid_el.text() if not authid_el.isNull() else ""
+    if srs_el.isNull():
+        return QgsCoordinateReferenceSystem()
+
+    # Primary: let QGIS handle all nativeFormat/USER:/fallback logic natively
+    crs = QgsCoordinateReferenceSystem()
+    if crs.readXml(srs_el) and crs.isValid():
+        return crs
+
+    # Manual fallbacks for cases where readXml fails
+    authid = srs_el.firstChildElement("authid").text()
+    if authid and not authid.startswith("USER:"):
+        crs = QgsCoordinateReferenceSystem(authid)
+        if crs.isValid():
+            return crs
+
+    wkt = srs_el.firstChildElement("wkt").text()
+    if wkt:
+        crs = QgsCoordinateReferenceSystem.fromWkt(wkt)
+        if crs.isValid():
+            return crs
+
+    proj4 = srs_el.firstChildElement("proj4").text()
+    if proj4:
+        crs = QgsCoordinateReferenceSystem.fromProj(proj4)
+        if crs.isValid():
+            return crs
+
+    return QgsCoordinateReferenceSystem()
