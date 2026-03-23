@@ -555,7 +555,7 @@ Details: {}</source>
     <message>
         <location filename="../ui/dialog_layer_select.py" line="159"/>
         <source>{} selected ({} max)</source>
-        <translation type="unfinished">選択中：{}件 （最大：{}件）</translation>
+        <translation type="unfinished">選択中 {}件 （最大 {}件）</translation>
     </message>
 </context>
 <context>
