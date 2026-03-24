@@ -3,16 +3,14 @@ import os
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
 from qgis.PyQt.QtXml import QDomDocument
 
-from ..kumoy.constants import LOG_CATEGORY
+from .kumoy.constants import LOG_CATEGORY
 
 
 def read_plugin_version():
     # read version from metadata.txt
     version = "v0.0.0"
     try:
-        metadata_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "./metadata.txt"
-        )
+        metadata_path = os.path.join(os.path.dirname(__file__), "./metadata.txt")
         with open(metadata_path, "r") as f:
             for line in f:
                 if line.startswith("version="):

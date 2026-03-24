@@ -22,9 +22,8 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
-from ..plugin_version import read_plugin_version
+from ..plugin_version import is_plugin_version_compatible, read_plugin_version
 from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
-from ..qgis_version import is_plugin_version_compatible
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON

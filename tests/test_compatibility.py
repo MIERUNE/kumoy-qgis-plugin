@@ -2,16 +2,14 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-# Load compatibility module without importing the heavy QGIS package tree.
-MODULE_PATH = (
-    Path(__file__).resolve().parent.parent / "qgis_version" / "compatibility.py"
-)
-spec = importlib.util.spec_from_file_location("compatibility_module", MODULE_PATH)
-compatibility_module = importlib.util.module_from_spec(spec)
+# Load plugin_version module without importing the heavy QGIS package tree.
+MODULE_PATH = Path(__file__).resolve().parent.parent / "plugin_version.py"
+spec = importlib.util.spec_from_file_location("plugin_version_module", MODULE_PATH)
+plugin_version_module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
-spec.loader.exec_module(compatibility_module)
-_parse_version = compatibility_module._parse_version
-is_plugin_version_compatible = compatibility_module.is_plugin_version_compatible
+spec.loader.exec_module(plugin_version_module)
+_parse_version = plugin_version_module._parse_version
+is_plugin_version_compatible = plugin_version_module.is_plugin_version_compatible
 
 
 class TestParseVersion(unittest.TestCase):
