@@ -299,6 +299,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project list
         project_list = QListWidget()
+        project_list.setResizeMode(QListWidget.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
