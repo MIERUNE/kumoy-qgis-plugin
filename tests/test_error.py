@@ -11,6 +11,8 @@ from plugin_dir.kumoy.api.error import (
     raise_error,
 )
 
+pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
+
 
 class TestRaiseError:
     """raise_error が message に応じて正しい例外を発生させることを検証する"""

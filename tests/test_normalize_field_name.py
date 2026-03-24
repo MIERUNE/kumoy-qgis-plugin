@@ -1,6 +1,9 @@
+import pytest
 from plugin_dir.processing.upload_vector.normalize_field_name import (
     normalize_field_name,
 )
+
+pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 
 
 class TestNormalizeFieldName:
