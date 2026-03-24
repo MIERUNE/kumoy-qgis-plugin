@@ -119,7 +119,8 @@ class TestFixXyzDatasource:
         result = _fix_xyz_datasource(src)
         assert result is not None
         assert "url=https://tile.openstreetmap.org/" in result
-        assert "type=xyz" in result
+        # other parameters preserved
+        assert "crs=EPSG%3A3857" in result
         assert "zmin=0" in result
         assert "zmax=18" in result
 
@@ -129,11 +130,21 @@ class TestFixXyzDatasource:
         assert result is not None
         assert "url=http://tile.example.com/" in result
 
-    def test_output_format_matches_qgis3(self):
+    def test_only_url_param_is_decoded(self):
+        # crs= and http-header:referer= must stay percent-encoded as in the original
         src = "crs=EPSG%3A3857&format&type=xyz&url=https%3A%2F%2Ftile.openstreetmap.org%2F%7Bz%7D%2F%7Bx%7D%2F%7By%7D.png&zmax=18&zmin=0&http-header:referer="
         result = _fix_xyz_datasource(src)
-        expected = "http-header:referer=&type=xyz&url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=18&zmin=0"
-        assert result == expected
+        assert (
+            result
+            == "crs=EPSG%3A3857&format&type=xyz&url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=18&zmin=0&http-header:referer="
+        )
+
+    def test_extra_params_preserved(self):
+        # authcfg and other unknown params must not be dropped
+        src = "type=xyz&url=https%3A%2F%2Ftile.example.com%2F%7Bz%7D.png&zmax=18&zmin=0&authcfg=abc123"
+        result = _fix_xyz_datasource(src)
+        assert result is not None
+        assert "authcfg=abc123" in result
 
     def test_custom_referer_preserved(self):
         src = "type=xyz&url=https%3A%2F%2Ftile.example.com%2F%7Bz%7D.png&zmax=18&zmin=0&http-header:referer=https%3A%2F%2Fexample.com"

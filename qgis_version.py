@@ -107,27 +107,25 @@ def fix_xyz_layer_datasources() -> None:
 
 
 def _fix_xyz_datasource(datasource: str) -> Optional[str]:
-    """Convert a QGIS 4 XYZ datasource string to QGIS 3 compatible format.
+    """Decode the percent-encoded tile URL in a QGIS 4 XYZ datasource string.
 
     QGIS 4 percent-encodes the tile URL (url=https%3A%2F%2F...) while QGIS 3
-    expects a plain URL (url=https://...).
+    expects a plain URL (url=https://...). Only the value of the `url` parameter
+    is decoded; all other parameters are preserved as-is.
 
-    Returns None if no fix is needed (already in QGIS 3 format).
+    Returns None if no fix is needed (url is already decoded).
     """
     if "url=https%3A" not in datasource and "url=http%3A" not in datasource:
         return None
 
-    params: dict[str, str] = {}
-    for part in datasource.split("&"):
-        if "=" in part:
-            k, v = part.split("=", 1)
-            params[k] = v
+    # Decode only the url= parameter value, preserving everything else
+    parts = datasource.split("&")
+    fixed_parts = []
+    for part in parts:
+        if part.startswith("url="):
+            _, v = part.split("=", 1)
+            fixed_parts.append("url=" + unquote(v))
         else:
-            params[part] = ""
+            fixed_parts.append(part)
 
-    url = unquote(params.get("url", ""))
-    zmin = params.get("zmin", "0")
-    zmax = params.get("zmax", "18")
-    referer = params.get("http-header:referer", "")
-
-    return f"http-header:referer={referer}&type=xyz&url={url}&zmax={zmax}&zmin={zmin}"
+    return "&".join(fixed_parts)
