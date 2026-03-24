@@ -1,2 +1,2 @@
-from .compatibility import is_plugin_version_compatible
+from .compatibility import is_plugin_version_compatible, restore_project_crs_if_invalid
 from .read_version import read_version
