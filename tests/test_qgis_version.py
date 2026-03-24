@@ -161,10 +161,7 @@ class TestFixXyzLayerDatasources:
         src = "crs=EPSG%3A3857&format&type=xyz&url=https%3A%2F%2Ftile.openstreetmap.org%2F%7Bz%7D%2F%7Bx%7D%2F%7By%7D.png&zmax=18&zmin=0&http-header:referer="
         layer = self._make_xyz_layer(src)
 
-        with (
-            patch("plugin_dir.qgis_version.QgsProject") as mock_project,
-            patch("plugin_dir.qgis_version.QgsMessageLog"),
-        ):
+        with patch("plugin_dir.qgis_version.QgsProject") as mock_project:
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
             restore_xyz_layer_datasources()
 
@@ -176,10 +173,7 @@ class TestFixXyzLayerDatasources:
         src = "http-header:referer=&type=xyz&url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=18&zmin=0"
         layer = self._make_xyz_layer(src)
 
-        with (
-            patch("plugin_dir.qgis_version.QgsProject") as mock_project,
-            patch("plugin_dir.qgis_version.QgsMessageLog"),
-        ):
+        with patch("plugin_dir.qgis_version.QgsProject") as mock_project:
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
             restore_xyz_layer_datasources()
 
@@ -190,10 +184,7 @@ class TestFixXyzLayerDatasources:
             "type=xyz&url=https%3A%2F%2Fexample.com", provider="ogr"
         )
 
-        with (
-            patch("plugin_dir.qgis_version.QgsProject") as mock_project,
-            patch("plugin_dir.qgis_version.QgsMessageLog"),
-        ):
+        with patch("plugin_dir.qgis_version.QgsProject") as mock_project:
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
             restore_xyz_layer_datasources()
 
@@ -203,10 +194,7 @@ class TestFixXyzLayerDatasources:
         src = "type=xyz&url=https%3A%2F%2Ftile.example.com%2F%7Bz%7D.png&zmax=18&zmin=0"
         layers = {f"id{i}": self._make_xyz_layer(src) for i in range(3)}
 
-        with (
-            patch("plugin_dir.qgis_version.QgsProject") as mock_project,
-            patch("plugin_dir.qgis_version.QgsMessageLog"),
-        ):
+        with patch("plugin_dir.qgis_version.QgsProject") as mock_project:
             mock_project.instance.return_value.mapLayers.return_value = layers
             restore_xyz_layer_datasources()
 

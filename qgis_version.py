@@ -82,7 +82,6 @@ def restore_xyz_layer_datasources() -> None:
     after loading a QGIS 4 project in QGIS 3.
     """
     project = QgsProject.instance()
-    fixed_count = 0
     for layer in project.mapLayers().values():
         if layer.providerType() != "wms":
             continue
@@ -93,14 +92,6 @@ def restore_xyz_layer_datasources() -> None:
         if fixed == source:
             continue
         layer.setDataSource(fixed, layer.name(), "wms")
-        fixed_count += 1
-
-    if fixed_count > 0:
-        QgsMessageLog.logMessage(
-            f"Fixed {fixed_count} XYZ layer datasource(s) for QGIS 3 compatibility",
-            "Kumoy",
-            Qgis.Warning,
-        )
 
 
 def _restore_xyz_datasource(datasource: str) -> str:
