@@ -692,6 +692,8 @@ class ProjectSelectDialog(QDialog):
                     list_item, item_widget
                 )
 
+            self.filter_projects()
+
         except Exception as e:
             msg = self.tr("Failed to load projects: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
