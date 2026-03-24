@@ -1,3 +1,6 @@
+from typing import Optional
+from urllib.parse import unquote
+
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
 from qgis.PyQt.QtXml import QDomDocument
 
@@ -75,3 +78,56 @@ def _read_project_crs_from_xml(
             return crs
 
     return QgsCoordinateReferenceSystem()
+
+
+def fix_xyz_layer_datasources() -> None:
+    """Fix XYZ tile layer datasources that became broken
+    after loading a QGIS 4 project in QGIS 3.
+    """
+    project = QgsProject.instance()
+    fixed_count = 0
+    for layer in project.mapLayers().values():
+        if layer.providerType() != "wms":
+            continue
+        source = layer.source()
+        if "type=xyz" not in source:
+            continue
+        fixed = _fix_xyz_datasource(source)
+        if fixed is None:
+            continue
+        layer.setDataSource(fixed, layer.name(), "wms")
+        fixed_count += 1
+
+    if fixed_count > 0:
+        QgsMessageLog.logMessage(
+            f"Fixed {fixed_count} XYZ layer datasource(s) for QGIS 3 compatibility",
+            "Kumoy",
+            Qgis.Warning,
+        )
+
+
+def _fix_xyz_datasource(datasource: str) -> Optional[str]:
+    """Convert a QGIS 4 XYZ datasource string to QGIS 3 compatible format.
+
+    QGIS 4 percent-encodes the tile URL (url=https%3A%2F%2F...) while QGIS 3
+    expects a plain URL (url=https://...).
+
+    Returns None if no fix is needed (already in QGIS 3 format).
+    """
+    if "url=https%3A" not in datasource and "url=http%3A" not in datasource:
+        return None
+
+    params: dict[str, str] = {}
+    for part in datasource.split("&"):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            params[k] = v
+        else:
+            params[part] = ""
+
+    url = unquote(params.get("url", ""))
+    zmin = params.get("zmin", "0")
+    zmax = params.get("zmax", "18")
+    referer = params.get("http-header:referer", "")
+
+    return f"http-header:referer={referer}&type=xyz&url={url}&zmax={zmax}&zmin={zmin}"
