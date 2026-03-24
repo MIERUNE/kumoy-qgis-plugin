@@ -5,7 +5,7 @@ from qgis.core import Qgis, QgsMessageLog
 from .kumoy.constants import LOG_CATEGORY
 
 
-def read_plugin_version():
+def read_plugin_version() -> str:
     # read version from metadata.txt
     version = "v0.0.0"
     try:
