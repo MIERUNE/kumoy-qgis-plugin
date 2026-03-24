@@ -1,5 +1,3 @@
-from typing import Optional
-
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
 from qgis.PyQt.QtXml import QDomDocument
 
@@ -92,7 +90,7 @@ def fix_xyz_layer_datasources() -> None:
         if "type=xyz" not in source:
             continue
         fixed = _fix_xyz_datasource(source)
-        if fixed is None:
+        if fixed == source:
             continue
         layer.setDataSource(fixed, layer.name(), "wms")
         fixed_count += 1
@@ -105,17 +103,18 @@ def fix_xyz_layer_datasources() -> None:
         )
 
 
-def _fix_xyz_datasource(datasource: str) -> Optional[str]:
+def _fix_xyz_datasource(datasource: str) -> str:
     """Decode the percent-encoded tile URL in a QGIS 4 XYZ datasource string.
 
     QGIS 4 percent-encodes the tile URL (url=https%3A%2F%2F...) while QGIS 3
     expects a plain URL (url=https://...). Only the value of the `url` parameter
     is decoded; all other parameters are preserved as-is.
 
-    Returns None if no fix is needed (url is already decoded).
+    Returns the normalized datasource string. If no fix is needed, the original
+    datasource is returned unchanged.
     """
     if "url=https%3A" not in datasource and "url=http%3A" not in datasource:
-        return None
+        return datasource
 
     # Decode only the url= parameter value, preserving everything else
     parts = datasource.split("&")
