@@ -688,7 +688,10 @@ class ProjectSelectDialog(QDialog):
                 continue
             name_match = search_text in project.name.lower()
             team_match = selected_team_id is None or project.teamId == selected_team_id
-            item.setHidden(not (name_match and team_match))
+            hidden = not (name_match and team_match)
+            item.setHidden(hidden)
+            if hidden and item.isSelected():
+                project_list.setCurrentItem(None)
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
         """Get the selected organization"""
