@@ -1,9 +1,11 @@
 """restore_project_crs_if_invalid / _read_project_crs_from_xml のユニットテスト"""
 
 import pytest
+from plugin_dir.qgis_version import (
+    _read_project_crs_from_xml,
+    restore_project_crs_if_invalid,
+)
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
-
-from plugin_dir.qgis_version import _read_project_crs_from_xml, restore_project_crs_if_invalid
 
 pytestmark = pytest.mark.usefixtures("qgis_plugin_path")
 

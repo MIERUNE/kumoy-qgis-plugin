@@ -22,7 +22,9 @@ class TestNormalizeFieldName:
         assert normalize_field_name("  field_name  ", current_names=[]) == "field_name"
 
     def test_returns_original_when_unique(self):
-        assert normalize_field_name("Field Name", current_names=["Other"]) == "Field Name"
+        assert (
+            normalize_field_name("Field Name", current_names=["Other"]) == "Field Name"
+        )
 
     def test_adds_suffix_when_duplicate(self):
         assert normalize_field_name("field", current_names=["field"]) == "field_1"
@@ -46,9 +48,13 @@ class TestNormalizeFieldName:
     def test_suffix_continues_after_truncated_match(self):
         base = "a" * 63
         current_names = [base, "a" * 61 + "_1"]
-        assert normalize_field_name(base, current_names=current_names) == "a" * 61 + "_2"
+        assert (
+            normalize_field_name(base, current_names=current_names) == "a" * 61 + "_2"
+        )
 
     def test_suffix_truncates_again_when_length_grows(self):
         base = "a" * 63
         current_names = [base] + ["a" * 61 + f"_{i}" for i in range(1, 10)]
-        assert normalize_field_name(base, current_names=current_names) == "a" * 60 + "_10"
+        assert (
+            normalize_field_name(base, current_names=current_names) == "a" * 60 + "_10"
+        )
