@@ -1,101 +1,97 @@
-import importlib.util
-import unittest
-from pathlib import Path
-
-# Load error module without importing the heavy QGIS package tree.
-MODULE_PATH = Path(__file__).resolve().parent.parent / "kumoy" / "api" / "error.py"
-spec = importlib.util.spec_from_file_location("error_module", MODULE_PATH)
-error_module = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(error_module)
-
-raise_error = error_module.raise_error
-format_api_error = error_module.format_api_error
-AppError = error_module.AppError
-ValidateError = error_module.ValidateError
-NotFoundError = error_module.NotFoundError
-UnauthorizedError = error_module.UnauthorizedError
-QuotaExceededError = error_module.QuotaExceededError
-ConflictError = error_module.ConflictError
-UnderMaintenanceError = error_module.UnderMaintenanceError
+import pytest
 
 
-class TestRaiseError(unittest.TestCase):
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestRaiseError:
     """raise_error が message に応じて正しい例外を発生させることを検証する"""
 
+    def _mod(self):
+        from plugin_dir.kumoy.api import error
+
+        return error
+
     def test_application_error(self):
-        with self.assertRaises(AppError) as ctx:
-            raise_error({"message": "Application Error", "error": "detail"})
-        self.assertEqual(ctx.exception.message, "Application Error")
-        self.assertEqual(ctx.exception.error, "detail")
+        m = self._mod()
+        with pytest.raises(m.AppError) as exc_info:
+            m.raise_error({"message": "Application Error", "error": "detail"})
+        assert exc_info.value.message == "Application Error"
+        assert exc_info.value.error == "detail"
 
     def test_validation_error(self):
-        with self.assertRaises(ValidateError) as ctx:
-            raise_error({"message": "Validation Error", "error": "bad field"})
-        self.assertEqual(ctx.exception.message, "Validation Error")
-        self.assertEqual(ctx.exception.error, "bad field")
+        m = self._mod()
+        with pytest.raises(m.ValidateError) as exc_info:
+            m.raise_error({"message": "Validation Error", "error": "bad field"})
+        assert exc_info.value.message == "Validation Error"
+        assert exc_info.value.error == "bad field"
 
     def test_not_found_error(self):
-        with self.assertRaises(NotFoundError):
-            raise_error({"message": "Not Found", "error": "resource missing"})
+        m = self._mod()
+        with pytest.raises(m.NotFoundError):
+            m.raise_error({"message": "Not Found", "error": "resource missing"})
 
     def test_unauthorized_error(self):
-        with self.assertRaises(UnauthorizedError):
-            raise_error({"message": "Unauthorized", "error": "no token"})
+        m = self._mod()
+        with pytest.raises(m.UnauthorizedError):
+            m.raise_error({"message": "Unauthorized", "error": "no token"})
 
     def test_quota_exceeded_error(self):
-        with self.assertRaises(QuotaExceededError):
-            raise_error({"message": "Quota exceeded", "error": "over limit"})
+        m = self._mod()
+        with pytest.raises(m.QuotaExceededError):
+            m.raise_error({"message": "Quota exceeded", "error": "over limit"})
 
     def test_conflict_error(self):
-        with self.assertRaises(ConflictError):
-            raise_error({"message": "Conflict", "error": "already exists"})
+        m = self._mod()
+        with pytest.raises(m.ConflictError):
+            m.raise_error({"message": "Conflict", "error": "already exists"})
 
     def test_under_maintenance_error(self):
-        with self.assertRaises(UnderMaintenanceError):
-            raise_error({"message": "Under Maintenance", "error": "try later"})
+        m = self._mod()
+        with pytest.raises(m.UnderMaintenanceError):
+            m.raise_error({"message": "Under Maintenance", "error": "try later"})
 
     def test_unknown_message_raises_generic_exception(self):
-        with self.assertRaises(Exception) as ctx:
-            raise_error({"message": "Something Else", "error": "info"})
-        self.assertIn("Something Else", str(ctx.exception))
+        m = self._mod()
+        with pytest.raises(Exception, match="Something Else"):
+            m.raise_error({"message": "Something Else", "error": "info"})
 
     def test_empty_message_raises_exception_with_dict(self):
-        payload = {"error": "only error"}
-        with self.assertRaises(Exception) as ctx:
-            raise_error(payload)
-        self.assertIn("only error", str(ctx.exception))
+        m = self._mod()
+        with pytest.raises(Exception, match="only error"):
+            m.raise_error({"error": "only error"})
 
     def test_missing_error_field_defaults_to_empty(self):
-        with self.assertRaises(AppError) as ctx:
-            raise_error({"message": "Application Error"})
-        self.assertEqual(ctx.exception.error, "")
+        m = self._mod()
+        with pytest.raises(m.AppError) as exc_info:
+            m.raise_error({"message": "Application Error"})
+        assert exc_info.value.error == ""
 
 
-class TestFormatApiError(unittest.TestCase):
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestFormatApiError:
     """format_api_error が各例外型から読みやすい文字列を返すことを検証する"""
 
+    def _mod(self):
+        from plugin_dir.kumoy.api import error
+
+        return error
+
     def test_format_custom_error_with_both_fields(self):
-        err = AppError("Application Error", "something broke")
-        result = format_api_error(err)
-        self.assertEqual(result, "Application Error - something broke")
+        m = self._mod()
+        err = m.AppError("Application Error", "something broke")
+        assert m.format_api_error(err) == "Application Error - something broke"
 
     def test_format_custom_error_message_only(self):
-        err = NotFoundError("Not Found", "")
-        result = format_api_error(err)
-        self.assertEqual(result, "Not Found")
+        m = self._mod()
+        err = m.NotFoundError("Not Found", "")
+        assert m.format_api_error(err) == "Not Found"
 
     def test_format_generic_exception(self):
+        m = self._mod()
         err = RuntimeError("boom")
-        result = format_api_error(err)
-        self.assertEqual(result, "boom")
+        assert m.format_api_error(err) == "boom"
 
     def test_deduplicates_message_and_error(self):
         """message と error が同じ場合は重複しないこと"""
-        err = AppError("same", "same")
-        result = format_api_error(err)
-        self.assertEqual(result, "same")
-
-
-if __name__ == "__main__":
-    unittest.main()
+        m = self._mod()
+        err = m.AppError("same", "same")
+        assert m.format_api_error(err) == "same"

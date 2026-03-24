@@ -21,10 +21,10 @@ from .kumoy.api.error import format_api_error
 from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
+from .plugin_version import is_plugin_version_compatible, read_plugin_version
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .qgis_version import is_plugin_version_compatible, read_version
 from .settings_manager import (
     get_settings,
     reset_settings,
@@ -341,8 +341,9 @@ class KumoyPlugin:
             return
 
         min_qgisplugin_version = params_data.get("minQgisPluginVersion")
-
-        if not is_plugin_version_compatible(read_version(), min_qgisplugin_version):
+        if min_qgisplugin_version is not None and not is_plugin_version_compatible(
+            read_plugin_version(), min_qgisplugin_version
+        ):
             QMessageBox.critical(
                 None,
                 self.tr("Plugin Version Error"),
