@@ -450,11 +450,9 @@ class ProjectSelectDialog(QDialog):
         combo = self.project_section["team_combo"]
         combo.blockSignals(True)
         combo.clear()
-        # First item: no filter (show all)
-        combo.addItem(self.tr("All Teams"), None)
         for team in self.myteams:
             combo.addItem(team.name, team.id)
-        combo.setCurrentIndex(0)
+        combo.setCurrentIndex(-1)
         combo.blockSignals(False)
 
     def _on_team_filter_changed(self):
