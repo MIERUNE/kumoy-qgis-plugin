@@ -2,12 +2,11 @@ import math
 import re
 import webbrowser
 from datetime import datetime
-from typing import Dict, List, Optional, Set
+from typing import List, Optional, Set
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QDialog,
     QFrame,
@@ -71,8 +70,6 @@ class ProjectSelectDialog(QDialog):
         self.selected_project = None
         self.current_org_id = None
         self.details_visible = False
-        self.team_filter_visible = False
-        self.team_checkboxes: Dict[str, QCheckBox] = {}
         self.myteams: List[TeamDetail] = []
         self.admin_team_ids: Set[str] = set()
         self.setup_ui()
@@ -252,54 +249,53 @@ class ProjectSelectDialog(QDialog):
         frame_layout.setContentsMargins(8, 8, 8, 8)
         frame_layout.setSpacing(6)
 
-        # Team filter toggle
-        team_filter_toggle = QLabel(self.tr("<a href='#'>Filter by Team &#9654;</a>"))
-        team_filter_toggle.linkActivated.connect(self.toggle_team_filter)
-        frame_layout.addWidget(team_filter_toggle)
+        # Search and team filter in a grid layout (matching account/org panel)
+        filter_grid = QGridLayout()
+        filter_grid.setSpacing(8)
 
-        # Team filter frame (hidden by default)
-        team_filter_frame = QFrame()
-        team_filter_layout = QVBoxLayout()
-        team_filter_layout.setContentsMargins(4, 4, 4, 4)
-        team_filter_layout.setSpacing(4)
+        # Team label (right column only)
+        team_label = QLabel(self.tr("Team"))
+        filter_grid.addWidget(team_label, 0, 1)
 
-        # Select all / Deselect all buttons
-        team_btn_row = QHBoxLayout()
-        select_all_btn = QPushButton(self.tr("Select all"))
-        select_all_btn.clicked.connect(self._select_all_teams)
-        team_btn_row.addWidget(select_all_btn)
-
-        deselect_all_btn = QPushButton(self.tr("Deselect all"))
-        deselect_all_btn.clicked.connect(self._deselect_all_teams)
-        team_btn_row.addWidget(deselect_all_btn)
-
-        team_btn_row.addStretch()
-        team_filter_layout.addLayout(team_btn_row)
-
-        # Container for dynamically added checkboxes
-        team_checkbox_layout = QVBoxLayout()
-        team_checkbox_layout.setSpacing(2)
-        team_filter_layout.addLayout(team_checkbox_layout)
-
-        team_filter_frame.setLayout(team_filter_layout)
-        team_filter_frame.setVisible(False)
-        frame_layout.addWidget(team_filter_frame)
-
-        # Search box
+        # Search box (left)
         search_input = QLineEdit()
         search_input.setPlaceholderText(self.tr("Search..."))
         search_input.setClearButtonEnabled(True)
         search_input.addAction(SEARCH_ICON, QT_LINEEDIT_ACTION_POSITION.LeadingPosition)
+        search_input.setMinimumHeight(32)
         search_input.setStyleSheet(
             """
             QLineEdit {
+                border: 1px solid #ced4da;
                 padding: 6px 8px;
                 border-radius: 4px;
             }
         """
         )
         search_input.textChanged.connect(self.filter_projects)
-        frame_layout.addWidget(search_input)
+        filter_grid.addWidget(search_input, 1, 0)
+
+        # Team filter combo (right)
+        team_combo = QComboBox()
+        team_combo.setMinimumHeight(32)
+        team_combo.setStyleSheet(
+            """
+            QComboBox {
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        """
+        )
+        team_combo.currentIndexChanged.connect(self._on_team_filter_changed)
+        filter_grid.addWidget(team_combo, 1, 1)
+
+        # Match column stretch with account/org panel (columns 0-1 : 2-3)
+        filter_grid.setColumnStretch(0, 1)
+        filter_grid.setColumnStretch(1, 1)
+
+        frame_layout.addLayout(filter_grid)
 
         # Project list
         project_list = QListWidget()
@@ -307,7 +303,8 @@ class ProjectSelectDialog(QDialog):
         project_list.setStyleSheet(
             """
             QListWidget {
-                border: none;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
                 padding: 0px;
             }
             QListWidget::item {
@@ -329,9 +326,7 @@ class ProjectSelectDialog(QDialog):
         project_frame.setLayout(frame_layout)
         return {
             "project_frame": project_frame,
-            "team_filter_toggle": team_filter_toggle,
-            "team_filter_frame": team_filter_frame,
-            "team_checkbox_layout": team_checkbox_layout,
+            "team_combo": team_combo,
             "search_input": search_input,
             "project_list": project_list,
         }
@@ -446,64 +441,23 @@ class ProjectSelectDialog(QDialog):
         # Show/hide "New Project" button based on admin teams
         self.button_panel["new_project_btn"].setVisible(bool(self.admin_team_ids))
 
-        # Update team filter checkboxes
-        self._update_team_filter_checkboxes()
+        # Update team filter combo
+        self._update_team_filter_combo()
 
-    def _update_team_filter_checkboxes(self):
-        """Rebuild team filter checkboxes from current myteams"""
-        # Clear existing checkboxes
-        self.team_checkboxes.clear()
-        layout = self.project_section["team_checkbox_layout"]
-        while layout.count():
-            item = layout.takeAt(0)
-            if widget := item.widget():
-                widget.setParent(None)
-                widget.deleteLater()
-
-        # Create a checkbox for each team (checked by default)
+    def _update_team_filter_combo(self):
+        """Rebuild team filter combo from current myteams"""
+        combo = self.project_section["team_combo"]
+        combo.blockSignals(True)
+        combo.clear()
+        # First item: no filter (show all)
+        combo.addItem(self.tr("All Teams"), None)
         for team in self.myteams:
-            cb = QCheckBox(team.name)
-            cb.setChecked(True)
-            cb.toggled.connect(self._on_team_filter_changed)
-            self.team_checkboxes[team.id] = cb
-            layout.addWidget(cb)
+            combo.addItem(team.name, team.id)
+        combo.setCurrentIndex(0)
+        combo.blockSignals(False)
 
     def _on_team_filter_changed(self):
-        """Handle team filter checkbox state change"""
-        self.filter_projects()
-
-    def toggle_team_filter(self):
-        """Toggle visibility of team filter panel"""
-        self.team_filter_visible = not self.team_filter_visible
-        self.project_section["team_filter_frame"].setVisible(self.team_filter_visible)
-
-        if self.team_filter_visible:
-            self.project_section["team_filter_toggle"].setText(
-                self.tr("<a href='#'>Filter by Team &#9660;</a>")
-            )
-        else:
-            self.project_section["team_filter_toggle"].setText(
-                self.tr("<a href='#'>Filter by Team &#9654;</a>")
-            )
-
-    def _select_all_teams(self):
-        """Check all team filter checkboxes"""
-        for cb in self.team_checkboxes.values():
-            cb.blockSignals(True)
-        for cb in self.team_checkboxes.values():
-            cb.setChecked(True)
-        for cb in self.team_checkboxes.values():
-            cb.blockSignals(False)
-        self.filter_projects()
-
-    def _deselect_all_teams(self):
-        """Uncheck all team filter checkboxes"""
-        for cb in self.team_checkboxes.values():
-            cb.blockSignals(True)
-        for cb in self.team_checkboxes.values():
-            cb.setChecked(False)
-        for cb in self.team_checkboxes.values():
-            cb.blockSignals(False)
+        """Handle team filter combo selection change"""
         self.filter_projects()
 
     def load_organization_detail(self, org: api.organization.Organization):
@@ -718,9 +672,7 @@ class ProjectSelectDialog(QDialog):
             if text
             else self.project_section["search_input"].text().lower()
         )
-        checked_team_ids = {
-            tid for tid, cb in self.team_checkboxes.items() if cb.isChecked()
-        }
+        selected_team_id = self.project_section["team_combo"].currentData()
         project_list = self.project_section["project_list"]
         for i in range(project_list.count()):
             item = project_list.item(i)
@@ -728,7 +680,7 @@ class ProjectSelectDialog(QDialog):
             if project is None:
                 continue
             name_match = search_text in project.name.lower()
-            team_match = project.teamId in checked_team_ids
+            team_match = selected_team_id is None or project.teamId == selected_team_id
             item.setHidden(not (name_match and team_match))
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
