@@ -49,7 +49,6 @@ uv venv --python /Applications/QGIS-LTR.app/Contents/MacOS/bin/python3 --system-
 
 All tests (Docker):
 
-
 ```bash
 docker run --rm \
   -v "$(pwd)":/plugin \

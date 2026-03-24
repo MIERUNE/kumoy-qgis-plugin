@@ -212,7 +212,7 @@ class DialogLogin(QDialog):
             # Check plugin version compatibility
             min_qgisplugin_version = params_data.get("minQgisPluginVersion")
 
-            if not is_plugin_version_compatible(
+            if min_qgisplugin_version is not None and not is_plugin_version_compatible(
                 read_plugin_version(), min_qgisplugin_version
             ):
                 QMessageBox.critical(

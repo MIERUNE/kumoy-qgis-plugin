@@ -1,7 +1,6 @@
 import os
 
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsMessageLog
 
 from .kumoy.constants import LOG_CATEGORY
 
@@ -56,7 +55,7 @@ def is_plugin_version_compatible(plugin_version: str, min_version: str) -> bool:
     Returns:
         bool: True if compatible, False if too old
     """
-    if not min_version or plugin_version == "dev":
+    if plugin_version == "dev":
         return True
 
     current = _parse_version(plugin_version)
