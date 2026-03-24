@@ -29,7 +29,10 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
 )
 from ... import settings_manager
-from ...qgis_version import restore_project_crs_if_invalid
+from ...qgis_version import (
+    restore_xyz_layer_datasources,
+    restore_project_crs_if_invalid,
+)
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -243,6 +246,8 @@ class StyledMapItem(QgsDataItem):
         # Restore CRS if it became invalid after loading
         # (e.g. QGIS 4 project opened in QGIS 3)
         restore_project_crs_if_invalid(styled_map_detail.qgisproject)
+        # Fix XYZ tile datasources whose URL was percent-encoded by QGIS 4
+        restore_xyz_layer_datasources()
 
         QgsProject.instance().setTitle(self.styled_map.name)
         # store map kumoy info to project instance
