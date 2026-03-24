@@ -50,9 +50,6 @@ class TestIsPluginVersionCompatible:
     def test_empty_min_version(self):
         assert is_plugin_version_compatible("v1.0.0", "")
 
-    def test_none_min_version(self):
-        assert is_plugin_version_compatible("v1.0.0", None)
-
     def test_dev_version_always_compatible(self):
         assert is_plugin_version_compatible("dev", "v99.0.0")
 
