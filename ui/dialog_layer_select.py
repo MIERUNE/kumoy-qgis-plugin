@@ -157,7 +157,7 @@ class LayerSelectDialog(QDialog):
                 cb.setEnabled(not at_limit)
 
         self._count_label.setText(
-            self.tr("{} / {} selected").format(checked_count, self._max_layers)
+            self.tr("{} selected ({} max)").format(checked_count, self._max_layers)
         )
 
         percentage = checked_count / self._max_layers * 100
