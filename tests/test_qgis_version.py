@@ -1,12 +1,12 @@
-"""restore_project_crs_if_invalid / _read_project_crs_from_xml / fix_xyz のユニットテスト"""
+"""restore_project_crs_if_invalid / _read_project_crs_from_xml / restore_xyz のユニットテスト"""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 from plugin_dir.qgis_version import (
-    _fix_xyz_datasource,
+    _restore_xyz_datasource,
     _read_project_crs_from_xml,
-    fix_xyz_layer_datasources,
+    restore_xyz_layer_datasources,
     restore_project_crs_if_invalid,
 )
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
@@ -106,17 +106,17 @@ class TestFixXyzDatasource:
 
     def test_qgis3_format_returns_same_string(self):
         src = "http-header:referer=&type=xyz&url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=18&zmin=0"
-        assert _fix_xyz_datasource(src) == src
+        assert _restore_xyz_datasource(src) == src
 
     def test_non_xyz_layer_returns_same_string(self):
         src = "contextualWMSLegend=0&crs=EPSG:4326&url=https://example.com/wms"
-        assert _fix_xyz_datasource(src) == src
+        assert _restore_xyz_datasource(src) == src
 
     # --- QGIS 4 percent-encoded format → converted ---
 
     def test_qgis4_https_url_decoded(self):
         src = "crs=EPSG%3A3857&format&type=xyz&url=https%3A%2F%2Ftile.openstreetmap.org%2F%7Bz%7D%2F%7Bx%7D%2F%7By%7D.png&zmax=18&zmin=0&http-header:referer="
-        result = _fix_xyz_datasource(src)
+        result = _restore_xyz_datasource(src)
         assert "url=https://tile.openstreetmap.org/" in result
         # other parameters preserved
         assert "crs=EPSG%3A3857" in result
@@ -125,13 +125,13 @@ class TestFixXyzDatasource:
 
     def test_qgis4_http_url_decoded(self):
         src = "type=xyz&url=http%3A%2F%2Ftile.example.com%2F%7Bz%7D%2F%7Bx%7D%2F%7By%7D.png&zmax=10&zmin=2"
-        result = _fix_xyz_datasource(src)
+        result = _restore_xyz_datasource(src)
         assert "url=http://tile.example.com/" in result
 
     def test_only_url_param_is_decoded(self):
         # crs= and http-header:referer= must stay percent-encoded as in the original
         src = "crs=EPSG%3A3857&format&type=xyz&url=https%3A%2F%2Ftile.openstreetmap.org%2F%7Bz%7D%2F%7Bx%7D%2F%7By%7D.png&zmax=18&zmin=0&http-header:referer="
-        result = _fix_xyz_datasource(src)
+        result = _restore_xyz_datasource(src)
         assert (
             result
             == "crs=EPSG%3A3857&format&type=xyz&url=https://tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=18&zmin=0&http-header:referer="
@@ -140,12 +140,12 @@ class TestFixXyzDatasource:
     def test_extra_params_preserved(self):
         # authcfg and other unknown params must not be dropped
         src = "type=xyz&url=https%3A%2F%2Ftile.example.com%2F%7Bz%7D.png&zmax=18&zmin=0&authcfg=abc123"
-        result = _fix_xyz_datasource(src)
+        result = _restore_xyz_datasource(src)
         assert "authcfg=abc123" in result
 
     def test_custom_referer_preserved(self):
         src = "type=xyz&url=https%3A%2F%2Ftile.example.com%2F%7Bz%7D.png&zmax=18&zmin=0&http-header:referer=https%3A%2F%2Fexample.com"
-        result = _fix_xyz_datasource(src)
+        result = _restore_xyz_datasource(src)
         assert "http-header:referer=https%3A%2F%2Fexample.com" in result
 
 
@@ -166,7 +166,7 @@ class TestFixXyzLayerDatasources:
             patch("plugin_dir.qgis_version.QgsMessageLog"),
         ):
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
-            fix_xyz_layer_datasources()
+            restore_xyz_layer_datasources()
 
         layer.setDataSource.assert_called_once()
         fixed_src = layer.setDataSource.call_args[0][0]
@@ -181,7 +181,7 @@ class TestFixXyzLayerDatasources:
             patch("plugin_dir.qgis_version.QgsMessageLog"),
         ):
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
-            fix_xyz_layer_datasources()
+            restore_xyz_layer_datasources()
 
         layer.setDataSource.assert_not_called()
 
@@ -195,7 +195,7 @@ class TestFixXyzLayerDatasources:
             patch("plugin_dir.qgis_version.QgsMessageLog"),
         ):
             mock_project.instance.return_value.mapLayers.return_value = {"id1": layer}
-            fix_xyz_layer_datasources()
+            restore_xyz_layer_datasources()
 
         layer.setDataSource.assert_not_called()
 
@@ -208,7 +208,7 @@ class TestFixXyzLayerDatasources:
             patch("plugin_dir.qgis_version.QgsMessageLog"),
         ):
             mock_project.instance.return_value.mapLayers.return_value = layers
-            fix_xyz_layer_datasources()
+            restore_xyz_layer_datasources()
 
         for layer in layers.values():
             layer.setDataSource.assert_called_once()

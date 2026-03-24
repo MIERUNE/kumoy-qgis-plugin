@@ -77,7 +77,7 @@ def _read_project_crs_from_xml(
     return QgsCoordinateReferenceSystem()
 
 
-def fix_xyz_layer_datasources() -> None:
+def restore_xyz_layer_datasources() -> None:
     """Fix XYZ tile layer datasources that became broken
     after loading a QGIS 4 project in QGIS 3.
     """
@@ -89,7 +89,7 @@ def fix_xyz_layer_datasources() -> None:
         source = layer.source()
         if "type=xyz" not in source:
             continue
-        fixed = _fix_xyz_datasource(source)
+        fixed = _restore_xyz_datasource(source)
         if fixed == source:
             continue
         layer.setDataSource(fixed, layer.name(), "wms")
@@ -103,7 +103,7 @@ def fix_xyz_layer_datasources() -> None:
         )
 
 
-def _fix_xyz_datasource(datasource: str) -> str:
+def _restore_xyz_datasource(datasource: str) -> str:
     """Decode the percent-encoded tile URL in a QGIS 4 XYZ datasource string.
 
     QGIS 4 percent-encodes the tile URL (url=https%3A%2F%2F...) while QGIS 3
