@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 # Load plugin_version module without importing the heavy QGIS package tree.
-MODULE_PATH = Path(__file__).resolve().parent.parent / "plugin_version.py"
+MODULE_PATH = Path(__file__).resolve().parent / "plugin_version.py"
 spec = importlib.util.spec_from_file_location("plugin_version_module", MODULE_PATH)
 plugin_version_module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
