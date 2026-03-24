@@ -1,5 +1,4 @@
 from typing import Optional
-from urllib.parse import unquote
 
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
 from qgis.PyQt.QtXml import QDomDocument
@@ -124,7 +123,15 @@ def _fix_xyz_datasource(datasource: str) -> Optional[str]:
     for part in parts:
         if part.startswith("url="):
             _, v = part.split("=", 1)
-            fixed_parts.append("url=" + unquote(v))
+            # Decode only the characters QGIS 4 over-encodes vs QGIS 3:
+            # %3A → : and %2F → /  (case-insensitive)
+            decoded = (
+                v.replace("%3A", ":")
+                .replace("%3a", ":")
+                .replace("%2F", "/")
+                .replace("%2f", "/")
+            )
+            fixed_parts.append("url=" + decoded)
         else:
             fixed_parts.append(part)
 
