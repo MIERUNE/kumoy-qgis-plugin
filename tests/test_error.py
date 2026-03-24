@@ -1,24 +1,15 @@
-import importlib.util
-from pathlib import Path
-
 import pytest
-
-# Load error module without importing the heavy QGIS package tree.
-MODULE_PATH = Path(__file__).resolve().parent.parent / "kumoy" / "api" / "error.py"
-spec = importlib.util.spec_from_file_location("error_module", MODULE_PATH)
-error_module = importlib.util.module_from_spec(spec)
-assert spec.loader is not None
-spec.loader.exec_module(error_module)
-
-raise_error = error_module.raise_error
-format_api_error = error_module.format_api_error
-AppError = error_module.AppError
-ValidateError = error_module.ValidateError
-NotFoundError = error_module.NotFoundError
-UnauthorizedError = error_module.UnauthorizedError
-QuotaExceededError = error_module.QuotaExceededError
-ConflictError = error_module.ConflictError
-UnderMaintenanceError = error_module.UnderMaintenanceError
+from plugin_dir.kumoy.api.error import (
+    AppError,
+    ConflictError,
+    NotFoundError,
+    QuotaExceededError,
+    UnauthorizedError,
+    UnderMaintenanceError,
+    ValidateError,
+    format_api_error,
+    raise_error,
+)
 
 
 class TestRaiseError:
