@@ -628,109 +628,109 @@ to open in Kumoy.</source>
 <context>
     <name>ProjectItemWidget</name>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="951"/>
+        <location filename="../ui/dialog_project_select.py" line="902"/>
         <source>{} minutes ago</source>
         <translation type="unfinished">{}分前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="953"/>
+        <location filename="../ui/dialog_project_select.py" line="904"/>
         <source>{} hours ago</source>
         <translation type="unfinished">{}時間前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="955"/>
+        <location filename="../ui/dialog_project_select.py" line="906"/>
         <source>1 day ago</source>
         <translation type="unfinished">1日前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="957"/>
+        <location filename="../ui/dialog_project_select.py" line="908"/>
         <source>{} days ago</source>
         <translation type="unfinished">{}日前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="959"/>
+        <location filename="../ui/dialog_project_select.py" line="910"/>
         <source>{} months ago</source>
         <translation type="unfinished">{}ヶ月前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="961"/>
+        <location filename="../ui/dialog_project_select.py" line="912"/>
         <source>{} years ago</source>
         <translation type="unfinished">{}年前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="968"/>
+        <location filename="../ui/dialog_project_select.py" line="919"/>
         <source>Open in Web App</source>
         <translation type="unfinished">ウェブUIで開く</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1100"/>
+        <location filename="../ui/dialog_project_select.py" line="1051"/>
         <source>Edit Project</source>
         <translation type="unfinished">プロジェクトを編集</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1009"/>
+        <location filename="../ui/dialog_project_select.py" line="960"/>
         <source>Delete Project</source>
         <translation type="unfinished">プロジェクトを削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="996"/>
+        <location filename="../ui/dialog_project_select.py" line="947"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1010"/>
+        <location filename="../ui/dialog_project_select.py" line="961"/>
         <source>Are you sure you want to delete project &apos;{}&apos;?
 This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクト 「{}」を削除してもよろしいですか？
 この操作は取り消しできません。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1043"/>
+        <location filename="../ui/dialog_project_select.py" line="994"/>
         <source>Project Deleted</source>
         <translation type="unfinished">プロジェクトの削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1028"/>
+        <location filename="../ui/dialog_project_select.py" line="979"/>
         <source>Project &apos;{}&apos; deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1056"/>
+        <location filename="../ui/dialog_project_select.py" line="1007"/>
         <source>Failed to delete project: {}</source>
         <translation type="unfinished">プロジェクトの削除に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1145"/>
+        <location filename="../ui/dialog_project_select.py" line="1096"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1134"/>
+        <location filename="../ui/dialog_project_select.py" line="1085"/>
         <source>Project Updated</source>
         <translation type="unfinished">プロジェクトが更新しました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1145"/>
+        <location filename="../ui/dialog_project_select.py" line="1096"/>
         <source>Failed to update project: {}</source>
         <translation type="unfinished">プロジェクトの更新に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1043"/>
+        <location filename="../ui/dialog_project_select.py" line="994"/>
         <source>Project &apos;{}&apos; has been deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1121"/>
+        <location filename="../ui/dialog_project_select.py" line="1072"/>
         <source>Project &apos;{}&apos; updated successfully</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1134"/>
+        <location filename="../ui/dialog_project_select.py" line="1085"/>
         <source>Project &apos;{}&apos; has been updated successfully.</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1083"/>
+        <location filename="../ui/dialog_project_select.py" line="1034"/>
         <source>Failed to load project details: {}</source>
         <translation type="unfinished">プロジェクト内容を取得できませんでした: {}</translation>
     </message>
@@ -738,164 +738,149 @@ This action can&apos;t be undone.</source>
 <context>
     <name>ProjectSelectDialog</name>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="68"/>
+        <location filename="../ui/dialog_project_select.py" line="67"/>
         <source>Select Project</source>
         <translation type="unfinished">プロジェクト選択</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="115"/>
+        <location filename="../ui/dialog_project_select.py" line="112"/>
         <source>Account</source>
         <translation type="unfinished">アカウント</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="126"/>
+        <location filename="../ui/dialog_project_select.py" line="123"/>
         <source>Loading...</source>
         <translation type="unfinished">処理中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="130"/>
+        <location filename="../ui/dialog_project_select.py" line="127"/>
         <source>Organization</source>
         <translation type="unfinished">組織</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="177"/>
+        <location filename="../ui/dialog_project_select.py" line="174"/>
         <source>Organization Settings</source>
         <translation type="unfinished">組織設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="345"/>
+        <location filename="../ui/dialog_project_select.py" line="341"/>
         <source>+ New Project</source>
         <translation type="unfinished">+ 新規プロジェクト</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="352"/>
+        <location filename="../ui/dialog_project_select.py" line="348"/>
         <source>Cancel</source>
         <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="356"/>
+        <location filename="../ui/dialog_project_select.py" line="352"/>
         <source>OK</source>
         <translation type="unfinished">OK</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="804"/>
+        <location filename="../ui/dialog_project_select.py" line="755"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="517"/>
+        <location filename="../ui/dialog_project_select.py" line="470"/>
         <source>Failed to load organization details. {}</source>
         <translation type="unfinished">組織詳細の読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="567"/>
+        <location filename="../ui/dialog_project_select.py" line="520"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="574"/>
+        <location filename="../ui/dialog_project_select.py" line="527"/>
         <source>&lt;div&gt;&lt;span&gt;{} Plan&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</source>
         <translation type="unfinished">&lt;div&gt;&lt;span&gt;{} プラン&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="585"/>
+        <location filename="../ui/dialog_project_select.py" line="538"/>
         <source>Failed to retrieve plan limits: {}</source>
         <translation type="unfinished">プラン制限の取得に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="589"/>
+        <location filename="../ui/dialog_project_select.py" line="542"/>
         <source>Warning</source>
         <translation type="unfinished">注意</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="698"/>
+        <location filename="../ui/dialog_project_select.py" line="651"/>
         <source>Failed to load projects: {}</source>
         <translation type="unfinished">プロジェクト読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="762"/>
+        <location filename="../ui/dialog_project_select.py" line="713"/>
         <source>No Organization Selected</source>
         <translation type="unfinished">組織が選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="762"/>
+        <location filename="../ui/dialog_project_select.py" line="713"/>
         <source>Please select an organization first.</source>
         <translation type="unfinished">組織を選択してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="784"/>
+        <location filename="../ui/dialog_project_select.py" line="735"/>
         <source>Project &apos;{}&apos; created successfully</source>
         <translation type="unfinished">プロジェクト 「{}」が正常に作成されました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="794"/>
+        <location filename="../ui/dialog_project_select.py" line="745"/>
         <source>Project Created</source>
         <translation type="unfinished">プロジェクト作成されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="794"/>
+        <location filename="../ui/dialog_project_select.py" line="745"/>
         <source>Project &apos;{}&apos; has been created successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」が正常に作成されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="802"/>
+        <location filename="../ui/dialog_project_select.py" line="753"/>
         <source>Failed to create project: {}</source>
         <translation type="unfinished">プロジェクトの作成に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="549"/>
+        <location filename="../ui/dialog_project_select.py" line="502"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
         <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="553"/>
+        <location filename="../ui/dialog_project_select.py" line="506"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
         <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="389"/>
+        <location filename="../ui/dialog_project_select.py" line="385"/>
         <source>No organization available. Please create one to get started.</source>
         <translation type="unfinished">所属している組織がありません。まずは組織を作成してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="395"/>
+        <location filename="../ui/dialog_project_select.py" line="391"/>
         <source>Create Organization</source>
         <translation type="unfinished">新規組織を作成</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="407"/>
+        <location filename="../ui/dialog_project_select.py" line="403"/>
         <source>&lt;div&gt;&lt;span&gt;No organization available&lt;/span&gt;&lt;/div&gt;</source>
         <translation type="unfinished">&lt;div&gt;&lt;span&gt;所属している組織がありません&lt;/span&gt;&lt;/div&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="290"/>
+        <location filename="../ui/dialog_project_select.py" line="262"/>
         <source>Search...</source>
         <translation type="unfinished">検索</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="442"/>
+        <location filename="../ui/dialog_project_select.py" line="438"/>
         <source>Failed to load teams: {}</source>
         <translation type="unfinished">チームの読み込みエラー：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="485"/>
-        <source>&lt;a href=&apos;#&apos;&gt;Filter by Team &amp;#9654;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;チームでフィルタ &#9654;&lt;/a&gt;</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_project_select.py" line="268"/>
-        <source>Select all</source>
-        <translation type="unfinished">すべて選択</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_project_select.py" line="272"/>
-        <source>Deselect all</source>
-        <translation type="unfinished">選択を削除</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_project_select.py" line="481"/>
-        <source>&lt;a href=&apos;#&apos;&gt;Filter by Team &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;チームでフィルタ &#9660;&lt;/a&gt;</translation>
+        <location filename="../ui/dialog_project_select.py" line="257"/>
+        <source>Team</source>
+        <translation type="unfinished">チーム</translation>
     </message>
 </context>
 <context>
