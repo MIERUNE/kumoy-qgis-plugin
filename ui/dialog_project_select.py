@@ -26,6 +26,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
+from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     LOG_CATEGORY,
 )
@@ -42,7 +43,6 @@ from ..pyqt_version import (
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
-from ..kumoy.api.team import TeamDetail
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
@@ -249,13 +249,16 @@ class ProjectSelectDialog(QDialog):
         frame_layout.setContentsMargins(8, 8, 8, 8)
         frame_layout.setSpacing(6)
 
-        # Search and team filter in a grid layout (matching account/org panel)
-        filter_grid = QGridLayout()
-        filter_grid.setSpacing(8)
-
-        # Team label (right column only)
+        # Team label row
+        label_layout = QHBoxLayout()
+        label_layout.addStretch()
         team_label = QLabel(self.tr("Team"))
-        filter_grid.addWidget(team_label, 0, 1)
+        label_layout.addWidget(team_label)
+        frame_layout.addLayout(label_layout)
+
+        # Search and team filter
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
 
         # Search box (left)
         search_input = QLineEdit()
@@ -273,7 +276,7 @@ class ProjectSelectDialog(QDialog):
         """
         )
         search_input.textChanged.connect(self.filter_projects)
-        filter_grid.addWidget(search_input, 1, 0)
+        filter_layout.addWidget(search_input, 1)
 
         # Team filter combo (right)
         team_combo = QComboBox()
@@ -289,13 +292,9 @@ class ProjectSelectDialog(QDialog):
         """
         )
         team_combo.currentIndexChanged.connect(self._on_team_filter_changed)
-        filter_grid.addWidget(team_combo, 1, 1)
+        filter_layout.addWidget(team_combo, 1)
 
-        # Match column stretch with account/org panel (columns 0-1 : 2-3)
-        filter_grid.setColumnStretch(0, 1)
-        filter_grid.setColumnStretch(1, 1)
-
-        frame_layout.addLayout(filter_grid)
+        frame_layout.addLayout(filter_layout)
 
         # Project list
         project_list = QListWidget()
