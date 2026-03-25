@@ -6,6 +6,7 @@ from . import (
     project,
     qgis_vector,
     styledmap,
+    styledmap_assets,
     team,
     user,
     vector,

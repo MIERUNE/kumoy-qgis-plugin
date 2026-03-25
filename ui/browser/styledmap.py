@@ -22,16 +22,14 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
+from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    write_qgsfile,
+    _collect_and_upload_assets,
+    download_and_extract_assets,
     show_map_save_result,
-)
-from ... import settings_manager
-from ...qgis_version import (
-    restore_xyz_layer_datasources,
-    restore_project_crs_if_invalid,
+    write_qgsfile,
 )
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -40,6 +38,10 @@ from ...pyqt_version import (
     QT_DIALOG_BUTTON_OK,
     QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
+)
+from ...qgis_version import (
+    restore_project_crs_if_invalid,
+    restore_xyz_layer_datasources,
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
@@ -236,6 +238,23 @@ class StyledMapItem(QgsDataItem):
             )
             return
 
+        # Download and extract assets if available
+        if styled_map_detail.assetsHash:
+            try:
+                download_url = api.styledmap_assets.get_asset_zip_download_url(
+                    styled_map_detail.id
+                )
+                print(download_url)
+                download_and_extract_assets(styled_map_detail.id, download_url)
+            except Exception as asset_err:
+                QgsMessageLog.logMessage(
+                    self.tr("Warning: Failed to download assets: {}").format(
+                        str(asset_err)
+                    ),
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
+                )
+
         # XML文字列をQGISプロジェクトにロード
         qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
 
@@ -371,12 +390,25 @@ class StyledMapItem(QgsDataItem):
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
+            # Collect and upload assets
+            assets_result = _collect_and_upload_assets(
+                self.styled_map.id, new_qgisproject
+            )
+            if assets_result is not None:
+                assets_hash, new_qgisproject = assets_result
+                update_options = api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=new_qgisproject,
+                    assetsHash=assets_hash,
+                )
+            else:
+                update_options = api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=new_qgisproject,
+                )
+
             # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
+                update_options,
             )
         except Exception as e:
             error_text = format_api_error(e)
@@ -651,6 +683,18 @@ class StyledMapRoot(QgsDataItem):
                     isPublic=is_public,
                 ),
             )
+
+            # Upload assets after map creation (need map ID for presigned URLs)
+            assets_result = _collect_and_upload_assets(new_styled_map.id, qgisproject)
+            if assets_result is not None:
+                assets_hash, rewritten_qgisproject = assets_result
+                api.styledmap.update_styled_map(
+                    new_styled_map.id,
+                    api.styledmap.UpdateStyledMapOptions(
+                        qgisproject=rewritten_qgisproject,
+                        assetsHash=assets_hash,
+                    ),
+                )
 
             # 保存完了後のUI更新
             QgsProject.instance().setCustomVariables(

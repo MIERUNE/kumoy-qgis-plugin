@@ -123,6 +123,7 @@ class KumoyStyledMapDetail(KumoyStyledMap):
 
     qgisproject: str
     role: Literal["ADMIN", "OWNER", "MEMBER"]
+    assetsHash: Optional[str] = None
 
 
 def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
@@ -200,6 +201,7 @@ def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
         updatedAt=response.get("updatedAt", ""),
         qgisproject=response.get("qgisproject", ""),
         role=response.get("role", "MEMBER"),
+        assetsHash=response.get("assetsHash"),
     )
 
 
@@ -295,6 +297,7 @@ class UpdateStyledMapOptions:
     qgisproject: Optional[str] = None
     isPublic: Optional[bool] = None
     attribution: Optional[str] = None
+    assetsHash: Optional[str] = None
 
 
 @dataclass
@@ -309,6 +312,7 @@ class UpdateStyledMapResponse:
     attribution: str
     createdAt: str
     updatedAt: str
+    assetsHash: Optional[str] = None
 
 
 def update_styled_map(
@@ -335,6 +339,8 @@ def update_styled_map(
         update_data["attribution"] = options.attribution
     if options.description is not None:
         update_data["description"] = options.description
+    if options.assetsHash is not None:
+        update_data["assetsHash"] = options.assetsHash
 
     response = ApiClient.put(
         f"/styled-map/{styled_map_id}",
@@ -352,4 +358,5 @@ def update_styled_map(
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        assetsHash=response.get("assetsHash"),
     )
