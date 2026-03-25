@@ -547,6 +547,7 @@ class ProjectSelectDialog(QDialog):
                 maxOrganizationMembers=0,
                 maxVectorFeatures=0,
                 maxVectorAttributes=0,
+                defaultStorageUnits=0,
             )
 
         # Define resource mappings
@@ -599,7 +600,7 @@ class ProjectSelectDialog(QDialog):
         widgets["progress"].setValue(min(limit, used))
         self._set_progress_color(widgets["progress"], used, limit)
 
-    def _set_progress_color(self, progress_bar: QProgressBar, used: int, limit: int):
+    def _set_progress_color(self, progress_bar: QProgressBar, used: float, limit: int):
         """Set progress bar color based on usage percentage"""
         percentage = (used / limit * 100) if limit > 0 else 0
 
