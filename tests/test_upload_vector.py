@@ -64,7 +64,7 @@ class TestCreateAttributeList:
 
         return _create_attribute_list
 
-    def _make_layer(self, fields: list[tuple[str, QVariant.Type]]) -> QgsVectorLayer:
+    def _make_layer(self, fields) -> QgsVectorLayer:
         layer = QgsVectorLayer("Point?crs=EPSG:4326", "t", "memory")
         dp = layer.dataProvider()
         for name, qtype in fields:

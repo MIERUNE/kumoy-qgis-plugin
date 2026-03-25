@@ -26,6 +26,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.api.error import format_api_error
+from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     LOG_CATEGORY,
 )
@@ -42,7 +43,6 @@ from ..pyqt_version import (
     exec_menu,
 )
 from ..settings_manager import get_settings, store_setting
-from ..kumoy.api.team import TeamDetail
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
@@ -235,7 +235,7 @@ class ProjectSelectDialog(QDialog):
         }
 
     def _create_project_section(self):
-        """Create project list section with search"""
+        """Create project list section with search and team filter"""
         # Container frame
         project_frame = QFrame()
         project_frame.setStyleSheet(
@@ -249,29 +249,55 @@ class ProjectSelectDialog(QDialog):
         frame_layout.setContentsMargins(8, 8, 8, 8)
         frame_layout.setSpacing(6)
 
-        # Search box
+        # Search and team filter
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
+
+        # Search box (left)
         search_input = QLineEdit()
         search_input.setPlaceholderText(self.tr("Search..."))
         search_input.setClearButtonEnabled(True)
         search_input.addAction(SEARCH_ICON, QT_LINEEDIT_ACTION_POSITION.LeadingPosition)
+        search_input.setMinimumHeight(32)
         search_input.setStyleSheet(
             """
             QLineEdit {
+                border: 1px solid #ced4da;
                 padding: 6px 8px;
                 border-radius: 4px;
             }
         """
         )
         search_input.textChanged.connect(self.filter_projects)
-        frame_layout.addWidget(search_input)
+        filter_layout.addWidget(search_input, 1)
+
+        # Team filter combo (right)
+        team_combo = QComboBox()
+        team_combo.setMinimumHeight(32)
+        team_combo.setStyleSheet(
+            """
+            QComboBox {
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        """
+        )
+        team_combo.currentIndexChanged.connect(self.filter_projects)
+        filter_layout.addWidget(team_combo, 1)
+
+        frame_layout.addLayout(filter_layout)
 
         # Project list
         project_list = QListWidget()
+        project_list.setResizeMode(QListWidget.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
             QListWidget {
-                border: none;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
                 padding: 0px;
             }
             QListWidget::item {
@@ -293,6 +319,7 @@ class ProjectSelectDialog(QDialog):
         project_frame.setLayout(frame_layout)
         return {
             "project_frame": project_frame,
+            "team_combo": team_combo,
             "search_input": search_input,
             "project_list": project_list,
         }
@@ -407,6 +434,21 @@ class ProjectSelectDialog(QDialog):
         # Show/hide "New Project" button based on admin teams
         self.button_panel["new_project_btn"].setVisible(bool(self.admin_team_ids))
 
+        # Update team filter combo
+        self._update_team_filter_combo()
+
+    def _update_team_filter_combo(self):
+        """Rebuild team filter combo from current myteams"""
+        combo = self.project_section["team_combo"]
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(self.tr("All teams"), None)
+        combo.insertSeparator(1)
+        for team in self.myteams:
+            combo.addItem(team.name, team.id)
+        combo.setCurrentIndex(0)
+        combo.blockSignals(False)
+
     def load_organization_detail(self, org: api.organization.Organization):
         """Load and display organization detail including usage"""
         try:
@@ -497,6 +539,7 @@ class ProjectSelectDialog(QDialog):
                 maxOrganizationMembers=0,
                 maxVectorFeatures=0,
                 maxVectorAttributes=0,
+                defaultStorageUnits=0,
             )
 
         # Define resource mappings
@@ -549,7 +592,7 @@ class ProjectSelectDialog(QDialog):
         widgets["progress"].setValue(min(limit, used))
         self._set_progress_color(widgets["progress"], used, limit)
 
-    def _set_progress_color(self, progress_bar: QProgressBar, used: int, limit: int):
+    def _set_progress_color(self, progress_bar: QProgressBar, used: float, limit: int):
         """Set progress bar color based on usage percentage"""
         percentage = (used / limit * 100) if limit > 0 else 0
 
@@ -598,6 +641,8 @@ class ProjectSelectDialog(QDialog):
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
+        self.filter_projects()
+
     def handle_project_deleted(self):
         """Handle cleanup after a project has been deleted"""
         self.project_section["project_list"].setCurrentItem(None)
@@ -610,16 +655,23 @@ class ProjectSelectDialog(QDialog):
         )
         self.button_panel["ok_btn"].setEnabled(bool(self.selected_project))
 
-    def filter_projects(self, text: str):
-        """Filter project list by partial name match"""
-        search_text = text.lower()
+    def filter_projects(self):
+        """Filter project list by name and team"""
+        search_text = self.project_section["search_input"].text().lower()
+        selected_team_id = self.project_section["team_combo"].currentData()
         project_list = self.project_section["project_list"]
         for i in range(project_list.count()):
             item = project_list.item(i)
             project = item.data(QT_USER_ROLE)
             if project is None:
                 continue
-            item.setHidden(search_text not in project.name.lower())
+            name_match = search_text in project.name.lower()
+            team_match = selected_team_id is None or project.teamId == selected_team_id
+            item.setHidden(not (name_match and team_match))
+
+        current = project_list.currentItem()
+        if current and current.isHidden():
+            project_list.setCurrentItem(None)
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
         """Get the selected organization"""
