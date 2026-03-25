@@ -81,14 +81,15 @@ def _get_cache_dir() -> str:
 def get_filepath(map_id: str) -> str:
     """Retrieve a cached map path."""
     cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
-    return cache_file
+    map_dir = os.path.join(cache_dir, map_id)
+    os.makedirs(map_dir, exist_ok=True)
+    return os.path.join(map_dir, "map.qgs")
 
 
 def get_assets_dir(map_id: str) -> str:
     """Return the directory where asset files are extracted for a specific map."""
     cache_dir = _get_cache_dir()
-    assets_dir = os.path.join(cache_dir, map_id)
+    assets_dir = os.path.join(cache_dir, map_id, "assets")
     os.makedirs(assets_dir, exist_ok=True)
     return assets_dir
 
@@ -134,32 +135,26 @@ def clear(map_id: str) -> bool:
     Returns True if all files were deleted successfully, False otherwise.
     """
     cache_dir = _get_cache_dir()
-    success = True
-    # Remove all files containing map_id in their names
-    for filename in os.listdir(cache_dir):
-        if map_id in filename:
-            file_path = os.path.join(cache_dir, filename)
-            try:
-                if os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-                else:
-                    os.unlink(file_path)
-            except PermissionError as e:
-                QgsMessageLog.logMessage(
-                    f"Ignored file access error for {file_path}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                success = False  # Flag unsucceed deletion
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Unexpected error for {file_path}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                success = False  # Flag unsucceed
-
-    return success
+    map_dir = os.path.join(cache_dir, map_id)
+    if not os.path.isdir(map_dir):
+        return True
+    try:
+        shutil.rmtree(map_dir)
+        return True
+    except PermissionError as e:
+        QgsMessageLog.logMessage(
+            f"Ignored file access error for {map_dir}: {e}",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+        return False
+    except Exception as e:
+        QgsMessageLog.logMessage(
+            f"Unexpected error for {map_dir}: {e}",
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        return False
 
 
 def clear_all() -> bool:
@@ -265,7 +260,7 @@ def _collect_and_upload_assets(
         # Rewrite QGS paths
         rewritten_xml = qgs_xml
         if collected.file_refs:
-            rewritten_xml = rewrite_paths(qgs_xml, collected.file_refs, styled_map_id)
+            rewritten_xml = rewrite_paths(qgs_xml, collected.file_refs)
 
         # Build ZIP
         zip_bytes = build_asset_zip(collected.file_refs) if collected.file_refs else b""
