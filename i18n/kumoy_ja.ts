@@ -878,11 +878,6 @@ This action can&apos;t be undone.</source>
         <translation type="unfinished">チームの読み込みエラー：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="257"/>
-        <source>Team</source>
-        <translation type="obsolete">チーム</translation>
-    </message>
-    <message>
         <location filename="../ui/dialog_project_select.py" line="445"/>
         <source>All teams</source>
         <translation type="unfinished">すべてのチーム</translation>
