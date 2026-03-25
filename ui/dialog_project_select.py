@@ -449,14 +449,6 @@ class ProjectSelectDialog(QDialog):
         combo.setCurrentIndex(0)
         combo.blockSignals(False)
 
-    def _select_team_filter(self, team_id: str):
-        """Set team filter combo to the given team"""
-        combo = self.project_section["team_combo"]
-        for i in range(combo.count()):
-            if combo.itemData(i) == team_id:
-                combo.setCurrentIndex(i)
-                return
-
     def load_organization_detail(self, org: api.organization.Organization):
         """Load and display organization detail including usage"""
         try:
