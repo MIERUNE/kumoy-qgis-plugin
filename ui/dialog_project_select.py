@@ -738,7 +738,6 @@ class ProjectSelectDialog(QDialog):
             )
             # refresh project list and select the new project
             self.load_organization_detail(org)
-            self._select_team_filter(selected_team.id)
             self.load_projects(org)
             self._select_project_by_id(new_project.id)
 
