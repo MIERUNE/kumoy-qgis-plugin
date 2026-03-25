@@ -1,12 +1,17 @@
 """シンボルからファイル参照を収集し、スプライト用画像を生成する"""
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from qgis.core import (
     QgsApplication,
     QgsProject,
+    QgsRasterFillSymbolLayer,
+    QgsRasterMarkerSymbolLayer,
     QgsRenderContext,
+    QgsSVGFillSymbolLayer,
+    QgsSvgMarkerSymbolLayer,
+    QgsSymbolLayer,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QSize
@@ -14,36 +19,26 @@ from qgis.PyQt.QtGui import QImage
 
 
 @dataclass
-class SymbolFileRef:
-    """シンボルレイヤーが参照するファイル"""
+class SymbolAsset:
+    """シンボルレイヤーのアセット（ファイル参照とスプライト画像）"""
 
+    id: str  # シンボルレイヤーID
     original_path: str  # 元の絶対パス
     zip_name: str  # ZIP内ファイル名 ({symbolLayerID}.{ext})
+    image: QImage  # スプライト画像
 
 
-@dataclass
-class CollectedAssets:
-    """プロジェクトから収集したアセット"""
+def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
+    if isinstance(symbol_layer, (QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer)):
+        return symbol_layer.path()
 
-    file_refs: list[SymbolFileRef] = field(default_factory=list)
-    symbol_images: dict[str, QImage] = field(default_factory=dict)
+    if isinstance(symbol_layer, QgsSVGFillSymbolLayer):
+        return symbol_layer.svgFilePath()
 
+    if isinstance(symbol_layer, QgsRasterFillSymbolLayer):
+        return symbol_layer.imageFilePath()
 
-def _get_file_path_from_symbol_layer(symbol_layer) -> str:
-    """シンボルレイヤーからファイルパスを取得する。対応していない場合は空文字を返す。"""
-    # QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer
-    if hasattr(symbol_layer, "path"):
-        return symbol_layer.path() or ""
-
-    # QgsSVGFillSymbolLayer
-    if hasattr(symbol_layer, "svgFilePath"):
-        return symbol_layer.svgFilePath() or ""
-
-    # QgsRasterFillSymbolLayer
-    if hasattr(symbol_layer, "imageFilePath"):
-        return symbol_layer.imageFilePath() or ""
-
-    return ""
+    raise NotImplementedError(f"Unsupported symbol layer type: {type(symbol_layer)}")
 
 
 def _resolve_svg_path(path: str) -> str:
@@ -62,17 +57,10 @@ def _resolve_svg_path(path: str) -> str:
     return path
 
 
-def collect_assets(project: QgsProject) -> CollectedAssets:
-    """プロジェクト内の全シンボルからファイル参照とスプライト画像を収集する。
-
-    Args:
-        project: QGISプロジェクト
-
-    Returns:
-        CollectedAssets: 収集したファイル参照とスプライト画像
-    """
-    result = CollectedAssets()
-    seen_paths: dict[str, str] = {}  # original_path -> zip_name (重複排除)
+def collect_assets(project: QgsProject) -> list[SymbolAsset]:
+    """プロジェクト内の全シンボルからファイル参照とスプライト画像を収集する。"""
+    assets: list[SymbolAsset] = []
+    seen_paths: set[str] = set()
     render_context = QgsRenderContext()
 
     for layer in project.mapLayers().values():
@@ -88,25 +76,28 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
                 sl = symbol.symbolLayer(i)
                 sl_id = sl.id()
 
-                # ファイルパス収集
+                # ファイルパス解決
                 raw_path = _get_file_path_from_symbol_layer(sl)
+                original_path = ""
+                zip_name = ""
                 if raw_path and not raw_path.startswith(("http://", "https://")):
                     resolved = _resolve_svg_path(raw_path)
                     if os.path.isfile(resolved) and resolved not in seen_paths:
-                        ext = os.path.splitext(resolved)[1]  # .svg, .png etc.
+                        seen_paths.add(resolved)
+                        ext = os.path.splitext(resolved)[1]
+                        original_path = resolved
                         zip_name = f"{sl_id}{ext}"
-                        seen_paths[resolved] = zip_name
-                        result.file_refs.append(
-                            SymbolFileRef(
-                                original_path=resolved,
-                                zip_name=zip_name,
-                            )
-                        )
 
                 # スプライト画像生成
-                if sl_id not in result.symbol_images:
-                    image = symbol.asImage(QSize(64, 64))
-                    if image and not image.isNull():
-                        result.symbol_images[sl_id] = image
+                image = symbol.asImage(QSize(64, 64))
+                if image and not image.isNull():
+                    assets.append(
+                        SymbolAsset(
+                            id=sl_id,
+                            original_path=original_path,
+                            zip_name=zip_name,
+                            image=image,
+                        )
+                    )
 
-    return result
+    return assets

@@ -251,22 +251,20 @@ def _collect_and_upload_assets(
         Tuple of (assets_hash, rewritten_qgs_xml) if assets exist, None otherwise
     """
 
-    collected = collect_assets(QgsProject.instance())
+    assets = collect_assets(QgsProject.instance())
 
-    if not collected.file_refs and not collected.symbol_images:
+    if not assets:
         return None
 
     try:
         # Rewrite QGS paths
-        rewritten_xml = qgs_xml
-        if collected.file_refs:
-            rewritten_xml = rewrite_paths(qgs_xml, collected.file_refs)
+        rewritten_xml = rewrite_paths(qgs_xml, assets)
 
         # Build ZIP
-        zip_bytes = build_asset_zip(collected.file_refs) if collected.file_refs else b""
+        zip_bytes = build_asset_zip(assets)
 
         # Generate sprites
-        sprite_json, sprite_png = generate_sprites(collected.symbol_images)
+        sprite_json, sprite_png = generate_sprites(assets)
 
         # Compute hash
         h = hashlib.sha256()
