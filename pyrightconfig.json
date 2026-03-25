@@ -1,8 +1,0 @@
-{
-	"pythonVersion": "3.9",
-	"typeCheckingMode": "basic",
-	"extraPaths": [
-		"/Applications/QGIS.app/Contents/Resources/python3.11/site-packages"
-	],
-	"exclude": [".venv", "**/__pycache__"]
-}

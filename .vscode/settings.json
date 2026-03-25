@@ -7,5 +7,8 @@
 	"[python]": {
 		"editor.defaultFormatter": "charliermarsh.ruff"
 	},
-	"python.languageServer": "Pylance"
+	"python.languageServer": "Pylance",
+	"python.analysis.extraPaths": [
+		"/Applications/QGIS.app/Contents/Resources/python3.11/site-packages"
+	]
 }
