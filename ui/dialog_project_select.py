@@ -249,13 +249,6 @@ class ProjectSelectDialog(QDialog):
         frame_layout.setContentsMargins(8, 8, 8, 8)
         frame_layout.setSpacing(6)
 
-        # Team label row
-        label_layout = QHBoxLayout()
-        label_layout.addStretch()
-        team_label = QLabel(self.tr("Team"))
-        label_layout.addWidget(team_label)
-        frame_layout.addLayout(label_layout)
-
         # Search and team filter
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(8)
@@ -291,7 +284,7 @@ class ProjectSelectDialog(QDialog):
             }
         """
         )
-        team_combo.currentIndexChanged.connect(self._on_team_filter_changed)
+        team_combo.currentIndexChanged.connect(self.filter_projects)
         filter_layout.addWidget(team_combo, 1)
 
         frame_layout.addLayout(filter_layout)
@@ -449,14 +442,12 @@ class ProjectSelectDialog(QDialog):
         combo = self.project_section["team_combo"]
         combo.blockSignals(True)
         combo.clear()
+        combo.addItem(self.tr("All teams"), None)
+        combo.insertSeparator(1)
         for team in self.myteams:
             combo.addItem(team.name, team.id)
-        combo.setCurrentIndex(-1)
+        combo.setCurrentIndex(0)
         combo.blockSignals(False)
-
-    def _on_team_filter_changed(self):
-        """Handle team filter combo selection change"""
-        self.filter_projects()
 
     def _select_team_filter(self, team_id: str):
         """Set team filter combo to the given team"""
@@ -652,12 +643,12 @@ class ProjectSelectDialog(QDialog):
                     list_item, item_widget
                 )
 
-            self.filter_projects()
-
         except Exception as e:
             msg = self.tr("Failed to load projects: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
+
+        self.filter_projects()
 
     def handle_project_deleted(self):
         """Handle cleanup after a project has been deleted"""
@@ -671,13 +662,9 @@ class ProjectSelectDialog(QDialog):
         )
         self.button_panel["ok_btn"].setEnabled(bool(self.selected_project))
 
-    def filter_projects(self, text: str = ""):
+    def filter_projects(self):
         """Filter project list by name and team"""
-        search_text = (
-            text.lower()
-            if text
-            else self.project_section["search_input"].text().lower()
-        )
+        search_text = self.project_section["search_input"].text().lower()
         selected_team_id = self.project_section["team_combo"].currentData()
         project_list = self.project_section["project_list"]
         for i in range(project_list.count()):
