@@ -47,7 +47,7 @@ https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
         - **Windows (OSGeo4W)**: ??
 3. Set the Python interpreter in VSCode as the Python from the virtual environment created by `uv sync`.
 
-## Running Tests
+### Running Tests
 
 ```bash
 docker run --rm \

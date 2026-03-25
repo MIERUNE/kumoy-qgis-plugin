@@ -13,6 +13,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
+from ..plugin_version import read_plugin_version
 from ..processing.close_all_processing_dialogs import close_all_processing_dialogs
 from ..pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -21,7 +22,6 @@ from ..pyqt_version import (
     QT_CURSOR_SHAPE,
     QT_TEXT_INTERACTION,
 )
-from ..qgis_version import read_version
 from ..settings_manager import store_setting
 from .icons import MAIN_ICON
 from .remote_image_label import RemoteImageLabel
@@ -91,7 +91,7 @@ class DialogAccount(QDialog):
         header_layout.addLayout(brand_layout)
         header_layout.addStretch()
 
-        version_label = QLabel(read_version())
+        version_label = QLabel(read_plugin_version())
         version_label.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
         version_label.setStyleSheet("color: #777777; font-size: 12px;")
         header_layout.addWidget(version_label)

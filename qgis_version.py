@@ -2,49 +2,6 @@ from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProj
 from qgis.PyQt.QtXml import QDomDocument
 
 
-def _parse_version(v: str) -> tuple:
-    """Parse version string to tuple of ints, ignoring pre-release suffixes.
-
-    Examples:
-        'v1.0.0'       -> (1, 0, 0)
-        'v1.0.0-beta'  -> (1, 0, 0)
-        'v1.0-beta'    -> (1, 0)
-        'v1.0.alpha'   -> (1, 0)
-        '1.2.3'        -> (1, 2, 3)
-    """
-    parts = []
-    for segment in v.lstrip("v").split("-")[0].split("."):
-        if segment.isdigit():
-            parts.append(int(segment))
-        else:
-            break  # stop at first non-numeric part (e.g. "alpha", "beta")
-    return tuple(parts)
-
-
-def is_plugin_version_compatible(plugin_version: str, min_version: str) -> bool:
-    """
-    Check if current plugin version meets the minimum required version.
-    Returns True if compatible.
-
-    Args:
-        plugin_version: Current plugin version string (e.g. 'v1.2.3')
-        min_version: Minimum required version string (e.g. 'v1.0.0')
-
-    Returns:
-        bool: True if compatible, False if too old
-    """
-    if not min_version or plugin_version == "dev":
-        return True
-
-    current = _parse_version(plugin_version)
-    minimum = _parse_version(min_version)
-    # Pad the shorter version with zeros for proper comparison (e.g. (1, 0) -> (1, 0, 0))
-    length = max(len(current), len(minimum))
-    current = current + (0,) * (length - len(current))
-    minimum = minimum + (0,) * (length - len(minimum))
-    return current >= minimum
-
-
 def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
     """Restore the project CRS if it became invalid after loading.
 
@@ -118,3 +75,54 @@ def _read_project_crs_from_xml(
             return crs
 
     return QgsCoordinateReferenceSystem()
+
+
+def restore_xyz_layer_datasources() -> None:
+    """Fix XYZ tile layer datasources that became broken
+    after loading a QGIS 4 project in QGIS 3.
+    """
+    project = QgsProject.instance()
+    for layer in project.mapLayers().values():
+        if layer.providerType() != "wms":
+            continue
+        source = layer.source()
+        if "type=xyz" not in source:
+            continue
+        fixed = _restore_xyz_datasource(source)
+        if fixed == source:
+            continue
+        layer.setDataSource(fixed, layer.name(), "wms")
+
+
+def _restore_xyz_datasource(datasource: str) -> str:
+    """Decode the percent-encoded tile URL in a QGIS 4 XYZ datasource string.
+
+    QGIS 4 percent-encodes the tile URL (url=https%3A%2F%2F...) while QGIS 3
+    expects a plain URL (url=https://...). Only the value of the `url` parameter
+    is decoded; all other parameters are preserved as-is.
+
+    Returns the normalized datasource string. If no fix is needed, the original
+    datasource is returned unchanged.
+    """
+    if "url=https%3A" not in datasource and "url=http%3A" not in datasource:
+        return datasource
+
+    # Decode only the url= parameter value, preserving everything else
+    parts = datasource.split("&")
+    fixed_parts = []
+    for part in parts:
+        if part.startswith("url="):
+            _, v = part.split("=", 1)
+            # Decode only the characters QGIS 4 over-encodes vs QGIS 3:
+            # %3A → : and %2F → /  (case-insensitive)
+            decoded = (
+                v.replace("%3A", ":")
+                .replace("%3a", ":")
+                .replace("%2F", "/")
+                .replace("%2f", "/")
+            )
+            fixed_parts.append("url=" + decoded)
+        else:
+            fixed_parts.append(part)
+
+    return "&".join(fixed_parts)
