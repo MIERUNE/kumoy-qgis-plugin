@@ -1,22 +1,29 @@
 # Kumoy QGIS Plugin
 
-QGIS用クラウド連携プラグイン。QGISプロジェクトをWebに公開し、データ管理・チーム共同作業を実現する。
+QGIS向けクラウドサービス「Kumoy」を利用するためのプラグイン
 
 ## コマンド
 
-- 仮想環境作成: `uv venv --python /Applications/QGIS.app/Contents/MacOS/bin/python3 --system-site-packages`
 - 依存インストール: `uv sync`
-- Lint: `uv run ruff check .`
-- フォーマットチェック: `uv run ruff format . --check --diff`
 - フォーマット修正: `uv run ruff format .`
-- テスト: `uv run pytest tests/`（QGIS依存テストにはQGIS環境が必要。CIではDockerで実行）
+- テスト:
+
+  ```bash
+  docker run --rm \
+    -v "$(pwd)":/plugin \
+    -w /plugin \
+    qgis/qgis:3.40 \
+    sh -c "
+      pip3 install --break-system-packages pytest pytest-qgis &&
+      xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
+        python3 -m pytest tests/ -v
+    "
+  ```
 
 ## コードスタイル
 
 - Python 3.9+。ruffでlint/format（設定は pyproject.toml）
-- F401（未使用import）は無視設定
 - 型ヒントを積極的に使う。dataclassを活用する
-- 関数・変数はsnake_case、クラスはPascalCase、定数はUPPER_CASE
 
 ## アーキテクチャ
 
@@ -35,11 +42,7 @@ QGIS用クラウド連携プラグイン。QGISプロジェクトをWebに公開
 - Qt5/Qt6両対応。`pyqt_version.py` が互換レイヤーを提供するので、PyQt5/6で異なるAPIはここを経由する
 - 外部パッケージ依存なし（ランタイムはQGIS/PyQt/標準ライブラリのみ）
 - UIテキストは `tr()` で翻訳対応すること
-- WKBの最大長は10,000,000文字（`MAX_WKB_LENGTH`）
-- QGIS 3.40〜4.99をサポート（metadata.txt参照）
 
 ## Git ワークフロー
 
 - mainブランチへPR。CI（lint + test）が必須
-- ブランチ命名: `feat/`, `fix/`, `chore/`, `docs/`
-- リリースはGitHub Releaseの公開でトリガー（タグからバージョン自動設定）
