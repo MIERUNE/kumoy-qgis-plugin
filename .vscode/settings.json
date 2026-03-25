@@ -1,5 +1,11 @@
 {
-	"files.associations": {
-		"*.ts": "xml"
-	}
+	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": {
+		"source.autoFix": "always",
+		"source.organizeImports": "always"
+	},
+	"[python]": {
+		"editor.defaultFormatter": "charliermarsh.ruff"
+	},
+	"python.languageServer": "Pylance"
 }
