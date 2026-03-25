@@ -3,6 +3,8 @@ name: Lint
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
 jobs:
   Test:
@@ -16,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: "3.9"
 
       - name: Install dependencies
         run: uv sync
