@@ -43,7 +43,7 @@ https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 1. `uv sync`
 2. Enable code completion for QGIS Python API in VSCode:
     - Modify `pyrightconfig.json` to include the path to your QGIS Python API in `extraPaths`
-        - **macOS**: `/Applications/QGIS.app/Contents/Resources/python3.XX/site-packages`）
+        - **macOS**: `/Applications/QGIS.app/Contents/Resources/python3.XX/site-packages`
         - **Windows (OSGeo4W)**: ??
 3. Set the Python interpreter in VSCode as the Python from the virtual environment created by `uv sync`.
 
