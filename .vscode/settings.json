@@ -4,6 +4,9 @@
 		"source.autoFix": "always",
 		"source.organizeImports": "always"
 	},
+	"files.associations": {
+		"*.ts": "xml"
+	},
 	"[python]": {
 		"editor.defaultFormatter": "charliermarsh.ruff"
 	},
