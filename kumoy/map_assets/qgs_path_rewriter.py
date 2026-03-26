@@ -1,8 +1,10 @@
 """QGSプロジェクトのシンボルレイヤーパスを書き換える"""
 
+import os
 import shutil
 
 from qgis.core import (
+    QgsApplication,
     QgsProject,
     QgsRasterFillSymbolLayer,
     QgsRasterMarkerSymbolLayer,
@@ -29,10 +31,18 @@ def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
 def rewrite_paths(project: QgsProject, files: list[FileAsset], assets_dir: str) -> None:
     """シンボルレイヤーのパスを相対パスに書き換え、ファイルをコピーする。"""
     path_map: dict[str, str] = {}
+    svgCache = QgsApplication.svgCache()
+    imageCache = QgsApplication.imageCache()
+    assert svgCache is not None
+    assert imageCache is not None
+
     for asset in files:
         dest_name = f"{asset.symbol_layer_id}{asset.ext}"
-
-        shutil.copy2(asset.original_path, f"{assets_dir}/{dest_name}")
+        dest_path = os.path.join(assets_dir, dest_name)
+        if os.path.abspath(asset.original_path) != os.path.abspath(dest_path):
+            shutil.copy2(asset.original_path, dest_path)
+            svgCache.invalidateCacheEntry(asset.original_path)
+            imageCache.invalidateCacheEntry(asset.original_path)
         path_map[asset.symbol_layer_id] = f"./assets/{dest_name}"
 
     render_context = QgsRenderContext()

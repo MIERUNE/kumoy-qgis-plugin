@@ -423,9 +423,9 @@ def handle_project_saved() -> None:
         )
         return
 
-    # Update map name if changed by other users
-    QgsProject.instance().setTitle(updated_styled_map.name)
-    QgsProject.instance().setDirty(False)
+    # reopen qgs to refresh project with new styled map data
+    QgsProject.instance().clear()
+    QgsProject.instance().read(get_filepath(styled_map_id))
 
     # Show success message with conversion errors summary if any
     show_map_save_result(updated_styled_map.name, conversion_errors)

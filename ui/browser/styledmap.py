@@ -28,6 +28,7 @@ from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
     collect_and_upload_assets,
     download_and_extract_assets,
+    get_filepath,
     show_map_save_result,
     write_qgsfile,
 )
@@ -420,8 +421,9 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
-        QgsProject.instance().setTitle(updated_styled_map.name)
-        QgsProject.instance().setDirty(False)
+        # reopen qgs to refresh project with new styled map data
+        QgsProject.instance().clear()
+        QgsProject.instance().read(get_filepath(self.styled_map.id))
 
         # Show result message with conversion errors summary if any
         show_map_save_result(
@@ -688,11 +690,14 @@ class StyledMapRoot(QgsDataItem):
                     ),
                 )
 
-            # 保存完了後のUI更新
+            # reopen qgs to refresh project with new styled map data
+            QgsProject.instance().clear()
+            QgsProject.instance().read(get_filepath(new_styled_map.id))
             QgsProject.instance().setCustomVariables(
                 {"kumoy_map_id": new_styled_map.id}
             )
-            QgsProject.instance().setTitle(new_styled_map.name)
+            QgsProject.instance().setDirty(False)
+
             # reload browser panel
             self.parent().refresh()
 
@@ -701,7 +706,7 @@ class StyledMapRoot(QgsDataItem):
                 name,
                 conversion_errors,
             )
-            QgsProject.instance().setDirty(False)
+
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
