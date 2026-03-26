@@ -91,9 +91,16 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
         )
 
     cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
-    return cropped.scaled(
-        QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
-    )
+
+    # 短辺を max_size に合わせて縮小（アスペクト比維持）
+    cw, ch = cropped.width(), cropped.height()
+    short_side = min(cw, ch)
+    if short_side > 0:
+        scale = max_size / short_side
+        target = QSize(round(cw * scale), round(ch * scale))
+    else:
+        target = QSize(max_size, max_size)
+    return cropped.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
 
 def _resolve_svg_path(path: str) -> str:
@@ -140,7 +147,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
             # 大きめに描画してからトリム
             raw_image = symbol.asImage(QSize(256, 256))
             if raw_image and not raw_image.isNull():
-                image = _trim_and_fit(raw_image, 32)
+                image = _trim_and_fit(raw_image, 64)
                 sprite_name = f"{layer_id}_{symbol_index}"
                 sprites.append(SpriteEntry(name=sprite_name, image=image))
 
