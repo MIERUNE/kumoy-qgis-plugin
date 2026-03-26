@@ -386,13 +386,13 @@ class StyledMapItem(QgsDataItem):
         if cancelled:
             return
 
+        # Collect and upload assets (rewrites symbol layer paths)
+        assets_hash = collect_and_upload_assets(self.styled_map.id)
+
+        # Save project (with rewritten paths if assets exist)
+        new_qgisproject = write_qgsfile(self.styled_map.id)
+
         try:
-            # Collect and upload assets (rewrites symbol layer paths)
-            assets_hash = collect_and_upload_assets(self.styled_map.id)
-
-            # Save project (with rewritten paths if assets exist)
-            new_qgisproject = write_qgsfile(self.styled_map.id)
-
             # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,

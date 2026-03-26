@@ -393,13 +393,13 @@ def handle_project_saved() -> None:
     if cancelled:
         return
 
+    # Collect and upload assets (rewrites symbol layer paths)
+    assets_hash = collect_and_upload_assets(styled_map_id)
+
+    # Save project (with rewritten paths if assets exist)
+    qgsproject_str = write_qgsfile(styled_map_id)
+
     try:
-        # Collect and upload assets (rewrites symbol layer paths)
-        assets_hash = collect_and_upload_assets(styled_map_id)
-
-        # Save project (with rewritten paths if assets exist)
-        qgsproject_str = write_qgsfile(styled_map_id)
-
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
