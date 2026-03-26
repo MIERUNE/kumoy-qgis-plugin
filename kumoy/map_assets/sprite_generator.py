@@ -6,13 +6,13 @@ from qgis.PyQt.QtCore import QBuffer, QByteArray, QSize
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_PAINTER_RENDER_HINT
-from .symbol_collector import SymbolAsset
+from .symbol_collector import SpriteEntry
 
 SPRITE_ATLAS_MAX_WIDTH = 1024
 
 
 def _pack_images(
-    assets: list[SymbolAsset],
+    sprites: list[SpriteEntry],
 ) -> tuple[dict[str, dict], QImage]:
     """画像をスプライトアトラスにパッキングする。"""
     sprite_json: dict[str, dict] = {}
@@ -24,8 +24,8 @@ def _pack_images(
     total_width = 0
     positions: list[tuple[str, QImage, int, int]] = []
 
-    for asset in assets:
-        img = asset.image
+    for entry in sprites:
+        img = entry.image
         w = img.width()
         h = img.height()
 
@@ -34,7 +34,7 @@ def _pack_images(
             x = 0
             row_height = 0
 
-        positions.append((asset.id, img, x, y))
+        positions.append((entry.name, img, x, y))
         row_height = max(row_height, h)
         x += w
         total_width = max(total_width, x)
@@ -75,17 +75,17 @@ def _image_to_png_bytes(image: QImage) -> bytes:
 
 
 def generate_sprites(
-    assets: list[SymbolAsset],
+    sprites: list[SpriteEntry],
 ) -> tuple[bytes, bytes]:
     """MapLibreスプライト（sprite.json + sprite.png）を生成する。
 
     Args:
-        assets: SymbolAssetのリスト
+        sprites: SpriteEntryのリスト
 
     Returns:
         (sprite_json_bytes, sprite_png_bytes) のタプル
     """
-    sprite_json, atlas = _pack_images(assets)
+    sprite_json, atlas = _pack_images(sprites)
     json_bytes = json.dumps(sprite_json).encode("utf-8")
     png_bytes = _image_to_png_bytes(atlas)
     return json_bytes, png_bytes

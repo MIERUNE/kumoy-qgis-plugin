@@ -26,7 +26,7 @@ from ..api.error import format_api_error
 from ..constants import LOG_CATEGORY
 from ..map_assets.qgs_path_rewriter import rewrite_paths
 from ..map_assets.sprite_generator import generate_sprites
-from ..map_assets.symbol_collector import collect_assets
+from ..map_assets.symbol_collector import CollectedAssets, collect_assets
 from ..map_assets.uploader import upload_to_presigned_url
 from ..map_assets.zip_builder import build_asset_zip
 
@@ -238,33 +238,30 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
-def _collect_and_upload_assets(
-    styled_map_id: str, qgs_xml: str
-) -> "tuple[str, str] | None":
-    """Collect symbol assets and upload to server.
+def _collect_and_upload_assets(styled_map_id: str) -> "str | None":
+    """Collect symbol assets, rewrite paths, and upload to server.
 
     Args:
         styled_map_id: StyledMap ID
-        qgs_xml: QGS XML string
 
     Returns:
-        Tuple of (assets_hash, rewritten_qgs_xml) if assets exist, None otherwise
+        assets_hash if assets exist, None otherwise
     """
+    project = QgsProject.instance()
+    collected = collect_assets(project)
 
-    assets = collect_assets(QgsProject.instance())
-
-    if not assets:
+    if not collected.sprites and not collected.files:
         return None
 
     try:
-        # Rewrite QGS paths
-        rewritten_xml = rewrite_paths(qgs_xml, assets)
+        # Rewrite symbol layer paths
+        rewrite_paths(project, collected.files)
 
         # Build ZIP
-        zip_bytes = build_asset_zip(assets)
+        zip_bytes = build_asset_zip(collected.files) if collected.files else b""
 
         # Generate sprites
-        sprite_json, sprite_png = generate_sprites(assets)
+        sprite_json, sprite_png = generate_sprites(collected.sprites)
 
         # Compute hash
         h = hashlib.sha256()
@@ -308,7 +305,7 @@ def _collect_and_upload_assets(
                 "application/zip",
             )
 
-        return (assets_hash, rewritten_xml)
+        return assets_hash
     except Exception as e:
         QgsMessageLog.logMessage(
             f"Warning: Failed to upload assets: {e}",
@@ -404,16 +401,16 @@ def handle_project_saved() -> None:
         return
 
     try:
-        # Save project with converted layers
+        # Collect and upload assets (rewrites symbol layer paths)
+        assets_hash = _collect_and_upload_assets(styled_map_id)
+
+        # Save project (with rewritten paths if assets exist)
         qgsproject_str = write_qgsfile(styled_map_id)
 
-        # Collect and upload assets
-        assets_hash = _collect_and_upload_assets(styled_map_id, qgsproject_str)
         if assets_hash is not None:
-            qgsproject_str = assets_hash[1]
             update_options = api.styledmap.UpdateStyledMapOptions(
                 qgisproject=qgsproject_str,
-                assetsHash=assets_hash[0],
+                assetsHash=assets_hash,
             )
         else:
             update_options = api.styledmap.UpdateStyledMapOptions(

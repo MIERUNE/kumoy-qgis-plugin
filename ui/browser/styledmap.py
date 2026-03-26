@@ -388,14 +388,13 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
+            # Collect and upload assets (rewrites symbol layer paths)
+            assets_hash = _collect_and_upload_assets(self.styled_map.id)
+
+            # Save project (with rewritten paths if assets exist)
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
-            # Collect and upload assets
-            assets_result = _collect_and_upload_assets(
-                self.styled_map.id, new_qgisproject
-            )
-            if assets_result is not None:
-                assets_hash, new_qgisproject = assets_result
+            if assets_hash is not None:
                 update_options = api.styledmap.UpdateStyledMapOptions(
                     qgisproject=new_qgisproject,
                     assetsHash=assets_hash,
@@ -685,9 +684,10 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # Upload assets after map creation (need map ID for presigned URLs)
-            assets_result = _collect_and_upload_assets(new_styled_map.id, qgisproject)
-            if assets_result is not None:
-                assets_hash, rewritten_qgisproject = assets_result
+            assets_hash = _collect_and_upload_assets(new_styled_map.id)
+            if assets_hash is not None:
+                # Re-write project to get XML with rewritten paths
+                rewritten_qgisproject = write_qgsfile(self.project.id)
                 api.styledmap.update_styled_map(
                     new_styled_map.id,
                     api.styledmap.UpdateStyledMapOptions(

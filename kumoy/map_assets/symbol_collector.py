@@ -19,16 +19,32 @@ from qgis.PyQt.QtGui import QImage
 
 
 @dataclass
-class SymbolAsset:
-    """シンボルレイヤーのアセット（ファイル参照とスプライト画像）"""
+class SpriteEntry:
+    """スプライトアトラスの1エントリ（シンボル単位）"""
 
-    id: str  # シンボルレイヤーID
+    name: str  # {layerID}_{symbolIndex}
+    image: QImage
+
+
+@dataclass
+class FileAsset:
+    """シンボルレイヤーが参照するファイル（シンボルレイヤー単位）"""
+
+    symbol_layer_id: str  # シンボルレイヤーID
     original_path: str  # 元の絶対パス
-    zip_name: str  # ZIP内ファイル名 ({symbolLayerID}.{ext})
-    image: QImage  # スプライト画像
+    ext: str  # 拡張子（.svg, .png 等）
+
+
+@dataclass
+class CollectedAssets:
+    """収集結果"""
+
+    sprites: list[SpriteEntry]
+    files: list[FileAsset]
 
 
 def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
+    """シンボルレイヤーからファイルパスを取得する。対応外の型は空文字を返す。"""
     if isinstance(symbol_layer, (QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer)):
         return symbol_layer.path()
 
@@ -38,7 +54,7 @@ def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
     if isinstance(symbol_layer, QgsRasterFillSymbolLayer):
         return symbol_layer.imageFilePath()
 
-    raise NotImplementedError(f"Unsupported symbol layer type: {type(symbol_layer)}")
+    return ""
 
 
 def _resolve_svg_path(path: str) -> str:
@@ -57,10 +73,14 @@ def _resolve_svg_path(path: str) -> str:
     return path
 
 
-def collect_assets(project: QgsProject) -> list[SymbolAsset]:
-    """プロジェクト内の全シンボルからファイル参照とスプライト画像を収集する。"""
-    assets: list[SymbolAsset] = []
-    seen_paths: set[str] = set()
+def collect_assets(project: QgsProject) -> CollectedAssets:
+    """プロジェクト内の全シンボルからスプライト画像とファイル参照を収集する。
+
+    スプライトはシンボル単位（{layerID}_{symbolIndex}）、
+    ファイルはシンボルレイヤー単位（{symbolLayerID}）で収集する。
+    """
+    sprites: list[SpriteEntry] = []
+    files: list[FileAsset] = []
     render_context = QgsRenderContext()
 
     for layer in project.mapLayers().values():
@@ -71,33 +91,31 @@ def collect_assets(project: QgsProject) -> list[SymbolAsset]:
         if renderer is None:
             continue
 
-        for symbol in renderer.symbols(render_context):
+        layer_id = layer.id()
+
+        for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
+            # スプライト: シンボル単位で画像生成
+            image = symbol.asImage(QSize(64, 64))
+            if image and not image.isNull():
+                sprite_name = f"{layer_id}_{symbol_index}"
+                sprites.append(SpriteEntry(name=sprite_name, image=image))
+
+            # ファイル: シンボルレイヤー単位で収集
             for i in range(symbol.symbolLayerCount()):
                 sl = symbol.symbolLayer(i)
-                sl_id = sl.id()
-
-                # ファイルパス解決
                 raw_path = _get_file_path_from_symbol_layer(sl)
-                original_path = ""
-                zip_name = ""
-                if raw_path and not raw_path.startswith(("http://", "https://")):
-                    resolved = _resolve_svg_path(raw_path)
-                    if os.path.isfile(resolved) and resolved not in seen_paths:
-                        seen_paths.add(resolved)
-                        ext = os.path.splitext(resolved)[1]
-                        original_path = resolved
-                        zip_name = f"{sl_id}{ext}"
+                if not raw_path or raw_path.startswith(("http://", "https://")):
+                    continue
 
-                # スプライト画像生成
-                image = symbol.asImage(QSize(64, 64))
-                if image and not image.isNull():
-                    assets.append(
-                        SymbolAsset(
-                            id=sl_id,
-                            original_path=original_path,
-                            zip_name=zip_name,
-                            image=image,
+                resolved = _resolve_svg_path(raw_path)
+                if os.path.isfile(resolved):
+                    ext = os.path.splitext(resolved)[1]
+                    files.append(
+                        FileAsset(
+                            symbol_layer_id=sl.id(),
+                            original_path=resolved,
+                            ext=ext,
                         )
                     )
 
-    return assets
+    return CollectedAssets(sprites=sprites, files=files)

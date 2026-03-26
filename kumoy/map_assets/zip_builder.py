@@ -3,16 +3,18 @@
 import io
 import zipfile
 
-from .symbol_collector import SymbolAsset
+from .symbol_collector import FileAsset
 
 MAX_ZIP_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def build_asset_zip(assets: list[SymbolAsset]) -> bytes:
+def build_asset_zip(files: list[FileAsset]) -> bytes:
     """収集したファイルからZIPアーカイブを作成する。
 
+    ZIP内ファイル名は {symbolLayerID}.{ext} となる。
+
     Args:
-        assets: SymbolAssetのリスト
+        files: FileAssetのリスト
 
     Returns:
         ZIPアーカイブのバイト列
@@ -22,9 +24,9 @@ def build_asset_zip(assets: list[SymbolAsset]) -> bytes:
     """
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for asset in assets:
-            if asset.original_path:
-                zf.write(asset.original_path, asset.zip_name)
+        for asset in files:
+            zip_name = f"{asset.symbol_layer_id}{asset.ext}"
+            zf.write(asset.original_path, zip_name)
 
     data = buf.getvalue()
     if len(data) > MAX_ZIP_SIZE:

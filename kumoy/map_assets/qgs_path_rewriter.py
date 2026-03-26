@@ -1,25 +1,44 @@
-"""QGS XML内のファイルパスを相対パスに書き換える"""
+"""QGSプロジェクトのシンボルレイヤーパスを書き換える"""
 
-from .symbol_collector import SymbolAsset
+from qgis.core import (
+    QgsProject,
+    QgsRasterFillSymbolLayer,
+    QgsRasterMarkerSymbolLayer,
+    QgsRenderContext,
+    QgsSVGFillSymbolLayer,
+    QgsSvgMarkerSymbolLayer,
+    QgsSymbolLayer,
+    QgsVectorLayer,
+)
+
+from .symbol_collector import FileAsset
 
 
-def rewrite_paths(qgs_xml: str, assets: list[SymbolAsset]) -> str:
-    """QGS XML内のファイルパスを相対パスに書き換える。
+def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
+    """シンボルレイヤーにファイルパスを設定する。"""
+    if isinstance(symbol_layer, (QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer)):
+        symbol_layer.setPath(path)
+    elif isinstance(symbol_layer, QgsSVGFillSymbolLayer):
+        symbol_layer.setSvgFilePath(path)
+    elif isinstance(symbol_layer, QgsRasterFillSymbolLayer):
+        symbol_layer.setImageFilePath(path)
 
-    元の絶対パスを `./assets/{zip_name}` に置換する。
 
-    Args:
-        qgs_xml: QGS XMLの文字列
-        assets: SymbolAssetのリスト
-
-    Returns:
-        書き換え後のQGS XML文字列
-    """
-    for asset in assets:
-        if not asset.original_path:
+def rewrite_paths(project: QgsProject, files: list[FileAsset]) -> None:
+    """シンボルレイヤーのパスを相対パスに書き換える。"""
+    path_map = {
+        asset.symbol_layer_id: f"./assets/{asset.symbol_layer_id}{asset.ext}"
+        for asset in files
+    }
+    render_context = QgsRenderContext()
+    for layer in project.mapLayers().values():
+        if not isinstance(layer, QgsVectorLayer):
             continue
-        relative_path = f"./assets/{asset.zip_name}"
-        qgs_xml = qgs_xml.replace(asset.original_path, relative_path)
-        qgs_xml = qgs_xml.replace(asset.original_path.replace("/", "\\"), relative_path)
-
-    return qgs_xml
+        renderer = layer.renderer()
+        if renderer is None:
+            continue
+        for symbol in renderer.symbols(render_context):
+            for i in range(symbol.symbolLayerCount()):
+                sl = symbol.symbolLayer(i)
+                if sl.id() in path_map:
+                    _set_file_path(sl, path_map[sl.id()])
