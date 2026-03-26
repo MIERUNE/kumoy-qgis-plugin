@@ -261,38 +261,38 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     server_url = api.config.get_api_config().SERVER_URL
 
     try:
+        # Get presigned URLs for all assets at once
+        upload_urls = api.styledmap_assets.get_assets_upload_urls(
+            styled_map_id,
+            len(zip_bytes),
+            len(sprite_json),
+            len(sprite_png),
+        )
+
         # Upload sprites
-        if sprite_json and sprite_png:
-            sprite_urls = api.styledmap_assets.get_sprite_upload_urls(
-                styled_map_id, len(sprite_json), len(sprite_png)
-            )
-            map_assets.upload_to_presigned_url(
-                server_url,
-                sprite_urls.json.fields,
-                sprite_urls.json.filename,
-                sprite_json,
-                "application/json",
-            )
-            map_assets.upload_to_presigned_url(
-                server_url,
-                sprite_urls.png.fields,
-                sprite_urls.png.filename,
-                sprite_png,
-                "image/png",
-            )
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.json.fields,
+            upload_urls.json.filename,
+            sprite_json,
+            "application/json",
+        )
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.png.fields,
+            upload_urls.png.filename,
+            sprite_png,
+            "image/png",
+        )
 
         # Upload ZIP
-        if zip_bytes:
-            zip_url = api.styledmap_assets.get_asset_zip_upload_url(
-                styled_map_id, len(zip_bytes)
-            )
-            map_assets.upload_to_presigned_url(
-                server_url,
-                zip_url.fields,
-                zip_url.filename,
-                zip_bytes,
-                "application/zip",
-            )
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.zip.fields,
+            upload_urls.zip.filename,
+            zip_bytes,
+            "application/zip",
+        )
 
         return assets_hash
     except Exception as e:

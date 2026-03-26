@@ -13,32 +13,43 @@ class PresignedUrl:
 
 
 @dataclass
-class SpriteUploadUrls:
+class AssetsUploadUrls:
+    zip: PresignedUrl
     json: PresignedUrl
     png: PresignedUrl
 
 
-def get_sprite_upload_urls(
-    styled_map_id: str, json_file_size: int, png_file_size: int
-) -> SpriteUploadUrls:
-    """スプライトアップロード用のpresigned URLを取得する。
+def get_assets_upload_urls(
+    styled_map_id: str,
+    zip_file_size: int,
+    json_file_size: int,
+    png_file_size: int,
+) -> AssetsUploadUrls:
+    """アセットアップロード用のpresigned URLを取得する（ZIP + スプライト）。
 
     Args:
         styled_map_id: StyledMap ID
+        zip_file_size: ZIPファイルサイズ
         json_file_size: sprite.jsonのファイルサイズ
         png_file_size: sprite.pngのファイルサイズ
 
     Returns:
-        SpriteUploadUrls
+        AssetsUploadUrls
     """
     response = ApiClient.post(
-        f"/styled-map/{styled_map_id}/sprite-upload",
+        f"/styled-map/{styled_map_id}/assets-upload",
         {
+            "zipFileSize": zip_file_size,
             "jsonFileSize": json_file_size,
             "pngFileSize": png_file_size,
         },
     )
-    return SpriteUploadUrls(
+    return AssetsUploadUrls(
+        zip=PresignedUrl(
+            url=response["zip"]["url"],
+            filename=response["zip"]["filename"],
+            fields=response["zip"]["fields"],
+        ),
         json=PresignedUrl(
             url=response["json"]["url"],
             filename=response["json"]["filename"],
@@ -49,27 +60,6 @@ def get_sprite_upload_urls(
             filename=response["png"]["filename"],
             fields=response["png"]["fields"],
         ),
-    )
-
-
-def get_asset_zip_upload_url(styled_map_id: str, file_size: int) -> PresignedUrl:
-    """ZIPアップロード用のpresigned URLを取得する。
-
-    Args:
-        styled_map_id: StyledMap ID
-        file_size: ZIPファイルサイズ
-
-    Returns:
-        PresignedUrl
-    """
-    response = ApiClient.post(
-        f"/styled-map/{styled_map_id}/asset-zip-upload",
-        {"fileSize": file_size},
-    )
-    return PresignedUrl(
-        url=response["url"],
-        filename=response["filename"],
-        fields=response["fields"],
     )
 
 
