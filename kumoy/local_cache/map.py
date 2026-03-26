@@ -246,25 +246,25 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     if not collected.sprites and not collected.files:
         return None
 
+    # Rewrite symbol layer paths
+    rewrite_paths(project, collected.files)
+
+    # Build ZIP
+    zip_bytes = build_asset_zip(collected.files) if collected.files else b""
+
+    # Generate sprites
+    sprite_json, sprite_png = generate_sprites(collected.sprites)
+
+    # Compute hash
+    h = hashlib.sha256()
+    h.update(zip_bytes)
+    h.update(sprite_json)
+    h.update(sprite_png)
+    assets_hash = h.hexdigest()[:16]
+
+    server_url = api.config.get_api_config().SERVER_URL
+
     try:
-        # Rewrite symbol layer paths
-        rewrite_paths(project, collected.files)
-
-        # Build ZIP
-        zip_bytes = build_asset_zip(collected.files) if collected.files else b""
-
-        # Generate sprites
-        sprite_json, sprite_png = generate_sprites(collected.sprites)
-
-        # Compute hash
-        h = hashlib.sha256()
-        h.update(zip_bytes)
-        h.update(sprite_json)
-        h.update(sprite_png)
-        assets_hash = h.hexdigest()[:16]
-
-        server_url = api.config.get_api_config().SERVER_URL
-
         # Upload sprites
         if sprite_json and sprite_png:
             sprite_urls = api.styledmap_assets.get_sprite_upload_urls(
