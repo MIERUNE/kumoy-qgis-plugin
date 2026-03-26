@@ -238,14 +238,9 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     project = QgsProject.instance()
     collected = map_assets.collect_assets(project)
 
-    if not collected.sprites or not collected.files:
-        # どちらか一方だけがある・ない、という状況は起こらない
-        return None
-
     # Rewrite symbol layer paths and copy files
     assets_dir = get_assets_dir(styled_map_id)
     map_assets.rewrite_paths(project, collected.files, assets_dir)
-
     # Build ZIP
     zip_bytes = map_assets.build_asset_zip(collected.files)
     # Generate sprites
@@ -269,22 +264,6 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
             len(sprite_png),
         )
 
-        # Upload sprites
-        map_assets.upload_to_presigned_url(
-            server_url,
-            upload_urls.json.fields,
-            upload_urls.json.filename,
-            sprite_json,
-            "application/json",
-        )
-        map_assets.upload_to_presigned_url(
-            server_url,
-            upload_urls.png.fields,
-            upload_urls.png.filename,
-            sprite_png,
-            "image/png",
-        )
-
         # Upload ZIP
         map_assets.upload_to_presigned_url(
             server_url,
@@ -293,6 +272,23 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
             zip_bytes,
             "application/zip",
         )
+
+        if collected.sprites:
+            # Upload sprites
+            map_assets.upload_to_presigned_url(
+                server_url,
+                upload_urls.json.fields,
+                upload_urls.json.filename,
+                sprite_json,
+                "application/json",
+            )
+            map_assets.upload_to_presigned_url(
+                server_url,
+                upload_urls.png.fields,
+                upload_urls.png.filename,
+                sprite_png,
+                "image/png",
+            )
 
         return assets_hash
     except Exception as e:
