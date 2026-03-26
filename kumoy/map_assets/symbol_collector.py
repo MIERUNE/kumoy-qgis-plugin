@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 from qgis.core import (
     QgsApplication,
@@ -16,6 +17,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QImage
+
+from ..constants import DATA_PROVIDER_KEY
 
 
 @dataclass
@@ -43,7 +46,7 @@ class CollectedAssets:
     files: list[FileAsset]
 
 
-def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
+def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> Optional[str]:
     """シンボルレイヤーからファイルパスを取得する"""
     if isinstance(symbol_layer, (QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer)):
         return symbol_layer.path()
@@ -54,7 +57,7 @@ def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
     if isinstance(symbol_layer, QgsRasterFillSymbolLayer):
         return symbol_layer.imageFilePath()
 
-    raise NotImplementedError(f"Unsupported symbol layer type: {type(symbol_layer)}")
+    return None
 
 
 def _resolve_svg_path(path: str) -> str:
@@ -87,6 +90,10 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
         if not isinstance(layer, QgsVectorLayer):
             continue
 
+        # kumoy only
+        if layer.dataProvider().name() != DATA_PROVIDER_KEY:
+            continue
+
         renderer = layer.renderer()
         if renderer is None:
             continue
@@ -95,7 +102,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
 
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
             # スプライト: シンボル単位で画像生成
-            image = symbol.asImage(QSize(64, 64))
+            image = symbol.asImage(QSize(128, 128))
             if image and not image.isNull():
                 sprite_name = f"{layer_id}_{symbol_index}"
                 sprites.append(SpriteEntry(name=sprite_name, image=image))
@@ -104,7 +111,9 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
             for i in range(symbol.symbolLayerCount()):
                 sl = symbol.symbolLayer(i)
                 raw_path = _get_file_path_from_symbol_layer(sl)
-                if raw_path.startswith(("http://", "https://")):
+
+                if raw_path is None or raw_path.startswith(("http://", "https://")):
+                    # ローカルファイルに依存していない場合
                     continue
 
                 resolved = _resolve_svg_path(raw_path)
