@@ -15,7 +15,7 @@ from qgis.core import (
     QgsSymbolLayer,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtCore import QRect, QSize, Qt
 from qgis.PyQt.QtGui import QImage
 
 from ..constants import DATA_PROVIDER_KEY
@@ -60,6 +60,42 @@ def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> Optional[s
     return None
 
 
+def _trim_and_fit(image: QImage, max_size: int) -> QImage:
+    """画像の透明余白をトリムし、max_size x max_size 内にフィットさせる。"""
+    img = image.convertToFormat(QImage.Format_ARGB32)
+    w, h = img.width(), img.height()
+    stride = img.bytesPerLine()
+    ptr = img.constBits()
+    buf = ptr.asstring(stride * h)
+
+    # 不透明ピクセルのbounding boxを求める（alphaバイトを走査）
+    x_min, x_max, y_min, y_max = w, 0, h, 0
+    for y in range(h):
+        row_offset = y * stride
+        for x in range(w):
+            # ARGB32: B,G,R,A の順で4バイト
+            if buf[row_offset + x * 4 + 3]:  # alpha非ゼロ
+                if x < x_min:
+                    x_min = x
+                if x > x_max:
+                    x_max = x
+                if y < y_min:
+                    y_min = y
+                if y > y_max:
+                    y_max = y
+
+    if x_max < x_min:
+        # 完全に透明な画像
+        return image.scaled(
+            QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+
+    cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
+    return cropped.scaled(
+        QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
+    )
+
+
 def _resolve_svg_path(path: str) -> str:
     """SVGパスを絶対パスに解決する。
     QGISのSVGサーチパスを考慮して相対パスを解決する。
@@ -101,9 +137,10 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
         layer_id = layer.id()
 
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
-            # スプライト: シンボル単位で画像生成
-            image = symbol.asImage(QSize(128, 128))
-            if image and not image.isNull():
+            # 大きめに描画してからトリム
+            raw_image = symbol.asImage(QSize(256, 256))
+            if raw_image and not raw_image.isNull():
+                image = _trim_and_fit(raw_image, 32)
                 sprite_name = f"{layer_id}_{symbol_index}"
                 sprites.append(SpriteEntry(name=sprite_name, image=image))
 
