@@ -21,14 +21,9 @@ from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
-from .. import api
+from .. import api, map_assets
 from ..api.error import format_api_error
 from ..constants import LOG_CATEGORY
-from ..map_assets.qgs_path_rewriter import rewrite_paths
-from ..map_assets.sprite_generator import generate_sprites
-from ..map_assets.symbol_collector import CollectedAssets, collect_assets
-from ..map_assets.uploader import upload_to_presigned_url
-from ..map_assets.zip_builder import build_asset_zip
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
@@ -241,7 +236,7 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
         assets_hash if assets exist, None otherwise
     """
     project = QgsProject.instance()
-    collected = collect_assets(project)
+    collected = map_assets.collect_assets(project)
 
     if not collected.sprites or not collected.files:
         # どちらか一方だけがある・ない、という状況は起こらない
@@ -249,12 +244,12 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
 
     # Rewrite symbol layer paths and copy files
     assets_dir = get_assets_dir(styled_map_id)
-    rewrite_paths(project, collected.files, assets_dir)
+    map_assets.rewrite_paths(project, collected.files, assets_dir)
 
     # Build ZIP
-    zip_bytes = build_asset_zip(collected.files)
+    zip_bytes = map_assets.build_asset_zip(collected.files)
     # Generate sprites
-    sprite_json, sprite_png = generate_sprites(collected.sprites)
+    sprite_json, sprite_png = map_assets.generate_sprites(collected.sprites)
 
     # Compute hash
     h = hashlib.sha256()
@@ -271,14 +266,14 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
             sprite_urls = api.styledmap_assets.get_sprite_upload_urls(
                 styled_map_id, len(sprite_json), len(sprite_png)
             )
-            upload_to_presigned_url(
+            map_assets.upload_to_presigned_url(
                 server_url,
                 sprite_urls.json.fields,
                 sprite_urls.json.filename,
                 sprite_json,
                 "application/json",
             )
-            upload_to_presigned_url(
+            map_assets.upload_to_presigned_url(
                 server_url,
                 sprite_urls.png.fields,
                 sprite_urls.png.filename,
@@ -291,7 +286,7 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
             zip_url = api.styledmap_assets.get_asset_zip_upload_url(
                 styled_map_id, len(zip_bytes)
             )
-            upload_to_presigned_url(
+            map_assets.upload_to_presigned_url(
                 server_url,
                 zip_url.fields,
                 zip_url.filename,
