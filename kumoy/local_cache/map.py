@@ -243,15 +243,15 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     project = QgsProject.instance()
     collected = collect_assets(project)
 
-    if not collected.sprites and not collected.files:
+    if not collected.sprites or not collected.files:
+        # どちらか一方だけがある・ない、という状況は起こらない
         return None
 
     # Rewrite symbol layer paths
     rewrite_paths(project, collected.files)
 
     # Build ZIP
-    zip_bytes = build_asset_zip(collected.files) if collected.files else b""
-
+    zip_bytes = build_asset_zip(collected.files)
     # Generate sprites
     sprite_json, sprite_png = generate_sprites(collected.sprites)
 
