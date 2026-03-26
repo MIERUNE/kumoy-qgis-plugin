@@ -247,8 +247,9 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
         # どちらか一方だけがある・ない、という状況は起こらない
         return None
 
-    # Rewrite symbol layer paths
-    rewrite_paths(project, collected.files)
+    # Rewrite symbol layer paths and copy files
+    assets_dir = get_assets_dir(styled_map_id)
+    rewrite_paths(project, collected.files, assets_dir)
 
     # Build ZIP
     zip_bytes = build_asset_zip(collected.files)
