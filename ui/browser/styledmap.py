@@ -26,7 +26,7 @@ from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    _collect_and_upload_assets,
+    collect_and_upload_assets,
     download_and_extract_assets,
     show_map_save_result,
     write_qgsfile,
@@ -244,7 +244,6 @@ class StyledMapItem(QgsDataItem):
                 download_url = api.styledmap_assets.get_asset_zip_download_url(
                     styled_map_detail.id
                 )
-                print(download_url)
                 download_and_extract_assets(styled_map_detail.id, download_url)
             except Exception as asset_err:
                 QgsMessageLog.logMessage(
@@ -389,25 +388,18 @@ class StyledMapItem(QgsDataItem):
 
         try:
             # Collect and upload assets (rewrites symbol layer paths)
-            assets_hash = _collect_and_upload_assets(self.styled_map.id)
+            assets_hash = collect_and_upload_assets(self.styled_map.id)
 
             # Save project (with rewritten paths if assets exist)
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
-            if assets_hash is not None:
-                update_options = api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                    assetsHash=assets_hash,
-                )
-            else:
-                update_options = api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                )
-
             # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                update_options,
+                api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=new_qgisproject,
+                    assetsHash=assets_hash,
+                ),
             )
         except Exception as e:
             error_text = format_api_error(e)
@@ -684,7 +676,7 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # Upload assets after map creation (need map ID for presigned URLs)
-            assets_hash = _collect_and_upload_assets(new_styled_map.id)
+            assets_hash = collect_and_upload_assets(new_styled_map.id)
             if assets_hash is not None:
                 # Re-write project to get XML with rewritten paths
                 rewritten_qgisproject = write_qgsfile(self.project.id)

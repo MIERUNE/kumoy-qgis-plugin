@@ -1,7 +1,7 @@
 import hashlib
+import io
 import os
 import shutil
-import tempfile
 import zipfile
 
 from qgis.core import (
@@ -113,15 +113,8 @@ def download_and_extract_assets(map_id: str, download_url: str) -> None:
 
     # Extract to assets directory
     assets_dir = get_assets_dir(map_id)
-    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-        tmp.write(zip_data)
-        tmp_path = tmp.name
-
-    try:
-        with zipfile.ZipFile(tmp_path, "r") as zf:
-            zf.extractall(assets_dir)
-    finally:
-        os.unlink(tmp_path)
+    with zipfile.ZipFile(io.BytesIO(zip_data), "r") as zf:
+        zf.extractall(assets_dir)
 
     QgsMessageLog.logMessage(
         f"Assets extracted to {assets_dir}",
@@ -238,7 +231,7 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
-def _collect_and_upload_assets(styled_map_id: str) -> "str | None":
+def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     """Collect symbol assets, rewrite paths, and upload to server.
 
     Args:
@@ -402,25 +395,18 @@ def handle_project_saved() -> None:
 
     try:
         # Collect and upload assets (rewrites symbol layer paths)
-        assets_hash = _collect_and_upload_assets(styled_map_id)
+        assets_hash = collect_and_upload_assets(styled_map_id)
 
         # Save project (with rewritten paths if assets exist)
         qgsproject_str = write_qgsfile(styled_map_id)
 
-        if assets_hash is not None:
-            update_options = api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-                assetsHash=assets_hash,
-            )
-        else:
-            update_options = api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-            )
-
         # Overwrite styled map
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
-            update_options,
+            api.styledmap.UpdateStyledMapOptions(
+                qgisproject=qgsproject_str,
+                assetsHash=assets_hash,
+            ),
         )
     except Exception as e:
         error_text = format_api_error(e)
