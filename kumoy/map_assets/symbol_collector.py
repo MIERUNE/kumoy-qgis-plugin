@@ -44,7 +44,7 @@ class CollectedAssets:
 
 
 def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
-    """シンボルレイヤーからファイルパスを取得する。対応外の型は空文字を返す。"""
+    """シンボルレイヤーからファイルパスを取得する"""
     if isinstance(symbol_layer, (QgsSvgMarkerSymbolLayer, QgsRasterMarkerSymbolLayer)):
         return symbol_layer.path()
 
@@ -54,7 +54,7 @@ def _get_file_path_from_symbol_layer(symbol_layer: QgsSymbolLayer) -> str:
     if isinstance(symbol_layer, QgsRasterFillSymbolLayer):
         return symbol_layer.imageFilePath()
 
-    return ""
+    raise NotImplementedError(f"Unsupported symbol layer type: {type(symbol_layer)}")
 
 
 def _resolve_svg_path(path: str) -> str:
@@ -104,7 +104,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
             for i in range(symbol.symbolLayerCount()):
                 sl = symbol.symbolLayer(i)
                 raw_path = _get_file_path_from_symbol_layer(sl)
-                if not raw_path or raw_path.startswith(("http://", "https://")):
+                if raw_path.startswith(("http://", "https://")):
                     continue
 
                 resolved = _resolve_svg_path(raw_path)
