@@ -101,6 +101,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
 
+        self._extent = QgsRectangle()
+        self.filter_where_clause = None
+        self._subset_string = ""
+
         # store arguments
         self._uri = uri
         self._provider_options = providerOptions
@@ -316,9 +320,26 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set."""
-        if self.kumoy_vector is None:
+        if not self.cached_layer:
             return 0
-        return self.kumoy_vector.count
+
+        if not self._subset_string:
+            try:
+                return self.cached_layer.featureCount()
+            except Exception:
+                return self.kumoy_vector.count
+
+        request = QgsFeatureRequest()
+        request.setFilterExpression(self._subset_string)
+        iterator = self.cached_layer.getFeatures(request)
+        count = 0
+        try:
+            for _ in iterator:
+                count += 1
+        finally:
+            iterator.close()
+
+        return count
 
     def fields(self) -> QgsFields:
         fs = QgsFields()
@@ -371,7 +392,22 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return self._crs
 
     def supportsSubsetString(self) -> bool:
-        return False
+        return True
+
+    def subsetString(self) -> str:
+        return self._subset_string
+
+    def setSubsetString(
+        self, subset_string: str, update_feature_count: bool = True
+    ) -> bool:
+        self._subset_string = subset_string
+
+        if update_feature_count:
+            self.clearMinMaxCache()
+            self.updateExtents()
+            self.dataChanged.emit()
+
+        return True
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
         if self.kumoy_vector is None:
