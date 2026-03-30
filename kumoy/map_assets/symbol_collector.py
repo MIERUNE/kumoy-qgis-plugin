@@ -141,14 +141,12 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
         if renderer is None:
             continue
 
-        layer_id = layer.id()
-
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
             # 大きめに描画してからトリム
-            raw_image = symbol.asImage(QSize(256, 256))
+            raw_image = symbol.asImage(QSize(128, 128))
             if raw_image and not raw_image.isNull():
-                image = _trim_and_fit(raw_image, 64)
-                sprite_name = f"{layer_id}_{symbol_index}"
+                image = _trim_and_fit(raw_image, 32)
+                sprite_name = f"{layer.id()}_{symbol_index}"
                 sprites.append(SpriteEntry(name=sprite_name, image=image))
 
             # ファイル: シンボルレイヤー単位で収集

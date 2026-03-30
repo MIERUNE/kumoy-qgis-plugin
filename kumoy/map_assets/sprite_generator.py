@@ -71,6 +71,7 @@ def _image_to_png_bytes(image: QImage) -> bytes:
     buf = QBuffer()
     buf.open(Q_BUFFER_OPEN_MODE.WriteOnly)
     image.save(buf, "PNG")
+    buf.close()
     return bytes(buf.data())
 
 
