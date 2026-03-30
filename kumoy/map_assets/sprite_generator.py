@@ -9,6 +9,7 @@ from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_PAINTER_RENDER_HINT
 from .symbol_collector import SpriteEntry
 
 SPRITE_ATLAS_MAX_WIDTH = 1024
+SPRITE_PADDING = 2
 
 
 def _pack_images(
@@ -30,14 +31,14 @@ def _pack_images(
         h = img.height()
 
         if x + w > SPRITE_ATLAS_MAX_WIDTH and x > 0:
-            y += row_height
+            y += row_height + SPRITE_PADDING
             x = 0
             row_height = 0
 
         positions.append((entry.name, img, x, y))
         row_height = max(row_height, h)
-        x += w
-        total_width = max(total_width, x)
+        x += w + SPRITE_PADDING
+        total_width = max(total_width, x - SPRITE_PADDING)
 
     total_height = y + row_height
 
