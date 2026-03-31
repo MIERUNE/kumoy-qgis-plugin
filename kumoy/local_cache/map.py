@@ -241,10 +241,21 @@ def upload_assets_and_update_map(
     project = QgsProject.instance()
     collected = map_assets.collect_assets(project)
 
+    if len(collected.files) == 0 and len(collected.sprites) == 0:
+        # No assets to upload, set assetsHash to null
+        updated_styled_map = api.styledmap.update_styled_map(
+            styled_map_detail.id,
+            api.styledmap.UpdateStyledMapOptions(
+                assetsHash=None,
+            ),
+        )
+        return updated_styled_map
+
     # create assets.zip / sprite
     map_assets.copy_files_and_rewrite_paths(
         project, collected.files, get_assets_dir(styled_map_detail.id)
     )
+    qgsproject_str = write_qgsfile(styled_map_detail.id)
     zip_bytes = map_assets.build_asset_zip(collected.files)
     sprite_json, sprite_png = map_assets.generate_sprites(collected.sprites)
 
@@ -297,8 +308,6 @@ def upload_assets_and_update_map(
             sprite_png,
             "image/png",
         )
-
-    qgsproject_str = write_qgsfile(styled_map_detail.id)
 
     updated_styled_map = api.styledmap.update_styled_map(
         styled_map_detail.id,

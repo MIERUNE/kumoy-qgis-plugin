@@ -389,7 +389,7 @@ class StyledMapItem(QgsDataItem):
 
         try:
             # Overwrite styled map
-            updated_styled_map = upload_assets_and_update_map(self.styled_map)
+            updated_styled_map = upload_assets_and_update_map(styled_map_detail)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
