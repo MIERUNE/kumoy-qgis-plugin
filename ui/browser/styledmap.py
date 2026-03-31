@@ -26,10 +26,10 @@ from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    collect_and_upload_assets,
     download_and_extract_assets,
     get_filepath,
     show_map_save_result,
+    upload_assets_and_update_map,
     write_qgsfile,
 )
 from ...pyqt_version import (
@@ -387,21 +387,9 @@ class StyledMapItem(QgsDataItem):
         if cancelled:
             return
 
-        # Collect and upload assets (rewrites symbol layer paths)
-        assets_hash = collect_and_upload_assets(self.styled_map.id)
-
-        # Save project (with rewritten paths if assets exist)
-        new_qgisproject = write_qgsfile(self.styled_map.id)
-
         try:
             # Overwrite styled map
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                    assetsHash=assets_hash,
-                ),
-            )
+            updated_styled_map = upload_assets_and_update_map(self.styled_map)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -678,16 +666,15 @@ class StyledMapRoot(QgsDataItem):
             )
 
             # Upload assets after map creation (need map ID for presigned URLs)
-            assets_hash = collect_and_upload_assets(new_styled_map.id)
-            if assets_hash is not None:
-                # Re-write project to get XML with rewritten paths
-                rewritten_qgisproject = write_qgsfile(self.project.id)
-                api.styledmap.update_styled_map(
-                    new_styled_map.id,
-                    api.styledmap.UpdateStyledMapOptions(
-                        qgisproject=rewritten_qgisproject,
-                        assetsHash=assets_hash,
+            try:
+                upload_assets_and_update_map(new_styled_map.id)
+            except Exception as asset_err:
+                QgsMessageLog.logMessage(
+                    self.tr("Warning: Failed to upload assets: {}").format(
+                        str(asset_err)
                     ),
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
                 )
 
             # reopen qgs to refresh project with new styled map data

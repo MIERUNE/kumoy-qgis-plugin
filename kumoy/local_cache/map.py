@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import io
 import os
@@ -22,7 +24,6 @@ from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
 from .. import api, map_assets
-from ..api.error import format_api_error
 from ..constants import LOG_CATEGORY
 
 # Flag to prevent double updates when handling project saved event
@@ -226,24 +227,25 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
-def collect_and_upload_assets(styled_map_id: str) -> "str | None":
+def upload_assets_and_update_map(
+    styled_map_detail: api.styledmap.KumoyStyledMapDetail,
+) -> api.styledmap.UpdateStyledMapResponse:
     """Collect symbol assets, rewrite paths, and upload to server.
 
     Args:
-        styled_map_id: StyledMap ID
+        styled_map_detail: StyledMap detail object
 
     Returns:
-        assets_hash if assets exist, None otherwise
+        Updated StyledMap detail object
     """
     project = QgsProject.instance()
     collected = map_assets.collect_assets(project)
 
-    # Rewrite symbol layer paths and copy files
-    assets_dir = get_assets_dir(styled_map_id)
-    map_assets.rewrite_paths(project, collected.files, assets_dir)
-    # Build ZIP
+    # create assets.zip / sprite
+    map_assets.copy_files_and_rewrite_paths(
+        project, collected.files, get_assets_dir(styled_map_detail.id)
+    )
     zip_bytes = map_assets.build_asset_zip(collected.files)
-    # Generate sprites
     sprite_json, sprite_png = map_assets.generate_sprites(collected.sprites)
 
     # Compute hash
@@ -253,51 +255,60 @@ def collect_and_upload_assets(styled_map_id: str) -> "str | None":
     h.update(sprite_png)
     assets_hash = h.hexdigest()[:16]
 
+    if assets_hash == styled_map_detail.assetsHash:
+        QgsMessageLog.logMessage(
+            "Assets are unchanged. Skipping upload.",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+
     server_url = api.config.get_api_config().SERVER_URL
 
-    try:
-        # Get presigned URLs for all assets at once
-        upload_urls = api.styledmap_assets.get_assets_upload_urls(
-            styled_map_id,
-            len(zip_bytes),
-            len(sprite_json),
-            len(sprite_png),
-        )
+    # Get presigned URLs for all assets at once
+    upload_urls = api.styledmap_assets.get_assets_upload_urls(
+        styled_map_detail.id,
+        len(zip_bytes),
+        len(sprite_json),
+        len(sprite_png),
+    )
 
-        # Upload ZIP
+    # Upload ZIP
+    map_assets.upload_to_presigned_url(
+        server_url,
+        upload_urls.zip.fields,
+        upload_urls.zip.filename,
+        zip_bytes,
+        "application/zip",
+    )
+
+    if collected.sprites:
+        # Upload sprites
         map_assets.upload_to_presigned_url(
             server_url,
-            upload_urls.zip.fields,
-            upload_urls.zip.filename,
-            zip_bytes,
-            "application/zip",
+            upload_urls.json.fields,
+            upload_urls.json.filename,
+            sprite_json,
+            "application/json",
+        )
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.png.fields,
+            upload_urls.png.filename,
+            sprite_png,
+            "image/png",
         )
 
-        if collected.sprites:
-            # Upload sprites
-            map_assets.upload_to_presigned_url(
-                server_url,
-                upload_urls.json.fields,
-                upload_urls.json.filename,
-                sprite_json,
-                "application/json",
-            )
-            map_assets.upload_to_presigned_url(
-                server_url,
-                upload_urls.png.fields,
-                upload_urls.png.filename,
-                sprite_png,
-                "image/png",
-            )
+    qgsproject_str = write_qgsfile(styled_map_detail.id)
 
-        return assets_hash
-    except Exception as e:
-        QgsMessageLog.logMessage(
-            f"Warning: Failed to upload assets: {e}",
-            LOG_CATEGORY,
-            Qgis.Warning,
-        )
-        return None
+    updated_styled_map = api.styledmap.update_styled_map(
+        styled_map_detail.id,
+        api.styledmap.UpdateStyledMapOptions(
+            qgisproject=qgsproject_str,
+            assetsHash=assets_hash,
+        ),
+    )
+
+    return updated_styled_map
 
 
 def handle_project_saved() -> None:
@@ -346,7 +357,7 @@ def handle_project_saved() -> None:
             )
             return
     except Exception as e:
-        error_text = format_api_error(e)
+        error_text = api.error.format_api_error(e)
         QgsMessageLog.logMessage(
             tr("Error loading map: {}").format(error_text),
             LOG_CATEGORY,
@@ -385,23 +396,11 @@ def handle_project_saved() -> None:
     if cancelled:
         return
 
-    # Collect and upload assets (rewrites symbol layer paths)
-    assets_hash = collect_and_upload_assets(styled_map_id)
-
-    # Save project (with rewritten paths if assets exist)
-    qgsproject_str = write_qgsfile(styled_map_id)
-
     try:
-        # Overwrite styled map
-        updated_styled_map = api.styledmap.update_styled_map(
-            styled_map_id,
-            api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-                assetsHash=assets_hash,
-            ),
-        )
+        # Collect and upload assets (rewrites symbol layer paths)
+        updated_styled_map = upload_assets_and_update_map(styled_map_detail)
     except Exception as e:
-        error_text = format_api_error(e)
+        error_text = api.error.format_api_error(e)
         QgsMessageLog.logMessage(
             tr("Error saving map: {}").format(error_text),
             LOG_CATEGORY,

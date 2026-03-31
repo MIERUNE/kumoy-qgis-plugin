@@ -28,7 +28,9 @@ def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
         symbol_layer.setImageFilePath(path)
 
 
-def rewrite_paths(project: QgsProject, files: list[FileAsset], assets_dir: str) -> None:
+def copy_files_and_rewrite_paths(
+    project: QgsProject, files: list[FileAsset], assets_dir: str
+) -> None:
     """シンボルレイヤーのパスを相対パスに書き換え、ファイルをコピーする。"""
     path_map: dict[str, str] = {}
     svgCache = QgsApplication.svgCache()
