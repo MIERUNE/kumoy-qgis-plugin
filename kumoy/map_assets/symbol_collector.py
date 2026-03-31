@@ -68,27 +68,39 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     ptr = img.constBits()
     buf = ptr.asstring(stride * h)
 
-    # 不透明ピクセルのbounding boxを求める（alphaバイトを走査）
-    x_min, x_max, y_min, y_max = w, 0, h, 0
-    for y in range(h):
+    # 外周から走査してalpha非ゼロの最外縁を求める（ARGB32: B,G,R,A の順で4バイト）
+    def _has_alpha_in_row(y: int) -> bool:
         row_offset = y * stride
-        for x in range(w):
-            # ARGB32: B,G,R,A の順で4バイト
-            if buf[row_offset + x * 4 + 3]:  # alpha非ゼロ
-                if x < x_min:
-                    x_min = x
-                if x > x_max:
-                    x_max = x
-                if y < y_min:
-                    y_min = y
-                if y > y_max:
-                    y_max = y
+        return any(buf[row_offset + x * 4 + 3] for x in range(w))
 
-    if x_max < x_min:
+    def _has_alpha_in_col(x: int) -> bool:
+        return any(buf[y * stride + x * 4 + 3] for y in range(h))
+
+    # 上端から下へ走査
+    y_min = 0
+    while y_min < h and not _has_alpha_in_row(y_min):
+        y_min += 1
+
+    if y_min == h:
         # 完全に透明な画像
         return image.scaled(
             QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
+
+    # 下端から上へ走査
+    y_max = h - 1
+    while y_max > y_min and not _has_alpha_in_row(y_max):
+        y_max -= 1
+
+    # 左端から右へ走査
+    x_min = 0
+    while x_min < w and not _has_alpha_in_col(x_min):
+        x_min += 1
+
+    # 右端から左へ走査
+    x_max = w - 1
+    while x_max > x_min and not _has_alpha_in_col(x_max):
+        x_max -= 1
 
     cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
 
