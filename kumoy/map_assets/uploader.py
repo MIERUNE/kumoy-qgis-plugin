@@ -12,7 +12,7 @@ from ...pyqt_version import Q_NETWORK_REQUEST_HEADER, exec_event_loop
 
 
 def upload_to_presigned_url(
-    server_url: str,
+    url: str,
     fields: dict[str, str],
     filename: str,
     file_data: bytes,
@@ -67,7 +67,6 @@ def upload_to_presigned_url(
     multipart.append(file_part)
 
     # リクエスト送信
-    url = f"{server_url}/user-content"
     request = QNetworkRequest(QUrl(url))
 
     nam = QNetworkAccessManager()

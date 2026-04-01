@@ -285,29 +285,27 @@ def upload_assets_and_update_map(
 
     # Upload ZIP
     map_assets.upload_to_presigned_url(
-        server_url,
+        f"{server_url}{upload_urls.zip.url}",
         upload_urls.zip.fields,
         upload_urls.zip.filename,
         zip_bytes,
         "application/zip",
     )
-
-    if collected.sprites:
-        # Upload sprites
-        map_assets.upload_to_presigned_url(
-            server_url,
-            upload_urls.json.fields,
-            upload_urls.json.filename,
-            sprite_json,
-            "application/json",
-        )
-        map_assets.upload_to_presigned_url(
-            server_url,
-            upload_urls.png.fields,
-            upload_urls.png.filename,
-            sprite_png,
-            "image/png",
-        )
+    # Upload sprites
+    map_assets.upload_to_presigned_url(
+        f"{server_url}{upload_urls.json.url}",
+        upload_urls.json.fields,
+        upload_urls.json.filename,
+        sprite_json,
+        "application/json",
+    )
+    map_assets.upload_to_presigned_url(
+        f"{server_url}{upload_urls.png.url}",
+        upload_urls.png.fields,
+        upload_urls.png.filename,
+        sprite_png,
+        "image/png",
+    )
 
     updated_styled_map = api.styledmap.update_styled_map(
         styled_map_detail.id,
