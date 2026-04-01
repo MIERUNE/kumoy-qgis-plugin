@@ -206,11 +206,6 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                     "\n".join(errors)
                 ),
             )
-        else:
-            iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("{} vectors added to map.").format(len(items)),
-            )
 
     def _clear_cache_multiple_vectors(self, items) -> None:
         # Check if any of the vectors is currently loaded on the map
