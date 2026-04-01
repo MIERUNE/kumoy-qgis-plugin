@@ -406,9 +406,7 @@ class StyledMapItem(QgsDataItem):
             conversion_errors,
         )
 
-    def _delete_core(self) -> None:
-        """Call API to delete the map and clear cache.
-        Raises on API error. Does not show any dialog."""
+    def process_delete_map(self) -> None:
         api.styledmap.delete_styled_map(self.styled_map.id)
         local_cache.map.clear(self.styled_map.id)
         QgsMessageLog.logMessage(
@@ -430,7 +428,7 @@ class StyledMapItem(QgsDataItem):
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
-                self._delete_core()
+                self.process_delete_map()
                 self.parent().refresh()
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
@@ -451,8 +449,7 @@ class StyledMapItem(QgsDataItem):
                     self.tr("Failed to delete the map: {}").format(error_text),
                 )
 
-    def _clear_cache_core(self) -> bool:
-        """Clear cache for this map. Returns True on success."""
+    def process_map_cache_clear(self) -> bool:
         cleared = local_cache.map.clear(self.styled_map.id)
         if cleared:
             QgsMessageLog.logMessage(
@@ -476,7 +473,7 @@ class StyledMapItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            if self._clear_cache_core():
+            if self.process_map_cache_clear():
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
                     self.tr("Cache cleared successfully for map '{}'.").format(

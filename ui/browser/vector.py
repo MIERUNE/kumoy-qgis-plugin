@@ -123,9 +123,7 @@ class VectorItem(QgsDataItem):
 
         return actions
 
-    def _add_to_map_core(self) -> None:
-        """Add vector to map without any dialog. Raises on API error or invalid layer."""
-        # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
+    def import_vector(self) -> None:
         api.vector.get_vector(self.vector.id)
 
         layer = QgsVectorLayer(
@@ -147,9 +145,9 @@ class VectorItem(QgsDataItem):
     def add_to_map(self):
         """Add vector layer to QGIS map"""
         try:
-            self._add_to_map_core()
+            self.import_vector()
         except Exception as e:
-            msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
+            msg = self.tr("Error adding vector to map: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(None, self.tr("Error"), msg)
 
@@ -284,9 +282,8 @@ class VectorItem(QgsDataItem):
         self.setName(updated_vector.name)
         self.refresh()
 
-    def _delete_core(self) -> None:
-        """Call API to delete the vector, remove from map and clear cache.
-        Raises on API error. Does not show any dialog."""
+    def process_delete_vector(self) -> None:
+        """Call API to delete the vector, remove from map and clear cache."""
         api.vector.delete_vector(self.vector.id)
 
         # Remove from QGIS project if loaded
@@ -318,7 +315,7 @@ class VectorItem(QgsDataItem):
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             try:
-                self._delete_core()
+                self.process_delete_vector()
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {format_api_error(e)}",
@@ -349,8 +346,7 @@ class VectorItem(QgsDataItem):
                 return True
         return False
 
-    def _clear_cache_core(self) -> bool:
-        """Clear cache for this vector. Returns True on success."""
+    def process_vector_cache_clear(self) -> bool:
         cleared = local_cache.vector.clear(self.vector.id)
         if cleared:
             QgsMessageLog.logMessage(
@@ -385,7 +381,7 @@ class VectorItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            if self._clear_cache_core():
+            if self.process_vector_cache_clear():
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
                     self.tr("Cache cleared successfully for vector '{}'.").format(

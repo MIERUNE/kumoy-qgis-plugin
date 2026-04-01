@@ -45,7 +45,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             for action in styledmap_items[0]._build_actions(menu):
                 menu.addAction(action)
         else:
-            # Multi-selection: only bulk actions
+            # Multi-selection
             can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styledmap_items)
             if can_delete:
                 delete_action = QAction(
@@ -73,7 +73,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             for action in vector_items[0]._build_actions(menu):
                 menu.addAction(action)
         else:
-            # Multi-selection: add all to map, clear cache, and delete
+            # Multi-selection
             add_action = QAction(
                 self.tr("Add {} Vectors to Map").format(len(vector_items)), menu
             )
@@ -126,7 +126,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
         for item in items:
             try:
-                item._delete_core()
+                item.process_delete_map()
                 deleted_count += 1
             except Exception as e:
                 error_text = format_api_error(e)
@@ -171,7 +171,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
-        failed = [i.styled_map.name for i in items if not i._clear_cache_core()]
+        failed = [i.styled_map.name for i in items if not i.process_map_cache_clear()]
 
         if failed:
             iface.messageBar().pushMessage(
@@ -188,7 +188,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         errors = []
         for item in items:
             try:
-                item._add_to_map_core()
+                item.import_vector()
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
@@ -239,7 +239,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
-        failed = [i.vector.name for i in items if not i._clear_cache_core()]
+        failed = [i.vector.name for i in items if not i.process_vector_cache_clear()]
 
         if failed:
             iface.messageBar().pushMessage(
@@ -274,7 +274,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
         for item in items:
             try:
-                item._delete_core()
+                item.process_delete_vector()
                 deleted_count += 1
             except Exception as e:
                 error_text = format_api_error(e)
