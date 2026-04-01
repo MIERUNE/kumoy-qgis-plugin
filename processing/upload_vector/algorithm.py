@@ -152,7 +152,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def helpUrl(self) -> str:
         """Help button to go to Kumoy documentation"""
-        return "https://docs.kumoy.io/"
+        return constants.DOCUMENTATION_URL
 
     def shortHelpString(self) -> str:
         """Short help string"""
