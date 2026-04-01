@@ -329,6 +329,12 @@ class ProjectSelectDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
 
+        # Help button
+        help_btn = QPushButton(self.tr("Help"))
+        help_btn.setAutoDefault(False)
+        help_btn.clicked.connect(lambda: webbrowser.open("https://docs.kumoy.io/"))
+        button_layout.addWidget(help_btn)
+
         # New Project button on the left
         new_project_button = QPushButton(self.tr("+ New Project"))
         new_project_button.clicked.connect(self.create_new_project)
