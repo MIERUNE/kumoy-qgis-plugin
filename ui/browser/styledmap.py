@@ -1,4 +1,3 @@
-import os
 import webbrowser
 from typing import Literal, Tuple
 
@@ -407,8 +406,18 @@ class StyledMapItem(QgsDataItem):
             conversion_errors,
         )
 
+    def _delete_core(self) -> None:
+        """Call API to delete the map and clear cache.
+        Raises on API error. Does not show any dialog."""
+        api.styledmap.delete_styled_map(self.styled_map.id)
+        local_cache.map.clear(self.styled_map.id)
+        QgsMessageLog.logMessage(
+            f"Map '{self.styled_map.name}' deleted.",
+            constants.LOG_CATEGORY,
+            Qgis.Info,
+        )
+
     def delete_styled_map(self):
-        # 削除確認
         confirm = QMessageBox.question(
             None,
             self.tr("Delete Map"),
@@ -420,11 +429,8 @@ class StyledMapItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # スタイルマップ削除
             try:
-                api.styledmap.delete_styled_map(self.styled_map.id)
-
-                # 親アイテムを上書き保存して最新のリストを表示
+                self._delete_core()
                 self.parent().refresh()
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
@@ -432,7 +438,6 @@ class StyledMapItem(QgsDataItem):
                         self.styled_map.name
                     ),
                 )
-
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
@@ -446,18 +451,18 @@ class StyledMapItem(QgsDataItem):
                     self.tr("Failed to delete the map: {}").format(error_text),
                 )
 
-            # Remove cached qgs file
-            map_path = local_cache.map.get_filepath(self.styled_map.id)
-            if os.path.exists(map_path):
-                local_cache.map.clear(self.styled_map.id)
-                QgsMessageLog.logMessage(
-                    f"Cached map file {map_path} removed.",
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+    def _clear_cache_core(self) -> bool:
+        """Clear cache for this map. Returns True on success."""
+        cleared = local_cache.map.clear(self.styled_map.id)
+        if cleared:
+            QgsMessageLog.logMessage(
+                f"Cache cleared for map '{self.styled_map.name}'.",
+                constants.LOG_CATEGORY,
+                Qgis.Info,
+            )
+        return cleared
 
     def clear_map_cache(self):
-        # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
             self.tr("Clear Map Cache Data"),
@@ -471,15 +476,7 @@ class StyledMapItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # Clear cache for this specific map
-            cache_cleared = local_cache.map.clear(self.styled_map.id)
-
-            if cache_cleared:
-                QgsMessageLog.logMessage(
-                    self.tr("Cache cleared for map '{}'").format(self.styled_map.name),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+            if self._clear_cache_core():
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
                     self.tr("Cache cleared successfully for map '{}'.").format(

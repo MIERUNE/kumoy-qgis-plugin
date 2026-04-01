@@ -1,12 +1,12 @@
 from typing import List
 
-from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject, QgsVectorLayer
+from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ...kumoy import api, constants, local_cache
+from ...kumoy import constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 
@@ -126,14 +126,8 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
         for item in items:
             try:
-                api.styledmap.delete_styled_map(item.styled_map.id)
+                item._delete_core()
                 deleted_count += 1
-                local_cache.map.clear(item.styled_map.id)
-                QgsMessageLog.logMessage(
-                    f"Map '{item.styled_map.name}' deleted.",
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
@@ -177,10 +171,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
-        failed = []
-        for item in items:
-            if not local_cache.map.clear(item.styled_map.id):
-                failed.append(item.styled_map.name)
+        failed = [i.styled_map.name for i in items if not i._clear_cache_core()]
 
         if failed:
             iface.messageBar().pushMessage(
@@ -197,15 +188,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         errors = []
         for item in items:
             try:
-                api.vector.get_vector(item.vector.id)
-                layer = QgsVectorLayer(
-                    item.vector_uri, item.vector.name, constants.DATA_PROVIDER_KEY
-                )
-                item._set_pixel_based_style(layer)
-                if layer.isValid():
-                    QgsProject.instance().addMapLayer(layer)
-                else:
-                    errors.append(item.vector.name)
+                item._add_to_map_core()
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
@@ -231,15 +214,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
     def _clear_cache_multiple_vectors(self, items) -> None:
         # Check if any of the vectors is currently loaded on the map
-        loaded_names = []
-        for item in items:
-            for layer in QgsProject.instance().mapLayers().values():
-                if (
-                    layer.providerType() == constants.DATA_PROVIDER_KEY
-                    and layer.dataProvider().vector_id == item.vector.id
-                ):
-                    loaded_names.append(item.vector.name)
-                    break
+        loaded_names = [i.vector.name for i in items if i._is_loaded_on_map()]
 
         if loaded_names:
             iface.messageBar().pushMessage(
@@ -264,10 +239,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
             return
 
-        failed = []
-        for item in items:
-            if not local_cache.vector.clear(item.vector.id):
-                failed.append(item.vector.name)
+        failed = [i.vector.name for i in items if not i._clear_cache_core()]
 
         if failed:
             iface.messageBar().pushMessage(
@@ -302,23 +274,8 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
         for item in items:
             try:
-                api.vector.delete_vector(item.vector.id)
+                item._delete_core()
                 deleted_count += 1
-
-                # Remove from map if loaded
-                for layer in list(QgsProject.instance().mapLayers().values()):
-                    if (
-                        layer.providerType() == constants.DATA_PROVIDER_KEY
-                        and layer.dataProvider().vector_id == item.vector.id
-                    ):
-                        QgsProject.instance().removeMapLayer(layer.id())
-
-                local_cache.vector.clear(item.vector.id)
-                QgsMessageLog.logMessage(
-                    f"Vector '{item.vector.name}' deleted.",
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
