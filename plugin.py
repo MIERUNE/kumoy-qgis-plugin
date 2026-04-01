@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+import webbrowser
 from urllib.error import HTTPError, URLError
 
 from qgis.core import (
@@ -18,7 +19,12 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
 from .kumoy.api.error import format_api_error
-from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
+from .kumoy.constants import (
+    DATA_PROVIDER_KEY,
+    DOCUMENTATION_URL,
+    LOG_CATEGORY,
+    PLUGIN_NAME,
+)
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .plugin_version import is_plugin_version_compatible, read_plugin_version
@@ -58,6 +64,7 @@ class KumoyPlugin:
         # Initialize menu actions
         self.reset_plugin_settings = None
         self.logout_action = None
+        self.help_action = None
 
     def init_translation(self):
         """Initialize translation for the plugin"""
@@ -409,6 +416,11 @@ class KumoyPlugin:
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
+        # Add menu action for help/documentation
+        self.help_action = QAction(self.tr("Help"), self.win)
+        self.help_action.triggered.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
+        self.iface.addPluginToMenu(PLUGIN_NAME, self.help_action)
+
         # Connect to plugin menu aboutToShow to update logout action visibility
         self.iface.pluginMenu().aboutToShow.connect(
             self.update_logout_action_visibility
@@ -429,6 +441,8 @@ class KumoyPlugin:
             self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
+        if self.help_action:
+            self.iface.removePluginMenu(PLUGIN_NAME, self.help_action)
 
         # Remove translator
         if self.translator:

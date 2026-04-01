@@ -150,6 +150,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return None
 
+    def helpUrl(self) -> str:
+        """Help button to go to Kumoy documentation"""
+        return constants.DOCUMENTATION_URL
+
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
