@@ -28,41 +28,41 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         from .styledmap import StyledMapItem
         from .vector import VectorItem
 
-        styled_items: List[StyledMapItem] = [
+        styledmap_items: List[StyledMapItem] = [
             i for i in selectedItems if isinstance(i, StyledMapItem)
         ]
         vector_items: List[VectorItem] = [
             i for i in selectedItems if isinstance(i, VectorItem)
         ]
 
-        if styled_items:
-            self._populate_styled_map_menu(menu, styled_items)
+        if styledmap_items:
+            self._populate_styled_map_menu(menu, styledmap_items)
         elif vector_items:
             self._populate_vector_menu(menu, vector_items)
 
-    def _populate_styled_map_menu(self, menu, styled_items) -> None:
-        if len(styled_items) == 1:
-            for action in styled_items[0]._build_actions(menu):
+    def _populate_styled_map_menu(self, menu, styledmap_items) -> None:
+        if len(styledmap_items) == 1:
+            for action in styledmap_items[0]._build_actions(menu):
                 menu.addAction(action)
         else:
             # Multi-selection: only bulk actions
-            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styled_items)
+            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styledmap_items)
             if can_delete:
                 delete_action = QAction(
-                    self.tr("Delete {} Maps").format(len(styled_items)), menu
+                    self.tr("Delete {} Maps").format(len(styledmap_items)), menu
                 )
                 delete_action.triggered.connect(
-                    lambda checked=False, items=list(styled_items): (
+                    lambda checked=False, items=list(styledmap_items): (
                         self._delete_multiple_maps(items)
                     )
                 )
                 menu.addAction(delete_action)
 
             clear_action = QAction(
-                self.tr("Clear Cache for {} Maps").format(len(styled_items)), menu
+                self.tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
             )
             clear_action.triggered.connect(
-                lambda checked=False, items=list(styled_items): (
+                lambda checked=False, items=list(styledmap_items): (
                     self._clear_cache_multiple_maps(items)
                 )
             )
