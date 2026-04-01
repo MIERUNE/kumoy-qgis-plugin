@@ -140,7 +140,7 @@ class VectorItem(QgsDataItem):
                 layer.setEditFormConfig(config)
             QgsProject.instance().addMapLayer(layer)
         else:
-            raise RuntimeError(f"Layer is invalid: {self.vector_uri}")
+            raise RuntimeError(self.tr("Layer is invalid: {}").format(self.vector_uri))
 
     def add_to_map(self):
         """Add vector layer to QGIS map"""

@@ -66,6 +66,7 @@ class KumoyPlugin:
         self.reset_plugin_settings = None
         self.logout_action = None
         self.help_action = None
+        self.data_item_gui_provider = None
 
     def init_translation(self):
         """Initialize translation for the plugin"""
@@ -454,7 +455,10 @@ class KumoyPlugin:
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 
-        QgsGui.dataItemGuiProviderRegistry().removeProvider(self.data_item_gui_provider)
+        if self.data_item_gui_provider:
+            QgsGui.dataItemGuiProviderRegistry().removeProvider(
+                self.data_item_gui_provider
+            )
 
         # Unregister processing provider
         close_all_processing_dialogs()
