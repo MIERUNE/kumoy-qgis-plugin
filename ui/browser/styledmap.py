@@ -22,16 +22,12 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
+from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    write_qgsfile,
     show_map_save_result,
-)
-from ... import settings_manager
-from ...qgis_version import (
-    restore_xyz_layer_datasources,
-    restore_project_crs_if_invalid,
+    write_qgsfile,
 )
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -40,6 +36,10 @@ from ...pyqt_version import (
     QT_DIALOG_BUTTON_OK,
     QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
+)
+from ...qgis_version import (
+    restore_project_crs_if_invalid,
+    restore_xyz_layer_datasources,
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
@@ -159,7 +159,8 @@ class StyledMapItem(QgsDataItem):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapItem", message)
 
-    def actions(self, parent):
+    def _build_actions(self, parent):
+        """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
         # スタイルマップ適用アクション

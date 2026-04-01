@@ -12,7 +12,7 @@ from qgis.core import (
     QgsProviderRegistry,
     QgsVectorLayer,
 )
-from qgis.gui import QgisInterface
+from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
@@ -30,6 +30,7 @@ from .settings_manager import (
     reset_settings,
     store_setting,
 )
+from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
 from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
@@ -375,6 +376,9 @@ class KumoyPlugin:
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
 
+        self.data_item_gui_provider = KumoyDataItemGuiProvider()
+        QgsGui.dataItemGuiProviderRegistry().addProvider(self.data_item_gui_provider)
+
         # Register processing provider
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
@@ -435,6 +439,8 @@ class KumoyPlugin:
             QCoreApplication.removeTranslator(self.translator)
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
+
+        QgsGui.dataItemGuiProviderRegistry().removeProvider(self.data_item_gui_provider)
 
         # Unregister processing provider
         close_all_processing_dialogs()
