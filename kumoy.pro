@@ -10,6 +10,7 @@ SOURCES = __init__.py \
           ui/dialog_project_edit.py \
           ui/layers/convert_vector.py \
           ui/remote_image_label.py \
+          ui/browser/gui_provider.py \
           ui/browser/root.py \
           ui/browser/styledmap.py \
           ui/browser/utils.py \

@@ -96,7 +96,8 @@ class VectorItem(QgsDataItem):
         u.uri = self.vector_uri
         return [u]
 
-    def actions(self, parent):
+    def _build_actions(self, parent):
+        """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
         # Add to map action
@@ -122,43 +123,33 @@ class VectorItem(QgsDataItem):
 
         return actions
 
-    def add_to_map(self):
-        """Add vector layer to QGIS map"""
-        try:
-            # memo: Kumoy Provider内でAPIはコールされるが、データの存在確認のため、Vectorを取得しておく
-            api.vector.get_vector(self.vector.id)
-        except Exception as e:
-            msg = self.tr("Error fetching vector: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(None, self.tr("Error"), msg)
-            return
+    def import_vector(self) -> None:
+        api.vector.get_vector(self.vector.id)
 
-        # Create layer
         layer = QgsVectorLayer(
             self.vector_uri, self.vector.name, constants.DATA_PROVIDER_KEY
         )
-
-        # Set pixel-based styling
         self._set_pixel_based_style(layer)
 
         if layer.isValid():
             # kumoy_idをread-onlyに設定
             field_idx = layer.fields().indexOf("kumoy_id")
-            # フィールド設定で読み取り専用を設定
             if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
-                # プロバイダーフィールドの場合
                 config = layer.editFormConfig()
                 config.setReadOnly(field_idx, True)
                 layer.setEditFormConfig(config)
-
-            # Add layer to map
             QgsProject.instance().addMapLayer(layer)
         else:
-            QgsMessageLog.logMessage(
-                f"Layer is invalid: {self.vector_uri}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
+            raise RuntimeError(self.tr("Layer is invalid: {}").format(self.vector_uri))
+
+    def add_to_map(self):
+        """Add vector layer to QGIS map"""
+        try:
+            self.import_vector()
+        except Exception as e:
+            msg = self.tr("Error adding vector to map: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(None, self.tr("Error"), msg)
 
     def _set_pixel_based_style(self, layer):
         """Set pixel-based styling for the layer"""
@@ -291,9 +282,27 @@ class VectorItem(QgsDataItem):
         self.setName(updated_vector.name)
         self.refresh()
 
+    def process_delete_vector(self) -> None:
+        """Call API to delete the vector, remove from map and clear cache."""
+        api.vector.delete_vector(self.vector.id)
+
+        # Remove from QGIS project if loaded
+        for layer in list(QgsProject.instance().mapLayers().values()):
+            if (
+                layer.providerType() == constants.DATA_PROVIDER_KEY
+                and layer.dataProvider().vector_id == self.vector.id
+            ):
+                QgsProject.instance().removeMapLayer(layer.id())
+
+        local_cache.vector.clear(self.vector.id)
+        QgsMessageLog.logMessage(
+            f"Vector '{self.vector.name}' deleted.",
+            constants.LOG_CATEGORY,
+            Qgis.Info,
+        )
+
     def delete_vector(self):
         """Delete the vector"""
-        # Confirm deletion
         confirm = QMessageBox.question(
             None,
             self.tr("Delete Vector"),
@@ -305,9 +314,8 @@ class VectorItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # Delete vector
             try:
-                api.vector.delete_vector(self.vector.id)
+                self.process_delete_vector()
             except Exception as e:
                 QgsMessageLog.logMessage(
                     f"Error deleting vector: {format_api_error(e)}",
@@ -321,56 +329,45 @@ class VectorItem(QgsDataItem):
                 )
                 return
 
-            # Refresh parent to show updated list
             self.parent().refresh()
-
-            # remove vector layer from QGIS project if loaded
-            for layer in QgsProject.instance().mapLayers().values():
-                if (
-                    layer.providerType() == constants.DATA_PROVIDER_KEY
-                    and layer.dataProvider().vector_id == self.vector.id
-                ):
-                    QgsProject.instance().removeMapLayer(layer.id())
-
-            # Clear cache for this vector
-
-            cache_cleared = local_cache.vector.clear(self.vector.id)
-
-            if not cache_cleared:
-                iface.messageBar().pushMessage(
-                    self.tr("Failed"),
-                    self.tr(
-                        "Cache could not be cleared completely for vector '{}'. "
-                        "Please try again while vector is not open after restarting QGIS"
-                    ).format(self.vector.name),
-                )
-
-            # Avoid deleted layer to remain on map
             iface.mapCanvas().refresh()
-
             iface.messageBar().pushSuccess(
                 self.tr("Success"),
                 self.tr("Vector '{}' deleted successfully.").format(self.vector.name),
             )
 
-    def clear_cache(self):
-        """Clear cache for this specific vector"""
-        # Check if vector is currently loaded on the map
+    def _is_loaded_on_map(self) -> bool:
+        """Return True if this vector is currently loaded on the QGIS map."""
         for layer in QgsProject.instance().mapLayers().values():
             if (
                 layer.providerType() == constants.DATA_PROVIDER_KEY
                 and layer.dataProvider().vector_id == self.vector.id
             ):
-                iface.messageBar().pushMessage(
-                    self.tr("Cannot Clear Cache"),
-                    self.tr(
-                        "Cannot clear cache for vector '{}' while it is loaded on the map. "
-                        "Please close the map first."
-                    ).format(self.vector.name),
-                )
-                return
+                return True
+        return False
 
-        # Show confirmation dialog
+    def process_vector_cache_clear(self) -> bool:
+        cleared = local_cache.vector.clear(self.vector.id)
+        if cleared:
+            QgsMessageLog.logMessage(
+                f"Cache cleared for vector '{self.vector.name}'.",
+                constants.LOG_CATEGORY,
+                Qgis.Info,
+            )
+        return cleared
+
+    def clear_cache(self):
+        """Clear cache for this specific vector"""
+        if self._is_loaded_on_map():
+            iface.messageBar().pushMessage(
+                self.tr("Cannot Clear Cache"),
+                self.tr(
+                    "Cannot clear cache for vector '{}' while it is loaded on the map. "
+                    "Please close the map first."
+                ).format(self.vector.name),
+            )
+            return
+
         confirm = QMessageBox.question(
             None,
             self.tr("Clear Cache Data"),
@@ -384,15 +381,7 @@ class VectorItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # Clear cache for this specific vector
-            cache_cleared = local_cache.vector.clear(self.vector.id)
-
-            if cache_cleared:
-                QgsMessageLog.logMessage(
-                    self.tr("Cache cleared for vector '{}'").format(self.vector.name),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+            if self.process_vector_cache_clear():
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
                     self.tr("Cache cleared successfully for vector '{}'.").format(
