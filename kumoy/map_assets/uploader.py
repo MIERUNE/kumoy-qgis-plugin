@@ -43,8 +43,10 @@ def upload_to_presigned_url(
     key_part.setBody(QByteArray(filename.encode("utf-8")))
     multipart.append(key_part)
 
-    # presigned フィールド
+    # presigned フィールド（keyは上で追加済みなのでスキップ）
     for field_name, field_value in fields.items():
+        if field_name == "key":
+            continue
         part = QHttpPart()
         part.setHeader(
             Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
