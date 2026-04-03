@@ -1,21 +1,30 @@
+from __future__ import annotations
+
+import hashlib
+import io
 import os
+import shutil
+import zipfile
 
-from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QMessageBox
-
-from ..constants import LOG_CATEGORY
-
-from .. import api
-from ..api.error import format_api_error
-from ...ui.layers.convert_vector import (
-    convert_local_layers,
+from qgis.core import (
+    Qgis,
+    QgsApplication,
+    QgsBlockingNetworkRequest,
+    QgsMessageLog,
+    QgsProject,
 )
-
+from qgis.PyQt.QtCore import QCoreApplication, QUrl
+from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from ...ui.layers.convert_vector import (
+    convert_local_layers,
+)
+from .. import api, map_assets
+from ..constants import LOG_CATEGORY
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
@@ -68,8 +77,46 @@ def _get_cache_dir() -> str:
 def get_filepath(map_id: str) -> str:
     """Retrieve a cached map path."""
     cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
-    return cache_file
+    map_dir = os.path.join(cache_dir, map_id)
+    os.makedirs(map_dir, exist_ok=True)
+    return os.path.join(map_dir, "map.qgs")
+
+
+def get_assets_dir(map_id: str) -> str:
+    """Return the directory where asset files are extracted for a specific map."""
+    cache_dir = _get_cache_dir()
+    assets_dir = os.path.join(cache_dir, map_id, "assets")
+    os.makedirs(assets_dir, exist_ok=True)
+    return assets_dir
+
+
+def download_and_extract_assets(map_id: str, download_url: str) -> None:
+    """Download asset ZIP from presigned URL and extract to cache directory.
+
+    Args:
+        map_id: Map ID
+        download_url: Presigned download URL for the ZIP file
+    """
+    req = QNetworkRequest(QUrl(download_url))
+    blocking_request = QgsBlockingNetworkRequest()
+    err = blocking_request.get(req, forceRefresh=True)
+
+    if err != QgsBlockingNetworkRequest.NoError:
+        error_message = blocking_request.errorMessage()
+        raise Exception(f"Failed to download assets: {error_message}")
+
+    zip_data = bytes(blocking_request.reply().content().data())
+
+    # Extract to assets directory
+    assets_dir = get_assets_dir(map_id)
+    with zipfile.ZipFile(io.BytesIO(zip_data), "r") as zf:
+        zf.extractall(assets_dir)
+
+    QgsMessageLog.logMessage(
+        f"Assets extracted to {assets_dir}",
+        LOG_CATEGORY,
+        Qgis.Info,
+    )
 
 
 def clear(map_id: str) -> bool:
@@ -77,29 +124,26 @@ def clear(map_id: str) -> bool:
     Returns True if all files were deleted successfully, False otherwise.
     """
     cache_dir = _get_cache_dir()
-    success = True
-    # Remove all files containing map_id in their names
-    for filename in os.listdir(cache_dir):
-        if map_id in filename:
-            file_path = os.path.join(cache_dir, filename)
-            try:
-                os.unlink(file_path)
-            except PermissionError as e:
-                QgsMessageLog.logMessage(
-                    f"Ignored file access error for {file_path}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                success = False  # Flag unsucceed deletion
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Unexpected error for {file_path}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                success = False  # Flag unsucceed
-
-    return success
+    map_dir = os.path.join(cache_dir, map_id)
+    if not os.path.isdir(map_dir):
+        return True
+    try:
+        shutil.rmtree(map_dir)
+        return True
+    except PermissionError as e:
+        QgsMessageLog.logMessage(
+            f"Ignored file access error for {map_dir}: {e}",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+        return False
+    except Exception as e:
+        QgsMessageLog.logMessage(
+            f"Unexpected error for {map_dir}: {e}",
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        return False
 
 
 def clear_all() -> bool:
@@ -108,11 +152,14 @@ def clear_all() -> bool:
     cache_dir = _get_cache_dir()
     success = True
 
-    # Remove all files in cache directory
+    # Remove all files and directories in cache directory
     for filename in os.listdir(cache_dir):
         file_path = os.path.join(cache_dir, filename)
         try:
-            os.unlink(file_path)
+            if os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+            else:
+                os.unlink(file_path)
         except PermissionError as e:
             # Ignore Permission denied error and continue
             QgsMessageLog.logMessage(
@@ -180,6 +227,99 @@ def _get_qgs_str(map_path: str) -> str:
     return qgs_str
 
 
+def upload_assets_and_update_map(
+    styled_map_detail: api.styledmap.KumoyStyledMapDetail,
+) -> api.styledmap.UpdateStyledMapResponse:
+    """Collect symbol assets, rewrite paths, and upload to server.
+
+    Args:
+        styled_map_detail: StyledMap detail object
+
+    Returns:
+        Updated StyledMap detail object
+    """
+    project = QgsProject.instance()
+    collected = map_assets.collect_assets(project)
+
+    if len(collected.files) == 0 and len(collected.sprites) == 0:
+        # No assets to upload, set assetsHash to null
+        updated_styled_map = api.styledmap.update_styled_map(
+            styled_map_detail.id,
+            api.styledmap.UpdateStyledMapOptions(
+                assetsHash=None,
+            ),
+        )
+        return updated_styled_map
+
+    # create assets.zip / sprite
+    map_assets.copy_files_and_rewrite_paths(
+        project, collected.files, get_assets_dir(styled_map_detail.id)
+    )
+    qgsproject_str = write_qgsfile(styled_map_detail.id)
+    zip_bytes = map_assets.build_asset_zip(collected.files)
+    sprite_json, sprite_png = map_assets.generate_sprites(collected.sprites)
+
+    # Compute hash
+    h = hashlib.sha256()
+    h.update(zip_bytes)
+    h.update(sprite_json)
+    h.update(sprite_png)
+    assets_hash = h.hexdigest()[:16]
+
+    if assets_hash == styled_map_detail.assetsHash:
+        QgsMessageLog.logMessage(
+            "Assets are unchanged. Skipping upload.",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+
+    server_url = api.config.get_api_config().SERVER_URL
+
+    # Get presigned URLs for all assets at once
+    upload_urls = api.styledmap_assets.get_assets_upload_urls(
+        styled_map_detail.id,
+        len(zip_bytes),
+        len(sprite_json),
+        len(sprite_png),
+    )
+
+    # Upload ZIP
+    map_assets.upload_to_presigned_url(
+        server_url,
+        upload_urls.zip.fields,
+        upload_urls.zip.filename,
+        zip_bytes,
+        "application/zip",
+    )
+
+    if collected.sprites:
+        # Upload sprites
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.json.fields,
+            upload_urls.json.filename,
+            sprite_json,
+            "application/json",
+        )
+        map_assets.upload_to_presigned_url(
+            server_url,
+            upload_urls.png.fields,
+            upload_urls.png.filename,
+            sprite_png,
+            "image/png",
+        )
+
+    updated_styled_map = api.styledmap.update_styled_map(
+        styled_map_detail.id,
+        api.styledmap.UpdateStyledMapOptions(
+            qgisproject=qgsproject_str,
+            assetsHash=assets_hash,
+        ),
+    )
+
+    return updated_styled_map
+
+
 def handle_project_saved() -> None:
     """Update current project to Kumoy when QGIS project is saved"""
     # Do not proceed if already updating from styled map item
@@ -226,7 +366,7 @@ def handle_project_saved() -> None:
             )
             return
     except Exception as e:
-        error_text = format_api_error(e)
+        error_text = api.error.format_api_error(e)
         QgsMessageLog.logMessage(
             tr("Error loading map: {}").format(error_text),
             LOG_CATEGORY,
@@ -266,18 +406,10 @@ def handle_project_saved() -> None:
         return
 
     try:
-        # Save project with converted layers
-        qgsproject_str = write_qgsfile(styled_map_id)
-
-        # Overwrite styled map
-        updated_styled_map = api.styledmap.update_styled_map(
-            styled_map_id,
-            api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-            ),
-        )
+        # Collect and upload assets (rewrites symbol layer paths)
+        updated_styled_map = upload_assets_and_update_map(styled_map_detail)
     except Exception as e:
-        error_text = format_api_error(e)
+        error_text = api.error.format_api_error(e)
         QgsMessageLog.logMessage(
             tr("Error saving map: {}").format(error_text),
             LOG_CATEGORY,
@@ -290,9 +422,9 @@ def handle_project_saved() -> None:
         )
         return
 
-    # Update map name if changed by other users
-    QgsProject.instance().setTitle(updated_styled_map.name)
-    QgsProject.instance().setDirty(False)
+    # reopen qgs to refresh project with new styled map data
+    QgsProject.instance().clear()
+    QgsProject.instance().read(get_filepath(styled_map_id))
 
     # Show success message with conversion errors summary if any
     show_map_save_result(updated_styled_map.name, conversion_errors)

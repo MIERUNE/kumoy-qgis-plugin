@@ -1,6 +1,6 @@
 [general]
 name=Kumoy
-qgisMinimumVersion=3.40
+qgisMinimumVersion=3.44
 qgisMaximumVersion=4.99
 description=Turn your QGIS into cloud-native
 about=Kumoy lets you seamlessly push your QGIS projects to the web, safely manage data, and enable efficient teamwork.

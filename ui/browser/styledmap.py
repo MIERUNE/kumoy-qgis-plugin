@@ -22,16 +22,15 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
+from ... import settings_manager
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.local_cache.map import (
-    write_qgsfile,
+    download_and_extract_assets,
+    get_filepath,
     show_map_save_result,
-)
-from ... import settings_manager
-from ...qgis_version import (
-    restore_xyz_layer_datasources,
-    restore_project_crs_if_invalid,
+    upload_assets_and_update_map,
+    write_qgsfile,
 )
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -40,6 +39,10 @@ from ...pyqt_version import (
     QT_DIALOG_BUTTON_OK,
     QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
+)
+from ...qgis_version import (
+    restore_project_crs_if_invalid,
+    restore_xyz_layer_datasources,
 )
 from ...settings_manager import get_settings
 from ...ui.layers.convert_vector import (
@@ -236,6 +239,22 @@ class StyledMapItem(QgsDataItem):
             )
             return
 
+        # Download and extract assets if available
+        if styled_map_detail.assetsHash:
+            try:
+                download_url = api.styledmap_assets.get_asset_zip_download_url(
+                    styled_map_detail.id
+                )
+                download_and_extract_assets(styled_map_detail.id, download_url)
+            except Exception as asset_err:
+                QgsMessageLog.logMessage(
+                    self.tr("Warning: Failed to download assets: {}").format(
+                        str(asset_err)
+                    ),
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
+                )
+
         # XML文字列をQGISプロジェクトにロード
         qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
 
@@ -369,15 +388,8 @@ class StyledMapItem(QgsDataItem):
             return
 
         try:
-            new_qgisproject = write_qgsfile(self.styled_map.id)
-
             # Overwrite styled map
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
-            )
+            updated_styled_map = upload_assets_and_update_map(styled_map_detail)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -397,8 +409,9 @@ class StyledMapItem(QgsDataItem):
         self.setName(updated_styled_map.name)
         self.refresh()
 
-        QgsProject.instance().setTitle(updated_styled_map.name)
-        QgsProject.instance().setDirty(False)
+        # reopen qgs to refresh project with new styled map data
+        QgsProject.instance().clear()
+        QgsProject.instance().read(get_filepath(self.styled_map.id))
 
         # Show result message with conversion errors summary if any
         show_map_save_result(
@@ -652,11 +665,26 @@ class StyledMapRoot(QgsDataItem):
                 ),
             )
 
-            # 保存完了後のUI更新
+            # Upload assets after map creation (need map ID for presigned URLs)
+            try:
+                upload_assets_and_update_map(new_styled_map.id)
+            except Exception as asset_err:
+                QgsMessageLog.logMessage(
+                    self.tr("Warning: Failed to upload assets: {}").format(
+                        str(asset_err)
+                    ),
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
+                )
+
+            # reopen qgs to refresh project with new styled map data
+            QgsProject.instance().clear()
+            QgsProject.instance().read(get_filepath(new_styled_map.id))
             QgsProject.instance().setCustomVariables(
                 {"kumoy_map_id": new_styled_map.id}
             )
-            QgsProject.instance().setTitle(new_styled_map.name)
+            QgsProject.instance().setDirty(False)
+
             # reload browser panel
             self.parent().refresh()
 
@@ -665,7 +693,7 @@ class StyledMapRoot(QgsDataItem):
                 name,
                 conversion_errors,
             )
-            QgsProject.instance().setDirty(False)
+
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
