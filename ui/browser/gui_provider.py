@@ -1,14 +1,14 @@
-from typing import List
-
 from qgis.core import Qgis, QgsDataItem, QgsMessageLog
 from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 from qgis.utils import iface
 
 from ...kumoy import constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .styledmap import StyledMapItem
+from .vector import VectorItem
 
 
 class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
@@ -21,17 +21,15 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
     def populateContextMenu(
         self,
         item: QgsDataItem,
-        menu,
-        selectedItems: List[QgsDataItem],
+        menu: QMenu,
+        selectedItems: list[QgsDataItem],
         context: QgsDataItemGuiContext,
     ) -> None:
-        from .styledmap import StyledMapItem
-        from .vector import VectorItem
 
-        styledmap_items: List[StyledMapItem] = [
+        styledmap_items: list[StyledMapItem] = [
             i for i in selectedItems if isinstance(i, StyledMapItem)
         ]
-        vector_items: List[VectorItem] = [
+        vector_items: list[VectorItem] = [
             i for i in selectedItems if isinstance(i, VectorItem)
         ]
 
@@ -40,7 +38,9 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         elif vector_items:
             self._populate_vector_menu(menu, vector_items)
 
-    def _populate_styled_map_menu(self, menu, styledmap_items) -> None:
+    def _populate_styled_map_menu(
+        self, menu: QMenu, styledmap_items: list[StyledMapItem]
+    ) -> None:
         if len(styledmap_items) == 1:
             for action in styledmap_items[0].build_actions(menu):
                 menu.addAction(action)
@@ -68,7 +68,9 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             )
             menu.addAction(clear_action)
 
-    def _populate_vector_menu(self, menu, vector_items) -> None:
+    def _populate_vector_menu(
+        self, menu: QMenu, vector_items: list[VectorItem]
+    ) -> None:
         if len(vector_items) == 1:
             for action in vector_items[0].build_actions(menu):
                 menu.addAction(action)
@@ -106,7 +108,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 )
                 menu.addAction(delete_action)
 
-    def _delete_multiple_maps(self, items) -> None:
+    def _delete_multiple_maps(self, items: list[StyledMapItem]) -> None:
         names = "\n".join(f"  - {i.styled_map.name}" for i in items)
         confirm = QMessageBox.question(
             None,
@@ -156,7 +158,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 ),
             )
 
-    def _clear_cache_multiple_maps(self, items) -> None:
+    def _clear_cache_multiple_maps(self, items: list[StyledMapItem]) -> None:
         confirm = QMessageBox.question(
             None,
             self.tr("Clear Map Cache Data"),
@@ -184,7 +186,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 self.tr("Cache cleared successfully for {} maps.").format(len(items)),
             )
 
-    def _add_multiple_vectors(self, items) -> None:
+    def _add_multiple_vectors(self, items: list[VectorItem]) -> None:
         errors = []
         for item in items:
             try:
@@ -207,7 +209,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 ),
             )
 
-    def _clear_cache_multiple_vectors(self, items) -> None:
+    def _clear_cache_multiple_vectors(self, items: list[VectorItem]) -> None:
         # Check if any of the vectors is currently loaded on the map
         loaded_names = [i.vector.name for i in items if i.is_loaded_on_map()]
 
@@ -249,7 +251,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 ),
             )
 
-    def _delete_multiple_vectors(self, items) -> None:
+    def _delete_multiple_vectors(self, items: list[VectorItem]) -> None:
         names = "\n".join(f"  - {i.vector.name}" for i in items)
         confirm = QMessageBox.question(
             None,

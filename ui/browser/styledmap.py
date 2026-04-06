@@ -1,5 +1,5 @@
 import webbrowser
-from typing import Literal, Tuple
+from typing import Literal
 
 from qgis.core import (
     Qgis,
@@ -15,6 +15,7 @@ from qgis.PyQt.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QVBoxLayout,
@@ -58,7 +59,7 @@ def _create_styled_map_dialog(
     description: str = "",
     attribution: str = "",
     is_public: bool = False,
-) -> Tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
+) -> tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
     """Create a styled map dialog with common fields.
 
     Args:
@@ -154,11 +155,11 @@ class StyledMapItem(QgsDataItem):
 
         self.populate()
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapItem", message)
 
-    def build_actions(self, parent):
+    def build_actions(self, parent: QMenu) -> list[QAction]:
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
@@ -196,14 +197,14 @@ class StyledMapItem(QgsDataItem):
 
         return actions
 
-    def open_public_page(self):
+    def open_public_page(self) -> None:
         """公開ページをブラウザで開く"""
         url = (
             f"{api.config.get_api_config().SERVER_URL}/public/map/{self.styled_map.id}"
         )
         webbrowser.open(url)
 
-    def apply_style(self):
+    def apply_style(self) -> None:
         """KumoyサーバーからMapを取得してQGISに適用する"""
 
         # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
@@ -258,11 +259,11 @@ class StyledMapItem(QgsDataItem):
         )
         QgsProject.instance().setDirty(False)
 
-    def handleDoubleClick(self):
+    def handleDoubleClick(self) -> bool:
         self.apply_style()
         return True
 
-    def update_metadata_styled_map(self):
+    def update_metadata_styled_map(self) -> None:
         # Create dialog
         dialog, name_field, description_field, attribution_field, is_public_field = (
             _create_styled_map_dialog(
@@ -325,7 +326,7 @@ class StyledMapItem(QgsDataItem):
             self.tr("Map '{}' has been updated successfully.").format(new_name),
         )
 
-    def apply_qgisproject_to_styledmap(self):
+    def apply_qgisproject_to_styledmap(self) -> None:
         # 確認ダイアログ
         confirm = QMessageBox.question(
             None,
@@ -409,13 +410,8 @@ class StyledMapItem(QgsDataItem):
     def process_delete_map(self) -> None:
         api.styledmap.delete_styled_map(self.styled_map.id)
         local_cache.map.clear(self.styled_map.id)
-        QgsMessageLog.logMessage(
-            f"Map '{self.styled_map.name}' deleted.",
-            constants.LOG_CATEGORY,
-            Qgis.Info,
-        )
 
-    def delete_styled_map(self):
+    def delete_styled_map(self) -> None:
         confirm = QMessageBox.question(
             None,
             self.tr("Delete Map"),
@@ -451,15 +447,9 @@ class StyledMapItem(QgsDataItem):
 
     def process_map_cache_clear(self) -> bool:
         cleared = local_cache.map.clear(self.styled_map.id)
-        if cleared:
-            QgsMessageLog.logMessage(
-                f"Cache cleared for map '{self.styled_map.name}'.",
-                constants.LOG_CATEGORY,
-                Qgis.Info,
-            )
         return cleared
 
-    def clear_map_cache(self):
+    def clear_map_cache(self) -> None:
         confirm = QMessageBox.question(
             None,
             self.tr("Clear Map Cache Data"),
@@ -513,11 +503,11 @@ class StyledMapRoot(QgsDataItem):
         self.organization = organization
         self.project = project
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapRoot", message)
 
-    def actions(self, parent):
+    def actions(self, parent: QMenu) -> list[QAction]:
         actions = []
 
         if self.project.role in ["ADMIN", "OWNER"]:
@@ -538,7 +528,7 @@ class StyledMapRoot(QgsDataItem):
 
         return actions
 
-    def add_empty_map(self):
+    def add_empty_map(self) -> None:
         if QgsProject.instance().isDirty():
             confirm = QMessageBox.question(
                 None,
@@ -554,7 +544,7 @@ class StyledMapRoot(QgsDataItem):
 
         self.add_styled_map(clear=True)
 
-    def add_styled_map(self, clear=False):
+    def add_styled_map(self, clear: bool = False) -> None:
         """Add a new map to kumoy server
         Options:
         clear - whether to clear current QGIS project"""
@@ -674,7 +664,7 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error adding map: {}").format(error_text),
             )
 
-    def createChildren(self):
+    def createChildren(self) -> list[QgsDataItem]:
         project_id = get_settings().selected_project_id
 
         if not project_id:
@@ -694,7 +684,7 @@ class StyledMapRoot(QgsDataItem):
 
         return children
 
-    def clear_all_map_cache(self):
+    def clear_all_map_cache(self) -> None:
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,

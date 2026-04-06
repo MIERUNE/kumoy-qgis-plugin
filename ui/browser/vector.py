@@ -25,6 +25,7 @@ from qgis.PyQt.QtWidgets import (
     QFormLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QVBoxLayout,
 )
@@ -80,14 +81,14 @@ class VectorItem(QgsDataItem):
 
         self.populate()
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("VectorItem", message)
 
-    def hasDragEnabled(self):
+    def hasDragEnabled(self) -> bool:
         return True
 
-    def mimeUris(self):
+    def mimeUris(self) -> list[QgsMimeDataUtils.Uri]:
         # ドラッグドロップされた際にレイヤーを適切に追加するための実装
         u = QgsMimeDataUtils.Uri()
         u.layerType = "vector"
@@ -96,7 +97,7 @@ class VectorItem(QgsDataItem):
         u.uri = self.vector_uri
         return [u]
 
-    def build_actions(self, parent):
+    def build_actions(self, parent: QMenu) -> list[QAction]:
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
@@ -142,7 +143,7 @@ class VectorItem(QgsDataItem):
         else:
             raise RuntimeError(self.tr("Layer is invalid: {}").format(self.vector_uri))
 
-    def add_to_map(self):
+    def add_to_map(self) -> None:
         """Add vector layer to QGIS map"""
         try:
             self.import_vector()
@@ -151,7 +152,7 @@ class VectorItem(QgsDataItem):
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(None, self.tr("Error"), msg)
 
-    def _set_pixel_based_style(self, layer):
+    def _set_pixel_based_style(self, layer: QgsVectorLayer) -> None:
         """Set pixel-based styling for the layer"""
         # Create symbol based on geometry type
         if self.vector.type == "POINT":
@@ -203,12 +204,12 @@ class VectorItem(QgsDataItem):
             layer.setRenderer(renderer)
             layer.triggerRepaint()
 
-    def handleDoubleClick(self):
+    def handleDoubleClick(self) -> bool:
         """Handle double-click event by adding the vector layer to the map"""
         self.add_to_map()
         return True  # Return True to indicate we've handled the double-click
 
-    def edit_vector(self):
+    def edit_vector(self) -> None:
         """Edit vector details"""
         # Create dialog
         dialog = QDialog()
@@ -295,13 +296,8 @@ class VectorItem(QgsDataItem):
                 QgsProject.instance().removeMapLayer(layer.id())
 
         local_cache.vector.clear(self.vector.id)
-        QgsMessageLog.logMessage(
-            f"Vector '{self.vector.name}' deleted.",
-            constants.LOG_CATEGORY,
-            Qgis.Info,
-        )
 
-    def delete_vector(self):
+    def delete_vector(self) -> None:
         """Delete the vector"""
         confirm = QMessageBox.question(
             None,
@@ -348,15 +344,9 @@ class VectorItem(QgsDataItem):
 
     def process_vector_cache_clear(self) -> bool:
         cleared = local_cache.vector.clear(self.vector.id)
-        if cleared:
-            QgsMessageLog.logMessage(
-                f"Cache cleared for vector '{self.vector.name}'.",
-                constants.LOG_CATEGORY,
-                Qgis.Info,
-            )
         return cleared
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear cache for this specific vector"""
         if self.is_loaded_on_map():
             iface.messageBar().pushMessage(
@@ -422,11 +412,11 @@ class VectorRoot(QgsDataItem):
         self.organization = organization
         self.project = project
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("VectorRoot", message)
 
-    def actions(self, parent):
+    def actions(self, parent: QMenu) -> list[QAction]:
         actions = []
 
         if self.project.role in ["ADMIN", "OWNER"]:
@@ -447,7 +437,7 @@ class VectorRoot(QgsDataItem):
 
         return actions
 
-    def new_vector(self):
+    def new_vector(self) -> None:
         """Create a new vector layer in the project"""
         try:
             # check plan limits before creating vector
@@ -561,7 +551,7 @@ class VectorRoot(QgsDataItem):
                 self.tr("Error adding vector: {}").format(format_api_error(e)),
             )
 
-    def upload_vector(self):
+    def upload_vector(self) -> None:
         """processingを利用してベクターレイヤーをアップロード"""
         # Execute with dialog
         result = processing.execAlgorithmDialog("kumoy:uploadvector")
@@ -570,7 +560,7 @@ class VectorRoot(QgsDataItem):
         if result:
             self.refresh()
 
-    def createChildren(self):
+    def createChildren(self) -> list[QgsDataItem]:
         """Create child items for vectors in project"""
         project_id = get_settings().selected_project_id
 
@@ -602,7 +592,7 @@ class VectorRoot(QgsDataItem):
 
         return children
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear all vector cache data"""
         # Check if any kumoy vector layer is currently loaded on the map
         for layer in QgsProject.instance().mapLayers().values():
