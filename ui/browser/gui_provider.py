@@ -26,16 +26,15 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         context: QgsDataItemGuiContext,
     ) -> None:
 
-        styledmap_items: list[StyledMapItem] = [
-            i for i in selectedItems if isinstance(i, StyledMapItem)
-        ]
-        vector_items: list[VectorItem] = [
-            i for i in selectedItems if isinstance(i, VectorItem)
-        ]
-
-        if styledmap_items:
+        if isinstance(item, StyledMapItem):
+            styledmap_items: list[StyledMapItem] = [
+                i for i in selectedItems if isinstance(i, StyledMapItem)
+            ]
             self._populate_styled_map_menu(menu, styledmap_items)
-        elif vector_items:
+        elif isinstance(item, VectorItem):
+            vector_items: list[VectorItem] = [
+                i for i in selectedItems if isinstance(i, VectorItem)
+            ]
             self._populate_vector_menu(menu, vector_items)
 
     def _populate_styled_map_menu(
