@@ -229,33 +229,29 @@ def _get_qgs_str(map_path: str) -> str:
 
 def upload_assets_and_update_map(
     styled_map_detail: api.styledmap.KumoyStyledMapDetail,
-) -> api.styledmap.UpdateStyledMapResponse:
+) -> None:
     """Collect symbol assets, rewrite paths, and upload to server.
 
     Args:
         styled_map_detail: StyledMap detail object
-
-    Returns:
-        Updated StyledMap detail object
     """
     project = QgsProject.instance()
     collected = map_assets.collect_assets(project)
 
     if len(collected.files) == 0 and len(collected.sprites) == 0:
         # No assets to upload, set assetsHash to null
-        updated_styled_map = api.styledmap.update_styled_map(
+        api.styledmap.update_styled_map(
             styled_map_detail.id,
             api.styledmap.UpdateStyledMapOptions(
                 assetsHash=None,
             ),
         )
-        return updated_styled_map
+        return
 
     # create assets.zip / sprite
     map_assets.copy_files_and_rewrite_paths(
         project, collected.files, get_assets_dir(styled_map_detail.id)
     )
-    qgsproject_str = write_qgsfile(styled_map_detail.id)
     zip_bytes = map_assets.build_asset_zip(collected.files)
     sprite_json, sprite_png = map_assets.generate_sprites(collected.sprites)
 
@@ -272,9 +268,9 @@ def upload_assets_and_update_map(
             LOG_CATEGORY,
             Qgis.Info,
         )
+        return
 
     server_url = api.config.get_api_config().SERVER_URL
-
     # Get presigned URLs for all assets at once
     upload_urls = api.styledmap_assets.get_assets_upload_urls(
         styled_map_detail.id,
@@ -282,40 +278,69 @@ def upload_assets_and_update_map(
         len(sprite_json),
         len(sprite_png),
     )
+    qgsproject_str = write_qgsfile(styled_map_detail.id)
 
-    # Upload ZIP
-    map_assets.upload_to_presigned_url(
-        f"{server_url}{upload_urls.zip.url}",
-        upload_urls.zip.fields,
-        upload_urls.zip.filename,
-        zip_bytes,
-        "application/zip",
-    )
-    # Upload sprites
-    map_assets.upload_to_presigned_url(
-        f"{server_url}{upload_urls.json.url}",
-        upload_urls.json.fields,
-        upload_urls.json.filename,
-        sprite_json,
-        "application/json",
-    )
-    map_assets.upload_to_presigned_url(
-        f"{server_url}{upload_urls.png.url}",
-        upload_urls.png.fields,
-        upload_urls.png.filename,
-        sprite_png,
-        "image/png",
-    )
+    try:
+        # Upload ZIP
+        map_assets.upload_to_presigned_url(
+            f"{server_url}{upload_urls.zip.url}",
+            upload_urls.zip.fields,
+            upload_urls.zip.filename,
+            zip_bytes,
+            "application/zip",
+        )
+    except Exception as e:
+        error_text = api.error.format_api_error(e)
+        QgsMessageLog.logMessage(
+            tr("Error uploading assets ZIP: {}").format(error_text),
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        # assets.zipのアップロードに失敗したら、qgisprojectを更新してはいけないので処理終了
+        return
 
-    updated_styled_map = api.styledmap.update_styled_map(
+    try:
+        # Upload sprites
+        map_assets.upload_to_presigned_url(
+            f"{server_url}{upload_urls.json.url}",
+            upload_urls.json.fields,
+            upload_urls.json.filename,
+            sprite_json,
+            "application/json",
+        )
+        map_assets.upload_to_presigned_url(
+            f"{server_url}{upload_urls.png.url}",
+            upload_urls.png.fields,
+            upload_urls.png.filename,
+            sprite_png,
+            "image/png",
+        )
+    except Exception as e:
+        error_text = api.error.format_api_error(e)
+        QgsMessageLog.logMessage(
+            tr("Error uploading assets: {}").format(error_text),
+            LOG_CATEGORY,
+            Qgis.Critical,
+        )
+        # assets.zipは成功しているなら、qgisprojectは更新してよく、ただしassetsHashはnullにする
+        # = assetsHashがnullじゃない場合にspriteを読みにいく仕様
+        api.styledmap.update_styled_map(
+            styled_map_detail.id,
+            api.styledmap.UpdateStyledMapOptions(
+                qgisproject_str=qgsproject_str,
+                assetsHash=None,
+            ),
+        )
+        return
+
+    # assets.zipもspriteも両方成功しているなら、qgisprojectもassetsHashも更新する
+    api.styledmap.update_styled_map(
         styled_map_detail.id,
         api.styledmap.UpdateStyledMapOptions(
             qgisproject=qgsproject_str,
             assetsHash=assets_hash,
         ),
     )
-
-    return updated_styled_map
 
 
 def handle_project_saved() -> None:
@@ -405,7 +430,7 @@ def handle_project_saved() -> None:
 
     try:
         # Collect and upload assets (rewrites symbol layer paths)
-        updated_styled_map = upload_assets_and_update_map(styled_map_detail)
+        upload_assets_and_update_map(styled_map_detail)
     except Exception as e:
         error_text = api.error.format_api_error(e)
         QgsMessageLog.logMessage(
@@ -425,4 +450,4 @@ def handle_project_saved() -> None:
     QgsProject.instance().read(get_filepath(styled_map_id))
 
     # Show success message with conversion errors summary if any
-    show_map_save_result(updated_styled_map.name, conversion_errors)
+    show_map_save_result(styled_map_detail.name, conversion_errors)
