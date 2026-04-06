@@ -96,7 +96,7 @@ class VectorItem(QgsDataItem):
         u.uri = self.vector_uri
         return [u]
 
-    def _build_actions(self, parent):
+    def build_actions(self, parent):
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 

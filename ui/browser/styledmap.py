@@ -158,7 +158,7 @@ class StyledMapItem(QgsDataItem):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapItem", message)
 
-    def _build_actions(self, parent):
+    def build_actions(self, parent):
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 

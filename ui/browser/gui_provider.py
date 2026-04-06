@@ -42,7 +42,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
     def _populate_styled_map_menu(self, menu, styledmap_items) -> None:
         if len(styledmap_items) == 1:
-            for action in styledmap_items[0]._build_actions(menu):
+            for action in styledmap_items[0].build_actions(menu):
                 menu.addAction(action)
         else:
             # Multi-selection
@@ -70,7 +70,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
     def _populate_vector_menu(self, menu, vector_items) -> None:
         if len(vector_items) == 1:
-            for action in vector_items[0]._build_actions(menu):
+            for action in vector_items[0].build_actions(menu):
                 menu.addAction(action)
         else:
             # Multi-selection
