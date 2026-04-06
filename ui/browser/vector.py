@@ -132,7 +132,7 @@ class VectorItem(QgsDataItem):
         self._set_pixel_based_style(layer)
 
         if layer.isValid():
-            # kumoy_idをread-onlyに設定
+            # Set kumoy_id to read-only
             field_idx = layer.fields().indexOf("kumoy_id")
             if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
                 config = layer.editFormConfig()
@@ -336,7 +336,7 @@ class VectorItem(QgsDataItem):
                 self.tr("Vector '{}' deleted successfully.").format(self.vector.name),
             )
 
-    def _is_loaded_on_map(self) -> bool:
+    def is_loaded_on_map(self) -> bool:
         """Return True if this vector is currently loaded on the QGIS map."""
         for layer in QgsProject.instance().mapLayers().values():
             if (
@@ -358,7 +358,7 @@ class VectorItem(QgsDataItem):
 
     def clear_cache(self):
         """Clear cache for this specific vector"""
-        if self._is_loaded_on_map():
+        if self.is_loaded_on_map():
             iface.messageBar().pushMessage(
                 self.tr("Cannot Clear Cache"),
                 self.tr(

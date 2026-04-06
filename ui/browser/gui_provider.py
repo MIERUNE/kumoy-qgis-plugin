@@ -209,7 +209,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
 
     def _clear_cache_multiple_vectors(self, items) -> None:
         # Check if any of the vectors is currently loaded on the map
-        loaded_names = [i.vector.name for i in items if i._is_loaded_on_map()]
+        loaded_names = [i.vector.name for i in items if i.is_loaded_on_map()]
 
         if loaded_names:
             iface.messageBar().pushMessage(
