@@ -389,7 +389,7 @@ class StyledMapItem(QgsDataItem):
 
         try:
             # Overwrite styled map
-            updated_styled_map = upload_assets_and_update_map(styled_map_detail)
+            upload_assets_and_update_map(styled_map_detail)
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -405,8 +405,8 @@ class StyledMapItem(QgsDataItem):
             return
 
         # Itemを更新
-        self.styled_map = updated_styled_map
-        self.setName(updated_styled_map.name)
+        self.styled_map = styled_map_detail
+        self.setName(styled_map_detail.name)
         self.refresh()
 
         # reopen qgs to refresh project with new styled map data
@@ -415,7 +415,7 @@ class StyledMapItem(QgsDataItem):
 
         # Show result message with conversion errors summary if any
         show_map_save_result(
-            updated_styled_map.name,
+            styled_map_detail.name,
             conversion_errors,
         )
 
