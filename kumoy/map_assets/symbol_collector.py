@@ -105,11 +105,10 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
 
     cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
 
-    # 短辺を max_size に合わせて縮小（アスペクト比維持）
+    # 縦幅を max_size に合わせて縮小（アスペクト比維持）
     cw, ch = cropped.width(), cropped.height()
-    short_side = min(cw, ch)
-    if short_side > 0:
-        scale = max_size / short_side
+    if ch > 0:
+        scale = max_size / ch
         target = QSize(round(cw * scale), round(ch * scale))
     else:
         target = QSize(max_size, max_size)
