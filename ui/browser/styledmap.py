@@ -167,7 +167,7 @@ class StyledMapItem(QgsDataItem):
 
         # スタイルマップ適用アクション
         apply_action = QAction(self.tr("Load into QGIS"), parent)
-        apply_action.triggered.connect(self.apply_style)
+        apply_action.triggered.connect(self.get_and_load_map)
         actions.append(apply_action)
 
         if self.styled_map.isPublic:
@@ -206,7 +206,7 @@ class StyledMapItem(QgsDataItem):
         )
         webbrowser.open(url)
 
-    def apply_style(self):
+    def get_and_load_map(self):
         """KumoyサーバーからMapを取得してQGISに適用する"""
 
         # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
@@ -238,6 +238,9 @@ class StyledMapItem(QgsDataItem):
                 self.tr("Error loading map: {}").format(error_text),
             )
             return
+
+        # キャッシュクリア（qgs, assets）
+        local_cache.map.clear(self.styled_map.id)
 
         # Download and extract assets if available
         if styled_map_detail.assetsHash:
@@ -278,7 +281,7 @@ class StyledMapItem(QgsDataItem):
         QgsProject.instance().setDirty(False)
 
     def handleDoubleClick(self):
-        self.apply_style()
+        self.get_and_load_map()
         return True
 
     def update_metadata_styled_map(self):
