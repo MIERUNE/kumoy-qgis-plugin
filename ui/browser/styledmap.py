@@ -239,6 +239,9 @@ class StyledMapItem(QgsDataItem):
             )
             return
 
+        # キャッシュクリア（qgs, assets）
+        local_cache.map.invalidate_asset_caches(styled_map_detail.id)
+
         # Download and extract assets if available
         if styled_map_detail.assetsHash:
             try:

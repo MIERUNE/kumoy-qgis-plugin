@@ -119,8 +119,9 @@ def download_and_extract_assets(map_id: str, download_url: str) -> None:
     )
 
 
-def _invalidate_asset_caches(assets_dir: str) -> None:
+def invalidate_asset_caches(map_id: str) -> None:
     """Invalidate QgsSvgCache and QgsImageCache for all files in assets directory."""
+    assets_dir = get_assets_dir(map_id)
     if not os.path.isdir(assets_dir):
         return
 
@@ -144,7 +145,7 @@ def clear(map_id: str) -> bool:
     map_dir = os.path.join(cache_dir, map_id)
     if not os.path.isdir(map_dir):
         return True
-    _invalidate_asset_caches(os.path.join(map_dir, "assets"))
+
     try:
         shutil.rmtree(map_dir)
         return True
@@ -169,11 +170,6 @@ def clear_all() -> bool:
 
     cache_dir = _get_cache_dir()
     success = True
-
-    # Invalidate QGIS caches for all map assets before deletion
-    for dirname in os.listdir(cache_dir):
-        assets_dir = os.path.join(cache_dir, dirname, "assets")
-        _invalidate_asset_caches(assets_dir)
 
     # Remove all files and directories in cache directory
     for filename in os.listdir(cache_dir):
