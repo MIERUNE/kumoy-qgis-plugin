@@ -85,7 +85,7 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     if y_min == h:
         # 完全に透明な画像
         return image.scaled(
-            QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.FastTransformation
         )
 
     # 下端から上へ走査
@@ -105,11 +105,10 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
 
     cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
 
-    # 短辺を max_size に合わせて縮小（アスペクト比維持）
+    # 高さを max_size に合わせてスケーリング（アスペクト比維持）
     cw, ch = cropped.width(), cropped.height()
-    short_side = min(cw, ch)
-    if short_side > 0:
-        scale = max_size / short_side
+    if ch > 0:
+        scale = max_size / ch
         target = QSize(round(cw * scale), round(ch * scale))
     else:
         target = QSize(max_size, max_size)
@@ -159,7 +158,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
             if layer.geometryType() == Qgis.GeometryType.Point:
                 raw_image = symbol.asImage(QSize(128, 128))
                 if raw_image and not raw_image.isNull():
-                    image = _trim_and_fit(raw_image, 32)
+                    image = _trim_and_fit(raw_image, 48)
                     sprite_name = f"{layer.id()}_{symbol_index}"
                     sprites.append(SpriteEntry(name=sprite_name, image=image))
 
