@@ -45,6 +45,16 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 menu.addAction(action)
         else:
             # Multi-selection
+            clear_action = QAction(
+                self.tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
+            )
+            clear_action.triggered.connect(
+                lambda checked=False, items=list(styledmap_items): (
+                    self._clear_cache_multiple_maps(items)
+                )
+            )
+            menu.addAction(clear_action)
+
             can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styledmap_items)
             if can_delete:
                 delete_action = QAction(
@@ -56,16 +66,6 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                     )
                 )
                 menu.addAction(delete_action)
-
-            clear_action = QAction(
-                self.tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
-            )
-            clear_action.triggered.connect(
-                lambda checked=False, items=list(styledmap_items): (
-                    self._clear_cache_multiple_maps(items)
-                )
-            )
-            menu.addAction(clear_action)
 
     def _populate_vector_menu(
         self, menu: QMenu, vector_items: list[VectorItem]
