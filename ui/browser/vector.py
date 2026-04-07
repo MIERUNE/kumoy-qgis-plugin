@@ -49,6 +49,10 @@ from ..icons import (
 from .utils import ErrorItem
 
 
+def tr(message: str, context: str = "@default") -> str:
+    return QCoreApplication.translate(context, message)
+
+
 class VectorItem(QgsDataItem):
     """Vector layer item for browser"""
 
@@ -640,3 +644,112 @@ class VectorRoot(QgsDataItem):
                         "Please try again after closing QGIS or ensure no files are locked."
                     ),
                 )
+
+
+def add_multiple_vectors(items: list[VectorItem]) -> None:
+    errors = []
+    for item in items:
+        try:
+            item.import_vector()
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error adding vector '{item.vector.name}': {error_text}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            errors.append(f"{item.vector.name}: {error_text}")
+
+    if errors:
+        QMessageBox.critical(
+            None,
+            tr("Error"),
+            tr("Some vectors could not be added:\n{}").format("\n".join(errors)),
+        )
+
+
+def clear_cache_multiple_vectors(items: list[VectorItem]) -> None:
+    loaded_names = [i.vector.name for i in items if i.is_loaded_on_map()]
+
+    if loaded_names:
+        iface.messageBar().pushMessage(
+            tr("Cannot Clear Cache"),
+            tr("Cannot clear cache for vectors loaded on the map: {}").format(
+                ", ".join(loaded_names)
+            ),
+        )
+        return
+
+    confirm = QMessageBox.question(
+        None,
+        tr("Clear Cache Data"),
+        tr(
+            "This will clear the local cache for {} vectors.\n"
+            "The cached data will be re-downloaded when you access it next time.\n"
+            "Do you want to continue?"
+        ).format(len(items)),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
+    failed = [i.vector.name for i in items if not i.process_vector_cache_clear()]
+
+    if failed:
+        iface.messageBar().pushMessage(
+            tr("Cache Clear Failed"),
+            tr("Could not clear cache for: {}").format(", ".join(failed)),
+        )
+    else:
+        iface.messageBar().pushSuccess(
+            tr("Success"),
+            tr("Cache cleared successfully for {} vectors.").format(len(items)),
+        )
+
+
+def delete_multiple_vectors(items: list[VectorItem]) -> None:
+    names = "\n".join(f"  - {i.vector.name}" for i in items)
+    confirm = QMessageBox.question(
+        None,
+        tr("Delete Vectors"),
+        tr("Are you sure you want to delete {} vectors?\n{}").format(len(items), names),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
+    errors = []
+    deleted_count = 0
+    parent_item = items[0].parent() if items else None
+
+    for item in items:
+        try:
+            item.process_delete_vector()
+            deleted_count += 1
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error deleting vector '{item.vector.name}': {error_text}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            errors.append(f"{item.vector.name}: {error_text}")
+
+    if parent_item:
+        parent_item.refresh()
+
+    iface.mapCanvas().refresh()
+
+    if errors:
+        QMessageBox.critical(
+            None,
+            tr("Error"),
+            tr("Some vectors could not be deleted:\n{}").format("\n".join(errors)),
+        )
+    else:
+        iface.messageBar().pushSuccess(
+            tr("Success"),
+            tr("{} vectors have been deleted successfully.").format(deleted_count),
+        )
