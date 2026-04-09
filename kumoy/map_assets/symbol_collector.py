@@ -158,7 +158,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
             if layer.geometryType() == Qgis.GeometryType.Point:
                 raw_image = symbol.asImage(QSize(128, 128))
                 if raw_image and not raw_image.isNull():
-                    image = _trim_and_fit(raw_image, 48)
+                    image = _trim_and_fit(raw_image, 64)
                     sprite_name = f"{layer.id()}_{symbol_index}"
                     sprites.append(SpriteEntry(name=sprite_name, image=image))
 
