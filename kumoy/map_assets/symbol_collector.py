@@ -156,7 +156,7 @@ def collect_assets(project: QgsProject) -> CollectedAssets:
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
             # Pointレイヤーのsymbolのみをsprite化する
             if layer.geometryType() == Qgis.GeometryType.Point:
-                raw_image = symbol.asImage(QSize(128, 128))
+                raw_image = symbol.asImage(QSize(192, 192))
                 if raw_image and not raw_image.isNull():
                     image = _trim_and_fit(raw_image, 64)
                     sprite_name = f"{layer.id()}_{symbol_index}"
