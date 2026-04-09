@@ -103,16 +103,28 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     while x_max > x_min and not _has_alpha_in_col(x_max):
         x_max -= 1
 
-    cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
+    # 内容の矩形から最小の正方形を算出（中心を保つ）
+    content_w = x_max - x_min + 1
+    content_h = y_max - y_min + 1
+    side = max(content_w, content_h)
 
-    # 縦幅を max_size に合わせて縮小（アスペクト比維持）
-    cw, ch = cropped.width(), cropped.height()
-    if ch > 0:
-        scale = max_size / ch
-        target = QSize(round(cw * scale), round(ch * scale))
-    else:
-        target = QSize(max_size, max_size)
-    return cropped.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    cx = (x_min + x_max) / 2.0
+    cy = (y_min + y_max) / 2.0
+
+    sq_x = max(0, round(cx - side / 2.0))
+    sq_y = max(0, round(cy - side / 2.0))
+    # 画像境界を超えないように調整
+    if sq_x + side > w:
+        sq_x = w - side
+    if sq_y + side > h:
+        sq_y = h - side
+
+    cropped = image.copy(QRect(sq_x, sq_y, side, side))
+
+    # 常に max_size x max_size にリサイズ
+    return cropped.scaled(
+        QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
+    )
 
 
 def _resolve_svg_path(path: str) -> str:
