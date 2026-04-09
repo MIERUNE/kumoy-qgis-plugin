@@ -150,7 +150,6 @@ class KumoyPlugin:
 
         # Clear stored settings
         store_setting("id_token", "")
-        store_setting("refresh_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
@@ -363,7 +362,6 @@ class KumoyPlugin:
             # Force logout to prevent potential issues with incompatible versions
             # Clear stored settings
             store_setting("id_token", "")
-            store_setting("refresh_token", "")
             store_setting("user_info", "")
             store_setting("selected_project_id", "")
             store_setting("selected_organization_id", "")

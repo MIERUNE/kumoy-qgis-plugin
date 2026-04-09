@@ -419,9 +419,12 @@ Do you want to continue?</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="318"/>
-        <source>Waiting for browser authentication...</source>
-        <translation type="unfinished">ブラウザでの認証を待機中...</translation>
+        <source>Requesting device code...</source>
+        <translation type="unfinished">デバイスコードをリクエスト中...</translation>
+    </message>
+    <message>
+        <source>Enter the code above in your browser to sign in.</source>
+        <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="367"/>
@@ -443,11 +446,6 @@ Please update your configuration before logging in.</source>
         <location filename="../ui/dialog_login.py" line="367"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
-    </message>
-    <message>
-        <location filename="../ui/dialog_login.py" line="289"/>
-        <source>Signing you in...</source>
-        <translation type="unfinished">ログイン中...</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="116"/>
