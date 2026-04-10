@@ -137,12 +137,9 @@ class AuthManager(QObject):
         req = QNetworkRequest(QUrl(self._poll_url))
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
-        self._pending_reply = self._network_manager.post(
-            req, QByteArray(self._poll_data)
-        )
-        self._pending_reply.finished.connect(
-            lambda: self._on_poll_reply(self._pending_reply)
-        )
+        reply = self._network_manager.post(req, QByteArray(self._poll_data))
+        self._pending_reply = reply
+        reply.finished.connect(lambda r=reply: self._on_poll_reply(r))
 
     def _on_poll_reply(self, reply: QNetworkReply):
         """ポーリングレスポンスを処理する"""

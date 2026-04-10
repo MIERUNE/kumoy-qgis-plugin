@@ -14,8 +14,8 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QSpacerItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..kumoy import api
@@ -151,10 +151,10 @@ class DialogLogin(QDialog):
         verticalLayout.addWidget(self.custom_server_config_group)
 
         # Spacer before cancel button (shown during code verification)
-        self.cancel_spacer = QSpacerItem(
-            20, 20, Q_SIZE_POLICY.Minimum, Q_SIZE_POLICY.Fixed
-        )
-        verticalLayout.addItem(self.cancel_spacer)
+        self.cancel_spacer = QWidget()
+        self.cancel_spacer.setFixedHeight(20)
+        self.cancel_spacer.hide()
+        verticalLayout.addWidget(self.cancel_spacer)
 
         # Cancel button (shown during code verification)
         self.cancel_button = QPushButton()
@@ -357,11 +357,13 @@ class DialogLogin(QDialog):
         self.login_button.hide()
         self.custom_server_config_group.hide()
         self.user_code_label.show()
+        self.cancel_spacer.show()
         self.cancel_button.show()
 
     def _show_login_ui(self):
         """ログイン前のUI状態に戻す"""
         self.user_code_label.hide()
+        self.cancel_spacer.hide()
         self.cancel_button.hide()
         self.login_button.show()
         self.login_button.setEnabled(True)
