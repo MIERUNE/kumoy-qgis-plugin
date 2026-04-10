@@ -2,12 +2,12 @@
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
 from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
-from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLineEdit,
-    QListView,
+    QListWidget,
     QMessageBox,
     QSizePolicy,
 )
@@ -137,6 +137,14 @@ Qt5: QPainter.Antialiasing, QPainter.TextAntialiasing, etc.
 Qt6: QPainter.RenderHint.Antialiasing, etc.
 """
 
+Q_NETWORK_REPLY_ERROR = (
+    QNetworkReply if QT_VERSION_INT <= 5 else QNetworkReply.NetworkError
+)
+"""QNetworkReply error codes
+Qt5: QNetworkReply.NoError, etc.
+Qt6: QNetworkReply.NetworkError.NoError, etc.
+"""
+
 Q_NETWORK_REQUEST_HEADER = (
     QNetworkRequest if QT_VERSION_INT <= 5 else QNetworkRequest.KnownHeaders
 )
@@ -149,6 +157,14 @@ Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
 """Qt region type
 Qt5: QRegion.Ellipse, etc.
 Qt6: QRegion.RegionType.Ellipse, etc.
+"""
+
+Q_LISTWIDGET_RESIZE_MODE = (
+    QListWidget if QT_VERSION_INT <= 5 else QListWidget.ResizeMode
+)
+"""QListWidget resize mode
+Qt5: QListWidget.Adjust, etc.
+Qt6: QListWidget.ResizeMode.Adjust, etc.
 """
 
 Q_SIZE_POLICY = QSizePolicy if QT_VERSION_INT <= 5 else QSizePolicy.Policy

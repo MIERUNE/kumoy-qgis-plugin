@@ -13,7 +13,7 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from ..pyqt_version import Q_NETWORK_REQUEST_HEADER
+from ..pyqt_version import Q_NETWORK_REPLY_ERROR, Q_NETWORK_REQUEST_HEADER
 from .api.error import format_api_error
 from .constants import LOG_CATEGORY
 
@@ -42,6 +42,7 @@ class AuthManager(QObject):
         self._network_manager: Optional[QNetworkAccessManager] = None
         self._pending_reply: Optional[QNetworkReply] = None
         self._cancelled: bool = False
+        self._completed: bool = False
 
     def tr(self, message: str) -> str:
         return QCoreApplication.translate("AuthManager", message)
@@ -123,6 +124,9 @@ class AuthManager(QObject):
 
     def _poll_for_token(self):
         """トークンエンドポイントを非同期でポーリングする"""
+        if self._completed or self._pending_reply is not None:
+            return
+
         if time.time() - self._auth_start_time > self._expires_in_device:
             self._cleanup()
             self.auth_completed.emit(
@@ -157,7 +161,7 @@ class AuthManager(QObject):
             )
 
             if not body:
-                if reply.error() != QNetworkReply.NoError:
+                if reply.error() != Q_NETWORK_REPLY_ERROR.NoError:
                     QgsMessageLog.logMessage(
                         f"Network error during polling: {reply.errorString()}",
                         LOG_CATEGORY,
@@ -167,13 +171,14 @@ class AuthManager(QObject):
 
             resp_data = json.loads(body)
 
-            if reply.error() == QNetworkReply.NoError:
+            if reply.error() == Q_NETWORK_REPLY_ERROR.NoError:
                 token = resp_data.get("access_token") or resp_data.get("accessToken")
                 if token:
                     self.access_token = token
                     self.expires_in = resp_data.get("expires_in") or resp_data.get(
                         "expiresIn"
                     )
+                    self._completed = True
                     self._cleanup()
                     self.auth_completed.emit(True, "")
                     return
