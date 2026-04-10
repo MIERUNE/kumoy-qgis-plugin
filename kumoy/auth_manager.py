@@ -2,7 +2,7 @@ import json
 import time
 from typing import Optional, Tuple
 
-from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog
+from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog, QgsNetworkReplyContent
 from qgis.PyQt.QtCore import (
     QByteArray,
     QCoreApplication,
@@ -61,12 +61,23 @@ class AuthManager(QObject):
             req.setHeader(
                 Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json"
             )
+            req.setRawHeader(b"Origin", self.server_url.encode("utf-8"))
 
             blocking_request = QgsBlockingNetworkRequest()
             err = blocking_request.post(req, QByteArray(data))
 
             if err != QgsBlockingNetworkRequest.NoError:
                 error_message = blocking_request.errorMessage()
+                reply_content: QgsNetworkReplyContent = blocking_request.reply()
+                status_code = reply_content.attribute(
+                    QNetworkRequest.Attribute.HttpStatusCodeAttribute
+                )
+                body = str(reply_content.content().data(), "utf-8") if reply_content.content() else ""
+                QgsMessageLog.logMessage(
+                    f"Device code request failed: status={status_code}, body={body}, error={error_message}",
+                    LOG_CATEGORY,
+                    Qgis.Warning,
+                )
                 return False, self.tr("Failed to request device code: {}").format(
                     error_message
                 )
@@ -136,6 +147,7 @@ class AuthManager(QObject):
 
         req = QNetworkRequest(QUrl(self._poll_url))
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
+        req.setRawHeader(b"Origin", self.server_url.encode("utf-8"))
 
         reply = self._network_manager.post(req, QByteArray(self._poll_data))
         self._pending_reply = reply
