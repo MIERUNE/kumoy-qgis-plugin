@@ -453,12 +453,8 @@ Do you want to continue?</source>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="315"/>
-        <source>Enter the code above in your browser to sign in.
-If the browser does not open, go to:
-{}</source>
-        <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。
-ブラウザが開かない場合は、以下のURLにアクセスしてください
-{}</translation>
+        <source>Enter the code above in your browser to sign in.&lt;br&gt;If the browser does not open, go to:&lt;br&gt;&lt;a href=&quot;{0}&quot;&gt;{0}&lt;/a&gt;</source>
+        <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。&lt;br&gt;ブラウザが開かない場合は、以下のURLにアクセスしてください:&lt;br&gt;&lt;a href=&quot;{0}&quot;&gt;{0}&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="148"/>

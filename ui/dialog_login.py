@@ -23,7 +23,13 @@ from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import is_plugin_version_compatible, read_plugin_version
-from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, QT_TEXT_INTERACTION, exec_dialog
+from ..pyqt_version import (
+    Q_SIZE_POLICY,
+    QT_ALIGN,
+    QT_TEXT_FORMAT_RICH,
+    QT_TEXT_INTERACTION,
+    exec_dialog,
+)
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
@@ -142,6 +148,12 @@ class DialogLogin(QDialog):
         gridLayout.addWidget(self.kumoy_server_url_input, 1, 1)
 
         verticalLayout.addWidget(self.custom_server_config_group)
+
+        # Spacer before cancel button (shown during code verification)
+        self.cancel_spacer = QSpacerItem(
+            20, 20, Q_SIZE_POLICY.Minimum, Q_SIZE_POLICY.Fixed
+        )
+        verticalLayout.addItem(self.cancel_spacer)
 
         # Cancel button (shown during code verification)
         self.cancel_button = QPushButton()
@@ -312,17 +324,19 @@ class DialogLogin(QDialog):
         webbrowser.open(verification_url)
 
         verification_uri = self.auth_manager.verification_uri or verification_url
+        self.login_status_label.setTextFormat(QT_TEXT_FORMAT_RICH)
         self.login_status_label.setText(
             self.tr(
-                "Enter the code above in your browser to sign in.\n"
-                "If the browser does not open, go to:\n"
-                "{}"
+                "Enter the code above in your browser to sign in.<br>"
+                "If the browser does not open, go to:<br>"
+                '<a href="{0}">{0}</a>'
             ).format(verification_uri)
         )
-        self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
+        self.login_status_label.setStyleSheet("")
         self.login_status_label.setTextInteractionFlags(
-            QT_TEXT_INTERACTION.TextSelectableByMouse
+            QT_TEXT_INTERACTION.TextBrowserInteraction
         )
+        self.login_status_label.setOpenExternalLinks(True)
 
         self.auth_manager.auth_completed.connect(self.on_auth_completed)
         self.auth_manager.start_polling()

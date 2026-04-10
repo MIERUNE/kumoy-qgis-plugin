@@ -87,6 +87,12 @@ Qt5: Qt.PlainText
 Qt6: Qt.TextFormat.PlainText
 """
 
+QT_TEXT_FORMAT_RICH = Qt.RichText if QT_VERSION_INT <= 5 else Qt.TextFormat.RichText
+"""Qt text format rich text
+Qt5: Qt.RichText
+Qt6: Qt.TextFormat.RichText
+"""
+
 QT_TEXT_INTERACTION = Qt if QT_VERSION_INT <= 5 else Qt.TextInteractionFlag
 """Qt text interaction flags
 Qt5: Qt.TextBrowserInteraction, Qt.TextSelectableByMouse, etc.
