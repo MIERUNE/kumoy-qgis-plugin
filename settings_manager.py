@@ -9,7 +9,7 @@ from .kumoy.local_cache.settings import reset_local_cache_settings
 
 @dataclass
 class UserSettings:
-    id_token: str = ""
+    session_token: str = ""
     selected_organization_id: str = ""
     selected_project_id: str = ""
     use_custom_server: str = "false"
@@ -26,7 +26,7 @@ def get_settings():
 
     try:
         loaded_settings = UserSettings(
-            id_token=qsettings.value("id_token", ""),
+            session_token=qsettings.value("session_token", ""),
             selected_organization_id=qsettings.value("selected_organization_id", ""),
             selected_project_id=qsettings.value("selected_project_id", ""),
             use_custom_server=qsettings.value("use_custom_server", "false"),

@@ -225,7 +225,7 @@ class DialogAccount(QDialog):
 
         close_all_processing_dialogs()
 
-        store_setting("id_token", "")
+        store_setting("session_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")

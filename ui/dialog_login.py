@@ -174,9 +174,9 @@ class DialogLogin(QDialog):
 
     def update_login_status(self):
         """Update the login status display based on stored tokens"""
-        id_token = get_settings().id_token
+        session_token = get_settings().session_token
 
-        if id_token:
+        if session_token:
             self.login_status_label.setText(self.tr("Logged in"))
             self.login_status_label.setStyleSheet(
                 "color: green; font-weight: bold; font-size: 24px;"
@@ -206,7 +206,7 @@ class DialogLogin(QDialog):
             self.update_login_status()
             return
 
-        store_setting("id_token", self.auth_manager.get_access_token())
+        store_setting("session_token", self.auth_manager.get_access_token())
 
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success

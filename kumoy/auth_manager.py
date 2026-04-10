@@ -3,7 +3,14 @@ import time
 from typing import Optional, Tuple
 
 from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog
-from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QObject, QTimer, QUrl
+from qgis.PyQt.QtCore import (
+    QByteArray,
+    QCoreApplication,
+    QObject,
+    QTimer,
+    QUrl,
+    pyqtSignal,
+)
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from ..pyqt_version import Q_NETWORK_REQUEST_HEADER
@@ -16,8 +23,6 @@ DEVICE_AUTH_CLIENT_ID = "kumoy-qgis-plugin"
 
 class AuthManager(QObject):
     """OAuth Device Authorization Flow による認証マネージャー"""
-
-    from qgis.PyQt.QtCore import pyqtSignal
 
     auth_completed = pyqtSignal(bool, str)  # success, error_message
 
@@ -35,6 +40,8 @@ class AuthManager(QObject):
         self._poll_timer: Optional[QTimer] = None
         self._auth_start_time: Optional[float] = None
         self._network_manager: Optional[QNetworkAccessManager] = None
+        self._pending_reply: Optional[QNetworkReply] = None
+        self._cancelled: bool = False
 
     def tr(self, message: str) -> str:
         return QCoreApplication.translate("AuthManager", message)
@@ -84,6 +91,9 @@ class AuthManager(QObject):
             if not self.device_code or not self.user_code:
                 return False, self.tr("Server did not return device code")
 
+            if not self.verification_uri_complete and not self.verification_uri:
+                return False, self.tr("Server did not return verification URL")
+
             return True, self.user_code
 
         except Exception as e:
@@ -123,14 +133,39 @@ class AuthManager(QObject):
         req = QNetworkRequest(QUrl(self._poll_url))
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
-        reply = self._network_manager.post(req, QByteArray(self._poll_data))
-        reply.finished.connect(lambda: self._on_poll_reply(reply))
+        self._pending_reply = self._network_manager.post(
+            req, QByteArray(self._poll_data)
+        )
+        self._pending_reply.finished.connect(
+            lambda: self._on_poll_reply(self._pending_reply)
+        )
 
     def _on_poll_reply(self, reply: QNetworkReply):
         """ポーリングレスポンスを処理する"""
+        self._pending_reply = None
+
+        if self._cancelled:
+            reply.deleteLater()
+            return
+
         try:
             content = reply.readAll()
-            resp_data = json.loads(str(content.data(), "utf-8"))
+            body = (
+                str(content.data(), "utf-8")
+                if content and not content.isEmpty()
+                else ""
+            )
+
+            if not body:
+                if reply.error() != QNetworkReply.NoError:
+                    QgsMessageLog.logMessage(
+                        f"Network error during polling: {reply.errorString()}",
+                        LOG_CATEGORY,
+                        Qgis.Warning,
+                    )
+                return
+
+            resp_data = json.loads(body)
 
             if reply.error() == QNetworkReply.NoError:
                 token = resp_data.get("access_token") or resp_data.get("accessToken")
@@ -143,12 +178,15 @@ class AuthManager(QObject):
                     self.auth_completed.emit(True, "")
                     return
 
-                error = resp_data.get("error", "")
-                self._handle_poll_error(error, resp_data)
-            else:
-                error = resp_data.get("error", "")
-                self._handle_poll_error(error, resp_data)
+            error = resp_data.get("error", "")
+            self._handle_poll_error(error, resp_data)
 
+        except json.JSONDecodeError:
+            QgsMessageLog.logMessage(
+                f"Invalid JSON in poll response: {reply.errorString()}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error polling for token: {format_api_error(e)}",
@@ -185,9 +223,13 @@ class AuthManager(QObject):
         if self._poll_timer:
             self._poll_timer.stop()
             self._poll_timer = None
+        if self._pending_reply:
+            self._pending_reply.abort()
+            self._pending_reply = None
         self._network_manager = None
 
     def cancel_auth(self):
+        self._cancelled = True
         self._cleanup()
 
     def get_access_token(self) -> Optional[str]:

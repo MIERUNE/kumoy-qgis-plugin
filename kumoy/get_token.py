@@ -14,7 +14,7 @@ def get_token() -> Optional[str]:
     Returns:
         str: Session token or None if not authenticated
     """
-    cached_token = get_settings().id_token
+    cached_token = get_settings().session_token
     if cached_token:
         return cached_token
 

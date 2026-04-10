@@ -149,7 +149,7 @@ class KumoyPlugin:
         close_all_processing_dialogs()
 
         # Clear stored settings
-        store_setting("id_token", "")
+        store_setting("session_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
@@ -361,7 +361,7 @@ class KumoyPlugin:
             )
             # Force logout to prevent potential issues with incompatible versions
             # Clear stored settings
-            store_setting("id_token", "")
+            store_setting("session_token", "")
             store_setting("user_info", "")
             store_setting("selected_project_id", "")
             store_setting("selected_organization_id", "")
@@ -435,7 +435,7 @@ class KumoyPlugin:
 
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
-        is_logged_in = bool(api.config.get_settings().id_token)
+        is_logged_in = bool(api.config.get_settings().session_token)
         self.logout_action.setVisible(is_logged_in)
 
     def unload(self):

@@ -384,6 +384,11 @@ Do you want to continue?</source>
         <translation type="unfinished">サーバーがデバイスコードを返しませんでした</translation>
     </message>
     <message>
+        <location filename="../kumoy/auth_manager.py" line="87"/>
+        <source>Server did not return verification URL</source>
+        <translation type="unfinished">サーバーが認証URLを返しませんでした</translation>
+    </message>
+    <message>
         <location filename="../kumoy/auth_manager.py" line="113"/>
         <source>Device code expired. Please try again.</source>
         <translation type="unfinished">デバイスコードの有効期限が切れました。もう一度お試しください。</translation>
