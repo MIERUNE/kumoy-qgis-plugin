@@ -37,6 +37,7 @@ from ..pyqt_version import (
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
     QT_LINEEDIT_ACTION_POSITION,
+    Q_LIST_VIEW_RESIZE_MODE,
     QT_NO_ITEM_FLAGS,
     QT_TEXT_FORMAT_PLAIN,
     QT_USER_ROLE,
@@ -292,7 +293,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project list
         project_list = QListWidget()
-        project_list.setResizeMode(QListWidget.Adjust)
+        project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
