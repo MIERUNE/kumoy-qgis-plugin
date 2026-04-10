@@ -179,8 +179,8 @@ Qt5: QDialog.Accepted, QDialog.Rejected
 Qt6: QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected
 """
 
-Q_LIST_VIEW_RESIZE_MODE = QListView if QT_VERSION_INT <= 5 else QListView.ResizeMode
-"""QListView resize mode
+Q_LIST_VIEW = QListView if QT_VERSION_INT <= 5 else QListView.ResizeMode
+"""QListView
 Qt5: QListView.Adjust, QListView.Fixed, etc.
 Qt6: QListView.ResizeMode.Adjust, QListView.ResizeMode.Fixed, etc.
 """
