@@ -174,6 +174,10 @@ Qt6: QTextCursor.MoveOperation.End, QTextCursor.MoveOperation.Start, etc.
 """
 
 QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode
+"""QDialog code class
+Qt5: QDialog.Accepted, QDialog.Rejected
+Qt6: QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected
+"""
 
 Q_LIST_VIEW_RESIZE_MODE = QListView if QT_VERSION_INT <= 5 else QListView.ResizeMode
 """QListView resize mode
