@@ -14,6 +14,7 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
