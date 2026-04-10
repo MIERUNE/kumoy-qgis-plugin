@@ -1,12 +1,12 @@
 import json
 import time
-import urllib.error
-import urllib.request
 from typing import Optional, Tuple
 
-from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QObject, QTimer, pyqtSignal
+from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog
+from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QObject, QTimer, QUrl
+from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
+from ..pyqt_version import Q_NETWORK_REQUEST_HEADER
 from .api.error import format_api_error
 from .constants import LOG_CATEGORY
 
@@ -16,6 +16,8 @@ DEVICE_AUTH_CLIENT_ID = "kumoy-qgis-plugin"
 
 class AuthManager(QObject):
     """OAuth Device Authorization Flow による認証マネージャー"""
+
+    from qgis.PyQt.QtCore import pyqtSignal
 
     auth_completed = pyqtSignal(bool, str)  # success, error_message
 
@@ -32,6 +34,10 @@ class AuthManager(QObject):
         self._expires_in_device: int = 1800
         self._poll_timer: Optional[QTimer] = None
         self._auth_start_time: Optional[float] = None
+        self._network_manager: Optional[QNetworkAccessManager] = None
+
+    def tr(self, message: str) -> str:
+        return QCoreApplication.translate("AuthManager", message)
 
     def request_device_code(self) -> Tuple[bool, str]:
         """デバイスコードをリクエストする。
@@ -41,12 +47,24 @@ class AuthManager(QObject):
         """
         url = f"{self.server_url}/api/auth/device/code"
         data = json.dumps({"client_id": DEVICE_AUTH_CLIENT_ID}).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
 
         try:
-            req = urllib.request.Request(url, data=data, headers=headers)
-            with urllib.request.urlopen(req) as response:
-                resp_data = json.loads(response.read().decode("utf-8"))
+            req = QNetworkRequest(QUrl(url))
+            req.setHeader(
+                Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json"
+            )
+
+            blocking_request = QgsBlockingNetworkRequest()
+            err = blocking_request.post(req, QByteArray(data))
+
+            if err != QgsBlockingNetworkRequest.NoError:
+                error_message = blocking_request.errorMessage()
+                return False, self.tr("Failed to request device code: {}").format(
+                    error_message
+                )
+
+            content = blocking_request.reply().content()
+            resp_data = json.loads(str(content.data(), "utf-8"))
 
             self.user_code = resp_data.get("user_code") or resp_data.get("userCode")
             self.device_code = resp_data.get("device_code") or resp_data.get(
@@ -64,12 +82,14 @@ class AuthManager(QObject):
             )
 
             if not self.device_code or not self.user_code:
-                return False, "Server did not return device code"
+                return False, self.tr("Server did not return device code")
 
             return True, self.user_code
 
         except Exception as e:
-            return False, f"Failed to request device code: {format_api_error(e)}"
+            return False, self.tr("Failed to request device code: {}").format(
+                format_api_error(e)
+            )
 
     def get_verification_url(self) -> str:
         """ユーザーがブラウザで開くURLを返す"""
@@ -86,57 +106,57 @@ class AuthManager(QObject):
                 "client_id": DEVICE_AUTH_CLIENT_ID,
             }
         ).encode("utf-8")
-        self._poll_timer = QTimer()
+        self._network_manager = QNetworkAccessManager(self)
+        self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_for_token)
         self._poll_timer.start(self.polling_interval * 1000)
 
     def _poll_for_token(self):
-        """トークンエンドポイントをポーリングする"""
+        """トークンエンドポイントを非同期でポーリングする"""
         if time.time() - self._auth_start_time > self._expires_in_device:
             self._cleanup()
-            self.auth_completed.emit(False, "Device code expired. Please try again.")
+            self.auth_completed.emit(
+                False, self.tr("Device code expired. Please try again.")
+            )
             return
 
+        req = QNetworkRequest(QUrl(self._poll_url))
+        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
+
+        reply = self._network_manager.post(req, QByteArray(self._poll_data))
+        reply.finished.connect(lambda: self._on_poll_reply(reply))
+
+    def _on_poll_reply(self, reply: QNetworkReply):
+        """ポーリングレスポンスを処理する"""
         try:
-            req = urllib.request.Request(
-                self._poll_url,
-                data=self._poll_data,
-                headers={"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(req) as response:
-                resp_data = json.loads(response.read().decode("utf-8"))
+            content = reply.readAll()
+            resp_data = json.loads(str(content.data(), "utf-8"))
 
-            token = resp_data.get("access_token") or resp_data.get("accessToken")
-            if token:
-                self.access_token = token
-                self.expires_in = resp_data.get("expires_in") or resp_data.get(
-                    "expiresIn"
-                )
-                self._cleanup()
-                self.auth_completed.emit(True, "")
-                return
+            if reply.error() == QNetworkReply.NoError:
+                token = resp_data.get("access_token") or resp_data.get("accessToken")
+                if token:
+                    self.access_token = token
+                    self.expires_in = resp_data.get("expires_in") or resp_data.get(
+                        "expiresIn"
+                    )
+                    self._cleanup()
+                    self.auth_completed.emit(True, "")
+                    return
 
-            error = resp_data.get("error", "")
-            self._handle_poll_error(error, resp_data)
+                error = resp_data.get("error", "")
+                self._handle_poll_error(error, resp_data)
+            else:
+                error = resp_data.get("error", "")
+                self._handle_poll_error(error, resp_data)
 
-        except urllib.error.HTTPError as e:
-            try:
-                error_body = e.read().decode("utf-8")
-                error_data = json.loads(error_body)
-                error = error_data.get("error", "")
-                self._handle_poll_error(error, error_data)
-            except Exception as parse_err:
-                QgsMessageLog.logMessage(
-                    f"Error parsing poll response: {format_api_error(parse_err)}",
-                    LOG_CATEGORY,
-                    Qgis.Warning,
-                )
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error polling for token: {format_api_error(e)}",
                 LOG_CATEGORY,
                 Qgis.Warning,
             )
+        finally:
+            reply.deleteLater()
 
     def _handle_poll_error(self, error: str, resp_data: dict):
         if error == "authorization_pending":
@@ -148,19 +168,24 @@ class AuthManager(QObject):
             return
         elif error == "access_denied":
             self._cleanup()
-            self.auth_completed.emit(False, "Authorization was denied.")
+            self.auth_completed.emit(False, self.tr("Authorization was denied."))
         elif error == "expired_token":
             self._cleanup()
-            self.auth_completed.emit(False, "Device code expired. Please try again.")
+            self.auth_completed.emit(
+                False, self.tr("Device code expired. Please try again.")
+            )
         elif error:
             description = resp_data.get("error_description", error)
             self._cleanup()
-            self.auth_completed.emit(False, f"Authentication error: {description}")
+            self.auth_completed.emit(
+                False, self.tr("Authentication error: {}").format(description)
+            )
 
     def _cleanup(self):
         if self._poll_timer:
             self._poll_timer.stop()
             self._poll_timer = None
+        self._network_manager = None
 
     def cancel_auth(self):
         self._cleanup()

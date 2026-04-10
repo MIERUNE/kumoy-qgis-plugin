@@ -180,7 +180,8 @@ class DialogLogin(QDialog):
         try:
             self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
         except TypeError:
-            pass  # Already disconnected
+            # Signal was already disconnected or never connected — safe to ignore
+            pass
 
         self._show_login_ui()
 
@@ -314,7 +315,8 @@ class DialogLogin(QDialog):
         self.login_status_label.setText(
             self.tr(
                 "Enter the code above in your browser to sign in.\n"
-                "If the browser does not open,\ngo to: {}"
+                "If the browser does not open, go to:\n"
+                "{}"
             ).format(verification_uri)
         )
         self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
@@ -347,6 +349,7 @@ class DialogLogin(QDialog):
             try:
                 self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
             except TypeError:
+                # Signal was already disconnected or never connected — safe to ignore
                 pass
         self._show_login_ui()
         self.login_status_label.setText("")

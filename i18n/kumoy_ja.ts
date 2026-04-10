@@ -372,6 +372,34 @@ Do you want to continue?</source>
     </message>
 </context>
 <context>
+    <name>AuthManager</name>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="68"/>
+        <source>Failed to request device code: {}</source>
+        <translation type="unfinished">デバイスコードのリクエストに失敗しました: {}</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="84"/>
+        <source>Server did not return device code</source>
+        <translation type="unfinished">サーバーがデバイスコードを返しませんでした</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="113"/>
+        <source>Device code expired. Please try again.</source>
+        <translation type="unfinished">デバイスコードの有効期限が切れました。もう一度お試しください。</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="153"/>
+        <source>Authorization was denied.</source>
+        <translation type="unfinished">認証が拒否されました。</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="161"/>
+        <source>Authentication error: {}</source>
+        <translation type="unfinished">認証エラー: {}</translation>
+    </message>
+</context>
+<context>
     <name>DialogLogin</name>
     <message>
         <location filename="../ui/dialog_login.py" line="47"/>
@@ -419,12 +447,23 @@ Do you want to continue?</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
+        <location filename="../ui/dialog_login.py" line="288"/>
         <source>Requesting device code...</source>
         <translation type="unfinished">デバイスコードをリクエスト中...</translation>
     </message>
     <message>
-        <source>Enter the code above in your browser to sign in.</source>
-        <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。</translation>
+        <location filename="../ui/dialog_login.py" line="315"/>
+        <source>Enter the code above in your browser to sign in.
+If the browser does not open, go to:
+{}</source>
+        <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。
+ブラウザが開かない場合は、以下のURLにアクセスしてください
+{}</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_login.py" line="148"/>
+        <source>Cancel</source>
+        <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
         <location filename="../ui/dialog_login.py" line="367"/>
