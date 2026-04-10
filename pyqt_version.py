@@ -1,12 +1,13 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer
-from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, Qt
+from qgis.PyQt.QtGui import QPainter, QRegion, QTextCursor
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLineEdit,
+    QListView,
     QMessageBox,
     QSizePolicy,
 )
@@ -176,6 +177,12 @@ QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode
 """QDialog code class
 Qt5: QDialog.Accepted, QDialog.Rejected
 Qt6: QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected
+"""
+
+Q_LIST_VIEW_RESIZE_MODE = QListView if QT_VERSION_INT <= 5 else QListView.ResizeMode
+"""QListView resize mode
+Qt5: QListView.Adjust, QListView.Fixed, etc.
+Qt6: QListView.ResizeMode.Adjust, QListView.ResizeMode.Fixed, etc.
 """
 
 

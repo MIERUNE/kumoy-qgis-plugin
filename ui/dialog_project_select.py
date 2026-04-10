@@ -32,6 +32,7 @@ from ..kumoy.constants import (
     LOG_CATEGORY,
 )
 from ..pyqt_version import (
+    Q_LIST_VIEW_RESIZE_MODE,
     Q_MESSAGEBOX_STD_BUTTON,
     QDIALOG_CODE,
     QT_ALIGN,
@@ -292,7 +293,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project list
         project_list = QListWidget()
-        project_list.setResizeMode(QListWidget.Adjust)
+        project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
