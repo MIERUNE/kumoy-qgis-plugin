@@ -5,7 +5,7 @@ from urllib.error import HTTPError, URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
-from qgis.PyQt.QtCore import QCoreApplication, QEvent
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -26,6 +26,7 @@ from ..plugin_version import is_plugin_version_compatible, read_plugin_version
 from ..pyqt_version import (
     Q_SIZE_POLICY,
     QT_ALIGN,
+    QT_EVENT_TYPE,
     QT_TEXT_FORMAT_RICH,
     QT_TEXT_INTERACTION,
     exec_dialog,
@@ -169,7 +170,7 @@ class DialogLogin(QDialog):
     def changeEvent(self, event):
         """ウィンドウがアクティブになった時に即座にポーリングを実行する"""
         if (
-            event.type() == QEvent.ActivationChange
+            event.type() == QT_EVENT_TYPE.ActivationChange
             and self.isActiveWindow()
             and self.auth_manager is not None
         ):

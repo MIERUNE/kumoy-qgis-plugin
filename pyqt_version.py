@@ -1,7 +1,7 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, Qt
-from qgis.PyQt.QtGui import QPainter, QRegion, QTextCursor
+from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
+from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
 from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -177,6 +177,12 @@ QT_TEXTCURSOR_MOVE_OPERATION = (
 """QTextCursor move operation
 Qt5: QTextCursor.End, QTextCursor.Start, etc.
 Qt6: QTextCursor.MoveOperation.End, QTextCursor.MoveOperation.Start, etc.
+"""
+
+QT_EVENT_TYPE = QEvent if QT_VERSION_INT <= 5 else QEvent.Type
+"""QEvent type
+Qt5: QEvent.ActivationChange, etc.
+Qt6: QEvent.Type.ActivationChange, etc.
 """
 
 QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode
