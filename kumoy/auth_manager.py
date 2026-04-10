@@ -228,6 +228,14 @@ class AuthManager(QObject):
             self._pending_reply = None
         self._network_manager = None
 
+    def poll_now(self):
+        """即座にポーリングを1回実行し、タイマーをリスタートする"""
+        if self._poll_timer and self._poll_timer.isActive():
+            self._poll_timer.stop()
+            self._poll_for_token()
+            if self._poll_timer:  # _poll_for_token 内で cleanup されていない場合のみ
+                self._poll_timer.start(self.polling_interval * 1000)
+
     def cancel_auth(self):
         self._cancelled = True
         self._cleanup()

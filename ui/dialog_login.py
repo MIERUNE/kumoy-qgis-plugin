@@ -5,7 +5,7 @@ from urllib.error import HTTPError, URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QEvent
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -165,6 +165,16 @@ class DialogLogin(QDialog):
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("DialogLogin", message)
+
+    def changeEvent(self, event):
+        """ウィンドウがアクティブになった時に即座にポーリングを実行する"""
+        if (
+            event.type() == QEvent.ActivationChange
+            and self.isActiveWindow()
+            and self.auth_manager is not None
+        ):
+            self.auth_manager.poll_now()
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         if self.auth_manager is not None:
