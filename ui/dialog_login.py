@@ -107,8 +107,7 @@ class DialogLogin(QDialog):
         self.user_code_label = QLabel()
         self.user_code_label.setAlignment(QT_ALIGN.AlignCenter)
         self.user_code_label.setStyleSheet(
-            "font-size: 28px; font-weight: bold; "
-            "letter-spacing: 4px; padding: 8px; "
+            "font-size: 28px; font-weight: bold; letter-spacing: 4px; padding: 8px; "
         )
         self.user_code_label.setTextInteractionFlags(
             QT_TEXT_INTERACTION.TextSelectableByMouse
