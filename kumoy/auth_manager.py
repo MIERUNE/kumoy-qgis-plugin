@@ -2,7 +2,12 @@ import json
 import time
 from typing import Optional, Tuple
 
-from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog, QgsNetworkReplyContent
+from qgis.core import (
+    Qgis,
+    QgsBlockingNetworkRequest,
+    QgsMessageLog,
+    QgsNetworkReplyContent,
+)
 from qgis.PyQt.QtCore import (
     QByteArray,
     QCoreApplication,
@@ -72,7 +77,11 @@ class AuthManager(QObject):
                 status_code = reply_content.attribute(
                     QNetworkRequest.Attribute.HttpStatusCodeAttribute
                 )
-                body = str(reply_content.content().data(), "utf-8") if reply_content.content() else ""
+                body = (
+                    str(reply_content.content().data(), "utf-8")
+                    if reply_content.content()
+                    else ""
+                )
                 QgsMessageLog.logMessage(
                     f"Device code request failed: status={status_code}, body={body}, error={error_message}",
                     LOG_CATEGORY,
