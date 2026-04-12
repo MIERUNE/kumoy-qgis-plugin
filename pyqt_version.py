@@ -168,7 +168,7 @@ Qt6: QListWidget.ResizeMode.Adjust, etc.
 """
 
 Q_SIZE_POLICY = QSizePolicy if QT_VERSION_INT <= 5 else QSizePolicy.Policy
-"""Qt size policy   
+"""Qt size policy
 Qt5: QSizePolicy.Fixed, etc.
 Qt6: QSizePolicy.Policy.Fixed, etc.
 """
@@ -205,12 +205,6 @@ QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode
 """QDialog code class
 Qt5: QDialog.Accepted, QDialog.Rejected
 Qt6: QDialog.DialogCode.Accepted, QDialog.DialogCode.Rejected
-"""
-
-Q_LIST_VIEW_RESIZE_MODE = QListView if QT_VERSION_INT <= 5 else QListView.ResizeMode
-"""QListView resize mode
-Qt5: QListView.Adjust, QListView.Fixed, etc.
-Qt6: QListView.ResizeMode.Adjust, QListView.ResizeMode.Fixed, etc.
 """
 
 
