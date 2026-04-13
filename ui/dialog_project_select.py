@@ -147,7 +147,18 @@ class ProjectSelectDialog(QDialog):
         """
         )
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
-        account_org_layout.addWidget(org_combo, 1, 2, 1, 2)
+
+        # Refresh button left of org_combo
+        refresh_button = QPushButton(RELOAD_ICON, "")
+        refresh_button.setToolTip(self.tr("Refresh"))
+        refresh_button.setFixedSize(32, 32)
+        refresh_button.clicked.connect(self.reload_dialog)
+
+        org_row_layout = QHBoxLayout()
+        org_row_layout.setSpacing(4)
+        org_row_layout.addWidget(org_combo)
+        org_row_layout.addWidget(refresh_button)
+        account_org_layout.addLayout(org_row_layout, 1, 2, 1, 2)
 
         return {
             "layout": account_org_layout,
@@ -155,6 +166,7 @@ class ProjectSelectDialog(QDialog):
             "user_name_label": user_name_label,
             "org_combo": org_combo,
             "details_toggle": details_toggle,
+            "refresh_btn": refresh_button,
         }
 
     def _create_org_details_panel(self):
@@ -705,6 +717,12 @@ class ProjectSelectDialog(QDialog):
             return
         self._select_organization_by_id(org_id)
         self._select_project_by_id(project_id)
+
+    def reload_dialog(self):
+        """Reload the dialog content"""
+        self.load_user_info()
+        self.load_organizations()
+        self.load_saved_selection()
 
     def create_new_project(self):
         """Create a new project in the selected organization"""
