@@ -719,9 +719,14 @@ class ProjectSelectDialog(QDialog):
 
     def reload_dialog(self):
         """Reload the dialog content"""
-        self.load_user_info()
-        self.load_organizations()
-        self.load_saved_selection()
+        try:
+            self.load_user_info()
+            self.load_organizations()
+            self.load_saved_selection()
+        except Exception as e:
+            msg = self.tr("Failed to reload dialog: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, self.tr("Error"), msg)
 
     def create_new_project(self):
         """Create a new project in the selected organization"""
