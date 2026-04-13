@@ -1,13 +1,14 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, Qt
-from qgis.PyQt.QtGui import QPainter, QRegion, QTextCursor
-from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
+from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLineEdit,
     QListView,
+    QListWidget,
     QMessageBox,
     QSizePolicy,
 )
@@ -87,6 +88,12 @@ Qt5: Qt.PlainText
 Qt6: Qt.TextFormat.PlainText
 """
 
+QT_TEXT_FORMAT_RICH = Qt.RichText if QT_VERSION_INT <= 5 else Qt.TextFormat.RichText
+"""Qt text format rich text
+Qt5: Qt.RichText
+Qt6: Qt.TextFormat.RichText
+"""
+
 QT_TEXT_INTERACTION = Qt if QT_VERSION_INT <= 5 else Qt.TextInteractionFlag
 """Qt text interaction flags
 Qt5: Qt.TextBrowserInteraction, Qt.TextSelectableByMouse, etc.
@@ -131,6 +138,14 @@ Qt5: QPainter.Antialiasing, QPainter.TextAntialiasing, etc.
 Qt6: QPainter.RenderHint.Antialiasing, etc.
 """
 
+Q_NETWORK_REPLY_ERROR = (
+    QNetworkReply if QT_VERSION_INT <= 5 else QNetworkReply.NetworkError
+)
+"""QNetworkReply error codes
+Qt5: QNetworkReply.NoError, etc.
+Qt6: QNetworkReply.NetworkError.NoError, etc.
+"""
+
 Q_NETWORK_REQUEST_HEADER = (
     QNetworkRequest if QT_VERSION_INT <= 5 else QNetworkRequest.KnownHeaders
 )
@@ -146,7 +161,7 @@ Qt6: QRegion.RegionType.Ellipse, etc.
 """
 
 Q_SIZE_POLICY = QSizePolicy if QT_VERSION_INT <= 5 else QSizePolicy.Policy
-"""Qt size policy   
+"""Qt size policy
 Qt5: QSizePolicy.Fixed, etc.
 Qt6: QSizePolicy.Policy.Fixed, etc.
 """
@@ -171,6 +186,12 @@ QT_TEXTCURSOR_MOVE_OPERATION = (
 """QTextCursor move operation
 Qt5: QTextCursor.End, QTextCursor.Start, etc.
 Qt6: QTextCursor.MoveOperation.End, QTextCursor.MoveOperation.Start, etc.
+"""
+
+QT_EVENT_TYPE = QEvent if QT_VERSION_INT <= 5 else QEvent.Type
+"""QEvent type
+Qt5: QEvent.ActivationChange, etc.
+Qt6: QEvent.Type.ActivationChange, etc.
 """
 
 QDIALOG_CODE = QDialog if QT_VERSION_INT <= 5 else QDialog.DialogCode

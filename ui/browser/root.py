@@ -72,7 +72,7 @@ class RootCollection(QgsDataCollectionItem):
 
         settings = get_settings()
         if (
-            settings.id_token == ""
+            settings.session_token == ""
             or settings.selected_organization_id == ""
             or settings.selected_project_id == ""
         ):
@@ -94,14 +94,14 @@ class RootCollection(QgsDataCollectionItem):
 
     def handleDoubleClick(self):
         # 非ログイン時ならログイン画面を開く
-        if not get_settings().id_token:
+        if not get_settings().session_token:
             self.login()
 
         return False  # デフォルトのダブルクリック動作を実行
 
     def actions(self, parent):
-        id_token = get_settings().id_token
-        if not id_token:
+        session_token = get_settings().session_token
+        if not session_token:
             # Login action
             login_action = QAction(self.tr("Login"), parent)
             login_action.triggered.connect(self.login)

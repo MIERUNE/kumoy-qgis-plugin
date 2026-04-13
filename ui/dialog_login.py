@@ -16,6 +16,7 @@ from qgis.PyQt.QtWidgets import (
     QPushButton,
     QSpacerItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from ..kumoy import api
@@ -23,7 +24,14 @@ from ..kumoy.api.error import format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import is_plugin_version_compatible, read_plugin_version
-from ..pyqt_version import Q_SIZE_POLICY, QT_ALIGN, exec_dialog
+from ..pyqt_version import (
+    Q_SIZE_POLICY,
+    QT_ALIGN,
+    QT_EVENT_TYPE,
+    QT_TEXT_FORMAT_RICH,
+    QT_TEXT_INTERACTION,
+    exec_dialog,
+)
 from ..settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
@@ -104,7 +112,17 @@ class DialogLogin(QDialog):
         self.login_button.clicked.connect(self.login)
         verticalLayout.addWidget(self.login_button)
 
-        # Status label
+        self.user_code_label = QLabel()
+        self.user_code_label.setAlignment(QT_ALIGN.AlignCenter)
+        self.user_code_label.setStyleSheet(
+            "font-size: 28px; font-weight: bold; letter-spacing: 4px; padding: 8px; "
+        )
+        self.user_code_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextSelectableByMouse
+        )
+        self.user_code_label.hide()
+        verticalLayout.addWidget(self.user_code_label)
+
         self.login_status_label = QLabel()
         self.login_status_label.setText("")
         self.login_status_label.setAlignment(QT_ALIGN.AlignCenter)
@@ -133,9 +151,32 @@ class DialogLogin(QDialog):
 
         verticalLayout.addWidget(self.custom_server_config_group)
 
+        # Spacer before cancel button (shown during code verification)
+        self.cancel_spacer = QWidget()
+        self.cancel_spacer.setFixedHeight(20)
+        self.cancel_spacer.hide()
+        verticalLayout.addWidget(self.cancel_spacer)
+
+        # Cancel button (shown during code verification)
+        self.cancel_button = QPushButton()
+        self.cancel_button.setText(self.tr("Cancel"))
+        self.cancel_button.clicked.connect(self._cancel_login)
+        self.cancel_button.hide()
+        verticalLayout.addWidget(self.cancel_button)
+
     def tr(self, message):
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("DialogLogin", message)
+
+    def changeEvent(self, event):
+        """ウィンドウがアクティブになった時に即座にポーリングを実行する"""
+        if (
+            event.type() == QT_EVENT_TYPE.ActivationChange
+            and self.isActiveWindow()
+            and self.auth_manager is not None
+        ):
+            self.auth_manager.poll_now()
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         if self.auth_manager is not None:
@@ -145,9 +186,9 @@ class DialogLogin(QDialog):
 
     def update_login_status(self):
         """Update the login status display based on stored tokens"""
-        id_token = get_settings().id_token
+        session_token = get_settings().session_token
 
-        if id_token:
+        if session_token:
             self.login_status_label.setText(self.tr("Logged in"))
             self.login_status_label.setStyleSheet(
                 "color: green; font-weight: bold; font-size: 24px;"
@@ -163,9 +204,10 @@ class DialogLogin(QDialog):
         try:
             self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
         except TypeError:
-            pass  # Already disconnected
+            # Signal was already disconnected or never connected — safe to ignore
+            pass
 
-        self.login_button.setEnabled(True)
+        self._show_login_ui()
 
         if not success:
             QMessageBox.warning(
@@ -176,13 +218,7 @@ class DialogLogin(QDialog):
             self.update_login_status()
             return
 
-        # Authentication successful, get the tokens and user info
-        id_token = self.auth_manager.get_id_token()
-        refresh_token = self.auth_manager.get_refresh_token()
-
-        # Store the tokens in settings
-        store_setting("id_token", id_token)
-        store_setting("refresh_token", refresh_token)
+        store_setting("session_token", self.auth_manager.get_access_token())
 
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success
@@ -196,14 +232,14 @@ class DialogLogin(QDialog):
         self.accept()
 
     def login(self):
-        """Initiate the Google OAuth login flow via Supabase"""
+        """Device Authorization Flow でログインを開始する"""
         if not self.validate_custom_server_settings():
             return
         self.save_server_settings()
 
+        api_config = api.config.get_api_config()
+
         try:
-            # /api/_public/params エンドポイントからCognito設定を取得
-            api_config = api.config.get_api_config()
             params_response = urllib.request.urlopen(
                 f"{api_config.SERVER_URL}/api/_public/params"
             )
@@ -223,16 +259,6 @@ class DialogLogin(QDialog):
                     ).format(min_qgisplugin_version),
                 )
                 return
-
-            cognito_url = f"https://{params_data['cognitoDomain']}"
-            cognito_client_id = params_data["cognitoClientId"]
-
-            self.auth_manager = AuthManager(
-                cognito_url,
-                cognito_client_id,
-                port=9248,
-            )
-
         except HTTPError as e:
             error_body = e.read().decode("utf-8")
             try:
@@ -243,55 +269,52 @@ class DialogLogin(QDialog):
             QgsMessageLog.logMessage(
                 f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit server error
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
                 self.tr("Server error: {}").format(str(error_message)),
             )
+            self.update_login_status()
+            self.login_button.setEnabled(True)
             return
         except URLError as e:
             error_details = format_api_error(e)
             QgsMessageLog.logMessage(
                 f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit network error
-            error_message = self.tr(
-                "Network connection error.\n"
-                "Please check your internet connection and server URL.\n\n"
-                "Details: {}"
-            ).format(error_details)
-
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
-                error_message,
+                self.tr(
+                    "Network connection error.\n"
+                    "Please check your internet connection and server URL.\n\n"
+                    "Details: {}"
+                ).format(error_details),
             )
+            self.update_login_status()
+            self.login_button.setEnabled(True)
             return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
                 f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit error
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
                 self.tr("An error occurred while logging in: {}").format(error_text),
             )
-
-            # Reset status and re-enable login button on error
             self.update_login_status()
             self.login_button.setEnabled(True)
             return
 
-        # Update status to show login is in progress
-        self.login_status_label.setText(self.tr("Signing you in..."))
+        self.auth_manager = AuthManager(api_config.SERVER_URL)
+
+        self.login_status_label.setText(self.tr("Requesting device code..."))
         self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
         self.login_button.setEnabled(False)
 
-        # Start the authentication process
-        success, result = self.auth_manager.authenticate()
+        success, result = self.auth_manager.request_device_code()
 
         if not success:
             QMessageBox.warning(
@@ -299,37 +322,68 @@ class DialogLogin(QDialog):
                 self.tr("Login Error"),
                 self.tr("Failed to start authentication: {}").format(result),
             )
-            # Reset status on failure
             self.update_login_status()
             self.login_button.setEnabled(True)
             return
 
-        # Connect to auth_completed signal
-        self.auth_manager.auth_completed.connect(self.on_auth_completed)
+        self.user_code_label.setText(result)
+        self._show_code_verification_ui()
 
-        # Open the authorization URL in the default browser
-        auth_url = result
+        verification_url = self.auth_manager.get_verification_url()
         QgsMessageLog.logMessage(
-            f"Opening browser to: {auth_url}", LOG_CATEGORY, Qgis.Info
+            f"Opening browser to: {verification_url}", LOG_CATEGORY, Qgis.Info
         )
-        webbrowser.open(auth_url)
+        webbrowser.open(verification_url)
 
-        # Update status to indicate waiting for browser authentication
+        verification_uri = self.auth_manager.verification_uri or verification_url
+        self.login_status_label.setTextFormat(QT_TEXT_FORMAT_RICH)
         self.login_status_label.setText(
-            self.tr("Waiting for browser authentication...")
+            self.tr(
+                "Enter the code above in your browser to sign in.<br>"
+                "If the browser does not open, go to:<br>"
+                '<a href="{0}">{0}</a>'
+            ).format(verification_uri)
         )
-        self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
+        self.login_status_label.setStyleSheet("")
+        self.login_status_label.setTextInteractionFlags(
+            QT_TEXT_INTERACTION.TextBrowserInteraction
+        )
+        self.login_status_label.setOpenExternalLinks(True)
 
-        # Start async authentication
-        QgsMessageLog.logMessage(
-            "Waiting for authentication to complete...", LOG_CATEGORY, Qgis.Info
-        )
-        self.auth_manager.start_async_auth()
+        self.auth_manager.auth_completed.connect(self.on_auth_completed)
+        self.auth_manager.start_polling()
+
+    def _show_code_verification_ui(self):
+        """コード確認中のUI状態に切り替える"""
+        self.login_button.hide()
+        self.custom_server_config_group.hide()
+        self.user_code_label.show()
+        self.cancel_spacer.show()
+        self.cancel_button.show()
+
+    def _show_login_ui(self):
+        """ログイン前のUI状態に戻す"""
+        self.user_code_label.hide()
+        self.cancel_spacer.hide()
+        self.cancel_button.hide()
+        self.login_button.show()
+        self.login_button.setEnabled(True)
+        self.custom_server_config_group.show()
+
+    def _cancel_login(self):
+        """認証フローをキャンセルする"""
+        if self.auth_manager is not None:
+            self.auth_manager.cancel_auth()
+            try:
+                self.auth_manager.auth_completed.disconnect(self.on_auth_completed)
+            except TypeError:
+                # Signal was already disconnected or never connected — safe to ignore
+                pass
+        self._show_login_ui()
+        self.login_status_label.setText("")
+        self.login_status_label.setStyleSheet("")
 
     def save_server_settings(self):
-        """サーバー設定を保存する"""
-
-        # カスタムサーバーの設定を保存
         use_custom_server = self.custom_server_config_group.isChecked()
         custom_server_url = self.kumoy_server_url_input.text().strip()
 
@@ -337,23 +391,19 @@ class DialogLogin(QDialog):
         store_setting("custom_server_url", custom_server_url)
 
     def load_server_settings(self):
-        """保存されたサーバー設定を読み込む"""
-
-        # 保存された設定を読み込む
         use_custom_server = get_settings().use_custom_server == "true"
         custom_server_url = get_settings().custom_server_url or ""
 
-        # UIに設定を反映
         self.custom_server_config_group.setChecked(use_custom_server)
         self.kumoy_server_url_input.setText(custom_server_url)
 
     def validate_custom_server_settings(self) -> bool:
-        """カスタムサーバー設定のバリデーション"""
         if not self.custom_server_config_group.isChecked():
             return True
 
-        # 未入力項目がある場合はメッセージボックスを表示
-        if self.kumoy_server_url_input.text().strip() == "":
+        server_url = self.kumoy_server_url_input.text().strip()
+
+        if server_url == "":
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),
@@ -363,7 +413,7 @@ class DialogLogin(QDialog):
             )
             return False
 
-        if not self.kumoy_server_url_input.text().startswith("http"):
+        if not server_url.startswith("http"):
             QMessageBox.warning(
                 self,
                 self.tr("Custom Server Configuration Error"),
