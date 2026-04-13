@@ -97,7 +97,9 @@ def convert_local_layers(
         project = api.project.get_project(project_id)
         org_id = project.team.organization.id
         org_detail = api.organization.get_organization(org_id)
-        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
+        plan_limits = api.plan.get_plan_limits(
+            org_detail.subscriptionPlan, org_detail.storageUnits
+        )
     except Exception as e:
         error_msg = format_api_error(e)
         QMessageBox.warning(

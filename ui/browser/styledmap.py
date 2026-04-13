@@ -477,7 +477,10 @@ class StyledMapRoot(QgsDataItem):
 
         try:
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            plan_limit = api.plan.get_plan_limits(
+                self.organization.subscriptionPlan,
+                self.organization.storageUnits,
+            )
             current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:

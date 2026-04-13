@@ -542,7 +542,7 @@ class ProjectSelectDialog(QDialog):
         # Get plan limits from API
         try:
             plan_type = org_detail.subscriptionPlan
-            plan_limits = api.plan.get_plan_limits(plan_type)
+            plan_limits = api.plan.get_plan_limits(plan_type, org_detail.storageUnits)
         except Exception as e:
             msg = self.tr("Failed to retrieve plan limits: {}").format(
                 format_api_error(e)
