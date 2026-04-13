@@ -872,3 +872,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     "Details: {}"
                 ).format(str(e))
             )
+        except api.error.QuotaExceededError as e:
+            raise QgsProcessingException(
+                self.tr(
+                    "Cannot upload features: your plan quota has been exceeded. "
+                    "Details: {}"
+                ).format(str(e))
+            )
