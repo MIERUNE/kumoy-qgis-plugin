@@ -445,7 +445,10 @@ class VectorRoot(QgsDataItem):
         """Create a new vector layer in the project"""
         try:
             # check plan limits before creating vector
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            plan_limit = api.plan.get_plan_limits(
+                self.organization.subscriptionPlan,
+                self.organization.storageUnits,
+            )
             current_vectors = api.vector.get_vectors(self.project.id)
             upload_vector_count = len(current_vectors) + 1
             if upload_vector_count > plan_limit.maxVectors:
