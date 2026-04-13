@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+import webbrowser
 from urllib.error import HTTPError, URLError
 
 from qgis.core import (
@@ -12,13 +13,18 @@ from qgis.core import (
     QgsProviderRegistry,
     QgsVectorLayer,
 )
-from qgis.gui import QgisInterface
+from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
 from .kumoy.api.error import format_api_error
-from .kumoy.constants import DATA_PROVIDER_KEY, LOG_CATEGORY, PLUGIN_NAME
+from .kumoy.constants import (
+    DATA_PROVIDER_KEY,
+    DOCUMENTATION_URL,
+    LOG_CATEGORY,
+    PLUGIN_NAME,
+)
 from .kumoy.local_cache.map import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .plugin_version import is_plugin_version_compatible, read_plugin_version
@@ -30,6 +36,7 @@ from .settings_manager import (
     reset_settings,
     store_setting,
 )
+from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
 from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
@@ -58,6 +65,8 @@ class KumoyPlugin:
         # Initialize menu actions
         self.reset_plugin_settings = None
         self.logout_action = None
+        self.help_action = None
+        self.data_item_gui_provider = None
 
     def init_translation(self):
         """Initialize translation for the plugin"""
@@ -140,8 +149,7 @@ class KumoyPlugin:
         close_all_processing_dialogs()
 
         # Clear stored settings
-        store_setting("id_token", "")
-        store_setting("refresh_token", "")
+        store_setting("session_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
@@ -353,8 +361,7 @@ class KumoyPlugin:
             )
             # Force logout to prevent potential issues with incompatible versions
             # Clear stored settings
-            store_setting("id_token", "")
-            store_setting("refresh_token", "")
+            store_setting("session_token", "")
             store_setting("user_info", "")
             store_setting("selected_project_id", "")
             store_setting("selected_organization_id", "")
@@ -374,6 +381,9 @@ class KumoyPlugin:
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
+
+        self.data_item_gui_provider = KumoyDataItemGuiProvider()
+        QgsGui.dataItemGuiProviderRegistry().addProvider(self.data_item_gui_provider)
 
         # Register processing provider
         self.processing_provider = KumoyProcessingProvider()
@@ -409,6 +419,11 @@ class KumoyPlugin:
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
         self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
 
+        # Add menu action for help/documentation
+        self.help_action = QAction(self.tr("Help"), self.win)
+        self.help_action.triggered.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
+        self.iface.addPluginToMenu(PLUGIN_NAME, self.help_action)
+
         # Connect to plugin menu aboutToShow to update logout action visibility
         self.iface.pluginMenu().aboutToShow.connect(
             self.update_logout_action_visibility
@@ -420,7 +435,7 @@ class KumoyPlugin:
 
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
-        is_logged_in = bool(api.config.get_settings().id_token)
+        is_logged_in = bool(api.config.get_settings().session_token)
         self.logout_action.setVisible(is_logged_in)
 
     def unload(self):
@@ -429,12 +444,19 @@ class KumoyPlugin:
             self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
         if self.reset_plugin_settings:
             self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
+        if self.help_action:
+            self.iface.removePluginMenu(PLUGIN_NAME, self.help_action)
 
         # Remove translator
         if self.translator:
             QCoreApplication.removeTranslator(self.translator)
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
+
+        if self.data_item_gui_provider:
+            QgsGui.dataItemGuiProviderRegistry().removeProvider(
+                self.data_item_gui_provider
+            )
 
         # Unregister processing provider
         close_all_processing_dialogs()

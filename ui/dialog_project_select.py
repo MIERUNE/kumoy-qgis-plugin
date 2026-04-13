@@ -28,9 +28,11 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
+    DOCUMENTATION_URL,
     LOG_CATEGORY,
 )
 from ..pyqt_version import (
+    Q_LIST_VIEW_RESIZE_MODE,
     Q_MESSAGEBOX_STD_BUTTON,
     QDIALOG_CODE,
     QT_ALIGN,
@@ -291,7 +293,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project list
         project_list = QListWidget()
-        project_list.setResizeMode(QListWidget.Adjust)
+        project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
@@ -328,6 +330,12 @@ class ProjectSelectDialog(QDialog):
         """Create bottom button panel"""
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
+
+        # Help button
+        help_btn = QPushButton(self.tr("Help"))
+        help_btn.setAutoDefault(False)
+        help_btn.clicked.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
+        button_layout.addWidget(help_btn)
 
         # New Project button on the left
         new_project_button = QPushButton(self.tr("+ New Project"))

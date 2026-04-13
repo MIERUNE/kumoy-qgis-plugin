@@ -33,8 +33,6 @@ class DialogAccount(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.server_url = ""
-        self.cognito_url = ""
-        self.cognito_client_id = ""
         self.account_settings_url = ""
         self.user_info = {}
 
@@ -227,8 +225,7 @@ class DialogAccount(QDialog):
 
         close_all_processing_dialogs()
 
-        store_setting("id_token", "")
-        store_setting("refresh_token", "")
+        store_setting("session_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
