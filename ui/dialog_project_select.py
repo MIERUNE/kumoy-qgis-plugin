@@ -28,9 +28,11 @@ from ..kumoy import api
 from ..kumoy.api.error import format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
+    DOCUMENTATION_URL,
     LOG_CATEGORY,
 )
 from ..pyqt_version import (
+    Q_LIST_VIEW_RESIZE_MODE,
     Q_MESSAGEBOX_STD_BUTTON,
     QDIALOG_CODE,
     QT_ALIGN,
@@ -145,7 +147,17 @@ class ProjectSelectDialog(QDialog):
         """
         )
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
-        account_org_layout.addWidget(org_combo, 1, 2, 1, 2)
+
+        refresh_button = QPushButton(RELOAD_ICON, "")
+        refresh_button.setToolTip(self.tr("Refresh"))
+        refresh_button.setFixedSize(32, 32)
+        refresh_button.clicked.connect(self.reload_dialog)
+
+        org_row_layout = QHBoxLayout()
+        org_row_layout.setSpacing(4)
+        org_row_layout.addWidget(org_combo)
+        org_row_layout.addWidget(refresh_button)
+        account_org_layout.addLayout(org_row_layout, 1, 2, 1, 2)
 
         return {
             "layout": account_org_layout,
@@ -153,6 +165,7 @@ class ProjectSelectDialog(QDialog):
             "user_name_label": user_name_label,
             "org_combo": org_combo,
             "details_toggle": details_toggle,
+            "refresh_btn": refresh_button,
         }
 
     def _create_org_details_panel(self):
@@ -291,7 +304,7 @@ class ProjectSelectDialog(QDialog):
 
         # Project list
         project_list = QListWidget()
-        project_list.setResizeMode(QListWidget.Adjust)
+        project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
         project_list.setSpacing(6)
         project_list.setStyleSheet(
             """
@@ -328,6 +341,12 @@ class ProjectSelectDialog(QDialog):
         """Create bottom button panel"""
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
+
+        # Help button
+        help_btn = QPushButton(self.tr("Help"))
+        help_btn.setAutoDefault(False)
+        help_btn.clicked.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
+        button_layout.addWidget(help_btn)
 
         # New Project button on the left
         new_project_button = QPushButton(self.tr("+ New Project"))
@@ -523,7 +542,7 @@ class ProjectSelectDialog(QDialog):
         # Get plan limits from API
         try:
             plan_type = org_detail.subscriptionPlan
-            plan_limits = api.plan.get_plan_limits(plan_type)
+            plan_limits = api.plan.get_plan_limits(plan_type, org_detail.storageUnits)
         except Exception as e:
             msg = self.tr("Failed to retrieve plan limits: {}").format(
                 format_api_error(e)
@@ -697,6 +716,34 @@ class ProjectSelectDialog(QDialog):
             return
         self._select_organization_by_id(org_id)
         self._select_project_by_id(project_id)
+
+    def reload_dialog(self):
+        """Reload the dialog content"""
+        settings = get_settings()
+        org_id = settings.selected_organization_id
+        project_id = settings.selected_project_id
+        org_combo: QComboBox = self.account_org_panel["org_combo"]
+
+        org_combo.blockSignals(True)
+        try:
+            self.load_user_info()
+            self.load_organizations()
+            if org_id:
+                self._select_organization_by_id(org_id)
+        except Exception as e:
+            msg = self.tr("Failed to reload dialog: {}").format(format_api_error(e))
+            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
+            QMessageBox.critical(self, self.tr("Error"), msg)
+            return
+        finally:
+            org_combo.blockSignals(False)
+
+        # Reselect project after reloading organizations
+        current_index = org_combo.currentIndex()
+        if current_index >= 0:
+            self.on_organization_changed(current_index)
+        if project_id:
+            self._select_project_by_id(project_id)
 
     def create_new_project(self):
         """Create a new project in the selected organization"""

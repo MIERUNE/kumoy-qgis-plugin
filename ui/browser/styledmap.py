@@ -1,6 +1,5 @@
-import os
 import webbrowser
-from typing import Literal, Tuple
+from typing import Literal
 
 from qgis.core import (
     Qgis,
@@ -16,6 +15,7 @@ from qgis.PyQt.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QVBoxLayout,
@@ -56,84 +56,6 @@ def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def _create_styled_map_dialog(
-    title: str,
-    name: str = "",
-    description: str = "",
-    attribution: str = "",
-    is_public: bool = False,
-) -> Tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
-    """Create a styled map dialog with common fields.
-
-    Args:
-        title: Dialog window title
-        name: Initial name value
-        description: Initial description value
-        attribution: Initial attribution value
-        is_public: Initial public checkbox state
-
-    Returns:
-        Tuple of (dialog, name_field, description_field, attribution_field, is_public_field)
-    """
-    dialog = QDialog()
-    dialog.setWindowTitle(title)
-
-    # Layout
-    layout = QVBoxLayout()
-    form_layout = QFormLayout()
-
-    # Fields
-    name_field = QLineEdit(name)
-    name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
-
-    attribution_field = QLineEdit(attribution)
-    attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
-
-    description_field = QPlainTextEdit(description)
-    description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
-
-    # Limit text length (integrated as part of UI construction)
-    def limit_description_length():
-        text = description_field.toPlainText()
-        if len(text) > constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION:
-            description_field.setPlainText(
-                text[: constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION]
-            )
-            cursor = description_field.textCursor()
-            cursor.movePosition(QT_TEXTCURSOR_MOVE_OPERATION.End)
-            description_field.setTextCursor(cursor)
-
-    description_field.textChanged.connect(limit_description_length)
-
-    is_public_field = QCheckBox(tr("Make Public"))
-    is_public_field.setChecked(is_public)
-
-    # Add fields to form
-    form_layout.addRow(tr("Name:") + ' <span style="color: red;">*</span>', name_field)
-    form_layout.addRow(tr("Description:"), description_field)
-    form_layout.addRow(tr("Attribution:"), attribution_field)
-    form_layout.addRow(tr("Public:"), is_public_field)
-
-    # Buttons
-    button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
-    button_box.accepted.connect(dialog.accept)
-    button_box.rejected.connect(dialog.reject)
-
-    # Disable OK if name is empty
-    ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
-    ok_button.setEnabled(bool(name_field.text().strip()))
-    name_field.textChanged.connect(
-        lambda text: ok_button.setEnabled(bool(text.strip()))
-    )
-
-    # Add layouts to dialog
-    layout.addLayout(form_layout)
-    layout.addWidget(button_box)
-    dialog.setLayout(layout)
-
-    return dialog, name_field, description_field, attribution_field, is_public_field
-
-
 class StyledMapItem(QgsDataItem):
     def __init__(
         self,
@@ -158,11 +80,12 @@ class StyledMapItem(QgsDataItem):
 
         self.populate()
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapItem", message)
 
-    def actions(self, parent):
+    def build_actions(self, parent: QMenu) -> list[QAction]:
+        """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
         # スタイルマップ適用アクション
@@ -199,7 +122,7 @@ class StyledMapItem(QgsDataItem):
 
         return actions
 
-    def open_public_page(self):
+    def open_public_page(self) -> None:
         """公開ページをブラウザで開く"""
         url = (
             f"{api.config.get_api_config().SERVER_URL}/public/map/{self.styled_map.id}"
@@ -280,11 +203,11 @@ class StyledMapItem(QgsDataItem):
         )
         QgsProject.instance().setDirty(False)
 
-    def handleDoubleClick(self):
+    def handleDoubleClick(self) -> bool:
         self.get_and_load_map()
         return True
 
-    def update_metadata_styled_map(self):
+    def update_metadata_styled_map(self) -> None:
         # Create dialog
         dialog, name_field, description_field, attribution_field, is_public_field = (
             _create_styled_map_dialog(
@@ -347,7 +270,7 @@ class StyledMapItem(QgsDataItem):
             self.tr("Map '{}' has been updated successfully.").format(new_name),
         )
 
-    def apply_qgisproject_to_styledmap(self):
+    def apply_qgisproject_to_styledmap(self) -> None:
         # 確認ダイアログ
         confirm = QMessageBox.question(
             None,
@@ -422,8 +345,11 @@ class StyledMapItem(QgsDataItem):
             conversion_errors,
         )
 
-    def delete_styled_map(self):
-        # 削除確認
+    def process_delete_map(self) -> None:
+        api.styledmap.delete_styled_map(self.styled_map.id)
+        local_cache.map.clear(self.styled_map.id)
+
+    def delete_styled_map(self) -> None:
         confirm = QMessageBox.question(
             None,
             self.tr("Delete Map"),
@@ -435,11 +361,8 @@ class StyledMapItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # スタイルマップ削除
             try:
-                api.styledmap.delete_styled_map(self.styled_map.id)
-
-                # 親アイテムを上書き保存して最新のリストを表示
+                self.process_delete_map()
                 self.parent().refresh()
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
@@ -447,7 +370,6 @@ class StyledMapItem(QgsDataItem):
                         self.styled_map.name
                     ),
                 )
-
             except Exception as e:
                 error_text = format_api_error(e)
                 QgsMessageLog.logMessage(
@@ -461,18 +383,11 @@ class StyledMapItem(QgsDataItem):
                     self.tr("Failed to delete the map: {}").format(error_text),
                 )
 
-            # Remove cached qgs file
-            map_path = local_cache.map.get_filepath(self.styled_map.id)
-            if os.path.exists(map_path):
-                local_cache.map.clear(self.styled_map.id)
-                QgsMessageLog.logMessage(
-                    f"Cached map file {map_path} removed.",
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+    def process_map_cache_clear(self) -> bool:
+        cleared = local_cache.map.clear(self.styled_map.id)
+        return cleared
 
-    def clear_map_cache(self):
-        # Show confirmation dialog
+    def clear_map_cache(self) -> None:
         confirm = QMessageBox.question(
             None,
             self.tr("Clear Map Cache Data"),
@@ -486,15 +401,7 @@ class StyledMapItem(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # Clear cache for this specific map
-            cache_cleared = local_cache.map.clear(self.styled_map.id)
-
-            if cache_cleared:
-                QgsMessageLog.logMessage(
-                    self.tr("Cache cleared for map '{}'").format(self.styled_map.name),
-                    constants.LOG_CATEGORY,
-                    Qgis.Info,
-                )
+            if self.process_map_cache_clear():
                 iface.messageBar().pushSuccess(
                     self.tr("Success"),
                     self.tr("Cache cleared successfully for map '{}'.").format(
@@ -534,11 +441,11 @@ class StyledMapRoot(QgsDataItem):
         self.organization = organization
         self.project = project
 
-    def tr(self, message):
+    def tr(self, message: str) -> str:
         """Get the translation for a string using Qt translation API"""
         return QCoreApplication.translate("StyledMapRoot", message)
 
-    def actions(self, parent):
+    def actions(self, parent: QMenu) -> list[QAction]:
         actions = []
 
         if self.project.role in ["ADMIN", "OWNER"]:
@@ -559,7 +466,7 @@ class StyledMapRoot(QgsDataItem):
 
         return actions
 
-    def add_empty_map(self):
+    def add_empty_map(self) -> None:
         if QgsProject.instance().isDirty():
             confirm = QMessageBox.question(
                 None,
@@ -575,7 +482,7 @@ class StyledMapRoot(QgsDataItem):
 
         self.add_styled_map(clear=True)
 
-    def add_styled_map(self, clear=False):
+    def add_styled_map(self, clear: bool = False) -> None:
         """Add a new map to kumoy server
         Options:
         clear - whether to clear current QGIS project"""
@@ -586,7 +493,10 @@ class StyledMapRoot(QgsDataItem):
 
         try:
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            plan_limit = api.plan.get_plan_limits(
+                self.organization.subscriptionPlan,
+                self.organization.storageUnits,
+            )
             current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
@@ -710,7 +620,7 @@ class StyledMapRoot(QgsDataItem):
                 self.tr("Error adding map: {}").format(error_text),
             )
 
-    def createChildren(self):
+    def createChildren(self) -> list[QgsDataItem]:
         project_id = get_settings().selected_project_id
 
         if not project_id:
@@ -730,7 +640,7 @@ class StyledMapRoot(QgsDataItem):
 
         return children
 
-    def clear_all_map_cache(self):
+    def clear_all_map_cache(self) -> None:
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
@@ -765,3 +675,155 @@ class StyledMapRoot(QgsDataItem):
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),
             )
+
+
+def _create_styled_map_dialog(
+    title: str,
+    name: str = "",
+    description: str = "",
+    attribution: str = "",
+    is_public: bool = False,
+) -> tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
+    """Create a styled map dialog with common fields.
+
+    Args:
+        title: Dialog window title
+        name: Initial name value
+        description: Initial description value
+        attribution: Initial attribution value
+        is_public: Initial public checkbox state
+
+    Returns:
+        Tuple of (dialog, name_field, description_field, attribution_field, is_public_field)
+    """
+    dialog = QDialog()
+    dialog.setWindowTitle(title)
+
+    # Layout
+    layout = QVBoxLayout()
+    form_layout = QFormLayout()
+
+    # Fields
+    name_field = QLineEdit(name)
+    name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
+
+    attribution_field = QLineEdit(attribution)
+    attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
+
+    description_field = QPlainTextEdit(description)
+    description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
+
+    # Limit text length (integrated as part of UI construction)
+    def limit_description_length():
+        text = description_field.toPlainText()
+        if len(text) > constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION:
+            description_field.setPlainText(
+                text[: constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION]
+            )
+            cursor = description_field.textCursor()
+            cursor.movePosition(QT_TEXTCURSOR_MOVE_OPERATION.End)
+            description_field.setTextCursor(cursor)
+
+    description_field.textChanged.connect(limit_description_length)
+
+    is_public_field = QCheckBox(tr("Make Public"))
+    is_public_field.setChecked(is_public)
+
+    # Add fields to form
+    form_layout.addRow(tr("Name:") + ' <span style="color: red;">*</span>', name_field)
+    form_layout.addRow(tr("Description:"), description_field)
+    form_layout.addRow(tr("Attribution:"), attribution_field)
+    form_layout.addRow(tr("Public:"), is_public_field)
+
+    # Buttons
+    button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
+    button_box.accepted.connect(dialog.accept)
+    button_box.rejected.connect(dialog.reject)
+
+    # Disable OK if name is empty
+    ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+    ok_button.setEnabled(bool(name_field.text().strip()))
+    name_field.textChanged.connect(
+        lambda text: ok_button.setEnabled(bool(text.strip()))
+    )
+
+    # Add layouts to dialog
+    layout.addLayout(form_layout)
+    layout.addWidget(button_box)
+    dialog.setLayout(layout)
+
+    return dialog, name_field, description_field, attribution_field, is_public_field
+
+
+def delete_multiple_maps(items: list[StyledMapItem]) -> None:
+    names = "\n".join(f"  - {i.styled_map.name}" for i in items)
+    confirm = QMessageBox.question(
+        None,
+        tr("Delete Maps"),
+        tr("Are you sure you want to delete {} maps?\n{}").format(len(items), names),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
+    errors = []
+    deleted_count = 0
+    parent_item = items[0].parent() if items else None
+
+    for item in items:
+        try:
+            item.process_delete_map()
+            deleted_count += 1
+        except Exception as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error deleting map '{item.styled_map.name}': {error_text}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            errors.append(f"{item.styled_map.name}: {error_text}")
+
+    if parent_item:
+        parent_item.refresh()
+
+    if errors:
+        QMessageBox.critical(
+            None,
+            tr("Error"),
+            tr("Some maps could not be deleted:\n{}").format("\n".join(errors)),
+        )
+    else:
+        iface.messageBar().pushSuccess(
+            tr("Success"),
+            tr("{} maps have been deleted successfully.").format(deleted_count),
+        )
+
+
+def clear_cache_multiple_maps(items: list[StyledMapItem]) -> None:
+    confirm = QMessageBox.question(
+        None,
+        tr("Clear Map Cache Data"),
+        tr(
+            "This will clear the local cache for {} maps.\n"
+            "The cached data will be re-downloaded when you access it next time.\n"
+            "Do you want to continue?"
+        ).format(len(items)),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
+    failed = [i.styled_map.name for i in items if not i.process_map_cache_clear()]
+
+    if failed:
+        iface.messageBar().pushMessage(
+            tr("Cache Clear Failed"),
+            tr("Could not clear cache for: {}").format(", ".join(failed)),
+        )
+    else:
+        iface.messageBar().pushSuccess(
+            tr("Success"),
+            tr("Cache cleared successfully for {} maps.").format(len(items)),
+        )

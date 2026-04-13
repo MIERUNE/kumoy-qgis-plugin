@@ -9,8 +9,6 @@ version=dev
 #Plugin main icon
 icon=./ui/icons/icon.png
 
-supportsQt6=True
-
 author=MIERUNE Inc.
 email=info@mierune.co.jp
 homepage=https://www.kumoy.io/

@@ -150,6 +150,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return None
 
+    def helpUrl(self) -> str:
+        """Help button to go to Kumoy documentation"""
+        return constants.DOCUMENTATION_URL
+
     def shortHelpString(self) -> str:
         """Short help string"""
         return self.tr(
@@ -277,7 +281,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Get project and plan limits
         project = api.project.get_project(project_id)
         organization = api.organization.get_organization(project.team.organizationId)
-        plan_limits = api.plan.get_plan_limits(organization.subscriptionPlan)
+        plan_limits = api.plan.get_plan_limits(
+            organization.subscriptionPlan, organization.storageUnits
+        )
 
         # Check role
         if project.role not in ["ADMIN", "OWNER"]:
@@ -863,6 +869,13 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 self.tr(
                     "Cannot upload feature: geometry is too large. "
                     "Please simplify the geometry or split it into smaller parts. "
+                    "Details: {}"
+                ).format(str(e))
+            )
+        except api.error.QuotaExceededError as e:
+            raise QgsProcessingException(
+                self.tr(
+                    "Cannot upload features: your plan quota has been exceeded. "
                     "Details: {}"
                 ).format(str(e))
             )
