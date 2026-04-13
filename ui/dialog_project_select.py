@@ -148,7 +148,6 @@ class ProjectSelectDialog(QDialog):
         )
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
 
-        # Refresh button left of org_combo
         refresh_button = QPushButton(RELOAD_ICON, "")
         refresh_button.setToolTip(self.tr("Refresh"))
         refresh_button.setFixedSize(32, 32)
