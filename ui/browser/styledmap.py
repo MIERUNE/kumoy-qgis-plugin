@@ -335,7 +335,7 @@ class StyledMapItem(QgsDataItem):
         # Close the map if it's currently loaded in QGIS
         custom_vars = QgsProject.instance().customVariables()
         if custom_vars.get("kumoy_map_id") == self.styled_map.id:
-            iface.newProject()
+            QgsProject.instance().clear()
 
         local_cache.map.clear(self.styled_map.id)
 
