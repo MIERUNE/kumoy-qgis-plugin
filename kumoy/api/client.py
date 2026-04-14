@@ -5,7 +5,7 @@ from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
-from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
+from ...pyqt_version import Q_NETWORK_REQUEST_HEADER, Q_NETWORK_REQUEST_HTTP_STATUS_ATTR
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
@@ -76,7 +76,7 @@ class ApiClient:
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req, forceRefresh=True)
         reply = blocking_request.reply()
-        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
         content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             # Handle empty content when network error occurs
@@ -123,7 +123,7 @@ class ApiClient:
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
         reply = blocking_request.reply()
-        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
         content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:
@@ -169,7 +169,7 @@ class ApiClient:
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
         reply = blocking_request.reply()
-        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
         content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:
@@ -209,7 +209,7 @@ class ApiClient:
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
         reply = blocking_request.reply()
-        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
         content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:

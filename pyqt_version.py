@@ -1,7 +1,7 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
-from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, Qt
+from qgis.PyQt.QtGui import QPainter, QRegion, QTextCursor
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -152,6 +152,16 @@ Q_NETWORK_REQUEST_HEADER = (
 """Qt network request header type
 Qt5: QNetworkRequest.ContentTypeHeader, etc.
 Qt6: QNetworkRequest.KnownHeaders.ContentTypeHeader, etc.
+"""
+
+Q_NETWORK_REQUEST_HTTP_STATUS_ATTR = (
+    QNetworkRequest.HttpStatusCodeAttribute
+    if QT_VERSION_INT <= 5
+    else QNetworkRequest.Attribute.HttpStatusCodeAttribute
+)
+"""QNetworkRequest HTTP status code attribute
+Qt5: QNetworkRequest.HttpStatusCodeAttribute
+Qt6: QNetworkRequest.Attribute.HttpStatusCodeAttribute
 """
 
 Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
