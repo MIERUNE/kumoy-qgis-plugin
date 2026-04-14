@@ -3,19 +3,16 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QMessageBox
-
-from ..constants import LOG_CATEGORY
-
-from .. import api
-from ..api.error import format_api_error
-from ...ui.layers.convert_vector import (
-    convert_local_layers,
-)
-
 from qgis.utils import iface
 
 from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from ...ui.layers.convert_vector import (
+    convert_local_layers,
+)
+from .. import api
+from ..api.error import format_api_error
+from ..constants import LOG_CATEGORY, PROJECT_CUSTOM_VAR_MAP_ID
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
@@ -190,7 +187,7 @@ def handle_project_saved() -> None:
 
     # Get styled map ID from custom variables
     custom_vars = project.customVariables()
-    styled_map_id = custom_vars.get("kumoy_map_id")
+    styled_map_id = custom_vars.get(PROJECT_CUSTOM_VAR_MAP_ID)
 
     # Case of non kumoy map
     if not styled_map_id:

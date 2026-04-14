@@ -34,3 +34,6 @@ RESERVED_FIELD_NAME_PREFIX = "kumoy_"
 
 # ドキュメントのURL
 DOCUMENTATION_URL = "https://docs.kumoy.io/"
+
+# QgsProject カスタム変数キー
+PROJECT_CUSTOM_VAR_MAP_ID = "kumoy_map_id"

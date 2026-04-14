@@ -176,7 +176,7 @@ class StyledMapItem(QgsDataItem):
         # store map kumoy info to project instance
         QgsProject.instance().setCustomVariables(
             {
-                "kumoy_map_id": self.styled_map.id,
+                constants.PROJECT_CUSTOM_VAR_MAP_ID: self.styled_map.id,
             }
         )
         QgsProject.instance().setDirty(False)
@@ -264,7 +264,7 @@ class StyledMapItem(QgsDataItem):
 
         # Avoid saving a Kumoy map to a wrong project
         custom_vars = QgsProject.instance().customVariables()
-        existing_map_id = custom_vars.get("kumoy_map_id")
+        existing_map_id = custom_vars.get(constants.PROJECT_CUSTOM_VAR_MAP_ID)
 
         if existing_map_id:
             # Validate that existing map belongs to current project
@@ -334,7 +334,7 @@ class StyledMapItem(QgsDataItem):
 
         # Close the map if it's currently loaded in QGIS
         custom_vars = QgsProject.instance().customVariables()
-        if custom_vars.get("kumoy_map_id") == self.styled_map.id:
+        if custom_vars.get(constants.PROJECT_CUSTOM_VAR_MAP_ID) == self.styled_map.id:
             QgsProject.instance().clear()
 
         local_cache.map.clear(self.styled_map.id)
@@ -502,7 +502,7 @@ class StyledMapRoot(QgsDataItem):
 
             # Avoid saving a Kumoy map to a wrong project
             custom_vars = QgsProject.instance().customVariables()
-            existing_map_id = custom_vars.get("kumoy_map_id")
+            existing_map_id = custom_vars.get(constants.PROJECT_CUSTOM_VAR_MAP_ID)
 
             if existing_map_id:
                 # Validate that existing map belongs to current project
@@ -570,7 +570,7 @@ class StyledMapRoot(QgsDataItem):
 
             # 保存完了後のUI更新
             QgsProject.instance().setCustomVariables(
-                {"kumoy_map_id": new_styled_map.id}
+                {constants.PROJECT_CUSTOM_VAR_MAP_ID: new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
 
