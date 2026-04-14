@@ -18,8 +18,13 @@ def handle_blocking_reply(content: QByteArray) -> Any:
     text = str(content.data(), "utf-8")
     if not text.strip():
         return {}
-
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Case of HTML response from proxies (e.g., authentication redirects)
+        if text.lstrip().startswith("<"):
+            raise api_error.UnauthorizedError("Unauthorized")
+        raise api_error.AppError("Unexpected non-JSON response from server")
 
 
 class ApiClient:
