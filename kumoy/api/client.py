@@ -11,7 +11,7 @@ from . import config as api_config
 from . import error as api_error
 
 
-def handle_blocking_reply(content: QByteArray) -> Any:
+def handle_blocking_reply(content: QByteArray, http_status_code: int = 0) -> Any:
     """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
     if not content or content.isEmpty():
         return {}
@@ -21,10 +21,21 @@ def handle_blocking_reply(content: QByteArray) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Case of HTML response from proxies (e.g., authentication redirects)
+        # Case of HTML response from proxies (e.g., Cloudflare authentication redirects)
+        status_hint = (
+            f"HTTP {http_status_code}" if http_status_code else "no HTTP status"
+        )
         if text.lstrip().startswith("<"):
-            raise api_error.UnauthorizedError("Unauthorized")
-        raise api_error.AppError("Unexpected non-JSON response from server")
+            if http_status_code in (502, 503, 504):
+                raise api_error.UnderMaintenanceError(
+                    "Under Maintenance", f"HTML response ({status_hint})"
+                )
+            raise api_error.UnauthorizedError(
+                "Unauthorized", f"HTML response ({status_hint})"
+            )
+        raise api_error.AppError(
+            "Unexpected non-JSON response from server", status_hint
+        )
 
 
 class ApiClient:
@@ -64,7 +75,9 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req, forceRefresh=True)
-        content = handle_blocking_reply(blocking_request.reply().content())
+        reply = blocking_request.reply()
+        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             # Handle empty content when network error occurs
             if not content:
@@ -109,7 +122,9 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
+        reply = blocking_request.reply()
+        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:
                 error_message = blocking_request.errorMessage()
@@ -153,7 +168,9 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
+        reply = blocking_request.reply()
+        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:
                 error_message = blocking_request.errorMessage()
@@ -191,7 +208,9 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
-        content = handle_blocking_reply(blocking_request.reply().content())
+        reply = blocking_request.reply()
+        http_status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        content = handle_blocking_reply(reply.content(), http_status)
         if err != QgsBlockingNetworkRequest.NoError:
             if not content:
                 error_message = blocking_request.errorMessage()
