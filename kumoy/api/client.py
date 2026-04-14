@@ -31,9 +31,7 @@ def _handle_response(
                 content = json.loads(text)
             except json.JSONDecodeError:
                 # Case of HTML response from proxies (e.g., Cloudflare authentication redirects)
-                status_hint = (
-                    f"HTTP {http_status}" if http_status else "no HTTP status"
-                )
+                status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
                 if text.lstrip().startswith("<"):
                     if http_status in (502, 503, 504):
                         raise api_error.UnderMaintenanceError(
