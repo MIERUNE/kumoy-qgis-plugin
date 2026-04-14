@@ -11,31 +11,48 @@ from . import config as api_config
 from . import error as api_error
 
 
-def handle_blocking_reply(content: QByteArray, http_status_code: int = 0) -> Any:
-    """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
-    if not content or content.isEmpty():
-        return {}
-    text = str(content.data(), "utf-8")
-    if not text.strip():
-        return {}
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        # Case of HTML response from proxies (e.g., Cloudflare authentication redirects)
-        status_hint = (
-            f"HTTP {http_status_code}" if http_status_code else "no HTTP status"
-        )
-        if text.lstrip().startswith("<"):
-            if http_status_code in (502, 503, 504):
-                raise api_error.UnderMaintenanceError(
-                    "Under Maintenance", f"HTML response ({status_hint})"
+def _handle_response(
+    blocking_request: QgsBlockingNetworkRequest,
+    err: int,
+) -> Any:
+    """Parse reply content and raise on network or API error"""
+    reply = blocking_request.reply()
+    http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
+
+    raw = reply.content()
+    if not raw or raw.isEmpty():
+        content = {}
+    else:
+        text = str(raw.data(), "utf-8")
+        if not text.strip():
+            content = {}
+        else:
+            try:
+                content = json.loads(text)
+            except json.JSONDecodeError:
+                # Case of HTML response from proxies (e.g., Cloudflare authentication redirects)
+                status_hint = (
+                    f"HTTP {http_status}" if http_status else "no HTTP status"
                 )
-            raise api_error.UnauthorizedError(
-                "Unauthorized", f"HTML response ({status_hint})"
-            )
-        raise api_error.AppError(
-            "Unexpected non-JSON response from server", status_hint
-        )
+                if text.lstrip().startswith("<"):
+                    if http_status in (502, 503, 504):
+                        raise api_error.UnderMaintenanceError(
+                            "Under Maintenance", f"HTML response ({status_hint})"
+                        )
+                    raise api_error.UnauthorizedError(
+                        "Unauthorized", f"HTML response ({status_hint})"
+                    )
+                raise api_error.AppError(
+                    "Unexpected non-JSON response from server", status_hint
+                )
+
+    if err != QgsBlockingNetworkRequest.NoError:
+        if not content:
+            error_message = blocking_request.errorMessage()
+            api_error.raise_error({"message": error_message, "error": ""})
+        else:
+            api_error.raise_error(content)
+    return content
 
 
 class ApiClient:
@@ -75,18 +92,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req, forceRefresh=True)
-        reply = blocking_request.reply()
-        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
-        content = handle_blocking_reply(reply.content(), http_status)
-        if err != QgsBlockingNetworkRequest.NoError:
-            # Handle empty content when network error occurs
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def post(endpoint: str, data: Any) -> Any:
@@ -122,17 +128,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
-        reply = blocking_request.reply()
-        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
-        content = handle_blocking_reply(reply.content(), http_status)
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def put(endpoint: str, data: Any) -> Any:
@@ -168,17 +164,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
-        reply = blocking_request.reply()
-        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
-        content = handle_blocking_reply(reply.content(), http_status)
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def delete(endpoint: str) -> Any:
@@ -208,14 +194,4 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
-        reply = blocking_request.reply()
-        http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
-        content = handle_blocking_reply(reply.content(), http_status)
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
