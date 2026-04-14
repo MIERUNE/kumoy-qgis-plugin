@@ -573,6 +573,16 @@ class StyledMapRoot(QgsDataItem):
                 {"kumoy_map_id": new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
+
+            # Save kumoy_map_id to project custom variables to link the new styled map
+            updated_qgisproject = write_qgsfile(new_styled_map.id)
+            api.styledmap.update_styled_map(
+                new_styled_map.id,
+                api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=updated_qgisproject,
+                ),
+            )
+
             # reload browser panel
             self.parent().refresh()
 
