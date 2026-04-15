@@ -27,14 +27,18 @@ def _handle_response(
         if not text:
             content = {}
         elif text.startswith("<"):
-            # HTML from Cloudflare proxy - not a JSON API response
+            # HTML from proxy - not a JSON API response
             status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
+            if http_status in (0, 200, 401, 403):
+                raise api_error.UnauthorizedError(
+                    "Unauthorized", f"HTML response ({status_hint})"
+                )
             if http_status in (502, 503, 504):
                 raise api_error.AppError(
                     "Server temporarily unavailable", f"HTML response ({status_hint})"
                 )
-            raise api_error.UnauthorizedError(
-                "Unauthorized", f"HTML response ({status_hint})"
+            raise api_error.AppError(
+                "Unexpected HTML response from server", status_hint
             )
         else:
             try:
