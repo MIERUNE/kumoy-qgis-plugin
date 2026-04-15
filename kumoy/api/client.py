@@ -30,8 +30,8 @@ def _handle_response(
             # HTML from Cloudflare proxy - not a JSON API response
             status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
             if http_status in (502, 503, 504):
-                raise api_error.UnderMaintenanceError(
-                    "Under Maintenance", f"HTML response ({status_hint})"
+                raise api_error.AppError(
+                    "Server temporarily unavailable", f"HTML response ({status_hint})"
                 )
             raise api_error.UnauthorizedError(
                 "Unauthorized", f"HTML response ({status_hint})"
