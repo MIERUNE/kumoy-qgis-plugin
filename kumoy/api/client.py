@@ -23,25 +23,26 @@ def _handle_response(
     if not raw or raw.isEmpty():
         content = {}
     else:
-        text = str(raw.data(), "utf-8")
-        if not text.strip():
+        text = str(raw.data(), "utf-8").strip()
+        if not text:
             content = {}
+        elif text.startswith("<"):
+            # HTML from Cloudflare proxy - not a JSON API response
+            status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
+            if http_status in (502, 503, 504):
+                raise api_error.UnderMaintenanceError(
+                    "Under Maintenance", f"HTML response ({status_hint})"
+                )
+            raise api_error.UnauthorizedError(
+                "Unauthorized", f"HTML response ({status_hint})"
+            )
         else:
             try:
                 content = json.loads(text)
             except json.JSONDecodeError:
-                # Case of HTML response from proxies (e.g., Cloudflare authentication redirects)
-                status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
-                if text.lstrip().startswith("<"):
-                    if http_status in (502, 503, 504):
-                        raise api_error.UnderMaintenanceError(
-                            "Under Maintenance", f"HTML response ({status_hint})"
-                        )
-                    raise api_error.UnauthorizedError(
-                        "Unauthorized", f"HTML response ({status_hint})"
-                    )
                 raise api_error.AppError(
-                    "Unexpected non-JSON response from server", status_hint
+                    "Unexpected non-JSON response from server",
+                    f"HTTP {http_status}" if http_status else "no HTTP status",
                 )
 
     if err != QgsBlockingNetworkRequest.NoError:
