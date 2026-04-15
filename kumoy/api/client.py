@@ -5,21 +5,57 @@ from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
-from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
+from ...pyqt_version import Q_NETWORK_REQUEST_HEADER, Q_NETWORK_REQUEST_HTTP_STATUS_ATTR
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
 
 
-def handle_blocking_reply(content: QByteArray) -> Any:
-    """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
-    if not content or content.isEmpty():
-        return {}
-    text = str(content.data(), "utf-8")
-    if not text.strip():
-        return {}
+def _handle_response(
+    blocking_request: QgsBlockingNetworkRequest,
+    err: int,
+) -> Any:
+    """Parse reply content and raise on network or API error"""
+    reply = blocking_request.reply()
+    http_status = int(reply.attribute(Q_NETWORK_REQUEST_HTTP_STATUS_ATTR) or 0)
 
-    return json.loads(text)
+    raw = reply.content()
+    if not raw or raw.isEmpty():
+        content = {}
+    else:
+        text = str(raw.data(), "utf-8").strip()
+        if not text:
+            content = {}
+        elif text.startswith("<"):
+            # HTML from proxy - not a JSON API response
+            status_hint = f"HTTP {http_status}" if http_status else "no HTTP status"
+            if http_status in (0, 200, 401, 403):
+                raise api_error.UnauthorizedError(
+                    "Unauthorized", f"HTML response ({status_hint})"
+                )
+            if http_status in (502, 503, 504):
+                raise api_error.AppError(
+                    "Server temporarily unavailable", f"HTML response ({status_hint})"
+                )
+            raise api_error.AppError(
+                "Unexpected HTML response from server", status_hint
+            )
+        else:
+            try:
+                content = json.loads(text)
+            except json.JSONDecodeError:
+                raise api_error.AppError(
+                    "Unexpected non-JSON response from server",
+                    f"HTTP {http_status}" if http_status else "no HTTP status",
+                )
+
+    if err != QgsBlockingNetworkRequest.NoError:
+        if not content:
+            error_message = blocking_request.errorMessage()
+            api_error.raise_error({"message": error_message, "error": ""})
+        else:
+            api_error.raise_error(content)
+    return content
 
 
 class ApiClient:
@@ -59,16 +95,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req, forceRefresh=True)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            # Handle empty content when network error occurs
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def post(endpoint: str, data: Any) -> Any:
@@ -104,15 +131,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def put(endpoint: str, data: Any) -> Any:
@@ -148,15 +167,7 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
 
     @staticmethod
     def delete(endpoint: str) -> Any:
@@ -186,12 +197,4 @@ class ApiClient:
         # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _handle_response(blocking_request, err)
