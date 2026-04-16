@@ -347,6 +347,12 @@ class StyledMapItem(QgsDataItem):
 
     def process_delete_map(self) -> None:
         api.styledmap.delete_styled_map(self.styled_map.id)
+
+        # Close the map if it's currently loaded in QGIS
+        custom_vars = QgsProject.instance().customVariables()
+        if custom_vars.get("kumoy_map_id") == self.styled_map.id:
+            QgsProject.instance().clear()
+
         local_cache.map.clear(self.styled_map.id)
 
     def delete_styled_map(self) -> None:
@@ -596,7 +602,16 @@ class StyledMapRoot(QgsDataItem):
             QgsProject.instance().setCustomVariables(
                 {"kumoy_map_id": new_styled_map.id}
             )
-            QgsProject.instance().setDirty(False)
+            QgsProject.instance().setTitle(new_styled_map.name)
+
+            # Save kumoy_map_id to project custom variables to link the new styled map
+            updated_qgisproject = write_qgsfile(new_styled_map.id)
+            api.styledmap.update_styled_map(
+                new_styled_map.id,
+                api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=updated_qgisproject,
+                ),
+            )
 
             # reload browser panel
             self.parent().refresh()

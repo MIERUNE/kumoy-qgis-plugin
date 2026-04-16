@@ -450,8 +450,10 @@ class ProjectSelectDialog(QDialog):
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.critical(self, self.tr("Error"), msg)
 
-        # Show/hide "New Project" button based on admin teams
-        self.button_panel["new_project_btn"].setVisible(bool(self.admin_team_ids))
+        # Handle "New Project" button based on admin teams
+        has_admin = bool(self.admin_team_ids)
+        self.button_panel["new_project_btn"].setVisible(has_admin)
+        self.button_panel["new_project_btn"].setEnabled(has_admin)
 
         # Update team filter combo
         self._update_team_filter_combo()
