@@ -4,7 +4,11 @@ from qgis.core import QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QByteArray, QEventLoop, QTimer, QUrl
 from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
 
-from ...pyqt_version import Q_NETWORK_REQUEST_HEADER, exec_event_loop
+from ...pyqt_version import (
+    Q_HTTP_MULTIPART_CONTENT_TYPE,
+    Q_NETWORK_REQUEST_HEADER,
+    exec_event_loop,
+)
 
 
 def upload_to_presigned_url(
@@ -28,7 +32,7 @@ def upload_to_presigned_url(
     Raises:
         Exception: アップロード失敗時
     """
-    multipart = QHttpMultiPart(QHttpMultiPart.FormDataType)
+    multipart = QHttpMultiPart(Q_HTTP_MULTIPART_CONTENT_TYPE.FormDataType)
 
     # key フィールド
     key_part = QHttpPart()

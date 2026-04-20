@@ -2,7 +2,7 @@
 
 from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, Qt
 from qgis.PyQt.QtGui import QImage, QPainter, QRegion, QTextCursor
-from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtNetwork import QHttpMultiPart, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -135,6 +135,14 @@ Q_PAINTER_RENDER_HINT = QPainter if QT_VERSION_INT <= 5 else QPainter.RenderHint
 """QPainter render hints
 Qt5: QPainter.Antialiasing, QPainter.TextAntialiasing, etc.
 Qt6: QPainter.RenderHint.Antialiasing, etc.
+"""
+
+Q_HTTP_MULTIPART_CONTENT_TYPE = (
+    QHttpMultiPart if QT_VERSION_INT <= 5 else QHttpMultiPart.ContentType
+)
+"""QHttpMultiPart content type
+Qt5: QHttpMultiPart.FormDataType, QHttpMultiPart.RelatedType, etc.
+Qt6: QHttpMultiPart.ContentType.FormDataType, etc.
 """
 
 Q_NETWORK_REPLY_ERROR = (
