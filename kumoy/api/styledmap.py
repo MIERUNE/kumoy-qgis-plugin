@@ -22,6 +22,7 @@ class KumoyStyledMap:
     projectId: str
     project: Project
     attribution: str
+    assetsHash: Optional[str]
     thumbnailImageUrl: str
     createdAt: str
     updatedAt: str
@@ -108,6 +109,7 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
                 ),
                 description=styled_map_data.get("description", ""),
                 attribution=styled_map_data.get("attribution", ""),
+                assetsHash=styled_map_data.get("assetsHash"),
                 thumbnailImageUrl=styled_map_data.get("thumbnailImageUrl"),
                 createdAt=styled_map_data.get("createdAt", ""),
                 updatedAt=styled_map_data.get("updatedAt", ""),
@@ -118,14 +120,24 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
 
 
 @dataclass
-class KumoyStyledMapDetail(KumoyStyledMap):
+class KumoyStyledMapDetail:
     """
     KumoyのStyledMapの詳細を表すデータクラス
     """
 
+    id: str
+    name: str
+    description: str
+    isPublic: bool
+    projectId: str
+    project: Project
+    attribution: str
+    assetsHash: Optional[str]
+    thumbnailImageUrl: str
+    createdAt: str
+    updatedAt: str
     qgisproject: str
     role: Literal["ADMIN", "OWNER", "MEMBER"]
-    assetsHash: Optional[str] = None
 
 
 def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
