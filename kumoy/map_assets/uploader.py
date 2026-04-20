@@ -80,7 +80,7 @@ def upload_to_presigned_url(
     reply.finished.connect(loop.quit)
     exec_event_loop(loop)
 
-    status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+    status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
     if status_code not in (200, 201, 204):
         error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")
         reply.deleteLater()
