@@ -95,5 +95,7 @@ def pack_sprites(
     """
     sprite_json, atlas = _pack_images(sprites)
     json_bytes = json.dumps(sprite_json).encode("utf-8")
+    if atlas.isNull():
+        return json_bytes, b""
     png_bytes = _image_to_png_bytes(atlas)
     return json_bytes, png_bytes
