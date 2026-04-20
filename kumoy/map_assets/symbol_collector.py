@@ -73,7 +73,9 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     cw, ch = cropped.width(), cropped.height()
     if ch > 0:
         scale = max_size / ch
-        target = QSize(round(cw * scale), round(ch * scale))
+        target_width = max(1, round(cw * scale))  # 0pxとなることを避ける
+        target_height = max(1, round(ch * scale))
+        target = QSize(target_width, target_height)
     else:
         target = QSize(max_size, max_size)
     return cropped.scaled(
