@@ -269,7 +269,7 @@ def handle_project_saved() -> None:
 
         # Generate sprites and upload if changed
         sprite_data = generate_sprite(project)
-        new_assets_hash = sprite_data.hash if sprite_data else None
+        new_assets_hash = sprite_data.assets_hash if sprite_data else None
 
         update_options = api.styledmap.UpdateStyledMapOptions(
             qgisproject=qgsproject_str,

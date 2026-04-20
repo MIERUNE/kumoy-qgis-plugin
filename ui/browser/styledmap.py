@@ -297,7 +297,7 @@ class StyledMapItem(QgsDataItem):
 
             # Generate sprites and upload if changed
             sprite_data = generate_sprite(QgsProject.instance())
-            new_assets_hash = sprite_data.hash if sprite_data else None
+            new_assets_hash = sprite_data.assets_hash if sprite_data else None
 
             update_options = api.styledmap.UpdateStyledMapOptions(
                 qgisproject=new_qgisproject,
@@ -591,7 +591,7 @@ class StyledMapRoot(QgsDataItem):
             sprite_data = generate_sprite(QgsProject.instance())
             new_assets_hash = None
             if sprite_data is not None:
-                new_assets_hash = sprite_data.hash
+                new_assets_hash = sprite_data.assets_hash
                 upload_sprites(new_styled_map.id, sprite_data)
 
             api.styledmap.update_styled_map(

@@ -14,7 +14,7 @@ from .uploader import upload_to_presigned_url
 class SpriteData:
     json_bytes: bytes
     png_bytes: bytes
-    hash: str
+    assets_hash: str
 
 
 def generate_sprite(project: QgsProject) -> Optional[SpriteData]:
@@ -29,7 +29,9 @@ def generate_sprite(project: QgsProject) -> Optional[SpriteData]:
     json_bytes, png_bytes = pack_sprites(sprites)
     assets_hash = hashlib.sha256(json_bytes + png_bytes).hexdigest()
 
-    return SpriteData(json_bytes=json_bytes, png_bytes=png_bytes, hash=assets_hash)
+    return SpriteData(
+        json_bytes=json_bytes, png_bytes=png_bytes, assets_hash=assets_hash
+    )
 
 
 def upload_sprites(styled_map_id: str, sprite_data: SpriteData) -> None:
