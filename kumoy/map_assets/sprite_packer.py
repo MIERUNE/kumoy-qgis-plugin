@@ -5,7 +5,7 @@ import json
 from qgis.PyQt.QtCore import QBuffer, QSize
 from qgis.PyQt.QtGui import QImage, QPainter
 
-from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_PAINTER_RENDER_HINT
+from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_IMAGE_FORMAT, Q_PAINTER_RENDER_HINT
 from .symbol_collector import SpriteEntry
 
 SPRITE_ATLAS_MAX_WIDTH = 1024
@@ -46,7 +46,9 @@ def _pack_images(
         return {}, QImage()
 
     # アトラス画像を描画
-    atlas = QImage(QSize(total_width, total_height), QImage.Format_ARGB32_Premultiplied)
+    atlas = QImage(
+        QSize(total_width, total_height), Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied
+    )
     atlas.fill(0)  # 透明
 
     painter = QPainter(atlas)

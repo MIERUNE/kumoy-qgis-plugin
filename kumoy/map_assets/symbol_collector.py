@@ -11,7 +11,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QRect, QSize
 from qgis.PyQt.QtGui import QImage
 
-from ...pyqt_version import QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
+from ...pyqt_version import Q_IMAGE_FORMAT, QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
 from ..constants import DATA_PROVIDER_KEY
 
 
@@ -25,7 +25,7 @@ class SpriteEntry:
 
 def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     """画像の透明余白をトリムし、max_size x max_size 内にフィットさせる。"""
-    img = image.convertToFormat(QImage.Format_ARGB32)
+    img = image.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
     w, h = img.width(), img.height()
     stride = img.bytesPerLine()
     ptr = img.constBits()

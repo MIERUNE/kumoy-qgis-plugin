@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from plugin_dir.pyqt_version import Q_IMAGE_FORMAT
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
@@ -18,7 +19,7 @@ class TestTrimAndFit:
 
     def _make_image(self, width: int, height: int) -> QImage:
         """指定サイズの透明画像を作成する。"""
-        img = QImage(QSize(width, height), QImage.Format_ARGB32)
+        img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 0, 0, 0))
         return img
 
@@ -97,7 +98,7 @@ class TestPackSprites:
     def _make_sprite_entry(self, name: str, width: int, height: int):
         from plugin_dir.kumoy.map_assets.symbol_collector import SpriteEntry
 
-        img = QImage(QSize(width, height), QImage.Format_ARGB32)
+        img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(255, 0, 0, 255))
         return SpriteEntry(name=name, image=img)
 
@@ -197,7 +198,7 @@ class TestImageToPngBytes:
 
     def test_valid_png(self):
         """出力がPNGシグネチャで始まること。"""
-        img = QImage(QSize(10, 10), QImage.Format_ARGB32)
+        img = QImage(QSize(10, 10), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(255, 0, 0, 255))
 
         result = self._get_fn()(img)
@@ -207,7 +208,7 @@ class TestImageToPngBytes:
 
     def test_roundtrip(self):
         """PNGバイト列からQImageに復元できること。"""
-        img = QImage(QSize(20, 15), QImage.Format_ARGB32)
+        img = QImage(QSize(20, 15), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 128, 255, 255))
 
         png_bytes = self._get_fn()(img)
@@ -230,7 +231,7 @@ class TestPackImages:
     def _make_sprite_entry(self, name: str, width: int, height: int):
         from plugin_dir.kumoy.map_assets.symbol_collector import SpriteEntry
 
-        img = QImage(QSize(width, height), QImage.Format_ARGB32)
+        img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 255, 0, 255))
         return SpriteEntry(name=name, image=img)
 
