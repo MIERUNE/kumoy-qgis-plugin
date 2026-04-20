@@ -8,6 +8,7 @@ from ..constants import LOG_CATEGORY
 
 from .. import api
 from ..api.error import format_api_error
+from ..map_assets import generate_and_upload_sprites
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
@@ -269,12 +270,22 @@ def handle_project_saved() -> None:
         # Save project with converted layers
         qgsproject_str = write_qgsfile(styled_map_id)
 
+        # Generate and upload sprites
+        new_assets_hash = generate_and_upload_sprites(
+            styled_map_id,
+            project,
+            current_assets_hash=styled_map_detail.assetsHash,
+        )
+
         # Overwrite styled map
+        update_options = api.styledmap.UpdateStyledMapOptions(
+            qgisproject=qgsproject_str,
+        )
+        if new_assets_hash != styled_map_detail.assetsHash:
+            update_options.assetsHash = new_assets_hash
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
-            api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-            ),
+            update_options,
         )
     except Exception as e:
         error_text = format_api_error(e)

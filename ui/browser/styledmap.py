@@ -29,6 +29,7 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
     write_qgsfile,
 )
+from ...kumoy.map_assets import generate_and_upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -294,11 +295,17 @@ class StyledMapItem(QgsDataItem):
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
+            # Generate and upload sprites
+            new_assets_hash = generate_and_upload_sprites(
+                self.styled_map.id,
+                QgsProject.instance(),
+            )
             # Overwrite styled map
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
                     qgisproject=new_qgisproject,
+                    assetsHash=new_assets_hash,
                 ),
             )
         except Exception as e:
@@ -576,10 +583,18 @@ class StyledMapRoot(QgsDataItem):
 
             # Save kumoy_map_id to project custom variables to link the new styled map
             updated_qgisproject = write_qgsfile(new_styled_map.id)
+
+            # Generate and upload sprites
+            new_assets_hash = generate_and_upload_sprites(
+                new_styled_map.id,
+                QgsProject.instance(),
+            )
+
             api.styledmap.update_styled_map(
                 new_styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
                     qgisproject=updated_qgisproject,
+                    assetsHash=new_assets_hash,
                 ),
             )
 

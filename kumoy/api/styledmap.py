@@ -1,10 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
 from .project import Project
 from .team import Team
+
+_UNSET = object()
 
 
 @dataclass
@@ -297,7 +299,7 @@ class UpdateStyledMapOptions:
     qgisproject: Optional[str] = None
     isPublic: Optional[bool] = None
     attribution: Optional[str] = None
-    assetsHash: Optional[str] = None
+    assetsHash: object = field(default=_UNSET)
 
 
 @dataclass
@@ -339,7 +341,7 @@ def update_styled_map(
         update_data["attribution"] = options.attribution
     if options.description is not None:
         update_data["description"] = options.description
-    if options.assetsHash is not None:
+    if options.assetsHash is not _UNSET:
         update_data["assetsHash"] = options.assetsHash
 
     response = ApiClient.put(
