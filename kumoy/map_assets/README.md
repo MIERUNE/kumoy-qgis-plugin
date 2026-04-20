@@ -30,7 +30,3 @@ Kumoyクラウドストレージ
 
 - `SpriteEntry` — シンボル1つ分の画像データ（name + QImage）
 - `SpriteData` — 生成済みスプライト一式（json_bytes + png_bytes + hash）
-
-## 呼び出し元
-
-`kumoy/local_cache/map.py` の `upload_assets_and_update_map()` から呼び出される。ハッシュ値で変更を検知し、変更がある場合のみアップロードする。
