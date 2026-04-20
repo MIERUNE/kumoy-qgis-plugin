@@ -72,10 +72,14 @@ def _pack_images(
 def _image_to_png_bytes(image: QImage) -> bytes:
     """QImageをPNGバイト列に変換する。"""
     buf = QBuffer()
-    buf.open(Q_BUFFER_OPEN_MODE.WriteOnly)
-    image.save(buf, "PNG")
-    buf.close()
-    return bytes(buf.data())
+    if not buf.open(Q_BUFFER_OPEN_MODE.WriteOnly):
+        raise RuntimeError("Failed to open QBuffer for PNG serialization.")
+    try:
+        if not image.save(buf, "PNG"):
+            raise RuntimeError("Failed to save QImage as PNG.")
+        return bytes(buf.data())
+    finally:
+        buf.close()
 
 
 def pack_sprites(
