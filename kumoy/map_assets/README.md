@@ -9,8 +9,8 @@ QGISプロジェクト
     ↓
 collect_sprites()    → Pointシンボルからスプライト画像を収集
     ↓
-generate_sprite()    → スプライト収集 + アトラスパッキング + ハッシュ計算
-  └ pack_sprites()   → MapLibre用スプライトアトラス生成 (sprite.json + sprite.png)
+generate_sprite()    → MapLibre用スプライトアトラス生成
+  └ pack_sprites()      → 収集したスプライトをsprite.json + sprite.pngにパッキング
     ↓
 upload_sprites()     → presigned URLで sprite.json / sprite.png をアップロード
     ↓
