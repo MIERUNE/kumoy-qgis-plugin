@@ -8,9 +8,10 @@ from qgis.core import (
     QgsRenderContext,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QRect, QSize, Qt
+from qgis.PyQt.QtCore import QRect, QSize
 from qgis.PyQt.QtGui import QImage
 
+from ...pyqt_version import QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
 from ..constants import DATA_PROVIDER_KEY
 
 
@@ -46,7 +47,9 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     if y_min == h:
         # 完全に透明な画像
         return image.scaled(
-            QSize(max_size, max_size), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            QSize(max_size, max_size),
+            QT_ASPECT_RATIO_MODE.KeepAspectRatio,
+            QT_TRANSFORMATION_MODE.SmoothTransformation,
         )
 
     # 下端から上へ走査
@@ -73,7 +76,11 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
         target = QSize(round(cw * scale), round(ch * scale))
     else:
         target = QSize(max_size, max_size)
-    return cropped.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    return cropped.scaled(
+        target,
+        QT_ASPECT_RATIO_MODE.KeepAspectRatio,
+        QT_TRANSFORMATION_MODE.SmoothTransformation,
+    )
 
 
 def collect_sprites(project: QgsProject) -> list[SpriteEntry]:

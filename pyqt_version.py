@@ -1,14 +1,13 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
-from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, Qt
+from qgis.PyQt.QtGui import QPainter, QRegion, QTextCursor
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLineEdit,
     QListView,
-    QListWidget,
     QMessageBox,
     QSizePolicy,
 )
