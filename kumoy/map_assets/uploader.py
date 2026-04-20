@@ -1,7 +1,7 @@
 """Presigned URLへのmultipartアップロード"""
 
 from qgis.core import QgsNetworkAccessManager
-from qgis.PyQt.QtCore import QByteArray, QEventLoop, QUrl
+from qgis.PyQt.QtCore import QByteArray, QEventLoop, QTimer, QUrl
 from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
 
 from ...pyqt_version import Q_NETWORK_REQUEST_HEADER, exec_event_loop
@@ -71,12 +71,16 @@ def upload_to_presigned_url(
     reply = nam.post(request, multipart)
     multipart.setParent(reply)  # prevent GC
 
-    # ブロッキング待機
+    # ブロッキング待機（10秒タイムアウト）
     loop = QEventLoop()
     reply.finished.connect(loop.quit)
+    QTimer.singleShot(10_000, reply.abort)
     exec_event_loop(loop)
 
     status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+    if status_code is None:
+        reply.deleteLater()
+        raise Exception("Upload failed: request timed out")
     if status_code not in (200, 201, 204):
         error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")
         reply.deleteLater()
