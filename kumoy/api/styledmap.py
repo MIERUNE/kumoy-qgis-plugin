@@ -354,6 +354,8 @@ def update_styled_map(
     if options.description is not None:
         update_data["description"] = options.description
     if options.assetsHash is not _UNSET:
+        # memo: options.assetsHashが未指定=_UNSETの場合はupdate_dataに含めない（変更がないので送信されない）
+        # options.assetsHash=Noneの場合は、update_data.assetsHash=nullとなり、（変更があるので送信される）
         update_data["assetsHash"] = options.assetsHash
 
     response = ApiClient.put(
