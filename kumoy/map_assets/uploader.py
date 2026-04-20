@@ -19,7 +19,7 @@ def upload_to_presigned_url(
     S3 presigned POSTの形式でmultipart/form-dataリクエストを送信する。
 
     Args:
-        server_url: サーバーのベースURL
+        url: サーバーのベースURL
         fields: presigned URLのフォームフィールド
         filename: S3キー（ファイル名）
         file_data: アップロードするファイルデータ
