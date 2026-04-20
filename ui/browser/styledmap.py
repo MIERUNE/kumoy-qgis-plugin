@@ -29,7 +29,7 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
     write_qgsfile,
 )
-from ...kumoy.map_assets import generate_and_upload_sprites
+from ...kumoy.map_assets import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -295,18 +295,21 @@ class StyledMapItem(QgsDataItem):
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
-            # Generate and upload sprites
-            new_assets_hash = generate_and_upload_sprites(
-                self.styled_map.id,
-                QgsProject.instance(),
+            # Generate sprites and upload if changed
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = sprite_data.hash if sprite_data else None
+
+            update_options = api.styledmap.UpdateStyledMapOptions(
+                qgisproject=new_qgisproject,
             )
-            # Overwrite styled map
+            if new_assets_hash != self.styled_map.assetsHash:
+                if sprite_data is not None:
+                    upload_sprites(self.styled_map.id, sprite_data)
+                update_options.assetsHash = new_assets_hash
+
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                    assetsHash=new_assets_hash,
-                ),
+                update_options,
             )
         except Exception as e:
             error_text = format_api_error(e)
@@ -585,16 +588,17 @@ class StyledMapRoot(QgsDataItem):
             updated_qgisproject = write_qgsfile(new_styled_map.id)
 
             # Generate and upload sprites
-            new_assets_hash = generate_and_upload_sprites(
-                new_styled_map.id,
-                QgsProject.instance(),
-            )
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = None
+            if sprite_data is not None:
+                new_assets_hash = sprite_data.hash
+                upload_sprites(new_styled_map.id, sprite_data)
 
             api.styledmap.update_styled_map(
                 new_styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
                     qgisproject=updated_qgisproject,
-                    assetsHash=new_assets_hash,
+                    assetsHash=new_assets_hash,  # memo: new_assets_hashがNoneならnullをセットする
                 ),
             )
 

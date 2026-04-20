@@ -3,20 +3,17 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QMessageBox
-
-from ..constants import LOG_CATEGORY
-
-from .. import api
-from ..api.error import format_api_error
-from ..map_assets import generate_and_upload_sprites
-from ...ui.layers.convert_vector import (
-    convert_local_layers,
-)
-
 from qgis.utils import iface
 
 from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from ...ui.layers.convert_vector import (
+    convert_local_layers,
+)
+from .. import api
+from ..api.error import format_api_error
+from ..constants import LOG_CATEGORY
+from ..map_assets import generate_sprite, upload_sprites
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
@@ -270,18 +267,17 @@ def handle_project_saved() -> None:
         # Save project with converted layers
         qgsproject_str = write_qgsfile(styled_map_id)
 
-        # Generate and upload sprites
-        new_assets_hash = generate_and_upload_sprites(
-            styled_map_id,
-            project,
-            current_assets_hash=styled_map_detail.assetsHash,
-        )
+        # Generate sprites and upload if changed
+        sprite_data = generate_sprite(project)
+        new_assets_hash = sprite_data.hash if sprite_data else None
 
-        # Overwrite styled map
         update_options = api.styledmap.UpdateStyledMapOptions(
             qgisproject=qgsproject_str,
         )
         if new_assets_hash != styled_map_detail.assetsHash:
+            if sprite_data is not None:
+                upload_sprites(styled_map_id, sprite_data)
+            # memo: new_assets_hashがNoneならnullをセットする
             update_options.assetsHash = new_assets_hash
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,

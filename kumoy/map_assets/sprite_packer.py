@@ -76,7 +76,7 @@ def _image_to_png_bytes(image: QImage) -> bytes:
     return bytes(buf.data())
 
 
-def generate_sprites(
+def pack_sprites(
     sprites: list[SpriteEntry],
 ) -> tuple[bytes, bytes]:
     """MapLibreスプライト（sprite.json + sprite.png）を生成する。
