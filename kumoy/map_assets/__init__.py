@@ -33,7 +33,7 @@ def generate_and_upload_sprites(
 
     # ハッシュ計算
     assets_hash = hashlib.sha256(json_bytes + png_bytes).hexdigest()
-    print(assets_hash)
+
     # 変更なしならアップロードをスキップ
     if current_assets_hash == assets_hash:
         return assets_hash
