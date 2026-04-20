@@ -2,7 +2,7 @@
 
 import json
 
-from qgis.PyQt.QtCore import QBuffer, QByteArray, QSize
+from qgis.PyQt.QtCore import QBuffer, QSize
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_PAINTER_RENDER_HINT

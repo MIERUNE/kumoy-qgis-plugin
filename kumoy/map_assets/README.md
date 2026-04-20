@@ -7,11 +7,12 @@ QGISプロジェクトからスプライトアセットを収集し、Kumoyク�
 ```
 QGISプロジェクト
     ↓
-collect_sprites()  → Pointシンボルからスプライト画像を収集
+collect_sprites()    → Pointシンボルからスプライト画像を収集
     ↓
-generate_sprites() → MapLibre用スプライトアトラス生成
+generate_sprite()    → スプライト収集 + アトラスパッキング + ハッシュ計算
+  └ pack_sprites()   → MapLibre用スプライトアトラス生成 (sprite.json + sprite.png)
     ↓
-upload_to_presigned_url() × 2 (sprite.json, sprite.png)
+upload_sprites()     → presigned URLで sprite.json / sprite.png をアップロード
     ↓
 Kumoyクラウドストレージ
 ```
@@ -20,10 +21,16 @@ Kumoyクラウドストレージ
 
 | ファイル | 役割 |
 |---|---|
-| `symbol_collector.py` | ベクターレイヤーからPointシンボル画像(64x64)を収集 |
-| `sprite_generator.py` | 収集したスプライトからMapLibre互換のスプライトアトラス(sprite.json + sprite.png)を生成 |
-| `uploader.py` | S3プリサインドURLを使ったマルチパートアップロード |
+| `__init__.py` | 公開API。`generate_sprite()` でスプライト生成+ハッシュ計算、`upload_sprites()` でアップロード |
+| `symbol_collector.py` | KumoyベクターレイヤーからPointシンボル画像を収集。256x256でレンダリング後、透明余白をトリムして64px内にフィット |
+| `sprite_packer.py` | 収集したスプライトをMapLibre互換のスプライトアトラス(sprite.json + sprite.png)にパッキング |
+| `uploader.py` | S3 presigned URLを使ったmultipart/form-dataアップロード |
+
+## 主要なデータ型
+
+- `SpriteEntry` — シンボル1つ分の画像データ（name + QImage）
+- `SpriteData` — 生成済みスプライト一式（json_bytes + png_bytes + hash）
 
 ## 呼び出し元
 
-`kumoy/local_cache/map.py` の `upload_assets_and_update_map()` から呼び出される。ユーザーがQGISプロジェクトをKumoyへ保存する際に実行される。
+`kumoy/local_cache/map.py` の `upload_assets_and_update_map()` から呼び出される。ハッシュ値で変更を検知し、変更がある場合のみアップロードする。
