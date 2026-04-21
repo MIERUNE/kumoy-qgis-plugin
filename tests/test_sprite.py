@@ -32,57 +32,90 @@ class TestTrimAndFit:
         painter.end()
 
     def test_trims_transparent_margin(self):
-        """余白がトリムされ、中央の不透明部分だけが残ること。"""
+        """余白がトリムされ、シンボル高さが max_size に揃うこと。"""
         img = self._make_image(100, 100)
-        # 中央に 20x20 の不透明矩形を描画
+        # 20x20 の不透明矩形。tight bbox が正方形なので、スケール後も正方形。
         self._draw_rect(img, 40, 40, 20, 20, QColor(255, 0, 0, 255))
 
         result = self._get_fn()(img, 64)
-        # トリム後のアスペクト比は正方形（元が正方形部分）
-        assert result.width() == result.height()
-        # max_size=64 にフィットしているはず
+        # 高さは max_size に固定
         assert result.height() == 64
+        # tight bbox が正方形だったため、幅も max_size
+        assert result.width() == 64
+
+    def _edge_is_transparent(self, img: QImage) -> bool:
+        """画像の四辺（1列/1行）が全て透明ピクセルで構成されているか判定する。"""
+        img32 = img.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
+        w, h = img32.width(), img32.height()
+        stride = img32.bytesPerLine()
+        buf = img32.constBits().asstring(stride * h)
+        for x in range(w):
+            if buf[x * 4 + 3] != 0:
+                return False
+            if buf[(h - 1) * stride + x * 4 + 3] != 0:
+                return False
+        for y in range(h):
+            if buf[y * stride + 3] != 0:
+                return False
+            if buf[y * stride + (w - 1) * 4 + 3] != 0:
+                return False
+        return True
+
+    def test_sprite_has_transparent_margin(self):
+        """MapLibreでの境界ブリードを防ぐため、スプライトの四辺は透明であること。"""
+        # キャンバスいっぱいに塗り潰された入力でも、出力の四辺は透明に保たれる
+        # 必要がある。
+        img = self._make_image(64, 64)
+        self._draw_rect(img, 0, 0, 64, 64, QColor(255, 0, 0, 255))
+
+        result = self._get_fn()(img, 64)
+        assert self._edge_is_transparent(result)
 
     def test_fits_to_max_size(self):
-        """画像がmax_size内に収まること。"""
+        """入力がキャンバスを埋め尽くしていても高さは max_size に揃うこと。"""
         img = self._make_image(200, 200)
         self._draw_rect(img, 0, 0, 200, 200, QColor(0, 255, 0, 255))
 
         result = self._get_fn()(img, 32)
-        assert result.width() <= 32
-        assert result.height() <= 32
+        # tight bbox が正方形なので幅高さ共に max_size
+        assert result.width() == 32
+        assert result.height() == 32
 
     def test_non_square_aspect_ratio(self):
-        """縦長画像がアスペクト比を維持したまま縮小されること。"""
+        """縦長画像はシンボル高さ基準でスケールされ、高さが max_size になること。"""
         img = self._make_image(200, 200)
-        # 縦長の不透明領域を描画: 20x100
+        # 20x100 の縦長矩形
         self._draw_rect(img, 90, 50, 20, 100, QColor(0, 0, 255, 255))
 
         result = self._get_fn()(img, 64)
-        # 高さは64にフィット
         assert result.height() == 64
-        # 幅は高さより小さい（縦長なので）
+        # 縦長なので幅は高さより小さい
         assert result.width() < result.height()
 
     def test_fully_transparent_image(self):
-        """完全に透明な画像でもエラーにならないこと。"""
+        """完全に透明な画像でも max_size x max_size のキャンバスが返ること。"""
         img = self._make_image(100, 100)
 
         result = self._get_fn()(img, 64)
         assert not result.isNull()
-        assert result.width() <= 64
-        assert result.height() <= 64
+        assert result.width() == 64
+        assert result.height() == 64
 
-    def test_horizontal_image(self):
-        """横長画像が正しくフィットすること。"""
-        img = self._make_image(200, 200)
-        # 横長の不透明領域を描画: 100x20
-        self._draw_rect(img, 50, 90, 100, 20, QColor(255, 255, 0, 255))
+    def test_horizontal_image_preserves_aspect(self):
+        """横長画像はシンボル高さが max_size に揃い、幅は自然アスペクト比に従うこと。
+
+        クライアント側は icon-size = 実寸 / max_size で計算するため、
+        スプライト内のシンボル高さは max_size に一致する必要がある。
+        横長シンボルは幅が max_size を超えても、高さ方向で基準化する。
+        """
+        img = self._make_image(400, 200)
+        # 100x20 の横長矩形
+        self._draw_rect(img, 150, 90, 100, 20, QColor(255, 255, 0, 255))
 
         result = self._get_fn()(img, 64)
-        # 高さは64にフィット（高さ基準でスケール）
+        # 高さは max_size に固定
         assert result.height() == 64
-        # 幅は高さより大きい（横長なので）
+        # 横長の自然アスペクト比が保たれ、幅は高さを大きく上回る
         assert result.width() > result.height()
 
 
