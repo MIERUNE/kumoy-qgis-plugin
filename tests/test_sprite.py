@@ -31,45 +31,25 @@ class TestTrimAndFit:
         painter.fillRect(x, y, w, h, color)
         painter.end()
 
+    def _alpha_at(self, img: QImage, x: int, y: int) -> int:
+        """画像の指定座標のアルファ値を取得する。"""
+        img32 = img.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
+        stride = img32.bytesPerLine()
+        buf = img32.constBits().asstring(stride * img32.height())
+        return buf[y * stride + x * 4 + 3]
+
     def test_trims_transparent_margin(self):
         """余白がトリムされ、シンボル高さが max_size に揃うこと。"""
         img = self._make_image(100, 100)
-        # 20x20 の不透明矩形。tight bbox が正方形なので、スケール後も正方形。
+        # 20x20 の不透明矩形を画像中心に配置。tight bbox が正方形なので
+        # スケール後も正方形、かつ中心一致のためキャンバスも正方形。
         self._draw_rect(img, 40, 40, 20, 20, QColor(255, 0, 0, 255))
 
         result = self._get_fn()(img, 64)
         # 高さは max_size に固定
         assert result.height() == 64
-        # tight bbox が正方形だったため、幅も max_size
+        # tight bbox が正方形かつ中心対称のため、幅も max_size
         assert result.width() == 64
-
-    def _edge_is_transparent(self, img: QImage) -> bool:
-        """画像の四辺（1列/1行）が全て透明ピクセルで構成されているか判定する。"""
-        img32 = img.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
-        w, h = img32.width(), img32.height()
-        stride = img32.bytesPerLine()
-        buf = img32.constBits().asstring(stride * h)
-        for x in range(w):
-            if buf[x * 4 + 3] != 0:
-                return False
-            if buf[(h - 1) * stride + x * 4 + 3] != 0:
-                return False
-        for y in range(h):
-            if buf[y * stride + 3] != 0:
-                return False
-            if buf[y * stride + (w - 1) * 4 + 3] != 0:
-                return False
-        return True
-
-    def test_sprite_has_transparent_margin(self):
-        """MapLibreでの境界ブリードを防ぐため、スプライトの四辺は透明であること。"""
-        # キャンバスいっぱいに塗り潰された入力でも、出力の四辺は透明に保たれる
-        # 必要がある。
-        img = self._make_image(64, 64)
-        self._draw_rect(img, 0, 0, 64, 64, QColor(255, 0, 0, 255))
-
-        result = self._get_fn()(img, 64)
-        assert self._edge_is_transparent(result)
 
     def test_fits_to_max_size(self):
         """入力がキャンバスを埋め尽くしていても高さは max_size に揃うこと。"""
@@ -77,14 +57,14 @@ class TestTrimAndFit:
         self._draw_rect(img, 0, 0, 200, 200, QColor(0, 255, 0, 255))
 
         result = self._get_fn()(img, 32)
-        # tight bbox が正方形なので幅高さ共に max_size
+        # tight bbox が正方形かつ画像中心と一致するので幅高さ共に max_size
         assert result.width() == 32
         assert result.height() == 32
 
     def test_non_square_aspect_ratio(self):
         """縦長画像はシンボル高さ基準でスケールされ、高さが max_size になること。"""
         img = self._make_image(200, 200)
-        # 20x100 の縦長矩形
+        # 20x100 の縦長矩形を画像中心に配置
         self._draw_rect(img, 90, 50, 20, 100, QColor(0, 0, 255, 255))
 
         result = self._get_fn()(img, 64)
@@ -109,7 +89,7 @@ class TestTrimAndFit:
         横長シンボルは幅が max_size を超えても、高さ方向で基準化する。
         """
         img = self._make_image(400, 200)
-        # 100x20 の横長矩形
+        # 100x20 の横長矩形を画像中心に配置
         self._draw_rect(img, 150, 90, 100, 20, QColor(255, 255, 0, 255))
 
         result = self._get_fn()(img, 64)
@@ -117,6 +97,56 @@ class TestTrimAndFit:
         assert result.height() == 64
         # 横長の自然アスペクト比が保たれ、幅は高さを大きく上回る
         assert result.width() > result.height()
+
+    def test_offset_symbol_preserves_center(self):
+        """シンボルが画像中心からオフセットしていても、出力キャンバスの中心が
+        元画像の中心に対応し、シンボル高さは max_size に保たれること。
+
+        シンボル中心（bbox中心）ではなく元画像中心を不変にするため、
+        オフセットが大きい側の反対側は透明パディングで補う。
+        """
+        img = self._make_image(100, 100)
+        # 10x10 の矩形を画像中心 (50,50) から大きく左にオフセット。
+        # シンボルbbox: (20,45)-(29,54), 中心 (25, 50)。
+        # 画像中心からのオフセット: x方向 -25px。
+        self._draw_rect(img, 20, 45, 10, 10, QColor(255, 0, 0, 255))
+
+        result = self._get_fn()(img, 64)
+        # 縦方向は対称オフセットなので高さは max_size
+        assert result.height() == 64
+        # x方向オフセットが大きく、反対側に透明パディングが入るため
+        # キャンバス幅は max_size を大きく上回る
+        assert result.width() > 64
+
+        # 中心不変性: シンボルが左側に寄っているので、キャンバス右端は透明
+        w = result.width()
+        h = result.height()
+        for y in range(h):
+            assert self._alpha_at(result, w - 1, y) == 0
+        # 逆に、シンボルが配置されている左端は非透明ピクセルを含む
+        assert any(self._alpha_at(result, 0, y) != 0 for y in range(h))
+
+    def test_vertical_offset_symbol_preserves_center(self):
+        """縦方向オフセットでも元画像中心を基準にキャンバス中心が配置されること。"""
+        img = self._make_image(100, 100)
+        # 10x10 の矩形を画像中心 (50,50) から下にオフセット。
+        # シンボルbbox: (45,70)-(54,79), 中心 (50, 75)。
+        self._draw_rect(img, 45, 70, 10, 10, QColor(0, 255, 0, 255))
+
+        result = self._get_fn()(img, 64)
+        # 縦オフセットが大きいため、キャンバス高さは max_size を超える
+        assert result.height() > 64
+        # x方向は対称なので幅は max_size
+        assert result.width() == 64
+
+        # シンボルは下寄りに配置されているので、キャンバス上端は透明
+        w = result.width()
+        for x in range(w):
+            assert self._alpha_at(result, x, 0) == 0
+        # シンボルの配置されている下端は非透明
+        assert any(
+            self._alpha_at(result, x, result.height() - 1) != 0 for x in range(w)
+        )
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
