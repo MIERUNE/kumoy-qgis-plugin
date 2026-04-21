@@ -8,8 +8,8 @@ from qgis.core import (
     QgsRenderContext,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QRect, QSize, Qt
-from qgis.PyQt.QtGui import QImage, QPainter
+from qgis.PyQt.QtCore import QRect, QSize
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
 from ...pyqt_version import Q_IMAGE_FORMAT, QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
 from ..constants import DATA_PROVIDER_KEY
@@ -92,7 +92,7 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     canvas_w = max(1, round(2 * half_w))
     canvas_h = max(1, round(2 * half_h))
     canvas = QImage(canvas_w, canvas_h, Q_IMAGE_FORMAT.Format_ARGB32)
-    canvas.fill(Qt.transparent)
+    canvas.fill(QColor(0, 0, 0, 0))
     paste_x = round(half_w - left)
     paste_y = round(half_h - top)
     painter = QPainter(canvas)
