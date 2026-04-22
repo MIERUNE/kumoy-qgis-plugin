@@ -1,10 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Literal, Optional
 
 from .client import ApiClient
 from .organization import Organization
 from .project import Project
 from .team import Team
+
+_UNSET = object()
 
 
 @dataclass
@@ -20,6 +22,7 @@ class KumoyStyledMap:
     projectId: str
     project: Project
     attribution: str
+    assetsHash: Optional[str]
     thumbnailImageUrl: str
     createdAt: str
     updatedAt: str
@@ -106,6 +109,7 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
                 ),
                 description=styled_map_data.get("description", ""),
                 attribution=styled_map_data.get("attribution", ""),
+                assetsHash=styled_map_data.get("assetsHash"),
                 thumbnailImageUrl=styled_map_data.get("thumbnailImageUrl"),
                 createdAt=styled_map_data.get("createdAt", ""),
                 updatedAt=styled_map_data.get("updatedAt", ""),
@@ -116,11 +120,22 @@ def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
 
 
 @dataclass
-class KumoyStyledMapDetail(KumoyStyledMap):
+class KumoyStyledMapDetail:
     """
     KumoyのStyledMapの詳細を表すデータクラス
     """
 
+    id: str
+    name: str
+    description: str
+    isPublic: bool
+    projectId: str
+    project: Project
+    attribution: str
+    assetsHash: Optional[str]
+    thumbnailImageUrl: str
+    createdAt: str
+    updatedAt: str
     qgisproject: str
     role: Literal["ADMIN", "OWNER", "MEMBER"]
 
@@ -200,6 +215,7 @@ def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
         updatedAt=response.get("updatedAt", ""),
         qgisproject=response.get("qgisproject", ""),
         role=response.get("role", "MEMBER"),
+        assetsHash=response.get("assetsHash"),
     )
 
 
@@ -295,6 +311,7 @@ class UpdateStyledMapOptions:
     qgisproject: Optional[str] = None
     isPublic: Optional[bool] = None
     attribution: Optional[str] = None
+    assetsHash: object = field(default=_UNSET)
 
 
 @dataclass
@@ -309,6 +326,7 @@ class UpdateStyledMapResponse:
     attribution: str
     createdAt: str
     updatedAt: str
+    assetsHash: Optional[str] = None
 
 
 def update_styled_map(
@@ -335,6 +353,10 @@ def update_styled_map(
         update_data["attribution"] = options.attribution
     if options.description is not None:
         update_data["description"] = options.description
+    if options.assetsHash is not _UNSET:
+        # memo: options.assetsHashが未指定=_UNSETの場合はupdate_dataに含めない（変更がないので送信されない）
+        # options.assetsHash=Noneの場合は、update_data.assetsHash=nullとなり、（変更があるので送信される）
+        update_data["assetsHash"] = options.assetsHash
 
     response = ApiClient.put(
         f"/styled-map/{styled_map_id}",
@@ -352,4 +374,54 @@ def update_styled_map(
         thumbnailImageUrl=response.get("thumbnailImageUrl"),
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
+        assetsHash=response.get("assetsHash"),
+    )
+
+
+@dataclass
+class PresignedUrl:
+    url: str
+    filename: str
+    fields: dict[str, str]
+
+
+@dataclass
+class SpriteUploadUrls:
+    json: PresignedUrl
+    png: PresignedUrl
+
+
+def get_sprite_upload_urls(
+    styled_map_id: str,
+    json_file_size: int,
+    png_file_size: int,
+) -> SpriteUploadUrls:
+    """スプライトアップロード用のpresigned URLを取得する。
+
+    Args:
+        styled_map_id: StyledMap ID
+        json_file_size: sprite.jsonのファイルサイズ
+        png_file_size: sprite.pngのファイルサイズ
+
+    Returns:
+        SpriteUploadUrls
+    """
+    response = ApiClient.post(
+        f"/styled-map/{styled_map_id}/assets-upload",
+        {
+            "jsonFileSize": json_file_size,
+            "pngFileSize": png_file_size,
+        },
+    )
+    return SpriteUploadUrls(
+        json=PresignedUrl(
+            url=response["json"]["url"],
+            filename=response["json"]["filename"],
+            fields=response["json"]["fields"],
+        ),
+        png=PresignedUrl(
+            url=response["png"]["url"],
+            filename=response["png"]["filename"],
+            fields=response["png"]["fields"],
+        ),
     )

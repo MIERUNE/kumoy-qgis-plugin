@@ -3,19 +3,17 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QMessageBox
-
-from ..constants import LOG_CATEGORY
-
-from .. import api
-from ..api.error import format_api_error
-from ...ui.layers.convert_vector import (
-    convert_local_layers,
-)
-
 from qgis.utils import iface
 
 from ... import settings_manager
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from ...ui.layers.convert_vector import (
+    convert_local_layers,
+)
+from .. import api
+from ..api.error import format_api_error
+from ..constants import LOG_CATEGORY
+from ..sprite import generate_sprite, pin_fixed_aspect_ratios, upload_sprites
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
@@ -139,6 +137,7 @@ def write_qgsfile(map_id: str) -> str:
     try:
         map_path = get_filepath(map_id)
         project = QgsProject.instance()
+        pin_fixed_aspect_ratios(project)
         project.write(map_path)
         qgisproject_str = _get_qgs_str(map_path)
     finally:
@@ -269,12 +268,21 @@ def handle_project_saved() -> None:
         # Save project with converted layers
         qgsproject_str = write_qgsfile(styled_map_id)
 
-        # Overwrite styled map
+        # Generate sprites and upload if changed
+        sprite_data = generate_sprite(project)
+        new_assets_hash = sprite_data.assets_hash if sprite_data else None
+
+        update_options = api.styledmap.UpdateStyledMapOptions(
+            qgisproject=qgsproject_str,
+        )
+        if new_assets_hash != styled_map_detail.assetsHash:
+            if sprite_data is not None:
+                upload_sprites(styled_map_id, sprite_data)
+            # memo: new_assets_hashがNoneならnullをセットする
+            update_options.assetsHash = new_assets_hash
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
-            api.styledmap.UpdateStyledMapOptions(
-                qgisproject=qgsproject_str,
-            ),
+            update_options,
         )
     except Exception as e:
         error_text = format_api_error(e)

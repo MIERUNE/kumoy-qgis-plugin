@@ -29,6 +29,7 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
     write_qgsfile,
 )
+from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -294,12 +295,21 @@ class StyledMapItem(QgsDataItem):
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
-            # Overwrite styled map
+            # Generate sprites and upload if changed
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = sprite_data.assets_hash if sprite_data else None
+
+            update_options = api.styledmap.UpdateStyledMapOptions(
+                qgisproject=new_qgisproject,
+            )
+            if new_assets_hash != self.styled_map.assetsHash:
+                if sprite_data is not None:
+                    upload_sprites(self.styled_map.id, sprite_data)
+                update_options.assetsHash = new_assets_hash
+
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
+                update_options,
             )
         except Exception as e:
             error_text = format_api_error(e)
@@ -576,10 +586,19 @@ class StyledMapRoot(QgsDataItem):
 
             # Save kumoy_map_id to project custom variables to link the new styled map
             updated_qgisproject = write_qgsfile(new_styled_map.id)
+
+            # Generate and upload sprites
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = None
+            if sprite_data is not None:
+                new_assets_hash = sprite_data.assets_hash
+                upload_sprites(new_styled_map.id, sprite_data)
+
             api.styledmap.update_styled_map(
                 new_styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
                     qgisproject=updated_qgisproject,
+                    assetsHash=new_assets_hash,  # memo: new_assets_hashがNoneならnullをセットする
                 ),
             )
 

@@ -1,14 +1,13 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, Qt, QBuffer, QEvent
-from qgis.PyQt.QtGui import QRegion, QPainter, QTextCursor
-from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, Qt
+from qgis.PyQt.QtGui import QImage, QPainter, QRegion, QTextCursor
+from qgis.PyQt.QtNetwork import QHttpMultiPart, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLineEdit,
     QListView,
-    QListWidget,
     QMessageBox,
     QSizePolicy,
 )
@@ -138,6 +137,14 @@ Qt5: QPainter.Antialiasing, QPainter.TextAntialiasing, etc.
 Qt6: QPainter.RenderHint.Antialiasing, etc.
 """
 
+Q_HTTP_MULTIPART_CONTENT_TYPE = (
+    QHttpMultiPart if QT_VERSION_INT <= 5 else QHttpMultiPart.ContentType
+)
+"""QHttpMultiPart content type
+Qt5: QHttpMultiPart.FormDataType, QHttpMultiPart.RelatedType, etc.
+Qt6: QHttpMultiPart.ContentType.FormDataType, etc.
+"""
+
 Q_NETWORK_REPLY_ERROR = (
     QNetworkReply if QT_VERSION_INT <= 5 else QNetworkReply.NetworkError
 )
@@ -204,6 +211,12 @@ Q_LIST_VIEW_RESIZE_MODE = QListView if QT_VERSION_INT <= 5 else QListView.Resize
 """QListView resize mode
 Qt5: QListView.Adjust, QListView.Fixed, etc.
 Qt6: QListView.ResizeMode.Adjust, QListView.ResizeMode.Fixed, etc.
+"""
+
+Q_IMAGE_FORMAT = QImage if QT_VERSION_INT <= 5 else QImage.Format
+"""QImage format enum
+Qt5: QImage.Format_ARGB32, etc.
+Qt6: QImage.Format.Format_ARGB32, etc.
 """
 
 
