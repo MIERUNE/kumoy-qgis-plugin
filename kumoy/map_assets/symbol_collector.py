@@ -9,7 +9,7 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QRect, QSize
-from qgis.PyQt.QtGui import QColor, QImage, QPainter
+from qgis.PyQt.QtGui import QImage
 
 from ...pyqt_version import Q_IMAGE_FORMAT, QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
 from ..constants import DATA_PROVIDER_KEY
@@ -67,38 +67,19 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     while x_max > x_min and not _has_alpha_in_col(x_max):
         x_max -= 1
 
-    # タイトクロップして縦幅を max_size に合わせて縮小（アスペクト比維持）
-    cropped = image.copy(QRect(x_min, y_min, x_max - x_min + 1, y_max - y_min + 1))
-    cw, ch = cropped.width(), cropped.height()
-    scale = max_size / ch
-    target_width = max(1, round(cw * scale))  # 0pxとなることを避ける
-    target_height = max(1, round(ch * scale))
-    scaled = cropped.scaled(
-        QSize(target_width, target_height),
-        QT_ASPECT_RATIO_MODE.KeepAspectRatio,
-        QT_TRANSFORMATION_MODE.SmoothTransformation,
-    )
+    # 元画像中心から最も外側のalpha画素までの距離で対称クロップする。
+    # こうすれば画像中心が自動的に維持され、canvasへの再配置が不要になる。
+    cx = w // 2
+    cy = h // 2
+    half_w = max(cx - x_min, (x_max + 1) - cx)
+    half_h = max(cy - y_min, (y_max + 1) - cy)
+    cropped = image.copy(QRect(cx - half_w, cy - half_h, 2 * half_w, 2 * half_h))
 
-    # シンボルは中心からオフセットされていることもあり得るので、
-    # 元画像中心を基準にキャンバスへ配置して中心を不変にする
-    cx = w / 2
-    cy = h / 2
-    left = (cx - x_min) * scale
-    right = ((x_max + 1) - cx) * scale
-    top = (cy - y_min) * scale
-    bottom = ((y_max + 1) - cy) * scale
-    half_w = max(left, right)
-    half_h = max(top, bottom)
-    canvas_w = max(1, round(2 * half_w))
-    canvas_h = max(1, round(2 * half_h))
-    canvas = QImage(canvas_w, canvas_h, Q_IMAGE_FORMAT.Format_ARGB32)
-    canvas.fill(QColor(0, 0, 0, 0))
-    paste_x = round(half_w - left)
-    paste_y = round(half_h - top)
-    painter = QPainter(canvas)
-    painter.drawImage(paste_x, paste_y, scaled)
-    painter.end()
-    return canvas
+    # シンボル本体(対称化前のbbox)の高さが max_size になるようスケール。
+    # 中心維持のための対称余白分、最終キャンバスは max_size より大きくなり得る。
+    content_h = y_max - y_min + 1
+    target_h = max(1, round(2 * half_h * max_size / content_h))
+    return cropped.scaledToHeight(target_h, QT_TRANSFORMATION_MODE.SmoothTransformation)
 
 
 def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
