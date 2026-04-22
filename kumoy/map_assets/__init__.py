@@ -7,6 +7,7 @@ from qgis.core import QgsProject
 from .. import api
 from .sprite_packer import pack_sprites
 from .symbol_collector import collect_sprites
+from .symbol_normalizer import pin_fixed_aspect_ratios
 from .uploader import upload_to_presigned_url
 
 
