@@ -29,7 +29,7 @@ from ...kumoy.local_cache.map import (
     show_map_save_result,
     write_qgsfile,
 )
-from ...kumoy.map_assets import generate_sprite, upload_sprites
+from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,

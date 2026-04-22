@@ -13,7 +13,7 @@ class TestTrimAndFit:
     """_trim_and_fit が透明余白をトリムし、max_size内にフィットさせること"""
 
     def _get_fn(self):
-        from plugin_dir.kumoy.map_assets.symbol_collector import _trim_and_fit
+        from plugin_dir.kumoy.sprite.symbol_collector import _trim_and_fit
 
         return _trim_and_fit
 
@@ -154,12 +154,12 @@ class TestPackSprites:
     """pack_sprites がMapLibre互換のスプライトアトラスを生成すること"""
 
     def _get_fn(self):
-        from plugin_dir.kumoy.map_assets.sprite_packer import pack_sprites
+        from plugin_dir.kumoy.sprite.sprite_packer import pack_sprites
 
         return pack_sprites
 
     def _make_sprite_entry(self, name: str, width: int, height: int):
-        from plugin_dir.kumoy.map_assets.symbol_collector import SpriteEntry
+        from plugin_dir.kumoy.sprite.symbol_collector import SpriteEntry
 
         img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(255, 0, 0, 255))
@@ -234,7 +234,7 @@ class TestPackSprites:
 
     def test_row_wrap(self):
         """SPRITE_ATLAS_MAX_WIDTHを超えると次の行に折り返すこと。"""
-        from plugin_dir.kumoy.map_assets.sprite_packer import SPRITE_ATLAS_MAX_WIDTH
+        from plugin_dir.kumoy.sprite.sprite_packer import SPRITE_ATLAS_MAX_WIDTH
 
         # 1行に収まりきらないサイズのスプライトを並べる
         sprite_w = 200
@@ -255,7 +255,7 @@ class TestImageToPngBytes:
     """_image_to_png_bytes がQImageを有効なPNGバイト列に変換すること"""
 
     def _get_fn(self):
-        from plugin_dir.kumoy.map_assets.sprite_packer import _image_to_png_bytes
+        from plugin_dir.kumoy.sprite.sprite_packer import _image_to_png_bytes
 
         return _image_to_png_bytes
 
@@ -287,12 +287,12 @@ class TestPackImages:
     """_pack_images がJSON辞書とアトラス画像を正しく生成すること"""
 
     def _get_fn(self):
-        from plugin_dir.kumoy.map_assets.sprite_packer import _pack_images
+        from plugin_dir.kumoy.sprite.sprite_packer import _pack_images
 
         return _pack_images
 
     def _make_sprite_entry(self, name: str, width: int, height: int):
-        from plugin_dir.kumoy.map_assets.symbol_collector import SpriteEntry
+        from plugin_dir.kumoy.sprite.symbol_collector import SpriteEntry
 
         img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 255, 0, 255))

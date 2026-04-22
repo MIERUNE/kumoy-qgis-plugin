@@ -1,4 +1,4 @@
-# kumoy/map_assets
+# kumoy/sprite
 
 QGISプロジェクトからスプライトアセットを収集し、Kumoyクラウドへアップロードするモジュール。
 

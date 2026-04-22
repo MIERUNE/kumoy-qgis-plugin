@@ -13,7 +13,7 @@ from ...ui.layers.convert_vector import (
 from .. import api
 from ..api.error import format_api_error
 from ..constants import LOG_CATEGORY
-from ..map_assets import generate_sprite, pin_fixed_aspect_ratios, upload_sprites
+from ..sprite import generate_sprite, pin_fixed_aspect_ratios, upload_sprites
 
 # Flag to prevent double updates when handling project saved event
 is_updating = False
