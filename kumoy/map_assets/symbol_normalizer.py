@@ -1,7 +1,6 @@
 """Map保存時にシンボルレイヤーのaspectRatioを明示化する処理。
-
-スプライト化処理で画像の縦横比が変化するため、元のシンボルの見た目を保つように
-fixedAspectRatioを明示的に固定する。
+Webでレンダリングする際、常にアスペクト比がわかっている必要があるが
+デフォルトだとQgs-Xmlにアスペクト比が乗らないので、fixedAspectRatioを明示的にセットする
 """
 
 from qgis.core import (
