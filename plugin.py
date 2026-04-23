@@ -1,12 +1,11 @@
 import json
 import os
-import urllib.request
 import webbrowser
-from urllib.error import HTTPError, URLError
 
 from qgis.core import (
     Qgis,
     QgsApplication,
+    QgsBlockingNetworkRequest,
     QgsLayerTreeLayer,
     QgsMessageLog,
     QgsProject,
@@ -14,7 +13,8 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface, QgsGui
-from qgis.PyQt.QtCore import QCoreApplication, QTranslator
+from qgis.PyQt.QtCore import QCoreApplication, QTranslator, QUrl
+from qgis.PyQt.QtNetwork import QNetworkRequest
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
@@ -295,52 +295,35 @@ class KumoyPlugin:
     def check_plugin_version(self):
         """Check if the plugin version is compatible with the minimum required version"""
         try:
-            api_config = api.config.get_api_config()
-            params_response = urllib.request.urlopen(
-                f"{api_config.SERVER_URL}/api/_public/params"
-            )
-            params_data = json.loads(params_response.read().decode("utf-8"))
-        except HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            try:
-                error_data = json.loads(error_body)
-                error_message = error_data.get("error", format_api_error(e))
-            except Exception:
-                error_message = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
-            )
-            # Explicit server error
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Server error: {}").format(str(error_message)),
-            )
-            return
-        except URLError as e:
-            error_details = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
-            )
-            # Explicit network error
-            error_message = self.tr(
-                "Network connection error.\n"
-                "Please check your internet connection and server URL.\n\n"
-                "Details: {}"
-            ).format(error_details)
-
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                error_message,
-            )
-            return
+            _api_config = api.config.get_api_config()
+            url = QUrl(f"{_api_config.SERVER_URL}/api/_public/params")
+            if url.scheme() not in ("http", "https"):
+                raise ValueError(f"Unexpected URL scheme: {url.scheme()}")
+            req = QNetworkRequest(url)
+            blocking_request = QgsBlockingNetworkRequest()
+            err = blocking_request.get(req, forceRefresh=True)
+            if err != QgsBlockingNetworkRequest.NoError:
+                error_message = blocking_request.errorMessage()
+                QgsMessageLog.logMessage(
+                    f"Network error: {error_message}", LOG_CATEGORY, Qgis.Critical
+                )
+                QMessageBox.critical(
+                    None,
+                    self.tr("Error"),
+                    self.tr(
+                        "Network connection error.\n"
+                        "Please check your internet connection and server URL.\n\n"
+                        "Details: {}"
+                    ).format(error_message),
+                )
+                return
+            content = blocking_request.reply().content()
+            params_data = json.loads(bytes(content).decode("utf-8"))
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
                 f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit error
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
