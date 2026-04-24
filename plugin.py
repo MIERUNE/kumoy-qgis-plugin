@@ -16,7 +16,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
 from .kumoy.api.client import ApiClient
-from .kumoy.api.error import format_api_error
+from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
     DOCUMENTATION_URL,
@@ -294,6 +294,21 @@ class KumoyPlugin:
         """Check if the plugin version is compatible with the minimum required version"""
         try:
             params_data = ApiClient.get_public("/_public/params")
+        except AppError as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            if e.error.startswith("Server error (HTTP"):
+                user_message = self.tr("Server error: {}").format(error_text)
+            else:
+                user_message = self.tr(
+                    "Network connection error.\n"
+                    "Please check your internet connection and server URL.\n\n"
+                    "Details: {}"
+                ).format(error_text)
+            QMessageBox.critical(None, self.tr("Error"), user_message)
+            return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(

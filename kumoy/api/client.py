@@ -85,7 +85,7 @@ class ApiClient:
 
         Raises:
             ValueError: If the URL scheme is not http or https
-            AppError: If the server returns a 4xx/5xx error
+            AppError: If the server returns an HTTP error or a network error
         """
         _api_config = api_config.get_api_config()
         qurl = QUrl(f"{_api_config.SERVER_URL}/api{endpoint}")
@@ -106,12 +106,18 @@ class ApiClient:
                 if content:
                     api_error.raise_error(content)
                 api_error.raise_error(
-                    {"message": f"Server error (HTTP {status_code})", "error": ""}
+                    {
+                        "message": "Application Error",
+                        "error": f"Server error (HTTP {status_code})",
+                    }
                 )
             else:
                 # Network-level error (no HTTP response)
                 api_error.raise_error(
-                    {"message": blocking_request.errorMessage(), "error": ""}
+                    {
+                        "message": "Application Error",
+                        "error": blocking_request.errorMessage(),
+                    }
                 )
 
         return content

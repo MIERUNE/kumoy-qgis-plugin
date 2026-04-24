@@ -18,7 +18,7 @@ from qgis.PyQt.QtWidgets import (
 
 from ..kumoy import api
 from ..kumoy.api.client import ApiClient
-from ..kumoy.api.error import format_api_error
+from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import is_plugin_version_compatible, read_plugin_version
@@ -254,6 +254,23 @@ class DialogLogin(QDialog):
                     ).format(min_qgisplugin_version),
                 )
                 return
+        except AppError as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            if e.error.startswith("Server error (HTTP"):
+                user_message = self.tr("Server error: {}").format(error_text)
+            else:
+                user_message = self.tr(
+                    "Network connection error.\n"
+                    "Please check your internet connection and server URL.\n\n"
+                    "Details: {}"
+                ).format(error_text)
+            QMessageBox.critical(self, self.tr("Login Error"), user_message)
+            self.update_login_status()
+            self.login_button.setEnabled(True)
+            return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
