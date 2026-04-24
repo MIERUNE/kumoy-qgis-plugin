@@ -17,7 +17,6 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..kumoy import api
-from ..kumoy.api.client import ApiClient
 from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
@@ -238,10 +237,10 @@ class DialogLogin(QDialog):
         api_config = api.config.get_api_config()
 
         try:
-            params_data = ApiClient.get_public("/_public/params")
+            params = api.public.get_params()
 
             # Check plugin version compatibility
-            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+            min_qgisplugin_version = params.minQgisPluginVersion
 
             if min_qgisplugin_version is not None and not is_plugin_version_compatible(
                 read_plugin_version(), min_qgisplugin_version

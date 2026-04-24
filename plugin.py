@@ -15,7 +15,6 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
-from .kumoy.api.client import ApiClient
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
@@ -293,7 +292,7 @@ class KumoyPlugin:
     def check_plugin_version(self):
         """Check if the plugin version is compatible with the minimum required version"""
         try:
-            params_data = ApiClient.get_public("/_public/params")
+            params = api.public.get_params()
         except AppError as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -321,7 +320,7 @@ class KumoyPlugin:
             )
             return
 
-        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+        min_qgisplugin_version = params.minQgisPluginVersion
         if min_qgisplugin_version is not None and not is_plugin_version_compatible(
             read_plugin_version(), min_qgisplugin_version
         ):
