@@ -71,6 +71,52 @@ class ApiClient:
         return content
 
     @staticmethod
+    def get_public(endpoint: str) -> Any:
+        """Make GET request to a public (unauthenticated) API endpoint.
+
+        Validates the URL scheme and distinguishes network errors from
+        HTTP 4xx/5xx server errors.
+
+        Args:
+            endpoint (str): API endpoint (e.g. "/_public/params")
+
+        Returns:
+            dict: Parsed JSON response body
+
+        Raises:
+            ValueError: If the URL scheme is not http or https
+            AppError: If the server returns a 4xx/5xx error
+        """
+        _api_config = api_config.get_api_config()
+        qurl = QUrl(f"{_api_config.SERVER_URL}/api{endpoint}")
+        if qurl.scheme() not in ("http", "https"):
+            raise ValueError(f"Unexpected URL scheme: {qurl.scheme()}")
+
+        req = QNetworkRequest(qurl)
+        blocking_request = QgsBlockingNetworkRequest()
+        err = blocking_request.get(req, forceRefresh=True)
+
+        reply = blocking_request.reply()
+        status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+        content = handle_blocking_reply(reply.content())
+
+        if err != QgsBlockingNetworkRequest.NoError:
+            if status_code is not None:
+                # HTTP error (4xx/5xx): body may contain error details
+                if content:
+                    api_error.raise_error(content)
+                api_error.raise_error(
+                    {"message": f"Server error (HTTP {status_code})", "error": ""}
+                )
+            else:
+                # Network-level error (no HTTP response)
+                api_error.raise_error(
+                    {"message": blocking_request.errorMessage(), "error": ""}
+                )
+
+        return content
+
+    @staticmethod
     def post(endpoint: str, data: Any) -> Any:
         """Make POST request to API endpoint
 
