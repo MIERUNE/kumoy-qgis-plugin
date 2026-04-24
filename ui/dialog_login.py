@@ -258,15 +258,14 @@ class DialogLogin(QDialog):
             QgsMessageLog.logMessage(
                 f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            if e.error.startswith("Server error (HTTP"):
-                user_message = self.tr("Server error: {}").format(error_text)
-            else:
-                user_message = self.tr(
-                    "Network connection error.\n"
-                    "Please check your internet connection and server URL.\n\n"
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                self.tr(
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
                     "Details: {}"
-                ).format(error_text)
-            QMessageBox.critical(self, self.tr("Login Error"), user_message)
+                ).format(error_text),
+            )
             self.update_login_status()
             self.login_button.setEnabled(True)
             return

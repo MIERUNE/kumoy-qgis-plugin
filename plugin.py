@@ -298,15 +298,14 @@ class KumoyPlugin:
             QgsMessageLog.logMessage(
                 f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            if e.error.startswith("Server error (HTTP"):
-                user_message = self.tr("Server error: {}").format(error_text)
-            else:
-                user_message = self.tr(
-                    "Network connection error.\n"
-                    "Please check your internet connection and server URL.\n\n"
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr(
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
                     "Details: {}"
-                ).format(error_text)
-            QMessageBox.critical(None, self.tr("Error"), user_message)
+                ).format(error_text),
+            )
             return
         except Exception as e:
             error_text = format_api_error(e)
