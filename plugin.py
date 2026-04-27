@@ -1,11 +1,9 @@
-import json
 import os
 import webbrowser
 
 from qgis.core import (
     Qgis,
     QgsApplication,
-    QgsBlockingNetworkRequest,
     QgsLayerTreeLayer,
     QgsMessageLog,
     QgsProject,
@@ -13,12 +11,11 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface, QgsGui
-from qgis.PyQt.QtCore import QCoreApplication, QTranslator, QUrl
-from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from .kumoy import api
-from .kumoy.api.error import format_api_error
+from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
     DOCUMENTATION_URL,
@@ -295,30 +292,21 @@ class KumoyPlugin:
     def check_plugin_version(self):
         """Check if the plugin version is compatible with the minimum required version"""
         try:
-            _api_config = api.config.get_api_config()
-            url = QUrl(f"{_api_config.SERVER_URL}/api/_public/params")
-            if url.scheme() not in ("http", "https"):
-                raise ValueError(f"Unexpected URL scheme: {url.scheme()}")
-            req = QNetworkRequest(url)
-            blocking_request = QgsBlockingNetworkRequest()
-            err = blocking_request.get(req, forceRefresh=True)
-            if err != QgsBlockingNetworkRequest.NoError:
-                error_message = blocking_request.errorMessage()
-                QgsMessageLog.logMessage(
-                    f"Network error: {error_message}", LOG_CATEGORY, Qgis.Critical
-                )
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr(
-                        "Network connection error.\n"
-                        "Please check your internet connection and server URL.\n\n"
-                        "Details: {}"
-                    ).format(error_message),
-                )
-                return
-            content = blocking_request.reply().content()
-            params_data = json.loads(bytes(content).decode("utf-8"))
+            params = api.public.get_params()
+        except AppError as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                None,
+                self.tr("Error"),
+                self.tr(
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
+                    "Details: {}"
+                ).format(error_text),
+            )
+            return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -331,7 +319,7 @@ class KumoyPlugin:
             )
             return
 
-        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+        min_qgisplugin_version = params.minQgisPluginVersion
         if min_qgisplugin_version is not None and not is_plugin_version_compatible(
             read_plugin_version(), min_qgisplugin_version
         ):

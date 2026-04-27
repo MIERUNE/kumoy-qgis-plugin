@@ -4,6 +4,7 @@ from . import (
     organization,
     plan,
     project,
+    public,
     qgis_vector,
     styledmap,
     team,

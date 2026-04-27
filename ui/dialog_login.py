@@ -1,10 +1,8 @@
-import json
 import webbrowser
 
-from qgis.core import Qgis, QgsBlockingNetworkRequest, QgsMessageLog
+from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
-from qgis.PyQt.QtCore import QCoreApplication, QUrl
-from qgis.PyQt.QtNetwork import QNetworkRequest
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -19,7 +17,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..kumoy import api
-from ..kumoy.api.error import format_api_error
+from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import is_plugin_version_compatible, read_plugin_version
@@ -239,34 +237,10 @@ class DialogLogin(QDialog):
         api_config = api.config.get_api_config()
 
         try:
-            url = QUrl(f"{api_config.SERVER_URL}/api/_public/params")
-            if url.scheme() not in ("http", "https"):
-                raise ValueError(f"Unexpected URL scheme: {url.scheme()}")
-            req = QNetworkRequest(url)
-            blocking_request = QgsBlockingNetworkRequest()
-            err = blocking_request.get(req, forceRefresh=True)
-            if err != QgsBlockingNetworkRequest.NoError:
-                error_message = blocking_request.errorMessage()
-                QgsMessageLog.logMessage(
-                    f"Network error: {error_message}", LOG_CATEGORY, Qgis.Critical
-                )
-                QMessageBox.critical(
-                    self,
-                    self.tr("Login Error"),
-                    self.tr(
-                        "Network connection error.\n"
-                        "Please check your internet connection and server URL.\n\n"
-                        "Details: {}"
-                    ).format(error_message),
-                )
-                self.update_login_status()
-                self.login_button.setEnabled(True)
-                return
-            content = blocking_request.reply().content()
-            params_data = json.loads(bytes(content).decode("utf-8"))
+            params = api.public.get_params()
 
             # Check plugin version compatibility
-            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+            min_qgisplugin_version = params.minQgisPluginVersion
 
             if min_qgisplugin_version is not None and not is_plugin_version_compatible(
                 read_plugin_version(), min_qgisplugin_version
@@ -279,6 +253,22 @@ class DialogLogin(QDialog):
                     ).format(min_qgisplugin_version),
                 )
                 return
+        except AppError as e:
+            error_text = format_api_error(e)
+            QgsMessageLog.logMessage(
+                f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
+            )
+            QMessageBox.critical(
+                self,
+                self.tr("Login Error"),
+                self.tr(
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
+                    "Details: {}"
+                ).format(error_text),
+            )
+            self.update_login_status()
+            self.login_button.setEnabled(True)
+            return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
