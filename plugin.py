@@ -416,7 +416,7 @@ class KumoyPlugin:
 
     def unload(self):
         # Remove menu actions
-        if self.kumoy_menu:
+        if self.kumoy_menu is not None:
             self.iface.pluginMenu().removeAction(self.kumoy_menu.menuAction())
 
         # Remove translator
