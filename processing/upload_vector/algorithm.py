@@ -614,17 +614,37 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self._raise_if_canceled(feedback)
 
         # Remove remaining invalid/empty geometries before upload
-        feedback.pushInfo(self.tr("Filtering invalid/empty geometries..."))
-        current_layer = self._run_child_algorithm(
+        feedback.pushInfo(
+            self.tr("Filtering features using expression: {}").format(
+                geometry_filter_expr
+            )
+        )
+        filtered_layer = self._run_child_algorithm(
             "native:extractbyexpression",
             {
                 "INPUT": current_layer,
-                "EXPRESSION": "$geometry IS NOT NULL AND NOT is_empty($geometry) AND is_valid($geometry)",
+                "EXPRESSION": geometry_filter_expr,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context,
             feedback,
         )
+
+        filtered_count = filtered_layer.featureCount()
+        if filtered_count < current_layer.featureCount():
+            feedback.pushInfo(
+                self.tr(
+                    "Removed {} features with missing or incompatible geometries."
+                ).format(current_layer.featureCount() - filtered_count)
+            )
+
+        if filtered_layer.featureCount() == 0:
+            raise QgsProcessingException(
+                self.tr("No features remain after filtering invalid geometries")
+            )
+
+        current_layer = filtered_layer
+
         feedback.setProgress(38)
 
         self._raise_if_canceled(feedback)
