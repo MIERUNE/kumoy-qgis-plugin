@@ -60,6 +60,7 @@ class KumoyPlugin:
         self.convert_action = None
 
         # Initialize menu actions
+        self.kumoy_menu = None
         self.reset_plugin_settings = None
         self.logout_action = None
         self.help_action = None
@@ -380,20 +381,25 @@ class KumoyPlugin:
         )
         QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
 
+        # Create Plugin Menu
+        self.kumoy_menu = QMenu(PLUGIN_NAME, self.win)
+        self.kumoy_menu.setIcon(MAIN_ICON)
+        self.iface.pluginMenu().addMenu(self.kumoy_menu)
+
         # Add menu action for logout
         self.logout_action = QAction(self.tr("Logout"), self.win)
         self.logout_action.triggered.connect(self.on_logout)
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.logout_action)
+        self.kumoy_menu.addAction(self.logout_action)
 
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
+        self.kumoy_menu.addAction(self.reset_plugin_settings)
 
         # Add menu action for help/documentation
         self.help_action = QAction(self.tr("Help"), self.win)
         self.help_action.triggered.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.help_action)
+        self.kumoy_menu.addAction(self.help_action)
 
         # Connect to plugin menu aboutToShow to update logout action visibility
         self.iface.pluginMenu().aboutToShow.connect(
@@ -411,12 +417,10 @@ class KumoyPlugin:
 
     def unload(self):
         # Remove menu actions
-        if self.logout_action:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
-        if self.reset_plugin_settings:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
-        if self.help_action:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.help_action)
+        if self.kumoy_menu is not None:
+            self.iface.pluginMenu().removeAction(self.kumoy_menu.menuAction())
+            self.kumoy_menu.deleteLater()
+            self.kumoy_menu = None
 
         # Remove translator
         if self.translator:
