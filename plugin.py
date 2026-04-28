@@ -60,6 +60,7 @@ class KumoyPlugin:
         self.convert_action = None
 
         # Initialize menu actions
+        self.kumoy_menu = None
         self.reset_plugin_settings = None
         self.logout_action = None
         self.help_action = None
