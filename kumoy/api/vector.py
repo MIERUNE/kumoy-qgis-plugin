@@ -189,7 +189,7 @@ def get_vector(vector_id: str) -> KumoyVectorDetail:
         updatedAt=response.get("updatedAt", ""),
         extent=response.get("extent", []),
         count=response.get("count", 0),
-        columns=response.get("columns", []),
+        columns=sorted(response.get("columns", []), key=lambda c: c.get("name", "")),
         role=response.get("role", "MEMBER"),
     )
 
