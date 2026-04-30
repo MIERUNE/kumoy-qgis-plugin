@@ -193,6 +193,28 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
     return updated_at
 
 
+def _cache_can_incrementally_sync(cache_file: str, intended: QgsFields) -> bool:
+    """既存 GPKG が intended の先頭一致なら、_update_existing_cache で末尾に
+    新規カラムを追加するだけで intended と物理順を揃えられる(regen 不要)。
+
+    True 例: cache=[kumoy_id, a, b], intended=[kumoy_id, a, b, c]
+    False 例:
+      - cache=[kumoy_id, c, a, b], intended=[kumoy_id, a, b, c]  (順序が違う)
+      - cache=[kumoy_id, a, b, x], intended=[kumoy_id, a, b]      (削除)
+      - cache=[kumoy_id, a, c],    intended=[kumoy_id, a, b, c]   (中間挿入)
+    False の場合は呼び出し側で regen させる前提。
+    """
+    layer = QgsVectorLayer(cache_file, "check_columns", "ogr")
+    if not layer.isValid():
+        return False
+    cache_names = list(layer.fields().names())
+    intended_names = list(intended.names())
+    del layer  # ファイルロックの解放
+    if len(cache_names) > len(intended_names):
+        return False
+    return intended_names[: len(cache_names)] == cache_names
+
+
 def sync_local_cache(
     vector_id: str,
     fields: QgsFields,
@@ -204,6 +226,7 @@ def sync_local_cache(
     - キャッシュはGPKGを用いる
     - ローカルにGPKGが存在しなければ新規で作成する
     - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
+    - 既存GPKGのカラム順が intended と一致しない場合は、キャッシュをクリアして新規作成し直す
     """
     cache_dir = _get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
@@ -217,6 +240,24 @@ def sync_local_cache(
         # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
         # 不整合が生じているので最終更新日時を削除する
         delete_last_updated(vector_id)
+        last_updated = None
+
+    # 既存キャッシュのカラム順が intended と乖離していて _update_existing_cache だけでは
+    # 揃え直せない場合は、GPKG を作り直す(SQLite ではカラム順を後から並べ替えることが
+    # 実用的にできないため、全件再ダウンロードで対応)。
+    # 末尾に新規カラムを追加するだけで揃うケース(=addAttributes 直後の同セッション)では
+    # regen は走らない。主に regen が走るのは:
+    #   (a) pre-change 時代の GPKG (順序未保証) からの移行 — 初回 1 回のみ
+    #   (b) addAttributes で末尾追加した GPKG を、API ソート順に揃え直す次セッション
+    if os.path.exists(cache_file) and not _cache_can_incrementally_sync(
+        cache_file, fields
+    ):
+        QgsMessageLog.logMessage(
+            f"Cache columns out of sync for vector {vector_id}, recreating cache file.",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
+        clear(vector_id)
         last_updated = None
 
     if os.path.exists(cache_file):

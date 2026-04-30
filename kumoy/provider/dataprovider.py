@@ -327,38 +327,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return self.kumoy_vector.count
 
     def fields(self) -> QgsFields:
-        # キャッシュレイヤーが存在しない場合(初回同期前)は intended のまま返す。
-        intended = self._intended_fields()
-        if getattr(self, "cached_layer", None) is None:
-            return intended
-
-        # キャッシュレイヤーがある場合: GPKG の物理カラム順を採用しつつ、
-        # フィールドのメタデータ(型・長さ・typeName)は _intended_fields() の
-        # 正の値で上書きする。
-        # 物理順を採用する理由: kumoy_vector.columns は API 層で name 昇順に
-        # 正規化されるが、GPKG キャッシュは新規カラムを末尾に append するため、
-        # 両者の順序が乖離する。順序を GPKG に合わせないと、読み出し時に
-        # QgsFeature の属性がズレる。
-        # メタデータを intended で上書きする理由: _update_existing_cache が
-        # vlayer.addAttribute で長さ情報を落とすため、cached_layer.fields() は
-        # String 列を typeName=String len=0 で返してくる。これだと QGIS の
-        # edit buffer が NativeType("VARCHAR" len=255)に基づき検証する際に
-        # 「属性が一致しません」エラーになる。
-        intended_by_name = {f.name(): f for f in intended}
-        fs = QgsFields()
-        for name in self.cached_layer.fields().names():
-            if name in intended_by_name:
-                fs.append(intended_by_name[name])
-            else:
-                # cached_layer にあるが intended にないカラム(同期前の残留など)は
-                # cached_layer のフィールドをそのまま使う。
-                fs.append(self.cached_layer.fields().field(name))
-        return fs
+        # GPKG とは sync_local_cache 側で常に順序を一致させる(不一致なら regen)
+        # ため、ここは kumoy_vector.columns 由来の intended をそのまま返してよい。
+        return self._intended_fields()
 
     def _intended_fields(self) -> QgsFields:
-        """kumoy_vector.columns から組み立てたサーバ正の fields。
-        ローカルキャッシュ同期時に「あるべき schema」として cache 層に渡すために使う。
-        """
+        """kumoy_vector.columns から組み立てたサーバ正の fields。"""
         fs = QgsFields()
         fs.append(QgsField("kumoy_id", QVariant.LongLong))
         if self.kumoy_vector is None:
