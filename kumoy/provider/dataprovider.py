@@ -191,6 +191,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
             else:
                 raise e
 
+        self._sync_cache_and_reload_layer()
+
+    def _sync_cache_and_reload_layer(self):
+        """Sync local GPKG cache against current self.kumoy_vector and reopen cached_layer."""
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
             self.tr("Syncing: {}").format(self.kumoy_vector.name),
@@ -213,10 +217,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         sync_cancelled = False
         sync_error = None
 
-        # Create and configure worker thread
+        # Create and configure worker thread。
+        # cache 層には「サーバ正のあるべき schema」(=_intended_fields) を渡す。
+        # self.fields() は cached_layer の物理順を返すので、ここでは使わない。
         sync_worker = SyncWorker(
             self.kumoy_vector,
-            self.fields(),
+            self._intended_fields(),
             self.wkbType(),
         )
 
@@ -321,6 +327,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return self.kumoy_vector.count
 
     def fields(self) -> QgsFields:
+        # GPKG とは sync_local_cache 側で常に順序を一致させる(不一致なら regen)
+        # ため、ここは kumoy_vector.columns 由来の intended をそのまま返してよい。
+        return self._intended_fields()
+
+    def _intended_fields(self) -> QgsFields:
+        """kumoy_vector.columns から組み立てたサーバ正の fields。"""
         fs = QgsFields()
         fs.append(QgsField("kumoy_id", QVariant.LongLong))
         if self.kumoy_vector is None:
@@ -521,7 +533,14 @@ class KumoyDataProvider(QgsVectorDataProvider):
         except Exception:
             return False
 
-        self._reload_vector()
+        # QGIS の edit buffer は新規追加フィールドを fields() の末尾に append される
+        # ことを前提に commit 整合性を検証する。get_vector() は API 層で columns を
+        # name 昇順に正規化するため、ここで _reload_vector() を呼ぶと末尾にならない
+        # 名前を追加したケースで commit が "Could not commit changes" で失敗する。
+        # サーバー再取得は行わず、kumoy_vector.columns に末尾追加してから
+        # ローカルキャッシュだけ同期する。
+        self.kumoy_vector.columns = list(self.kumoy_vector.columns) + attr_list
+        self._sync_cache_and_reload_layer()
         return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
