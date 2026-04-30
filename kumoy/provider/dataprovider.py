@@ -191,6 +191,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
             else:
                 raise e
 
+        self._sync_cache_and_reload_layer()
+
+    def _sync_cache_and_reload_layer(self):
+        """Sync local GPKG cache against current self.kumoy_vector and reopen cached_layer."""
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
             self.tr("Syncing: {}").format(self.kumoy_vector.name),
@@ -521,7 +525,14 @@ class KumoyDataProvider(QgsVectorDataProvider):
         except Exception:
             return False
 
-        self._reload_vector()
+        # QGIS の edit buffer は新規追加フィールドを fields() の末尾に append される
+        # ことを前提に commit 整合性を検証する。get_vector() は API 層で columns を
+        # name 昇順に正規化するため、ここで _reload_vector() を呼ぶと末尾にならない
+        # 名前を追加したケースで commit が "Could not commit changes" で失敗する。
+        # サーバー再取得は行わず、kumoy_vector.columns に末尾追加してから
+        # ローカルキャッシュだけ同期する。
+        self.kumoy_vector.columns = list(self.kumoy_vector.columns) + attr_list
+        self._sync_cache_and_reload_layer()
         return True
 
     def deleteAttributes(self, attribute_ids: List[int]) -> bool:
