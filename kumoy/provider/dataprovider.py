@@ -217,10 +217,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         sync_cancelled = False
         sync_error = None
 
-        # Create and configure worker thread
+        # Create and configure worker thread。
+        # cache 層には「サーバ正のあるべき schema」(=_intended_fields) を渡す。
+        # self.fields() は cached_layer の物理順を返すので、ここでは使わない。
         sync_worker = SyncWorker(
             self.kumoy_vector,
-            self.fields(),
+            self._intended_fields(),
             self.wkbType(),
         )
 
@@ -325,6 +327,19 @@ class KumoyDataProvider(QgsVectorDataProvider):
         return self.kumoy_vector.count
 
     def fields(self) -> QgsFields:
+        # キャッシュレイヤーが存在する場合は、その物理カラム順を信頼する。
+        # kumoy_vector.columns は API 層で name 昇順に正規化されるが、
+        # GPKG キャッシュは新規カラムを末尾に append するため、両者の順序が
+        # 乖離する。読み出し時に QgsFeature の属性がズレるのを防ぐため、
+        # GPKG 由来の順序で fields を返す。
+        if getattr(self, "cached_layer", None) is not None:
+            return self.cached_layer.fields()
+        return self._intended_fields()
+
+    def _intended_fields(self) -> QgsFields:
+        """kumoy_vector.columns から組み立てたサーバ正の fields。
+        ローカルキャッシュ同期時に「あるべき schema」として cache 層に渡すために使う。
+        """
         fs = QgsFields()
         fs.append(QgsField("kumoy_id", QVariant.LongLong))
         if self.kumoy_vector is None:
