@@ -143,6 +143,9 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
         if vlayer.fields().indexOf(name) == -1:
             vlayer.addAttribute(QgsField(name, fields[name].type()))
 
+    # スキーマ調整後、vlayer.fields() の物理順序を確定させる
+    vlayer.updateFields()
+
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
@@ -173,14 +176,14 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
                 g.fromWkb(feature["kumoy_wkb"])
                 qgsfeature.setGeometry(g)
 
-                # Set attributes
-                qgsfeature.setFields(fields)
+                # サーバーの columns 返却順に依存しないよう、既存 GPKG の物理順 (vlayer.fields()) を信頼する
+                qgsfeature.setFields(vlayer.fields())
 
-                for name in fields.names():
+                for name in vlayer.fields().names():
                     if name == "kumoy_id":
                         qgsfeature["kumoy_id"] = feature["kumoy_id"]
                     else:
-                        qgsfeature[name] = feature["properties"][name]
+                        qgsfeature[name] = feature["properties"].get(name)
 
                 # Set feature ID and validity
                 qgsfeature.setValid(True)
