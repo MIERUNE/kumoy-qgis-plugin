@@ -150,7 +150,13 @@ def _recreate_cache(
         LOG_CATEGORY,
         Qgis.Info,
     )
-    clear(vector_id)
+    if not clear(vector_id):
+        # clear() がファイルロック等で失敗した場合、上書き作成も失敗するので
+        # 部分的な再生成で壊れた状態にしないように中断する
+        raise Exception(
+            f"Failed to clear cache for vector {vector_id} "
+            "(file may be locked by another process)"
+        )
     return _create_new_cache(
         cache_file,
         vector_id,

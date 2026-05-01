@@ -218,6 +218,23 @@ class TestSyncLocalCache:
 
         assert get_last_updated(s.vector_id) is not None
 
+    def test_raises_when_clear_fails(self, sync_setup, monkeypatch):
+        s = sync_setup
+        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
+        _make_gpkg(cache_file, ["b", "a"])
+        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
+
+        monkeypatch.setattr(s.vector_mod, "clear", lambda vid: False)
+
+        with pytest.raises(Exception, match="Failed to clear cache"):
+            s.vector_mod.sync_local_cache(
+                vector_id=s.vector_id,
+                fields=_build_fields(["a", "b"]),
+                geometry_type=QgsWkbTypes.Point,
+            )
+
+        assert s.calls["get_features"] == 0
+
     def test_recreates_on_max_diff_count_exceeded(self, sync_setup):
         s = sync_setup
         cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
