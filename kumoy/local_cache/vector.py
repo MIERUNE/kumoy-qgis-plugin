@@ -285,7 +285,7 @@ def sync_local_cache(
                         reason="MAX_DIFF_COUNT_EXCEEDED",
                     )
                 else:
-                    raise e
+                    raise
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(
