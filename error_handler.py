@@ -14,7 +14,7 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 from .kumoy import constants
 from .kumoy.api.error import UnauthorizedError, format_api_error
-from .kumoy.settings_manager import store_setting
+from .kumoy.settings_manager import get_settings, store_setting
 
 
 def _tr(message: str) -> str:
@@ -38,26 +38,31 @@ def handle_api_error(
 ) -> bool:
     """API例外を共通ハンドリングして表示する。
 
-    Args:
-        exception: 捕捉した例外
-        parent: ダイアログの親ウィジェット
-        log_prefix: ログ・ダイアログのタイトル/接頭辞として使う文字列
+    UnauthorizedError の場合はトークンをクリアし、ユーザーへの通知ダイアログは
+    「最初の1回だけ」表示する（QGIS Browser の createChildren など、同一の
+    セッション切れ事象で連続的に呼ばれるパスでもダイアログが多重表示されない
+    ようにするため）。トークンが再ログインで設定されると判定がリセットされる。
 
     Returns:
         UnauthorizedError として処理した場合は True、それ以外は False
     """
     if isinstance(exception, UnauthorizedError):
+        already_cleared = not get_settings().session_token
         _clear_session()
-        log_message = _tr("Session expired. Cleared local session token.")
-        QgsMessageLog.logMessage(log_message, constants.LOG_CATEGORY, Qgis.Warning)
-        QMessageBox.warning(
-            parent,
-            _tr("Session expired"),
-            _tr(
-                "Your Kumoy session has expired or is no longer valid.\n"
-                "Please log in again from the Kumoy item in the Browser panel."
-            ),
+        QgsMessageLog.logMessage(
+            _tr("Session expired. Cleared local session token."),
+            constants.LOG_CATEGORY,
+            Qgis.Warning,
         )
+        if not already_cleared:
+            QMessageBox.warning(
+                parent,
+                _tr("Session expired"),
+                _tr(
+                    "Your Kumoy session has expired or is no longer valid.\n"
+                    "Please log in again from the Kumoy item in the Browser panel."
+                ),
+            )
         return True
 
     detail = format_api_error(exception)

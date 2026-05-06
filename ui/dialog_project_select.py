@@ -62,6 +62,19 @@ def _get_usage_color(percentage: float) -> str:
     return "#8bc34a"  # Green
 
 
+def _empty_plan_limits() -> "api.plan.PlanLimits":
+    """API失敗時のフォールバック値。表示は0/0で続行する。"""
+    return api.plan.PlanLimits(
+        maxProjects=0,
+        maxVectors=0,
+        maxStyledMaps=0,
+        maxOrganizationMembers=0,
+        maxVectorFeatures=0,
+        maxVectorAttributes=0,
+        defaultStorageUnits=0,
+    )
+
+
 class ProjectSelectDialog(QDialog):
     """Dialog for selecting projects from organizations"""
 
@@ -546,24 +559,14 @@ class ProjectSelectDialog(QDialog):
             plan_limits = api.plan.get_plan_limits(plan_type, org_detail.storageUnits)
         except UnauthorizedError as e:
             handle_api_error(e, parent=self)
-            raise
+            plan_limits = _empty_plan_limits()
         except Exception as e:
             msg = self.tr("Failed to retrieve plan limits: {}").format(
                 format_api_error(e)
             )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.warning(self, self.tr("Warning"), msg)
-
-            # Fallback to reasonable defaults if API fails
-            plan_limits = api.plan.PlanLimits(
-                maxProjects=0,
-                maxVectors=0,
-                maxStyledMaps=0,
-                maxOrganizationMembers=0,
-                maxVectorFeatures=0,
-                maxVectorAttributes=0,
-                defaultStorageUnits=0,
-            )
+            plan_limits = _empty_plan_limits()
 
         # Define resource mappings
         resource_mappings = [

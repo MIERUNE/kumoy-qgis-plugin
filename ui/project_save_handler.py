@@ -63,7 +63,7 @@ def handle_project_saved() -> None:
 
     # Check if project file is saved in local cache
     file_path = os.path.abspath(project.absoluteFilePath())
-    local_cache_dir = os.path.abspath(cache_map._get_cache_dir())
+    local_cache_dir = os.path.abspath(cache_map.get_cache_dir())
 
     try:
         in_cache = os.path.commonpath([file_path, local_cache_dir]) == local_cache_dir
@@ -71,7 +71,10 @@ def handle_project_saved() -> None:
         in_cache = False
 
     if not in_cache:
-        QgsProject.instance().setCustomVariables({})
+        # 他プラグイン/ユーザー定義の customVariables を消さないように
+        # kumoy_map_id だけを除いて書き戻す。
+        new_vars = {k: v for k, v in custom_vars.items() if k != "kumoy_map_id"}
+        QgsProject.instance().setCustomVariables(new_vars)
         return
 
     # Get and validate map belongs to current project

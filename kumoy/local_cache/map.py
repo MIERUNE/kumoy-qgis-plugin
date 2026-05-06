@@ -16,7 +16,7 @@ def tr(message: str, context: str = "@default") -> str:
     return QCoreApplication.translate(context, message)
 
 
-def _get_cache_dir() -> str:
+def get_cache_dir() -> str:
     """Return the directory where cache files are stored.
     data_type: subdirectory name maps or vectors"""
     setting_dir = QgsApplication.qgisSettingsDirPath()
@@ -27,7 +27,7 @@ def _get_cache_dir() -> str:
 
 def get_filepath(map_id: str) -> str:
     """Retrieve a cached map path."""
-    cache_dir = _get_cache_dir()
+    cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
     return cache_file
 
@@ -36,7 +36,7 @@ def clear(map_id: str) -> bool:
     """Clear cache for a specific map.
     Returns True if all files were deleted successfully, False otherwise.
     """
-    cache_dir = _get_cache_dir()
+    cache_dir = get_cache_dir()
     success = True
     # Remove all files containing map_id in their names
     for filename in os.listdir(cache_dir):
@@ -65,7 +65,7 @@ def clear(map_id: str) -> bool:
 def clear_all() -> bool:
     """Clear all cached map files. Returns True if all files were deleted successfully."""
 
-    cache_dir = _get_cache_dir()
+    cache_dir = get_cache_dir()
     success = True
 
     # Remove all files in cache directory
