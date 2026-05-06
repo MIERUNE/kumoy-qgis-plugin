@@ -5,7 +5,7 @@ from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
-from ...pyqt_version import Q_NETWORK_REQUEST_HEADER
+from ...pyqt_version import Q_NETWORK_REQUEST_ATTRIBUTE, Q_NETWORK_REQUEST_HEADER
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
@@ -22,176 +22,97 @@ def handle_blocking_reply(content: QByteArray) -> Any:
     return json.loads(text)
 
 
+def _build_request(url: str) -> QNetworkRequest:
+    """Build an authorized QNetworkRequest. Raises UnauthorizedError if no token."""
+    token = get_token()
+    if not token:
+        raise api_error.UnauthorizedError("Unauthorized", "No session token")
+
+    req = QNetworkRequest(QUrl(url))
+    req.setRawHeader(
+        "Authorization".encode("utf-8"),
+        f"Bearer {token}".encode("utf-8"),
+    )
+    return req
+
+
+def _process_response(blocking_request: QgsBlockingNetworkRequest, err: int) -> Any:
+    """Inspect the reply, raise typed errors on failure, otherwise return content."""
+    reply = blocking_request.reply()
+    status_code = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
+    content = handle_blocking_reply(reply.content())
+
+    if status_code in (401, 403):
+        message = "Unauthorized"
+        detail = ""
+        if isinstance(content, dict):
+            detail = content.get("error", "") or content.get("message", "")
+        raise api_error.UnauthorizedError(message, detail)
+
+    if err != QgsBlockingNetworkRequest.NoError:
+        if not content:
+            error_message = blocking_request.errorMessage()
+            api_error.raise_error({"message": error_message, "error": ""})
+        else:
+            api_error.raise_error(content)
+
+    return content
+
+
 class ApiClient:
     """Base API client for Kumoy backend"""
 
     @staticmethod
     def get(endpoint: str, params: Optional[Dict] = None) -> Any:
-        """
-        Args:
-            endpoint (str): _description_
-            params (Optional[Dict], optional): _description_. Defaults to None.
-
-        Returns:
-            dict: {"content": dict, "error": None} or {"content": None, "error": str}
-        """
         _api_config = api_config.get_api_config()
-        # Build URL with query parameters if provided
         url = f"{_api_config.SERVER_URL}/api{endpoint}"
         if params:
-            query_items = []
-            for key, value in params.items():
-                query_items.append(f"{key}={value}")
+            query_items = [f"{key}={value}" for key, value in params.items()]
             url = f"{url}?{'&'.join(query_items)}"
 
-        # Create request with authorization header
-        req = QNetworkRequest(QUrl(url))
-        token = get_token()
+        req = _build_request(url)
 
-        if not token:
-            return {"content": None, "error": "Authentication Error"}
-
-        req.setRawHeader(
-            "Authorization".encode("utf-8"),
-            f"Bearer {token}".encode("utf-8"),
-        )
-
-        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.get(req, forceRefresh=True)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            # Handle empty content when network error occurs
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _process_response(blocking_request, err)
 
     @staticmethod
     def post(endpoint: str, data: Any) -> Any:
-        """Make POST request to API endpoint
-
-        Args:
-            endpoint (str): API endpoint
-            data (Any): Data to send in the request body
-
-        Returns:
-            dict: {"content": dict, "error": None} or {"content": None, "error": str}
-        """
         _api_config = api_config.get_api_config()
         url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
-        # Create request with authorization header
-        req = QNetworkRequest(QUrl(url))
-        token = get_token()
-
-        if not token:
-            return {"content": None, "error": "Authentication Error"}
-
-        req.setRawHeader(
-            "Authorization".encode("utf-8"),
-            f"Bearer {token}".encode("utf-8"),
-        )
+        req = _build_request(url)
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
-        # Use json.dumps to preserve dictionary order
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.post(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _process_response(blocking_request, err)
 
     @staticmethod
     def put(endpoint: str, data: Any) -> Any:
-        """Make PUT request to API endpoint
-
-        Args:
-            endpoint (str): API endpoint
-            data (Any): Data to send in the request body
-
-        Returns:
-            dict: {"content": dict, "error": None} or {"content": None, "error": str}
-        """
         _api_config = api_config.get_api_config()
         url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
-        # Create request with authorization header
-        req = QNetworkRequest(QUrl(url))
-        token = get_token()
-
-        if not token:
-            return {"content": None, "error": "Authentication Error"}
-
-        req.setRawHeader(
-            "Authorization".encode("utf-8"),
-            f"Bearer {token}".encode("utf-8"),
-        )
+        req = _build_request(url)
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
-        # Use json.dumps to preserve dictionary order
         json_data = json.dumps(data, ensure_ascii=False)
         byte_array = QByteArray(json_data.encode("utf-8"))
 
-        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message, "error": ""})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _process_response(blocking_request, err)
 
     @staticmethod
     def delete(endpoint: str) -> Any:
-        """Make DELETE request to API endpoint
-
-        Args:
-            endpoint (str): API endpoint
-
-        Returns:
-            dict: {"content": dict, "error": None} or {"content": None, "error": str}
-        """
         _api_config = api_config.get_api_config()
         url = f"{_api_config.SERVER_URL}/api{endpoint}"
 
-        # Create request with authorization header
-        req = QNetworkRequest(QUrl(url))
-        token = get_token()
+        req = _build_request(url)
 
-        if not token:
-            return {"content": None, "error": "Authentication Error"}
-
-        req.setRawHeader(
-            "Authorization".encode("utf-8"),
-            f"Bearer {token}".encode("utf-8"),
-        )
-
-        # Execute request
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.deleteResource(req)
-        content = handle_blocking_reply(blocking_request.reply().content())
-        if err != QgsBlockingNetworkRequest.NoError:
-            if not content:
-                error_message = blocking_request.errorMessage()
-                api_error.raise_error({"message": error_message})
-            else:
-                api_error.raise_error(content)
-
-        return content
+        return _process_response(blocking_request, err)

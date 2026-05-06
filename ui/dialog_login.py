@@ -29,7 +29,7 @@ from ..pyqt_version import (
     QT_TEXT_INTERACTION,
     exec_dialog,
 )
-from ..settings_manager import get_settings, store_setting
+from ..kumoy.settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
 

@@ -22,13 +22,12 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ... import settings_manager
+from ...kumoy import settings_manager
+from ...error_handler import handle_api_error
 from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
-from ...kumoy.local_cache.map import (
-    show_map_save_result,
-    write_qgsfile,
-)
+from ...kumoy.api.error import UnauthorizedError, format_api_error
+from ...kumoy.local_cache.map import write_qgsfile
+from ..project_save_handler import show_map_save_result
 from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -42,7 +41,7 @@ from ...qgis_version import (
     restore_project_crs_if_invalid,
     restore_xyz_layer_datasources,
 )
-from ...settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
@@ -147,17 +146,7 @@ class StyledMapItem(QgsDataItem):
         try:
             styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error loading map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
             return
 
         # XML文字列をQGISプロジェクトにロード
@@ -223,17 +212,7 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error updating map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error updating map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error updating map"))
             return
 
         # Itemを更新
@@ -312,17 +291,7 @@ class StyledMapItem(QgsDataItem):
                 update_options,
             )
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error saving map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error saving map"))
             return
 
         # Itemを更新
@@ -371,16 +340,8 @@ class StyledMapItem(QgsDataItem):
                     ),
                 )
             except Exception as e:
-                error_text = format_api_error(e)
-                QgsMessageLog.logMessage(
-                    self.tr("Error deleting map: {}").format(error_text),
-                    constants.LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Failed to delete the map: {}").format(error_text),
+                handle_api_error(
+                    e, parent=None, log_prefix=self.tr("Error deleting map")
                 )
 
     def process_map_cache_clear(self) -> bool:
@@ -612,17 +573,7 @@ class StyledMapRoot(QgsDataItem):
             )
             QgsProject.instance().setDirty(False)
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error adding map: {error_text}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error adding map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error adding map"))
 
     def createChildren(self) -> list[QgsDataItem]:
         project_id = get_settings().selected_project_id
@@ -631,7 +582,18 @@ class StyledMapRoot(QgsDataItem):
             return [ErrorItem(self, self.tr("No project selected"))]
 
         # プロジェクトのスタイルマップを取得
-        styled_maps = api.styledmap.get_styled_maps(project_id)
+        try:
+            styled_maps = api.styledmap.get_styled_maps(project_id)
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            return [ErrorItem(self, self.tr("Session expired - please log in"))]
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error loading maps: {format_api_error(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            return [ErrorItem(self, self.tr("Error loading maps"))]
 
         if not styled_maps:
             return [ErrorItem(self, self.tr("No maps available."))]
@@ -775,10 +737,15 @@ def delete_multiple_maps(items: list[StyledMapItem]) -> None:
     deleted_count = 0
     parent_item = items[0].parent() if items else None
 
+    aborted_unauthorized = False
     for item in items:
         try:
             item.process_delete_map()
             deleted_count += 1
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            aborted_unauthorized = True
+            break
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -790,6 +757,9 @@ def delete_multiple_maps(items: list[StyledMapItem]) -> None:
 
     if parent_item:
         parent_item.refresh()
+
+    if aborted_unauthorized:
+        return
 
     if errors:
         QMessageBox.critical(

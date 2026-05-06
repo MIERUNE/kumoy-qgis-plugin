@@ -25,7 +25,7 @@ import processing
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
-from ...settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings
 from .normalize_field_name import normalize_field_name
 
 
