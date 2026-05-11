@@ -6,7 +6,6 @@ from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
 
 from ...pyqt_version import (
     Q_HTTP_MULTIPART_CONTENT_TYPE,
-    Q_NETWORK_REPLY_ERROR,
     Q_NETWORK_REQUEST_HEADER,
     exec_event_loop,
 )
@@ -95,20 +94,19 @@ def upload_to_presigned_url(
         reply.deleteLater()
         raise Exception("Upload failed: reply did not finish")
 
-    # ネットワーク層エラー（タイムアウト/abort/SSL/コネクション失敗等）を先に検出する。
-    # HttpStatusCodeAttribute だけだとリダイレクト元の値が残るなどでサイレント成功扱いになり得る。
-    network_error = reply.error()
-    if network_error != Q_NETWORK_REPLY_ERROR.NoError:
+    # HTTP 応答を受け取れたかどうかで分岐する。
+    # reply.error() は HTTP 4xx/5xx でも非 NoError になる（例: 403 → ContentAccessDeniedError）。
+    # そのため error() を先に見ると HTTP エラーまで「network error」扱いになり、
+    # サーバが返した body が読まれない。status_code の有無で層を分ける。
+    status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+    if status_code is None:
+        # HTTP 応答を受け取れていない = ネットワーク層エラー（SSL/コネクション/タイムアウト/abort 等）
+        network_error = reply.error()
         error_string = reply.errorString()
         reply.deleteLater()
         raise Exception(
             f"Upload failed (network error {int(network_error)}): {error_string}"
         )
-
-    status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
-    if status_code is None:
-        reply.deleteLater()
-        raise Exception("Upload failed: no HTTP status received")
     if status_code not in (200, 201, 204):
         error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")
         reply.deleteLater()
