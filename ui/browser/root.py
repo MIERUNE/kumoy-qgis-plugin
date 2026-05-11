@@ -187,7 +187,10 @@ class RootCollection(QgsDataCollectionItem):
         if not result:
             return
 
-        # 同一のProjectを選択していない場合はプロジェクトをクリアする
+        # 別Projectを選んだ場合だけ QGIS Project をクリアする。
+        # ただしブラウザ自体は常にリフレッシュする：セッション切れ→再ログインで
+        # 同じプロジェクトを選び直したとき、selected_project_id が変わっていない
+        # ので前者の条件だけだと「Please select a project」表示のまま残ってしまう。
         if prev_project_id != get_settings().selected_project_id:
             QgsProject.instance().clear()
             iface.messageBar().pushSuccess(
@@ -196,7 +199,7 @@ class RootCollection(QgsDataCollectionItem):
                     "Your QGIS project was cleared because the active project changed."
                 ),
             )
-            self.refresh()
+        self.refresh()
 
     def account_settings(self):
         """Show account settings dialog"""
