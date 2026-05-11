@@ -378,7 +378,11 @@ def clear(vector_id: str) -> bool:
                     Qgis.Critical,
                 )
                 success = False
-    # Delete last updated timestamp
-    delete_last_updated(vector_id)
+    # ファイル削除に失敗した状態で last_updated を消すと、GPKGは残るのに
+    # タイムスタンプだけ消える不整合状態になり、以後の同期が
+    # 'cache file exists but last_updated is None' で固まる。
+    # 削除が全件成功した場合のみタイムスタンプも消す。
+    if success:
+        delete_last_updated(vector_id)
 
     return success

@@ -235,6 +235,29 @@ class TestSyncLocalCache:
 
         assert s.calls["get_features"] == 0
 
+    def test_clear_preserves_last_updated_on_failure(self, sync_setup, monkeypatch):
+        """clear() がファイル削除に失敗した場合は last_updated を消さない。
+        消してしまうと GPKG だけ残って last_updated が None という不整合状態になり、
+        以降の sync_local_cache が 'cache file exists but last_updated is None'
+        パスに入り続けてしまう。
+        """
+        from plugin_dir.kumoy.local_cache.settings import get_last_updated
+
+        s = sync_setup
+        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
+        _make_gpkg(cache_file, ["a", "b"])
+        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
+
+        def fail_unlink(path):
+            raise PermissionError(f"locked: {path}")
+
+        monkeypatch.setattr(s.vector_mod.os, "unlink", fail_unlink)
+
+        result = s.vector_mod.clear(s.vector_id)
+
+        assert result is False
+        assert get_last_updated(s.vector_id) == "2025-01-01T00:00:00Z"
+
     def test_recreates_on_max_diff_count_exceeded(self, sync_setup):
         s = sync_setup
         cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
