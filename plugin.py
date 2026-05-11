@@ -14,7 +14,11 @@ from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from .error_handler import handle_api_error
+from .error_handler import (
+    handle_api_error,
+    register_session_cleared_callback,
+    unregister_session_cleared_callback,
+)
 from .kumoy import api
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
@@ -114,11 +118,7 @@ class KumoyPlugin:
             close_all_processing_dialogs()
             reset_settings()
 
-            # Refresh browser panel
-            registry = QgsApplication.instance().dataItemProviderRegistry()
-            registry.removeProvider(self.dip)
-            self.dip = DataItemProvider()
-            registry.addProvider(self.dip)
+            self._refresh_browser_panel()
 
             QMessageBox.information(
                 self.win,
@@ -160,11 +160,7 @@ class KumoyPlugin:
             self.tr("You have been logged out from Kumoy."),
         )
 
-        # Refresh browser panel
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        registry.removeProvider(self.dip)
-        self.dip = DataItemProvider()
-        registry.addProvider(self.dip)
+        self._refresh_browser_panel()
 
     def show_layer_context_menu(self, menu: QMenu):
         """Add custom action to layer context menu"""
@@ -341,9 +337,20 @@ class KumoyPlugin:
             self.dip = DataItemProvider()
             registry.addProvider(self.dip)
 
+    def _refresh_browser_panel(self):
+        """Kumoy の DataItemProvider を再登録し、ブラウザパネルの子アイテムを
+        強制的に再構築する。ログアウト・セッション切れ時の表示更新に使う。"""
+        registry = QgsApplication.instance().dataItemProviderRegistry()
+        registry.removeProvider(self.dip)
+        self.dip = DataItemProvider()
+        registry.addProvider(self.dip)
+
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
+
+        # セッション切れ検知時にブラウザを再構築する
+        register_session_cleared_callback(self._refresh_browser_panel)
 
         self.data_item_gui_provider = KumoyDataItemGuiProvider()
         QgsGui.dataItemGuiProviderRegistry().addProvider(self.data_item_gui_provider)
@@ -416,6 +423,8 @@ class KumoyPlugin:
         # Remove translator
         if self.translator:
             QCoreApplication.removeTranslator(self.translator)
+
+        unregister_session_cleared_callback(self._refresh_browser_panel)
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 
