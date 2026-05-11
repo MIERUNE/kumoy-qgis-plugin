@@ -31,15 +31,16 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
+from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
     exec_dialog,
 )
-from ...settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings
 from ..icons import (
     BROWSER_FOLDER_ICON,
     BROWSER_GEOMETRY_LINESTRING_ICON,
@@ -152,9 +153,11 @@ class VectorItem(QgsDataItem):
         try:
             self.import_vector()
         except Exception as e:
-            msg = self.tr("Error adding vector to map: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(None, self.tr("Error"), msg)
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error adding vector to map"),
+            )
 
     def _set_pixel_based_style(self, layer: QgsVectorLayer) -> None:
         """Set pixel-based styling for the layer"""
@@ -271,15 +274,10 @@ class VectorItem(QgsDataItem):
                 ),
             )
         except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error updating vector: {format_api_error(e)}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error updating vector: {}").format(format_api_error(e)),
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error updating vector"),
             )
             return
 
@@ -317,15 +315,10 @@ class VectorItem(QgsDataItem):
             try:
                 self.process_delete_vector()
             except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Error deleting vector: {format_api_error(e)}",
-                    constants.LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Error deleting vector: {}").format(format_api_error(e)),
+                handle_api_error(
+                    e,
+                    parent=None,
+                    log_prefix=self.tr("Error deleting vector"),
                 )
                 return
 
@@ -547,15 +540,10 @@ class VectorRoot(QgsDataItem):
             # Refresh to show new vector
             self.refresh()
         except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Error adding vector: {format_api_error(e)}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error adding vector: {}").format(format_api_error(e)),
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error adding vector"),
             )
 
     def upload_vector(self) -> None:
@@ -577,6 +565,9 @@ class VectorRoot(QgsDataItem):
         # Get vectors for this project
         try:
             vectors = api.vector.get_vectors(project_id)
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            return [ErrorItem(self, self.tr("Session expired - please log in"))]
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading vectors: {format_api_error(e)}",
@@ -654,6 +645,9 @@ def add_multiple_vectors(items: list[VectorItem]) -> None:
     for item in items:
         try:
             item.import_vector()
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            return
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -727,10 +721,15 @@ def delete_multiple_vectors(items: list[VectorItem]) -> None:
     deleted_count = 0
     parent_item = items[0].parent() if items else None
 
+    aborted_unauthorized = False
     for item in items:
         try:
             item.process_delete_vector()
             deleted_count += 1
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            aborted_unauthorized = True
+            break
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -744,6 +743,9 @@ def delete_multiple_vectors(items: list[VectorItem]) -> None:
         parent_item.refresh()
 
     iface.mapCanvas().refresh()
+
+    if aborted_unauthorized:
+        return
 
     if errors:
         QMessageBox.critical(

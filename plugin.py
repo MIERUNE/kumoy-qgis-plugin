@@ -14,6 +14,7 @@ from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
+from .ui.error_handler import handle_api_error
 from .kumoy import api
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
@@ -22,13 +23,13 @@ from .kumoy.constants import (
     LOG_CATEGORY,
     PLUGIN_NAME,
 )
-from .kumoy.local_cache.map import handle_project_saved
+from .ui.project_save_handler import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .plugin_version import is_plugin_version_compatible, read_plugin_version
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .settings_manager import (
+from .kumoy.settings_manager import (
     get_settings,
     reset_settings,
     store_setting,
@@ -113,11 +114,7 @@ class KumoyPlugin:
             close_all_processing_dialogs()
             reset_settings()
 
-            # Refresh browser panel
-            registry = QgsApplication.instance().dataItemProviderRegistry()
-            registry.removeProvider(self.dip)
-            self.dip = DataItemProvider()
-            registry.addProvider(self.dip)
+            self._refresh_browser_panel()
 
             QMessageBox.information(
                 self.win,
@@ -159,11 +156,7 @@ class KumoyPlugin:
             self.tr("You have been logged out from Kumoy."),
         )
 
-        # Refresh browser panel
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        registry.removeProvider(self.dip)
-        self.dip = DataItemProvider()
-        registry.addProvider(self.dip)
+        self._refresh_browser_panel()
 
     def show_layer_context_menu(self, menu: QMenu):
         """Add custom action to layer context menu"""
@@ -276,17 +269,7 @@ class KumoyPlugin:
                 QgsProject.instance().clear()
                 return
         except Exception as e:
-            error_text = api.error.format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(error_text),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error loading map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
             QgsProject.instance().clear()
             return
 
@@ -349,6 +332,15 @@ class KumoyPlugin:
             registry.removeProvider(self.dip)
             self.dip = DataItemProvider()
             registry.addProvider(self.dip)
+
+    def _refresh_browser_panel(self):
+        """Kumoy ルートアイテム配下の子要素を depopulate して再構築させる。
+        ログアウトやプラグイン設定リセット時の表示更新に使う。
+        （セッション切れ時の自動リフレッシュは `ui/error_handler.py` 側が
+        registry 経由で同じことをする。）"""
+        if self.dip is None or self.dip.root_collection is None:
+            return
+        self.dip.root_collection.refresh()
 
     def initGui(self):
         self.dip = DataItemProvider()

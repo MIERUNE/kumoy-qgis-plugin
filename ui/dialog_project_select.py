@@ -25,7 +25,8 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..kumoy import api
-from ..kumoy.api.error import format_api_error
+from .error_handler import handle_api_error
+from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     DOCUMENTATION_URL,
@@ -44,7 +45,7 @@ from ..pyqt_version import (
     exec_dialog,
     exec_menu,
 )
-from ..settings_manager import get_settings, store_setting
+from ..kumoy.settings_manager import get_settings, store_setting
 from .dialog_project_edit import ProjectEditDialog
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
@@ -59,6 +60,19 @@ def _get_usage_color(percentage: float) -> str:
     elif percentage >= 75:
         return "#ffa726"  # Orange
     return "#8bc34a"  # Green
+
+
+def _empty_plan_limits() -> "api.plan.PlanLimits":
+    """API失敗時のフォールバック値。表示は0/0で続行する。"""
+    return api.plan.PlanLimits(
+        maxProjects=0,
+        maxVectors=0,
+        maxStyledMaps=0,
+        maxOrganizationMembers=0,
+        maxVectorFeatures=0,
+        maxVectorAttributes=0,
+        defaultStorageUnits=0,
+    )
 
 
 class ProjectSelectDialog(QDialog):
@@ -446,9 +460,7 @@ class ProjectSelectDialog(QDialog):
         except Exception as e:
             self.myteams = []
             self.admin_team_ids = set()
-            msg = self.tr("Failed to load teams: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+            handle_api_error(e, parent=self, log_prefix=self.tr("Failed to load teams"))
 
         # Handle "New Project" button based on admin teams
         has_admin = bool(self.admin_team_ids)
@@ -478,11 +490,11 @@ class ProjectSelectDialog(QDialog):
             # Fetch organization details
             org_detail = api.organization.get_organization(org.id)
         except Exception as e:
-            msg = self.tr("Failed to load organization details. {}").format(
-                format_api_error(e)
+            handle_api_error(
+                e,
+                parent=self,
+                log_prefix=self.tr("Failed to load organization details"),
             )
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(self, self.tr("Error"), msg)
             return
 
         # Update usage display
@@ -545,23 +557,16 @@ class ProjectSelectDialog(QDialog):
         try:
             plan_type = org_detail.subscriptionPlan
             plan_limits = api.plan.get_plan_limits(plan_type, org_detail.storageUnits)
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=self)
+            plan_limits = _empty_plan_limits()
         except Exception as e:
             msg = self.tr("Failed to retrieve plan limits: {}").format(
                 format_api_error(e)
             )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
             QMessageBox.warning(self, self.tr("Warning"), msg)
-
-            # Fallback to reasonable defaults if API fails
-            plan_limits = api.plan.PlanLimits(
-                maxProjects=0,
-                maxVectors=0,
-                maxStyledMaps=0,
-                maxOrganizationMembers=0,
-                maxVectorFeatures=0,
-                maxVectorAttributes=0,
-                defaultStorageUnits=0,
-            )
+            plan_limits = _empty_plan_limits()
 
         # Define resource mappings
         resource_mappings = [
@@ -658,9 +663,9 @@ class ProjectSelectDialog(QDialog):
                 )
 
         except Exception as e:
-            msg = self.tr("Failed to load projects: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+            handle_api_error(
+                e, parent=self, log_prefix=self.tr("Failed to load projects")
+            )
 
         self.filter_projects()
 
@@ -733,9 +738,9 @@ class ProjectSelectDialog(QDialog):
             if org_id:
                 self._select_organization_by_id(org_id)
         except Exception as e:
-            msg = self.tr("Failed to reload dialog: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+            handle_api_error(
+                e, parent=self, log_prefix=self.tr("Failed to reload dialog")
+            )
             return
         finally:
             org_combo.blockSignals(False)
@@ -790,9 +795,9 @@ class ProjectSelectDialog(QDialog):
                 ),
             )
         except Exception as e:
-            msg = self.tr("Failed to create project: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+            handle_api_error(
+                e, parent=self, log_prefix=self.tr("Failed to create project")
+            )
 
     def _select_organization_by_id(self, org_id: str):
         """Select organization by ID in combo box"""
@@ -1039,15 +1044,10 @@ class ProjectItemWidget(QWidget):
                     ),
                 )
             except Exception as e:
-                QgsMessageLog.logMessage(
-                    self.tr("Failed to delete project: {}").format(format_api_error(e)),
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    self.parent_dialog,
-                    self.tr("Error"),
-                    self.tr("Failed to delete project: {}").format(format_api_error(e)),
+                handle_api_error(
+                    e,
+                    parent=self.parent_dialog,
+                    log_prefix=self.tr("Failed to delete project"),
                 )
 
     def edit_project(self):
@@ -1064,19 +1064,10 @@ class ProjectItemWidget(QWidget):
             # Fetch full project details to get the description
             project_detail = api.project.get_project(self.project.id)
         except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Failed to load project details: {}").format(
-                    format_api_error(e)
-                ),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                self.parent_dialog,
-                self.tr("Error"),
-                self.tr("Failed to load project details: {}").format(
-                    format_api_error(e)
-                ),
+            handle_api_error(
+                e,
+                parent=self.parent_dialog,
+                log_prefix=self.tr("Failed to load project details"),
             )
             return
 
@@ -1128,13 +1119,8 @@ class ProjectItemWidget(QWidget):
                 self.tr("Project '{}' has been updated successfully.").format(new_name),
             )
         except Exception as e:
-            QgsMessageLog.logMessage(
-                self.tr("Failed to update project: {}").format(format_api_error(e)),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                self.parent_dialog,
-                self.tr("Error"),
-                self.tr("Failed to update project: {}").format(format_api_error(e)),
+            handle_api_error(
+                e,
+                parent=self.parent_dialog,
+                log_prefix=self.tr("Failed to update project"),
             )

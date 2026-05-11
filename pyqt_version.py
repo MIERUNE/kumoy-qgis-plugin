@@ -161,6 +161,14 @@ Qt5: QNetworkRequest.ContentTypeHeader, etc.
 Qt6: QNetworkRequest.KnownHeaders.ContentTypeHeader, etc.
 """
 
+Q_NETWORK_REQUEST_ATTRIBUTE = (
+    QNetworkRequest if QT_VERSION_INT <= 5 else QNetworkRequest.Attribute
+)
+"""Qt network request attribute type
+Qt5: QNetworkRequest.HttpStatusCodeAttribute, etc.
+Qt6: QNetworkRequest.Attribute.HttpStatusCodeAttribute, etc.
+"""
+
 Q_REGION_TYPE = QRegion if QT_VERSION_INT <= 5 else QRegion.RegionType
 """Qt region type
 Qt5: QRegion.Ellipse, etc.

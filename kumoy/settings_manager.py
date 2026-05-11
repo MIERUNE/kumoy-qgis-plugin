@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
 
-from .kumoy import constants
-from .kumoy.local_cache.settings import reset_local_cache_settings
+from . import constants
+from .local_cache.settings import reset_local_cache_settings
 
 
 @dataclass

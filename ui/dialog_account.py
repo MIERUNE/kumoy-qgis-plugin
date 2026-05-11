@@ -22,7 +22,7 @@ from ..pyqt_version import (
     QT_CURSOR_SHAPE,
     QT_TEXT_INTERACTION,
 )
-from ..settings_manager import store_setting
+from ..kumoy.settings_manager import store_setting
 from .icons import MAIN_ICON
 from .remote_image_label import RemoteImageLabel
 
