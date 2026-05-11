@@ -5,6 +5,7 @@ from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
+from ...pyqt_version import Q_NETWORK_REQUEST_ATTRIBUTE
 from . import config as api_config
 from . import error as api_error
 from .client import handle_blocking_reply
@@ -32,7 +33,7 @@ def get_params() -> PublicParams:
     err = blocking_request.get(req, forceRefresh=True)
 
     reply = blocking_request.reply()
-    status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+    status_code = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
     content = handle_blocking_reply(reply.content())
 
     if err != QgsBlockingNetworkRequest.NoError:
