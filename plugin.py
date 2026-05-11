@@ -338,12 +338,16 @@ class KumoyPlugin:
             registry.addProvider(self.dip)
 
     def _refresh_browser_panel(self):
-        """Kumoy の DataItemProvider を再登録し、ブラウザパネルの子アイテムを
-        強制的に再構築する。ログアウト・セッション切れ時の表示更新に使う。"""
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        registry.removeProvider(self.dip)
-        self.dip = DataItemProvider()
-        registry.addProvider(self.dip)
+        """Kumoy ルートアイテム配下の子要素を再構築する。
+        ログアウト・セッション切れ時の表示更新に使う。
+
+        既存の `RootCollection.refresh()` を呼ぶ方式にしている。これは
+        `depopulate()` を内部で呼ぶため Qt の browser model が変更を
+        検知して描画を更新する。`registry.removeProvider/addProvider` の
+        付け替え方式だと model 側が再描画してくれないことがある。"""
+        if self.dip is None or self.dip.root_collection is None:
+            return
+        self.dip.root_collection.refresh()
 
     def initGui(self):
         self.dip = DataItemProvider()

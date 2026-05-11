@@ -68,6 +68,8 @@ class RootCollection(QgsDataCollectionItem):
     def load_organization_project(self):
         self.organization_data = None
         self.project_data = None
+        # ログアウト/セッション切れ時にも呼ばれるので、まずプレーンな表示名へ戻す。
+        self.setName(constants.PLUGIN_NAME)
 
         settings = get_settings()
         if (
