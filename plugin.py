@@ -14,11 +14,7 @@ from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
-from .error_handler import (
-    handle_api_error,
-    register_session_cleared_callback,
-    unregister_session_cleared_callback,
-)
+from .ui.error_handler import handle_api_error
 from .kumoy import api
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
@@ -338,13 +334,10 @@ class KumoyPlugin:
             registry.addProvider(self.dip)
 
     def _refresh_browser_panel(self):
-        """Kumoy ルートアイテム配下の子要素を再構築する。
-        ログアウト・セッション切れ時の表示更新に使う。
-
-        既存の `RootCollection.refresh()` を呼ぶ方式にしている。これは
-        `depopulate()` を内部で呼ぶため Qt の browser model が変更を
-        検知して描画を更新する。`registry.removeProvider/addProvider` の
-        付け替え方式だと model 側が再描画してくれないことがある。"""
+        """Kumoy ルートアイテム配下の子要素を depopulate して再構築させる。
+        ログアウトやプラグイン設定リセット時の表示更新に使う。
+        （セッション切れ時の自動リフレッシュは `ui/error_handler.py` 側が
+        registry 経由で同じことをする。）"""
         if self.dip is None or self.dip.root_collection is None:
             return
         self.dip.root_collection.refresh()
@@ -352,9 +345,6 @@ class KumoyPlugin:
     def initGui(self):
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)
-
-        # セッション切れ検知時にブラウザを再構築する
-        register_session_cleared_callback(self._refresh_browser_panel)
 
         self.data_item_gui_provider = KumoyDataItemGuiProvider()
         QgsGui.dataItemGuiProviderRegistry().addProvider(self.data_item_gui_provider)
@@ -427,8 +417,6 @@ class KumoyPlugin:
         # Remove translator
         if self.translator:
             QCoreApplication.removeTranslator(self.translator)
-
-        unregister_session_cleared_callback(self._refresh_browser_panel)
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 

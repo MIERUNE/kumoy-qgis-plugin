@@ -8,7 +8,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
-from ...error_handler import handle_api_error
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
 from ...kumoy.settings_manager import get_settings

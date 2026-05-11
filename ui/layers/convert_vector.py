@@ -20,7 +20,7 @@ from qgis.utils import iface
 
 import processing
 
-from ...error_handler import handle_api_error
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (

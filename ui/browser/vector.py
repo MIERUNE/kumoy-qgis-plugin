@@ -31,7 +31,7 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ...error_handler import handle_api_error
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...pyqt_version import (

@@ -1,41 +1,28 @@
 """共通のAPIエラーハンドラ。
 
-UI層の `except Exception` ブロックから呼び出して、
+UI 層・processing 層の `except Exception` ブロックから呼び出して、
 - セッション切れ（UnauthorizedError）の場合はトークンを破棄して再ログインを促す
 - それ以外は従来どおりエラーメッセージを表示する
 を一箇所で行う。
+
+QMessageBox 表示や Browser パネルの再構築など UI 操作を含むため `ui/` 配下に
+置く。`processing/` からの import は sideways（横方向）になるが、
+`error_handler` が UI 責務を負う以上やむを得ない位置取り。
 """
 
-from typing import Callable, List, Optional
+from typing import Optional
 
-from qgis.core import Qgis, QgsMessageLog
+from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.PyQt.QtCore import QCoreApplication, QTimer
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
-from .kumoy import constants
-from .kumoy.api.error import UnauthorizedError, format_api_error
-from .kumoy.settings_manager import get_settings, store_setting
+from ..kumoy import constants
+from ..kumoy.api.error import UnauthorizedError, format_api_error
+from ..kumoy.settings_manager import get_settings, store_setting
 
 
 def _tr(message: str) -> str:
     return QCoreApplication.translate("@default", message)
-
-
-# セッション切れを検知した際に呼ばれるコールバック群。
-# 主に Browser パネルの再構築（古い Item を消す）に使う想定。
-# error_handler はここに何も登録せず、上位の plugin.py 側が initGui で
-# 登録、unload で解除する。
-_session_cleared_callbacks: List[Callable[[], None]] = []
-
-
-def register_session_cleared_callback(fn: Callable[[], None]) -> None:
-    if fn not in _session_cleared_callbacks:
-        _session_cleared_callbacks.append(fn)
-
-
-def unregister_session_cleared_callback(fn: Callable[[], None]) -> None:
-    if fn in _session_cleared_callbacks:
-        _session_cleared_callbacks.remove(fn)
 
 
 def _clear_session() -> None:
@@ -48,20 +35,24 @@ def _clear_session() -> None:
     store_setting("user_info", "")
 
 
-def _notify_session_cleared() -> None:
-    for cb in list(_session_cleared_callbacks):
-        try:
-            cb()
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"session-cleared callback failed: {e}",
-                constants.LOG_CATEGORY,
-                Qgis.Warning,
-            )
+def _refresh_kumoy_browser() -> None:
+    """QGIS の dataItemProviderRegistry を辿って Kumoy provider を見つけ、
+    RootCollection.refresh() を呼ぶ。
+
+    registry は QGIS の公開 API、provider 名は `constants.PLUGIN_NAME` で
+    一意。plugin.py への参照や callback 登録を介さずに直接 UI を更新できる。"""
+    registry = QgsApplication.instance().dataItemProviderRegistry()
+    for provider in registry.providers():
+        if provider.name() != constants.PLUGIN_NAME:
+            continue
+        root = getattr(provider, "root_collection", None)
+        if root is not None:
+            root.refresh()
+        return
 
 
-def _show_session_expired_and_notify() -> None:
-    """セッション切れダイアログを表示し、登録済みコールバックを発火する。
+def _show_session_expired_and_refresh() -> None:
+    """セッション切れダイアログを表示し、Browser パネルをリフレッシュする。
     QTimer.singleShot 経由でメインイベントループの次の tick に呼ばれる前提。"""
     QMessageBox.warning(
         None,
@@ -71,7 +62,7 @@ def _show_session_expired_and_notify() -> None:
             "Please log in again from the Kumoy item in the Browser panel."
         ),
     )
-    _notify_session_cleared()
+    _refresh_kumoy_browser()
 
 
 def handle_api_error(
@@ -82,9 +73,9 @@ def handle_api_error(
     """API例外を共通ハンドリングして表示する。
 
     UnauthorizedError の場合はトークンをクリアした上で、ダイアログ表示と
-    コールバック発火 (Browser パネル再構築) を **次のイベントループ tick に
-    遅延させる**。これは QGIS の `createChildren` のような Python オブジェクトの
-    寿命を巻き込むコンテキストから呼ばれたときに、Browser model から item を
+    Browser パネル再構築を **次のイベントループ tick に遅延させる**。
+    これは QGIS の `createChildren` のような Python オブジェクトの寿命を
+    巻き込むコンテキストから呼ばれたときに、Browser model から item を
     取り除く操作が同期実行されてクラッシュするのを防ぐため。
 
     また、複数の `createChildren` が並行発火して 401 が連発する状況でも
@@ -104,7 +95,7 @@ def handle_api_error(
             Qgis.Warning,
         )
         if not already_cleared:
-            QTimer.singleShot(0, _show_session_expired_and_notify)
+            QTimer.singleShot(0, _show_session_expired_and_refresh)
         return True
 
     detail = format_api_error(exception)

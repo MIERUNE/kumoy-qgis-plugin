@@ -12,7 +12,7 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 from ..kumoy import settings_manager
-from ..error_handler import handle_api_error
+from .error_handler import handle_api_error
 from ..kumoy import api
 from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite, upload_sprites

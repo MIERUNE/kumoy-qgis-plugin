@@ -25,7 +25,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..kumoy import api
-from ..error_handler import handle_api_error
+from .error_handler import handle_api_error
 from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
