@@ -75,6 +75,8 @@ def handle_project_saved() -> None:
         # kumoy_map_id だけを除いて書き戻す。
         new_vars = {k: v for k, v in custom_vars.items() if k != "kumoy_map_id"}
         QgsProject.instance().setCustomVariables(new_vars)
+        # projectSaved 直後のフックなので、setCustomVariables による dirty 化を打ち消す
+        QgsProject.instance().setDirty(False)
         return
 
     # Get and validate map belongs to current project

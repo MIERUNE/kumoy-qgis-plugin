@@ -77,9 +77,16 @@ def upload_to_presigned_url(
     multipart.setParent(reply)  # prevent GC
 
     # ブロッキング待機（10秒タイムアウト）
+    # QTimer は reply を親にして所有させ、reply 完了/削除後にコールバックが
+    # 残らないようにする（QTimer.singleShot だと reply.deleteLater() 後にも
+    # 発火して削除済み QObject にアクセスし得る）。
     loop = QEventLoop()
     reply.finished.connect(loop.quit)
-    QTimer.singleShot(10_000, reply.abort)
+    timeout_timer = QTimer(reply)
+    timeout_timer.setSingleShot(True)
+    timeout_timer.timeout.connect(reply.abort)
+    reply.finished.connect(timeout_timer.stop)
+    timeout_timer.start(10_000)
     exec_event_loop(loop)
 
     # イベントループが reply.finished 以外の要因で抜けたケースをガード
