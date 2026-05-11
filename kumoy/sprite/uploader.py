@@ -6,6 +6,7 @@ from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
 
 from ...pyqt_version import (
     Q_HTTP_MULTIPART_CONTENT_TYPE,
+    Q_NETWORK_REQUEST_ATTRIBUTE,
     Q_NETWORK_REQUEST_HEADER,
     exec_event_loop,
 )
@@ -98,7 +99,7 @@ def upload_to_presigned_url(
     # reply.error() は HTTP 4xx/5xx でも非 NoError になる（例: 403 → ContentAccessDeniedError）。
     # そのため error() を先に見ると HTTP エラーまで「network error」扱いになり、
     # サーバが返した body が読まれない。status_code の有無で層を分ける。
-    status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+    status_code = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
     if status_code is None:
         # HTTP 応答を受け取れていない = ネットワーク層エラー（SSL/コネクション/タイムアウト/abort 等）
         network_error = reply.error()
