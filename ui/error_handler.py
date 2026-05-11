@@ -88,13 +88,17 @@ def handle_api_error(
     """
     if isinstance(exception, UnauthorizedError):
         already_cleared = not get_settings().session_token
-        _clear_session()
-        QgsMessageLog.logMessage(
-            _tr("Session expired. Cleared local session token."),
-            constants.LOG_CATEGORY,
-            Qgis.Warning,
-        )
         if not already_cleared:
+            # 実際にトークンを破棄するのは「直前まで有効だった」最初の1回のみ。
+            # それ以降の UnauthorizedError は、無効化済みのトークンに対する
+            # 追加 API 呼び出しが空振りしているだけなので、ログ/ダイアログ/
+            # Browser リフレッシュは抑制する。
+            _clear_session()
+            QgsMessageLog.logMessage(
+                _tr("Session expired. Cleared local session token."),
+                constants.LOG_CATEGORY,
+                Qgis.Warning,
+            )
             QTimer.singleShot(0, _show_session_expired_and_refresh)
         return True
 
