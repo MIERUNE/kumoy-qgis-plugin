@@ -6,6 +6,7 @@ from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
 
 from ...pyqt_version import (
     Q_HTTP_MULTIPART_CONTENT_TYPE,
+    Q_NETWORK_REPLY_ERROR,
     Q_NETWORK_REQUEST_HEADER,
     exec_event_loop,
 )
@@ -81,10 +82,26 @@ def upload_to_presigned_url(
     QTimer.singleShot(10_000, reply.abort)
     exec_event_loop(loop)
 
+    # イベントループが reply.finished 以外の要因で抜けたケースをガード
+    if not reply.isFinished():
+        reply.abort()
+        reply.deleteLater()
+        raise Exception("Upload failed: reply did not finish")
+
+    # ネットワーク層エラー（タイムアウト/abort/SSL/コネクション失敗等）を先に検出する。
+    # HttpStatusCodeAttribute だけだとリダイレクト元の値が残るなどでサイレント成功扱いになり得る。
+    network_error = reply.error()
+    if network_error != Q_NETWORK_REPLY_ERROR.NoError:
+        error_string = reply.errorString()
+        reply.deleteLater()
+        raise Exception(
+            f"Upload failed (network error {int(network_error)}): {error_string}"
+        )
+
     status_code = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
     if status_code is None:
         reply.deleteLater()
-        raise Exception("Upload failed: request timed out")
+        raise Exception("Upload failed: no HTTP status received")
     if status_code not in (200, 201, 204):
         error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")
         reply.deleteLater()
