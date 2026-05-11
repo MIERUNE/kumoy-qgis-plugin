@@ -9,12 +9,12 @@ UI層の `except Exception` ブロックから呼び出して、
 from typing import Callable, List, Optional
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QTimer
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 from .kumoy import constants
 from .kumoy.api.error import UnauthorizedError, format_api_error
-from .kumoy.settings_manager import store_setting
+from .kumoy.settings_manager import get_settings, store_setting
 
 
 def _tr(message: str) -> str:
@@ -60,6 +60,20 @@ def _notify_session_cleared() -> None:
             )
 
 
+def _show_session_expired_and_notify() -> None:
+    """セッション切れダイアログを表示し、登録済みコールバックを発火する。
+    QTimer.singleShot 経由でメインイベントループの次の tick に呼ばれる前提。"""
+    QMessageBox.warning(
+        None,
+        _tr("Session expired"),
+        _tr(
+            "Your Kumoy session has expired or is no longer valid.\n"
+            "Please log in again from the Kumoy item in the Browser panel."
+        ),
+    )
+    _notify_session_cleared()
+
+
 def handle_api_error(
     exception: Exception,
     parent: Optional[QWidget] = None,
@@ -67,28 +81,30 @@ def handle_api_error(
 ) -> bool:
     """API例外を共通ハンドリングして表示する。
 
-    UnauthorizedError の場合はトークンをクリアし、再ログインを促すダイアログを
-    表示する。さらに登録済みコールバック（Browser パネル再構築など）を発火する。
+    UnauthorizedError の場合はトークンをクリアした上で、ダイアログ表示と
+    コールバック発火 (Browser パネル再構築) を **次のイベントループ tick に
+    遅延させる**。これは QGIS の `createChildren` のような Python オブジェクトの
+    寿命を巻き込むコンテキストから呼ばれたときに、Browser model から item を
+    取り除く操作が同期実行されてクラッシュするのを防ぐため。
+
+    また、複数の `createChildren` が並行発火して 401 が連発する状況でも
+    モーダルが多重キューイングされないよう、トークンが「直前まで有効」だった
+    最初の1回だけ通知する（dedup）。再ログインで token が再設定されると判定は
+    リセットされる。
 
     Returns:
         UnauthorizedError として処理した場合は True、それ以外は False
     """
     if isinstance(exception, UnauthorizedError):
+        already_cleared = not get_settings().session_token
         _clear_session()
         QgsMessageLog.logMessage(
             _tr("Session expired. Cleared local session token."),
             constants.LOG_CATEGORY,
             Qgis.Warning,
         )
-        QMessageBox.warning(
-            parent,
-            _tr("Session expired"),
-            _tr(
-                "Your Kumoy session has expired or is no longer valid.\n"
-                "Please log in again from the Kumoy item in the Browser panel."
-            ),
-        )
-        _notify_session_cleared()
+        if not already_cleared:
+            QTimer.singleShot(0, _show_session_expired_and_notify)
         return True
 
     detail = format_api_error(exception)
