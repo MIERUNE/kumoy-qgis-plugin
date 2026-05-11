@@ -14,7 +14,7 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 from .kumoy import constants
 from .kumoy.api.error import UnauthorizedError, format_api_error
-from .kumoy.settings_manager import get_settings, store_setting
+from .kumoy.settings_manager import store_setting
 
 
 def _tr(message: str) -> str:
@@ -67,38 +67,28 @@ def handle_api_error(
 ) -> bool:
     """API例外を共通ハンドリングして表示する。
 
-    UnauthorizedError の場合はトークンをクリアし、再ログインを促すダイアログと
-    登録済みコールバック（Browser パネル再構築など）を発火する。ただし「トークン
-    がまだ有効と認識されていた」最初の1回だけ通知し、すでにクリア済みの状態で
-    再度 UnauthorizedError が来た場合は黙ってログだけ残す。
-
-    これは QGIS Browser がツリー展開時に複数の createChildren を連鎖的に発火
-    （RootCollection → VectorRoot → StyledMapRoot 等）するため、最初の API
-    呼び出しで 401 を受けた直後に同じ事象でモーダル多重表示・再構築多重実行が
-    起きるのを防ぐためのデバウンス。再ログインで session_token が再設定される
-    と判定がリセットされる。
+    UnauthorizedError の場合はトークンをクリアし、再ログインを促すダイアログを
+    表示する。さらに登録済みコールバック（Browser パネル再構築など）を発火する。
 
     Returns:
         UnauthorizedError として処理した場合は True、それ以外は False
     """
     if isinstance(exception, UnauthorizedError):
-        already_cleared = not get_settings().session_token
         _clear_session()
         QgsMessageLog.logMessage(
             _tr("Session expired. Cleared local session token."),
             constants.LOG_CATEGORY,
             Qgis.Warning,
         )
-        if not already_cleared:
-            QMessageBox.warning(
-                parent,
-                _tr("Session expired"),
-                _tr(
-                    "Your Kumoy session has expired or is no longer valid.\n"
-                    "Please log in again from the Kumoy item in the Browser panel."
-                ),
-            )
-            _notify_session_cleared()
+        QMessageBox.warning(
+            parent,
+            _tr("Session expired"),
+            _tr(
+                "Your Kumoy session has expired or is no longer valid.\n"
+                "Please log in again from the Kumoy item in the Browser panel."
+            ),
+        )
+        _notify_session_cleared()
         return True
 
     detail = format_api_error(exception)
