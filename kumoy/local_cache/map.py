@@ -17,8 +17,7 @@ def tr(message: str, context: str = "@default") -> str:
 
 
 def get_cache_dir() -> str:
-    """Return the directory where cache files are stored.
-    data_type: subdirectory name maps or vectors"""
+    """Return the directory where map cache files (.qgs) are stored."""
     setting_dir = QgsApplication.qgisSettingsDirPath()
     cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache", "maps")
     os.makedirs(cache_dir, exist_ok=True)
