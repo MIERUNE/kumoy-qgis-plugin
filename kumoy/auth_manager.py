@@ -18,7 +18,11 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from ..pyqt_version import Q_NETWORK_REPLY_ERROR, Q_NETWORK_REQUEST_HEADER
+from ..pyqt_version import (
+    Q_NETWORK_REPLY_ERROR,
+    Q_NETWORK_REQUEST_ATTRIBUTE,
+    Q_NETWORK_REQUEST_HEADER,
+)
 from .api.error import format_api_error
 from .constants import LOG_CATEGORY
 
@@ -75,7 +79,7 @@ class AuthManager(QObject):
                 error_message = blocking_request.errorMessage()
                 reply_content: QgsNetworkReplyContent = blocking_request.reply()
                 status_code = reply_content.attribute(
-                    QNetworkRequest.Attribute.HttpStatusCodeAttribute
+                    Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute
                 )
                 body = (
                     str(reply_content.content().data(), "utf-8")
