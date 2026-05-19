@@ -32,6 +32,10 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
             self.close()
             return
 
+        if self._provider.cached_layer is None:
+            self.close()
+            return
+
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
     def fetchFeature(self, f: QgsFeature) -> bool:

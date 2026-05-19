@@ -22,11 +22,16 @@ class KumoyProviderMetadata(QgsProviderMetadata):
         :returns: dict of components as strings
         """
         # Parse key=value pairs separated by semicolons.
-        # The last value may contain semicolons (e.g. subset expressions).
+        # `subset` is always the last parameter and its value may contain
+        # semicolons (e.g. SQL expressions), so extract it first.
         params: Dict[str, str] = {}
-        # Use a non-greedy approach: split on `;` only when followed by `key=`
-        parts = re.split(r";(?=\w+=)", uri)
-        for part in parts:
+        subset_prefix = ";subset="
+        subset_idx = uri.find(subset_prefix)
+        if subset_idx != -1:
+            params["subset"] = uri[subset_idx + len(subset_prefix) :]
+            uri = uri[:subset_idx]
+
+        for part in uri.split(";"):
             m = re.match(r"(\w+)=(.*)", part)
             if m:
                 params[m.group(1)] = m.group(2)

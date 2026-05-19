@@ -102,6 +102,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._is_valid = False
         self._crs = QgsCoordinateReferenceSystem("EPSG:4326")
         self._subset_string = ""
+        self.cached_layer = None
 
         # store arguments
         self._uri = uri
