@@ -5,6 +5,7 @@ from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
+    QgsExpression,
     QgsFeature,
     QgsFeatureIterator,
     QgsFeatureRequest,
@@ -394,10 +395,15 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def setSubsetString(
         self, subset_string: str, update_feature_count: bool = True
     ) -> bool:
-        self._subset_string = subset_string
+        if subset_string:
+            expr = QgsExpression(subset_string)
+            if expr.hasParserError():
+                return False
 
         if self.cached_layer:
             self.cached_layer.setSubsetString(subset_string)
+
+        self._subset_string = subset_string
 
         # Persist subset in the URI so it survives project save/reload
         self._update_uri_subset(subset_string)
