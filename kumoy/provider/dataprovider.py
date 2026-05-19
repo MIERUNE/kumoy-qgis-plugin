@@ -71,7 +71,7 @@ class SyncWorker(QThread):
 
 def parse_uri(
     uri: str,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str]:
     kumoyProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
         constants.DATA_PROVIDER_KEY
     )
@@ -80,6 +80,7 @@ def parse_uri(
     project_id = parsed_uri.get("project_id", "")
     vector_id = parsed_uri.get("vector_id", "")
     vector_name = parsed_uri.get("vector_name", "")
+    subset = parsed_uri.get("subset", "")
 
     # check parsing results
     if vector_id == "" or project_id == "":
@@ -87,7 +88,7 @@ def parse_uri(
             "Invalid URI. 'endpoint', 'project_id' and 'vector_id' are required."
         )
 
-    return (project_id, vector_id, vector_name)
+    return (project_id, vector_id, vector_name, subset)
 
 
 class KumoyDataProvider(QgsVectorDataProvider):
@@ -108,7 +109,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        self.project_id, self.vector_id, self.vector_name = parse_uri(uri)
+        self.project_id, self.vector_id, self.vector_name, subset = parse_uri(uri)
 
         # local cache
         self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None
@@ -118,6 +119,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
             return
 
         self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
+
+        # Apply subset string from URI (persisted across project save/reload)
+        if subset:
+            self._subset_string = subset
+            if self.cached_layer:
+                self.cached_layer.setSubsetString(subset)
 
         self._is_valid = True
 
@@ -391,12 +398,29 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if self.cached_layer:
             self.cached_layer.setSubsetString(subset_string)
 
+        # Persist subset in the URI so it survives project save/reload
+        self._update_uri_subset(subset_string)
+
         if update_feature_count:
             self.clearMinMaxCache()
             self.updateExtents()
             self.dataChanged.emit()
 
         return True
+
+    def _update_uri_subset(self, subset_string: str) -> None:
+        """Update the data source URI to include/exclude the subset string."""
+        metadata = QgsProviderRegistry.instance().providerMetadata(
+            constants.DATA_PROVIDER_KEY
+        )
+        parts = metadata.decodeUri(self._uri)
+        if subset_string:
+            parts["subset"] = subset_string
+        else:
+            parts.pop("subset", None)
+        new_uri = metadata.encodeUri(parts)
+        self._uri = new_uri
+        self.setDataSourceUri(new_uri)
 
     def capabilities(self) -> QgsVectorDataProvider.Capabilities:
         if self.kumoy_vector is None:

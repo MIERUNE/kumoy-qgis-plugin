@@ -21,8 +21,15 @@ class KumoyProviderMetadata(QgsProviderMetadata):
         :param str uri: URI to convert
         :returns: dict of components as strings
         """
-        matches = re.findall(r"(\w+)=([^;]+)", uri)
-        params = {key: value for key, value in matches}
+        # Parse key=value pairs separated by semicolons.
+        # The last value may contain semicolons (e.g. subset expressions).
+        params: Dict[str, str] = {}
+        # Use a non-greedy approach: split on `;` only when followed by `key=`
+        parts = re.split(r";(?=\w+=)", uri)
+        for part in parts:
+            m = re.match(r"(\w+)=(.*)", part)
+            if m:
+                params[m.group(1)] = m.group(2)
         return params
 
     def encodeUri(self, parts: Dict[str, str]) -> str:
@@ -34,4 +41,7 @@ class KumoyProviderMetadata(QgsProviderMetadata):
         project_id = parts.get("project_id", "")
         vector_id = parts.get("vector_id", "")
         uri = f"project_id={project_id};vector_id={vector_id}"
+        subset = parts.get("subset", "")
+        if subset:
+            uri += f";subset={subset}"
         return uri
