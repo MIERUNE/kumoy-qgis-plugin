@@ -21,7 +21,7 @@ from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.settings_manager import get_settings, store_setting
 
 
-def _tr(message: str) -> str:
+def tr(message: str) -> str:
     return QCoreApplication.translate("@default", message)
 
 
@@ -56,8 +56,8 @@ def _show_session_expired_and_refresh() -> None:
     QTimer.singleShot 経由でメインイベントループの次の tick に呼ばれる前提。"""
     QMessageBox.warning(
         None,
-        _tr("Session expired"),
-        _tr(
+        tr("Session expired"),
+        tr(
             "Your Kumoy session has expired or is no longer valid.\n"
             "Please log in again from the Kumoy item in the Browser panel."
         ),
@@ -95,7 +95,7 @@ def handle_api_error(
             # Browser リフレッシュは抑制する。
             _clear_session()
             QgsMessageLog.logMessage(
-                _tr("Session expired. Cleared local session token."),
+                tr("Session expired. Cleared local session token."),
                 constants.LOG_CATEGORY,
                 Qgis.Warning,
             )
@@ -103,7 +103,7 @@ def handle_api_error(
         return True
 
     detail = format_api_error(exception)
-    title = log_prefix or _tr("Error")
+    title = log_prefix or tr("Error")
     log_message = f"{title}: {detail}" if log_prefix else detail
     QgsMessageLog.logMessage(log_message, constants.LOG_CATEGORY, Qgis.Warning)
     QMessageBox.critical(parent, title, detail)
