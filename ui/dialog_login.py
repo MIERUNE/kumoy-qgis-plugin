@@ -1,7 +1,4 @@
-import json
-import urllib.request
 import webbrowser
-from urllib.error import HTTPError, URLError
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
@@ -20,7 +17,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..kumoy import api
-from ..kumoy.api.error import format_api_error
+from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import is_plugin_version_compatible, read_plugin_version
@@ -32,7 +29,7 @@ from ..pyqt_version import (
     QT_TEXT_INTERACTION,
     exec_dialog,
 )
-from ..settings_manager import get_settings, store_setting
+from ..kumoy.settings_manager import get_settings, store_setting
 from .dialog_login_success import LoginSuccess
 from .icons import MAIN_ICON
 
@@ -240,13 +237,10 @@ class DialogLogin(QDialog):
         api_config = api.config.get_api_config()
 
         try:
-            params_response = urllib.request.urlopen(
-                f"{api_config.SERVER_URL}/api/_public/params"
-            )
-            params_data = json.loads(params_response.read().decode("utf-8"))
+            params = api.public.get_params()
 
             # Check plugin version compatibility
-            min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+            min_qgisplugin_version = params.minQgisPluginVersion
 
             if min_qgisplugin_version is not None and not is_plugin_version_compatible(
                 read_plugin_version(), min_qgisplugin_version
@@ -259,37 +253,18 @@ class DialogLogin(QDialog):
                     ).format(min_qgisplugin_version),
                 )
                 return
-        except HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            try:
-                error_data = json.loads(error_body)
-                error_message = error_data.get("error", format_api_error(e))
-            except Exception:
-                error_message = format_api_error(e)
+        except AppError as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error during login: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
-            )
-            QMessageBox.critical(
-                self,
-                self.tr("Login Error"),
-                self.tr("Server error: {}").format(str(error_message)),
-            )
-            self.update_login_status()
-            self.login_button.setEnabled(True)
-            return
-        except URLError as e:
-            error_details = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
+                f"Error during login: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
             QMessageBox.critical(
                 self,
                 self.tr("Login Error"),
                 self.tr(
-                    "Network connection error.\n"
-                    "Please check your internet connection and server URL.\n\n"
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
                     "Details: {}"
-                ).format(error_details),
+                ).format(error_text),
             )
             self.update_login_status()
             self.login_button.setEnabled(True)

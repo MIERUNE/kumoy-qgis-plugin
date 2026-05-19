@@ -1,8 +1,5 @@
-import json
 import os
-import urllib.request
 import webbrowser
-from urllib.error import HTTPError, URLError
 
 from qgis.core import (
     Qgis,
@@ -17,21 +14,22 @@ from qgis.gui import QgisInterface, QgsGui
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
+from .ui.error_handler import handle_api_error
 from .kumoy import api
-from .kumoy.api.error import format_api_error
+from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
     DOCUMENTATION_URL,
     LOG_CATEGORY,
     PLUGIN_NAME,
 )
-from .kumoy.local_cache.map import handle_project_saved
+from .ui.project_save_handler import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .plugin_version import is_plugin_version_compatible, read_plugin_version
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
 from .pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .settings_manager import (
+from .kumoy.settings_manager import (
     get_settings,
     reset_settings,
     store_setting,
@@ -63,6 +61,7 @@ class KumoyPlugin:
         self.convert_action = None
 
         # Initialize menu actions
+        self.kumoy_menu = None
         self.reset_plugin_settings = None
         self.logout_action = None
         self.help_action = None
@@ -115,11 +114,7 @@ class KumoyPlugin:
             close_all_processing_dialogs()
             reset_settings()
 
-            # Refresh browser panel
-            registry = QgsApplication.instance().dataItemProviderRegistry()
-            registry.removeProvider(self.dip)
-            self.dip = DataItemProvider()
-            registry.addProvider(self.dip)
+            self._refresh_browser_panel()
 
             QMessageBox.information(
                 self.win,
@@ -161,11 +156,7 @@ class KumoyPlugin:
             self.tr("You have been logged out from Kumoy."),
         )
 
-        # Refresh browser panel
-        registry = QgsApplication.instance().dataItemProviderRegistry()
-        registry.removeProvider(self.dip)
-        self.dip = DataItemProvider()
-        registry.addProvider(self.dip)
+        self._refresh_browser_panel()
 
     def show_layer_context_menu(self, menu: QMenu):
         """Add custom action to layer context menu"""
@@ -278,61 +269,26 @@ class KumoyPlugin:
                 QgsProject.instance().clear()
                 return
         except Exception as e:
-            error_text = api.error.format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(error_text),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error loading map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
             QgsProject.instance().clear()
             return
 
     def check_plugin_version(self):
         """Check if the plugin version is compatible with the minimum required version"""
         try:
-            api_config = api.config.get_api_config()
-            params_response = urllib.request.urlopen(
-                f"{api_config.SERVER_URL}/api/_public/params"
-            )
-            params_data = json.loads(params_response.read().decode("utf-8"))
-        except HTTPError as e:
-            error_body = e.read().decode("utf-8")
-            try:
-                error_data = json.loads(error_body)
-                error_message = error_data.get("error", format_api_error(e))
-            except Exception:
-                error_message = format_api_error(e)
+            params = api.public.get_params()
+        except AppError as e:
+            error_text = format_api_error(e)
             QgsMessageLog.logMessage(
-                f"Error: {str(error_message)}", LOG_CATEGORY, Qgis.Critical
+                f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit server error
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
-                self.tr("Server error: {}").format(str(error_message)),
-            )
-            return
-        except URLError as e:
-            error_details = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Network error: {str(error_details)}", LOG_CATEGORY, Qgis.Critical
-            )
-            # Explicit network error
-            error_message = self.tr(
-                "Network connection error.\n"
-                "Please check your internet connection and server URL.\n\n"
-                "Details: {}"
-            ).format(error_details)
-
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                error_message,
+                self.tr(
+                    "Unable to connect to the server or retrieve plugin version information.\n\n"
+                    "Details: {}"
+                ).format(error_text),
             )
             return
         except Exception as e:
@@ -340,7 +296,6 @@ class KumoyPlugin:
             QgsMessageLog.logMessage(
                 f"Error: {error_text}", LOG_CATEGORY, Qgis.Critical
             )
-            # Explicit error
             QMessageBox.critical(
                 None,
                 self.tr("Error"),
@@ -348,7 +303,7 @@ class KumoyPlugin:
             )
             return
 
-        min_qgisplugin_version = params_data.get("minQgisPluginVersion")
+        min_qgisplugin_version = params.minQgisPluginVersion
         if min_qgisplugin_version is not None and not is_plugin_version_compatible(
             read_plugin_version(), min_qgisplugin_version
         ):
@@ -377,6 +332,15 @@ class KumoyPlugin:
             registry.removeProvider(self.dip)
             self.dip = DataItemProvider()
             registry.addProvider(self.dip)
+
+    def _refresh_browser_panel(self):
+        """Kumoy ルートアイテム配下の子要素を depopulate して再構築させる。
+        ログアウトやプラグイン設定リセット時の表示更新に使う。
+        （セッション切れ時の自動リフレッシュは `ui/error_handler.py` 側が
+        registry 経由で同じことをする。）"""
+        if self.dip is None or self.dip.root_collection is None:
+            return
+        self.dip.root_collection.refresh()
 
     def initGui(self):
         self.dip = DataItemProvider()
@@ -409,20 +373,25 @@ class KumoyPlugin:
         )
         QgsProject.instance().layersAdded.connect(update_kumoy_indicator)
 
+        # Create Plugin Menu
+        self.kumoy_menu = QMenu(PLUGIN_NAME, self.win)
+        self.kumoy_menu.setIcon(MAIN_ICON)
+        self.iface.pluginMenu().addMenu(self.kumoy_menu)
+
         # Add menu action for logout
         self.logout_action = QAction(self.tr("Logout"), self.win)
         self.logout_action.triggered.connect(self.on_logout)
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.logout_action)
+        self.kumoy_menu.addAction(self.logout_action)
 
         # Add menu action for resetting settings
         self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.reset_plugin_settings)
+        self.kumoy_menu.addAction(self.reset_plugin_settings)
 
         # Add menu action for help/documentation
         self.help_action = QAction(self.tr("Help"), self.win)
         self.help_action.triggered.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
-        self.iface.addPluginToMenu(PLUGIN_NAME, self.help_action)
+        self.kumoy_menu.addAction(self.help_action)
 
         # Connect to plugin menu aboutToShow to update logout action visibility
         self.iface.pluginMenu().aboutToShow.connect(
@@ -440,12 +409,10 @@ class KumoyPlugin:
 
     def unload(self):
         # Remove menu actions
-        if self.logout_action:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.logout_action)
-        if self.reset_plugin_settings:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.reset_plugin_settings)
-        if self.help_action:
-            self.iface.removePluginMenu(PLUGIN_NAME, self.help_action)
+        if self.kumoy_menu is not None:
+            self.iface.pluginMenu().removeAction(self.kumoy_menu.menuAction())
+            self.kumoy_menu.deleteLater()
+            self.kumoy_menu = None
 
         # Remove translator
         if self.translator:

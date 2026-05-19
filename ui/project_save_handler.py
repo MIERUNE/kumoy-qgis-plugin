@@ -1,0 +1,152 @@
+"""QGISの「プロジェクト保存」イベントに連動して Kumoy 側を更新する UI 連携ロジック。
+
+ローカルキャッシュ層 (`kumoy/local_cache/map.py`) は純粋なファイル操作だけを担い、
+ユーザー対話・APIアップロードを伴うこのフローは UI 層に置く。
+"""
+
+import os
+
+from qgis.core import QgsProject
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.utils import iface
+
+from ..kumoy import settings_manager
+from .error_handler import handle_api_error
+from ..kumoy import api
+from ..kumoy.local_cache import map as cache_map
+from ..kumoy.sprite import generate_sprite, upload_sprites
+from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .layers.convert_vector import convert_local_layers
+
+
+def tr(message: str, context: str = "@default") -> str:
+    return QCoreApplication.translate(context, message)
+
+
+def show_map_save_result(
+    map_name: str,
+    conversion_errors: list[tuple[str, str]],
+) -> None:
+    """Show success or warning message after map save operation."""
+    if conversion_errors:
+        error_details = "\n".join(
+            [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
+        )
+        msg_max_length = 1000
+        if len(error_details) > msg_max_length:
+            error_details = error_details[:msg_max_length] + "..."
+
+        report_msg = tr(
+            "Map '{}' has been saved successfully.\n\n"
+            "Warning: {} layers could not be converted:\n\n{}"
+        ).format(map_name, len(conversion_errors), error_details)
+
+        QMessageBox.warning(None, tr("Map Saved with Warnings"), report_msg)
+    else:
+        report_msg = tr("Map '{}' has been saved successfully.").format(map_name)
+        iface.messageBar().pushSuccess(tr("Success"), report_msg)
+
+
+def handle_project_saved() -> None:
+    """Update current project to Kumoy when QGIS project is saved"""
+    # write_qgsfile() 経由の自前保存中は再入を防ぐ
+    if cache_map.is_updating:
+        return
+
+    project = QgsProject.instance()
+
+    custom_vars = project.customVariables()
+    styled_map_id = custom_vars.get("kumoy_map_id")
+    if not styled_map_id:
+        return
+
+    # Check if project file is saved in local cache
+    file_path = os.path.abspath(project.absoluteFilePath())
+    local_cache_dir = os.path.abspath(cache_map.get_cache_dir())
+
+    try:
+        in_cache = os.path.commonpath([file_path, local_cache_dir]) == local_cache_dir
+    except ValueError:
+        in_cache = False
+
+    if not in_cache:
+        # 他プラグイン/ユーザー定義の customVariables を消さないように
+        # kumoy_map_id だけを除いて書き戻す。
+        # setCustomVariables() による副次的な dirty 化のみを打ち消すため、
+        # 事前の dirty 状態を保持して復元する（他フックが意図的に立てた dirty は維持）。
+        was_dirty = project.isDirty()
+        new_vars = {k: v for k, v in custom_vars.items() if k != "kumoy_map_id"}
+        project.setCustomVariables(new_vars)
+        if not was_dirty:
+            project.setDirty(False)
+        return
+
+    # Get and validate map belongs to current project
+    try:
+        styled_map_detail = api.styledmap.get_styled_map(styled_map_id)
+        settings = settings_manager.get_settings()
+
+        if settings.selected_project_id != styled_map_detail.projectId:
+            QMessageBox.critical(
+                None,
+                tr("Wrong Project"),
+                tr(
+                    "This map belongs to a different Kumoy project. "
+                    "Please switch to the correct project."
+                ),
+            )
+            return
+    except Exception as e:
+        handle_api_error(e, parent=None, log_prefix=tr("Error loading map"))
+        return
+
+    if styled_map_detail.role not in ["ADMIN", "OWNER"]:
+        iface.messageBar().pushMessage(
+            tr("Failed"),
+            tr("You do not have permission to save this map to Kumoy."),
+        )
+        return
+
+    confirm = QMessageBox.question(
+        None,
+        tr("Save Map"),
+        tr(
+            "Are you sure you want to overwrite the map '{}' with the current project state?"
+        ).format(styled_map_detail.name),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        return
+
+    cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
+    if cancelled:
+        return
+
+    try:
+        qgsproject_str = cache_map.write_qgsfile(styled_map_id)
+
+        sprite_data = generate_sprite(project)
+        new_assets_hash = sprite_data.assets_hash if sprite_data else None
+
+        update_options = api.styledmap.UpdateStyledMapOptions(
+            qgisproject=qgsproject_str,
+        )
+        if new_assets_hash != styled_map_detail.assetsHash:
+            if sprite_data is not None:
+                upload_sprites(styled_map_id, sprite_data)
+            # memo: new_assets_hashがNoneならnullをセットする
+            update_options.assetsHash = new_assets_hash
+        updated_styled_map = api.styledmap.update_styled_map(
+            styled_map_id,
+            update_options,
+        )
+    except Exception as e:
+        handle_api_error(e, parent=None, log_prefix=tr("Error saving map"))
+        return
+
+    QgsProject.instance().setTitle(updated_styled_map.name)
+    QgsProject.instance().setDirty(False)
+
+    show_map_save_result(updated_styled_map.name, conversion_errors)

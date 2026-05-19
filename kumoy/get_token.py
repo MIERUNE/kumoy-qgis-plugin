@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..settings_manager import get_settings
+from .settings_manager import get_settings
 
 
 def get_token() -> Optional[str]:

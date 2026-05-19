@@ -1,19 +1,17 @@
 from qgis.core import (
-    Qgis,
     QgsDataCollectionItem,
     QgsDataItemProvider,
     QgsDataProvider,
-    QgsMessageLog,
     QgsProject,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants
-from ...kumoy.api.error import format_api_error
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
-from ...settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
@@ -61,14 +59,17 @@ class RootCollection(QgsDataCollectionItem):
         try:
             self.load_organization_project()
         except Exception as e:
-            msg = self.tr("Error loading organization/project data: {}").format(
-                format_api_error(e)
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error loading organization/project data"),
             )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
 
     def load_organization_project(self):
         self.organization_data = None
         self.project_data = None
+        # ログアウト/セッション切れ時にも呼ばれるので、まずプレーンな表示名へ戻す。
+        self.setName(constants.PLUGIN_NAME)
 
         settings = get_settings()
         if (
@@ -128,11 +129,11 @@ class RootCollection(QgsDataCollectionItem):
         try:
             self.load_organization_project()
         except Exception as e:
-            msg = self.tr("Error loading organization/project data: {}").format(
-                format_api_error(e)
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error loading organization/project data"),
             )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(None, self.tr("Error"), msg)
 
         self.depopulate()
 
@@ -174,11 +175,11 @@ class RootCollection(QgsDataCollectionItem):
                 self.project_select_dialog.load_organizations()
                 self.project_select_dialog.load_saved_selection()
         except Exception as e:
-            msg = self.tr("Error loading project selection dialog: {}").format(
-                format_api_error(e)
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error loading project selection dialog"),
             )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(None, self.tr("Error"), msg)
             return
 
         result = exec_dialog(self.project_select_dialog)
@@ -186,7 +187,10 @@ class RootCollection(QgsDataCollectionItem):
         if not result:
             return
 
-        # 同一のProjectを選択していない場合はプロジェクトをクリアする
+        # 別Projectを選んだ場合だけ QGIS Project をクリアする。
+        # ただしブラウザ自体は常にリフレッシュする：セッション切れ→再ログインで
+        # 同じプロジェクトを選び直したとき、selected_project_id が変わっていない
+        # ので前者の条件だけだと「Please select a project」表示のまま残ってしまう。
         if prev_project_id != get_settings().selected_project_id:
             QgsProject.instance().clear()
             iface.messageBar().pushSuccess(
@@ -195,7 +199,7 @@ class RootCollection(QgsDataCollectionItem):
                     "Your QGIS project was cleared because the active project changed."
                 ),
             )
-            self.refresh()
+        self.refresh()
 
     def account_settings(self):
         """Show account settings dialog"""
@@ -206,11 +210,11 @@ class RootCollection(QgsDataCollectionItem):
                 self.account_setting_dialog._load_user_info()
                 self.account_setting_dialog._load_server_config()
         except Exception as e:
-            msg = self.tr("Error loading account settings dialog: {}").format(
-                format_api_error(e)
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=self.tr("Error loading account settings dialog"),
             )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Warning)
-            QMessageBox.critical(None, self.tr("Error"), msg)
             return
 
         should_logout = exec_dialog(self.account_setting_dialog)

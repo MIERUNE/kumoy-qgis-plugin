@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="2.0" language="ja_JP" sourcelanguage="">
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
 <context>
     <name>@default</name>
     <message>
@@ -85,47 +86,47 @@
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="147"/>
+        <location filename="../ui/layers/convert_vector.py" line="149"/>
         <source>The layer is no longer valid or has been removed.</source>
         <translation type="unfinished">レイヤが無効であるか、削除されています。</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="158"/>
+        <location filename="../ui/layers/convert_vector.py" line="160"/>
         <source>Uploading layer &apos;{}&apos;...</source>
         <translation type="unfinished">レイヤ「{}」をアップロード中…</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="158"/>
+        <location filename="../ui/layers/convert_vector.py" line="160"/>
         <source>Cancel</source>
         <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="165"/>
+        <location filename="../ui/layers/convert_vector.py" line="167"/>
         <source>Kumoy Upload</source>
         <translation type="unfinished">Kumoy アップロード</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="206"/>
+        <location filename="../ui/layers/convert_vector.py" line="208"/>
         <source>Project not found in organization list</source>
         <translation type="unfinished">組織内にプロジェクトが見つかりませんでした</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="224"/>
+        <location filename="../ui/layers/convert_vector.py" line="226"/>
         <source>Upload cancelled</source>
         <translation type="unfinished">アップロードがキャンセルされました</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="230"/>
+        <location filename="../ui/layers/convert_vector.py" line="232"/>
         <source>Upload cancelled by user</source>
         <translation type="unfinished">ユーザーによってアップロードがキャンセルされました</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="233"/>
+        <location filename="../ui/layers/convert_vector.py" line="235"/>
         <source>Upload failed - unable to get vector id</source>
         <translation type="unfinished">アップロードに失敗しました - ベクターIDを取得できません</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="295"/>
+        <location filename="../ui/layers/convert_vector.py" line="297"/>
         <source>Failed to create Kumoy layer: {}</source>
         <translation type="unfinished">Kumoyレイヤの作成に失敗しました：{}</translation>
     </message>
@@ -158,27 +159,27 @@ Warning: {} layers could not be converted:
         <translation type="unfinished">マップは警告付きで作成されました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="695"/>
+        <location filename="../ui/browser/styledmap.py" line="698"/>
         <source>Make Public</source>
         <translation type="unfinished">公開する</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="699"/>
+        <location filename="../ui/browser/styledmap.py" line="702"/>
         <source>Name:</source>
         <translation type="unfinished">名前:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="700"/>
+        <location filename="../ui/browser/styledmap.py" line="703"/>
         <source>Description:</source>
         <translation type="unfinished">説明:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="701"/>
+        <location filename="../ui/browser/styledmap.py" line="704"/>
         <source>Attribution:</source>
         <translation type="unfinished">出典:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="702"/>
+        <location filename="../ui/browser/styledmap.py" line="705"/>
         <source>Public:</source>
         <translation type="unfinished">公開:</translation>
     </message>
@@ -193,41 +194,41 @@ Warning: {} layers could not be converted:
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
     <message>
-        <location filename="../ui/layers/convert_vector.py" line="103"/>
+        <location filename="../ui/layers/convert_vector.py" line="105"/>
         <source>Failed to check layer limits: {}</source>
         <translation type="unfinished">レイヤ制限の確認に失敗しました：{}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="726"/>
+        <location filename="../ui/browser/styledmap.py" line="729"/>
         <source>Delete Maps</source>
         <translation type="unfinished">マップを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="726"/>
+        <location filename="../ui/browser/styledmap.py" line="729"/>
         <source>Are you sure you want to delete {} maps?
 {}</source>
         <translation type="unfinished">{}個のマップを削除してもよろしいですか？
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="757"/>
+        <location filename="../ui/browser/styledmap.py" line="760"/>
         <source>Some maps could not be deleted:
 {}</source>
         <translation type="unfinished">マップの削除が失敗しました:
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="763"/>
+        <location filename="../ui/browser/styledmap.py" line="766"/>
         <source>{} maps have been deleted successfully.</source>
         <translation type="unfinished">{}個のマップが正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="770"/>
+        <location filename="../ui/browser/styledmap.py" line="773"/>
         <source>Clear Map Cache Data</source>
         <translation type="unfinished">キャッシュクリア</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="770"/>
+        <location filename="../ui/browser/styledmap.py" line="773"/>
         <source>This will clear the local cache for {} maps.
 The cached data will be re-downloaded when you access it next time.
 Do you want to continue?</source>
@@ -236,44 +237,44 @@ Do you want to continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="700"/>
+        <location filename="../ui/browser/vector.py" line="703"/>
         <source>Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="700"/>
+        <location filename="../ui/browser/vector.py" line="703"/>
         <source>Could not clear cache for: {}</source>
         <translation type="unfinished">キャッシュクリアエラー：{}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="792"/>
+        <location filename="../ui/browser/styledmap.py" line="795"/>
         <source>Cache cleared successfully for {} maps.</source>
         <translation type="unfinished">{}個のマップのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="664"/>
+        <location filename="../ui/browser/vector.py" line="667"/>
         <source>Some vectors could not be added:
 {}</source>
         <translation type="unfinished">ベクター読み込みエラー:
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="675"/>
+        <location filename="../ui/browser/vector.py" line="678"/>
         <source>Cannot Clear Cache</source>
         <translation type="unfinished">キャッシュクリアエラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="675"/>
+        <location filename="../ui/browser/vector.py" line="678"/>
         <source>Cannot clear cache for vectors loaded on the map: {}</source>
         <translation type="unfinished">読み込み中のベクターのキャッシュを削除できません：{}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="683"/>
+        <location filename="../ui/browser/vector.py" line="686"/>
         <source>Clear Cache Data</source>
         <translation type="unfinished">キャッシュクリア</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="683"/>
+        <location filename="../ui/browser/vector.py" line="686"/>
         <source>This will clear the local cache for {} vectors.
 The cached data will be re-downloaded when you access it next time.
 Do you want to continue?</source>
@@ -282,197 +283,197 @@ Do you want to continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="705"/>
+        <location filename="../ui/browser/vector.py" line="708"/>
         <source>Cache cleared successfully for {} vectors.</source>
         <translation type="unfinished">{}個のベクターのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="713"/>
+        <location filename="../ui/browser/vector.py" line="716"/>
         <source>Delete Vectors</source>
         <translation type="unfinished">ベクター削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="713"/>
+        <location filename="../ui/browser/vector.py" line="716"/>
         <source>Are you sure you want to delete {} vectors?
 {}</source>
         <translation type="unfinished">{}個のベクターを削除してもよろしいですか？
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="746"/>
+        <location filename="../ui/browser/vector.py" line="749"/>
         <source>Some vectors could not be deleted:
 {}</source>
         <translation type="unfinished">ベクターの削除が失敗しました:
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="752"/>
+        <location filename="../ui/browser/vector.py" line="755"/>
         <source>{} vectors have been deleted successfully.</source>
         <translation type="unfinished">{}個のベクターが正常に削除されました。</translation>
     </message>
 </context>
 <context>
+    <name>AuthManager</name>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="121"/>
+        <source>Failed to request device code: {}</source>
+        <translation type="unfinished">デバイスコードのリクエストに失敗しました: {}</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="113"/>
+        <source>Server did not return device code</source>
+        <translation type="unfinished">サーバーがデバイスコードを返しませんでした</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="116"/>
+        <source>Server did not return verification URL</source>
+        <translation type="unfinished">サーバーが認証URLを返しませんでした</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="235"/>
+        <source>Device code expired. Please try again.</source>
+        <translation type="unfinished">デバイスコードの有効期限が切れました。もう一度お試しください。</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="232"/>
+        <source>Authorization was denied.</source>
+        <translation type="unfinished">認証が拒否されました。</translation>
+    </message>
+    <message>
+        <location filename="../kumoy/auth_manager.py" line="241"/>
+        <source>Authentication error: {}</source>
+        <translation type="unfinished">認証エラー: {}</translation>
+    </message>
+</context>
+<context>
     <name>DialogAccount</name>
     <message>
-        <location filename="../ui/dialog_account.py" line="50"/>
+        <location filename="../ui/dialog_account.py" line="48"/>
         <source>Account</source>
         <translation type="unfinished">アカウント</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="79"/>
+        <location filename="../ui/dialog_account.py" line="77"/>
         <source>Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;MIERUNE Inc.&lt;/a&gt;</source>
         <translation type="unfinished">Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;MIERUNE Inc.&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="171"/>
+        <location filename="../ui/dialog_account.py" line="169"/>
         <source>Unknown user</source>
         <translation type="unfinished">不明なユーザー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="123"/>
+        <location filename="../ui/dialog_account.py" line="121"/>
         <source>Account settings</source>
         <translation type="unfinished">アカウント設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="146"/>
+        <location filename="../ui/dialog_account.py" line="144"/>
         <source>Server configuration</source>
         <translation type="unfinished">サーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="239"/>
+        <location filename="../ui/dialog_account.py" line="236"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="189"/>
+        <location filename="../ui/dialog_account.py" line="187"/>
         <source>Server URL
 {}</source>
         <translation type="unfinished">サーバーURL
 {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="204"/>
+        <location filename="../ui/dialog_account.py" line="202"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="204"/>
+        <location filename="../ui/dialog_account.py" line="202"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="212"/>
+        <location filename="../ui/dialog_account.py" line="210"/>
         <source>You have unsaved changes. Logging out will clear your current project. Continue?</source>
         <translation type="unfinished">現在のプロジェクトに未保存の変更があります。ログアウトすると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_account.py" line="239"/>
+        <location filename="../ui/dialog_account.py" line="236"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">Kumoyからログアウトしました。</translation>
     </message>
 </context>
 <context>
-    <name>AuthManager</name>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="68"/>
-        <source>Failed to request device code: {}</source>
-        <translation type="unfinished">デバイスコードのリクエストに失敗しました: {}</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="84"/>
-        <source>Server did not return device code</source>
-        <translation type="unfinished">サーバーがデバイスコードを返しませんでした</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="87"/>
-        <source>Server did not return verification URL</source>
-        <translation type="unfinished">サーバーが認証URLを返しませんでした</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="113"/>
-        <source>Device code expired. Please try again.</source>
-        <translation type="unfinished">デバイスコードの有効期限が切れました。もう一度お試しください。</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="153"/>
-        <source>Authorization was denied.</source>
-        <translation type="unfinished">認証が拒否されました。</translation>
-    </message>
-    <message>
-        <location filename="../kumoy/auth_manager.py" line="161"/>
-        <source>Authentication error: {}</source>
-        <translation type="unfinished">認証エラー: {}</translation>
-    </message>
-</context>
-<context>
     <name>DialogLogin</name>
     <message>
-        <location filename="../ui/dialog_login.py" line="47"/>
+        <location filename="../ui/dialog_login.py" line="55"/>
         <source>Authentication</source>
         <translation type="unfinished">認証</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="81"/>
+        <location filename="../ui/dialog_login.py" line="89"/>
         <source>&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;                &lt;head/&gt;                &lt;body&gt;                    &lt;div&gt;                        &lt;h2&gt;Welcome to Kumoy.&lt;/h2&gt;                        &lt;p&gt;Powered by &lt;a href=&quot;https://www.mierune.co.jp/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;MIERUNE Inc.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;                    &lt;/div&gt;                &lt;/body&gt;            &lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="407"/>
         <source>Server URL</source>
         <translation type="unfinished">サーバーURL</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="103"/>
+        <location filename="../ui/dialog_login.py" line="111"/>
         <source>Login</source>
         <translation type="unfinished">ログイン</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="151"/>
+        <location filename="../ui/dialog_login.py" line="192"/>
         <source>Logged in</source>
         <translation type="unfinished">ログイン済み</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="297"/>
+        <location filename="../ui/dialog_login.py" line="320"/>
         <source>Login Error</source>
         <translation type="unfinished">ログインエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="171"/>
+        <location filename="../ui/dialog_login.py" line="213"/>
         <source>Authentication failed: {}</source>
         <translation type="unfinished">認証に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="277"/>
+        <location filename="../ui/dialog_login.py" line="302"/>
         <source>An error occurred while logging in: {}</source>
         <translation type="unfinished">ログイン中にエラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="297"/>
+        <location filename="../ui/dialog_login.py" line="320"/>
         <source>Failed to start authentication: {}</source>
         <translation type="unfinished">認証の開始に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="288"/>
+        <location filename="../ui/dialog_login.py" line="313"/>
         <source>Requesting device code...</source>
         <translation type="unfinished">デバイスコードをリクエスト中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="315"/>
+        <location filename="../ui/dialog_login.py" line="340"/>
         <source>Enter the code above in your browser to sign in.&lt;br&gt;If the browser does not open, go to:&lt;br&gt;&lt;a href=&quot;{0}&quot;&gt;{0}&lt;/a&gt;</source>
         <translation type="unfinished">上のコードをブラウザに入力してサインインしてください。&lt;br&gt;ブラウザが開かない場合は、以下のURLにアクセスしてください:&lt;br&gt;&lt;a href=&quot;{0}&quot;&gt;{0}&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="148"/>
+        <location filename="../ui/dialog_login.py" line="162"/>
         <source>Cancel</source>
         <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="367"/>
+        <location filename="../ui/dialog_login.py" line="417"/>
         <source>Custom Server Configuration Error</source>
         <translation type="unfinished">カスタムサーバー設定エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="357"/>
+        <location filename="../ui/dialog_login.py" line="407"/>
         <source>Some required settings are missing:
 {}
 
@@ -483,17 +484,17 @@ Please update your configuration before logging in.</source>
 ログインする前に設定してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="367"/>
+        <location filename="../ui/dialog_login.py" line="417"/>
         <source>The Server URL must start with http or https.</source>
         <translation type="unfinished">サーバーURLは http または https で始まる必要があります。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="116"/>
+        <location filename="../ui/dialog_login.py" line="134"/>
         <source>Custom server configuration</source>
         <translation type="unfinished">カスタムサーバー設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="259"/>
+        <location filename="../ui/dialog_login.py" line="285"/>
         <source>Network connection error.
 Please check your internet connection and server URL.
 
@@ -504,17 +505,17 @@ Details: {}</source>
 詳細：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="247"/>
+        <location filename="../ui/dialog_login.py" line="272"/>
         <source>Server error: {}</source>
         <translation type="unfinished">サーバーエラー：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="218"/>
+        <location filename="../ui/dialog_login.py" line="254"/>
         <source>Plugin Version Error</source>
         <translation type="unfinished">プラグインのバージョンエラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_login.py" line="218"/>
+        <location filename="../ui/dialog_login.py" line="254"/>
         <source>Please update the Kumoy plugin.
 Minimum required version: {}</source>
         <translation type="unfinished">Kumoy プラグインを更新してください。
@@ -600,7 +601,7 @@ Minimum required version: {}</source>
 <context>
     <name>KumoyPlugin</name>
     <message>
-        <location filename="../plugin.py" line="420"/>
+        <location filename="../plugin.py" line="418"/>
         <source>Reset Plugin Settings</source>
         <translation type="unfinished">プラグインの設定を削除</translation>
     </message>
@@ -620,7 +621,7 @@ Minimum required version: {}</source>
         <translation type="unfinished">プラグインの設定が正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="415"/>
+        <location filename="../plugin.py" line="413"/>
         <source>Logout</source>
         <translation type="unfinished">ログアウト</translation>
     </message>
@@ -630,59 +631,59 @@ Minimum required version: {}</source>
         <translation type="unfinished">マップに未保存の編集があります。プロジェクトを切り替えると破棄されます。続行しますか？</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="159"/>
+        <location filename="../plugin.py" line="158"/>
         <source>You have been logged out from Kumoy.</source>
         <translation type="unfinished">ログアウトしました。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="209"/>
+        <location filename="../plugin.py" line="208"/>
         <source>Convert to Kumoy Vector</source>
         <translation type="unfinished">Kumoyベクターに変換する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="191"/>
+        <location filename="../plugin.py" line="190"/>
         <source>Sync Data</source>
         <translation type="unfinished">データを同期する</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="244"/>
+        <location filename="../plugin.py" line="243"/>
         <source>Sync Error</source>
         <translation type="unfinished">同期エラー</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="271"/>
+        <location filename="../plugin.py" line="270"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="271"/>
+        <location filename="../plugin.py" line="270"/>
         <source>This map belongs to a different Kumoy project. Please switch to the correct project.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="288"/>
+        <location filename="../plugin.py" line="287"/>
         <source>Error loading map: {}</source>
         <translation type="unfinished">Mapの読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="345"/>
+        <location filename="../plugin.py" line="344"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="356"/>
+        <location filename="../plugin.py" line="355"/>
         <source>Plugin Version Error</source>
         <translation type="unfinished">プラグインのバージョンエラー</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="356"/>
+        <location filename="../plugin.py" line="355"/>
         <source>Please update the Kumoy plugin.
 Minimum required version: {}</source>
         <translation type="unfinished">Kumoy プラグインを更新してください。
 必要な最小バージョン： {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="327"/>
+        <location filename="../plugin.py" line="326"/>
         <source>Network connection error.
 Please check your internet connection and server URL.
 
@@ -693,17 +694,17 @@ Details: {}</source>
 詳細：{}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="315"/>
+        <location filename="../plugin.py" line="314"/>
         <source>Server error: {}</source>
         <translation type="unfinished">サーバーエラー：{}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="345"/>
+        <location filename="../plugin.py" line="344"/>
         <source>An error occurred: {}</source>
         <translation type="unfinished">エラーが発生しました: {}</translation>
     </message>
     <message>
-        <location filename="../plugin.py" line="425"/>
+        <location filename="../plugin.py" line="423"/>
         <source>Help</source>
         <translation type="unfinished">ヘルプ</translation>
     </message>
@@ -812,109 +813,109 @@ to open in Kumoy.</source>
 <context>
     <name>ProjectItemWidget</name>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="900"/>
+        <location filename="../ui/dialog_project_select.py" line="940"/>
         <source>{} minutes ago</source>
         <translation type="unfinished">{}分前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="902"/>
+        <location filename="../ui/dialog_project_select.py" line="942"/>
         <source>{} hours ago</source>
         <translation type="unfinished">{}時間前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="904"/>
+        <location filename="../ui/dialog_project_select.py" line="944"/>
         <source>1 day ago</source>
         <translation type="unfinished">1日前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="906"/>
+        <location filename="../ui/dialog_project_select.py" line="946"/>
         <source>{} days ago</source>
         <translation type="unfinished">{}日前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="908"/>
+        <location filename="../ui/dialog_project_select.py" line="948"/>
         <source>{} months ago</source>
         <translation type="unfinished">{}ヶ月前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="910"/>
+        <location filename="../ui/dialog_project_select.py" line="950"/>
         <source>{} years ago</source>
         <translation type="unfinished">{}年前</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="917"/>
+        <location filename="../ui/dialog_project_select.py" line="957"/>
         <source>Open in Web App</source>
         <translation type="unfinished">ウェブUIで開く</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1049"/>
+        <location filename="../ui/dialog_project_select.py" line="1089"/>
         <source>Edit Project</source>
         <translation type="unfinished">プロジェクトを編集</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="958"/>
+        <location filename="../ui/dialog_project_select.py" line="998"/>
         <source>Delete Project</source>
         <translation type="unfinished">プロジェクトを削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="945"/>
+        <location filename="../ui/dialog_project_select.py" line="985"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="959"/>
+        <location filename="../ui/dialog_project_select.py" line="999"/>
         <source>Are you sure you want to delete project &apos;{}&apos;?
 This action can&apos;t be undone.</source>
         <translation type="unfinished">プロジェクト 「{}」を削除してもよろしいですか？
 この操作は取り消しできません。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="992"/>
+        <location filename="../ui/dialog_project_select.py" line="1032"/>
         <source>Project Deleted</source>
         <translation type="unfinished">プロジェクトの削除</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="977"/>
+        <location filename="../ui/dialog_project_select.py" line="1017"/>
         <source>Project &apos;{}&apos; deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1005"/>
+        <location filename="../ui/dialog_project_select.py" line="1045"/>
         <source>Failed to delete project: {}</source>
         <translation type="unfinished">プロジェクトの削除に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1094"/>
+        <location filename="../ui/dialog_project_select.py" line="1134"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1083"/>
+        <location filename="../ui/dialog_project_select.py" line="1123"/>
         <source>Project Updated</source>
         <translation type="unfinished">プロジェクトが更新しました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1094"/>
+        <location filename="../ui/dialog_project_select.py" line="1134"/>
         <source>Failed to update project: {}</source>
         <translation type="unfinished">プロジェクトの更新に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="992"/>
+        <location filename="../ui/dialog_project_select.py" line="1032"/>
         <source>Project &apos;{}&apos; has been deleted successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」は正常に削除されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1070"/>
+        <location filename="../ui/dialog_project_select.py" line="1110"/>
         <source>Project &apos;{}&apos; updated successfully</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1083"/>
+        <location filename="../ui/dialog_project_select.py" line="1123"/>
         <source>Project &apos;{}&apos; has been updated successfully.</source>
         <translation type="unfinished">プロジェクト「{}」が更新されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="1032"/>
+        <location filename="../ui/dialog_project_select.py" line="1072"/>
         <source>Failed to load project details: {}</source>
         <translation type="unfinished">プロジェクト内容を取得できませんでした: {}</translation>
     </message>
@@ -922,154 +923,164 @@ This action can&apos;t be undone.</source>
 <context>
     <name>ProjectSelectDialog</name>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="68"/>
+        <location filename="../ui/dialog_project_select.py" line="69"/>
         <source>Select Project</source>
         <translation type="unfinished">プロジェクト選択</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="113"/>
+        <location filename="../ui/dialog_project_select.py" line="114"/>
         <source>Account</source>
         <translation type="unfinished">アカウント</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="124"/>
+        <location filename="../ui/dialog_project_select.py" line="125"/>
         <source>Loading...</source>
         <translation type="unfinished">処理中...</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="128"/>
+        <location filename="../ui/dialog_project_select.py" line="129"/>
         <source>Organization</source>
         <translation type="unfinished">組織</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="175"/>
+        <location filename="../ui/dialog_project_select.py" line="187"/>
         <source>Organization Settings</source>
         <translation type="unfinished">組織設定</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="340"/>
+        <location filename="../ui/dialog_project_select.py" line="352"/>
         <source>+ New Project</source>
         <translation type="unfinished">+ 新規プロジェクト</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="347"/>
+        <location filename="../ui/dialog_project_select.py" line="359"/>
         <source>Cancel</source>
         <translation type="unfinished">キャンセル</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="351"/>
+        <location filename="../ui/dialog_project_select.py" line="363"/>
         <source>OK</source>
         <translation type="unfinished">OK</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="753"/>
+        <location filename="../ui/dialog_project_select.py" line="793"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="467"/>
+        <location filename="../ui/dialog_project_select.py" line="479"/>
         <source>Failed to load organization details. {}</source>
         <translation type="unfinished">組織詳細の読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="517"/>
+        <location filename="../ui/dialog_project_select.py" line="529"/>
         <source>Error opening web browser: {}</source>
         <translation type="unfinished">ウェブブラウザの起動エラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="524"/>
+        <location filename="../ui/dialog_project_select.py" line="536"/>
         <source>&lt;div&gt;&lt;span&gt;{} Plan&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</source>
         <translation type="unfinished">&lt;div&gt;&lt;span&gt;{} プラン&lt;/span&gt;&lt;br /&gt;&lt;span&gt;{}&lt;/span&gt;&lt;/div&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="535"/>
+        <location filename="../ui/dialog_project_select.py" line="547"/>
         <source>Failed to retrieve plan limits: {}</source>
         <translation type="unfinished">プラン制限の取得に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="539"/>
+        <location filename="../ui/dialog_project_select.py" line="551"/>
         <source>Warning</source>
         <translation type="unfinished">注意</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="647"/>
+        <location filename="../ui/dialog_project_select.py" line="659"/>
         <source>Failed to load projects: {}</source>
         <translation type="unfinished">プロジェクト読み込みエラー: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="711"/>
+        <location filename="../ui/dialog_project_select.py" line="751"/>
         <source>No Organization Selected</source>
         <translation type="unfinished">組織が選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="711"/>
+        <location filename="../ui/dialog_project_select.py" line="751"/>
         <source>Please select an organization first.</source>
         <translation type="unfinished">組織を選択してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="733"/>
+        <location filename="../ui/dialog_project_select.py" line="773"/>
         <source>Project &apos;{}&apos; created successfully</source>
         <translation type="unfinished">プロジェクト 「{}」が正常に作成されました</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="743"/>
+        <location filename="../ui/dialog_project_select.py" line="783"/>
         <source>Project Created</source>
         <translation type="unfinished">プロジェクト作成されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="743"/>
+        <location filename="../ui/dialog_project_select.py" line="783"/>
         <source>Project &apos;{}&apos; has been created successfully.</source>
         <translation type="unfinished">プロジェクト 「{}」が正常に作成されました。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="751"/>
+        <location filename="../ui/dialog_project_select.py" line="791"/>
         <source>Failed to create project: {}</source>
         <translation type="unfinished">プロジェクトの作成に失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="499"/>
+        <location filename="../ui/dialog_project_select.py" line="511"/>
         <source>&lt;a href=&apos;#&apos;&gt;Hide details &amp;#9650;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を閉じる &amp;#9650;&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="503"/>
+        <location filename="../ui/dialog_project_select.py" line="515"/>
         <source>&lt;a href=&apos;#&apos;&gt;Show details &amp;#9660;&lt;/a&gt;</source>
-        <translation type="unfinished">&lt;a href=&apos;#&apos;&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
+        <translation type="unfinished">&lt;a href='#'&gt;詳細を表示 &amp;#9660;&lt;/a&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="384"/>
+        <location filename="../ui/dialog_project_select.py" line="396"/>
         <source>No organization available. Please create one to get started.</source>
         <translation type="unfinished">所属している組織がありません。まずは組織を作成してください。</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="390"/>
+        <location filename="../ui/dialog_project_select.py" line="402"/>
         <source>Create Organization</source>
         <translation type="unfinished">新規組織を作成</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="402"/>
+        <location filename="../ui/dialog_project_select.py" line="414"/>
         <source>&lt;div&gt;&lt;span&gt;No organization available&lt;/span&gt;&lt;/div&gt;</source>
         <translation type="unfinished">&lt;div&gt;&lt;span&gt;所属している組織がありません&lt;/span&gt;&lt;/div&gt;</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="259"/>
+        <location filename="../ui/dialog_project_select.py" line="271"/>
         <source>Search...</source>
         <translation type="unfinished">検索</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="437"/>
+        <location filename="../ui/dialog_project_select.py" line="449"/>
         <source>Failed to load teams: {}</source>
         <translation type="unfinished">チームの読み込みエラー：{}</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="452"/>
+        <location filename="../ui/dialog_project_select.py" line="464"/>
         <source>All teams</source>
         <translation type="unfinished">すべてのチーム</translation>
     </message>
     <message>
-        <location filename="../ui/dialog_project_select.py" line="334"/>
+        <location filename="../ui/dialog_project_select.py" line="346"/>
         <source>Help</source>
         <translation type="unfinished">ヘルプ</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="152"/>
+        <source>Refresh</source>
+        <translation type="unfinished">再読み込み</translation>
+    </message>
+    <message>
+        <location filename="../ui/dialog_project_select.py" line="734"/>
+        <source>Failed to reload dialog: {}</source>
+        <translation type="unfinished">再取り込みエラー： {}</translation>
     </message>
 </context>
 <context>
@@ -1305,37 +1316,37 @@ Do you want to continue?</source>
 <context>
     <name>StyledMapRoot</name>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="520"/>
+        <location filename="../ui/browser/styledmap.py" line="523"/>
         <source>Add Map</source>
         <translation>マップを追加</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="583"/>
+        <location filename="../ui/browser/styledmap.py" line="586"/>
         <source>Error</source>
         <translation>エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="632"/>
+        <location filename="../ui/browser/styledmap.py" line="635"/>
         <source>Success</source>
         <translation>成功</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="593"/>
+        <location filename="../ui/browser/styledmap.py" line="596"/>
         <source>No project selected</source>
         <translation>プロジェクトが選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="599"/>
+        <location filename="../ui/browser/styledmap.py" line="602"/>
         <source>No maps available.</source>
         <translation>利用可能なマップがありません。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="484"/>
+        <location filename="../ui/browser/styledmap.py" line="487"/>
         <source>Cannot create new map. Your plan allows up to {} maps, but you have reached the limit.</source>
         <translation type="unfinished">新しいマップを作成できません。ご契約のプランでは最大{}マップまでですが、すでに上限に達しています。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="583"/>
+        <location filename="../ui/browser/styledmap.py" line="586"/>
         <source>Error adding map: {}</source>
         <translation type="unfinished">マップの追加に失敗しました:{}</translation>
     </message>
@@ -1360,12 +1371,12 @@ Do you want to continue?</source>
         <translation type="unfinished">マップキャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="611"/>
+        <location filename="../ui/browser/styledmap.py" line="614"/>
         <source>Clear Map Cache</source>
         <translation type="unfinished">マップキャッシュを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="611"/>
+        <location filename="../ui/browser/styledmap.py" line="614"/>
         <source>This will clear all locally cached map files. Data will be re-downloaded next time you access maps.
 
 Continue?</source>
@@ -1374,22 +1385,22 @@ Continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="627"/>
+        <location filename="../ui/browser/styledmap.py" line="630"/>
         <source>All map cache files cleared successfully.</source>
         <translation type="unfinished">マップデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="632"/>
+        <location filename="../ui/browser/styledmap.py" line="635"/>
         <source>All map cache files have been cleared successfully.</source>
         <translation type="unfinished">マップデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="637"/>
+        <location filename="../ui/browser/styledmap.py" line="640"/>
         <source>Map Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="637"/>
+        <location filename="../ui/browser/styledmap.py" line="640"/>
         <source>Some map cache files could not be cleared. Please try again after closing QGIS or ensure no files are locked.</source>
         <translation type="unfinished">キャッシュを完全にクリアできませんでした。QGISを再起動後、Mapを開いていない状態で再度お試しください。</translation>
     </message>
@@ -1399,12 +1410,12 @@ Continue?</source>
         <translation type="unfinished">現在のプロジェクトを名前を付けて保存…</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="504"/>
+        <location filename="../ui/browser/styledmap.py" line="507"/>
         <source>Wrong Project</source>
         <translation type="unfinished">プロジェクトが一致しません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/styledmap.py" line="504"/>
+        <location filename="../ui/browser/styledmap.py" line="507"/>
         <source>Please switch to the correct Kumoy project to create a map.</source>
         <translation type="unfinished">このマップは別の Kumoy プロジェクトに属しています。正しいKumoyプロジェクトに切り替えてください。</translation>
     </message>
@@ -1437,42 +1448,42 @@ Continue?</source>
         <translation type="unfinished">一時出力</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="298"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="300"/>
         <source>Cannot upload vector. Your plan allows up to {} vectors per project, but you already have {} vectors.</source>
         <translation type="unfinished">ベクターをアップロードできません。現在のプランではプロジェクトあたり最大{}個のベクターが許可されていますが、すでに{}個のベクターがあります。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="417"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="419"/>
         <source>Cannot upload vector. The layer has {} features, but your plan allows up to {} features per vector.</source>
         <translation type="unfinished">ベクターをアップロードできません。レイヤには{}個のフィーチャがありますが、現在のプランではベクターあたり最大{}個のフィーチャが許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="375"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="377"/>
         <source>Cannot upload vector. The layer has {} attributes, but your plan allows up to {} attributes per vector.</source>
         <translation type="unfinished">ベクターをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="463"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="465"/>
         <source>Cleaned up incomplete vector layer due to upload failure</source>
         <translation type="unfinished">アップロード失敗により不完全なベクタレイヤをクリーンアップしました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="357"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="359"/>
         <source>Unsupported geometry type</source>
         <translation type="unfinished">サポートされていないジオメトリタイプ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="492"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="494"/>
         <source>The input layer has an undefined or invalid coordinate reference system. Please assign a valid CRS to the layer before uploading.</source>
         <translation type="unfinished">入力レイヤの座標参照系が未定義または無効です。アップロード前にレイヤに有効なCRSを割り当ててください。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="579"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="581"/>
         <source>Converting multipart to singlepart</source>
         <translation type="unfinished">マルチパートからシングルパートへの変換</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="595"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="597"/>
         <source>Reprojecting from {} to EPSG:4326</source>
         <translation type="unfinished">{}からEPSG:4326への投影変換</translation>
     </message>
@@ -1482,47 +1493,47 @@ Continue?</source>
         <translation type="unfinished">アップロードする属性</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="329"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="331"/>
         <source>Invalid input layer</source>
         <translation type="unfinished">無効な入力レイヤ</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="331"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="333"/>
         <source>Cannot upload a layer that is already stored in server.</source>
         <translation type="unfinished">サーバーにすでに保存されているレイヤはアップロードできません。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="367"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="369"/>
         <source>Using {} of {} attributes for upload</source>
         <translation type="unfinished">アップロードのために{}個の属性のうち{}個を使用しています</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="469"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="471"/>
         <source>Failed to clean up incomplete vector layer: {}</source>
         <translation type="unfinished">不完全なベクタレイヤのクリーンアップに失敗しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="546"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="548"/>
         <source>Dropping Z coordinates</source>
         <translation type="unfinished">Z座標を削除</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="685"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="687"/>
         <source>Field &apos;{}&apos; normalized to &apos;{}&apos;</source>
         <translation type="unfinished">フィールド 「{}」は 「{}」に正規化されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="433"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="435"/>
         <source>Created vector layer &apos;{}&apos; with ID: {}</source>
         <translation type="unfinished">ベクタレイヤ 「{}」がID: {}で作成されました</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="444"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="446"/>
         <source>Added attributes to vector layer &apos;{}&apos;: {}</source>
         <translation type="unfinished">ベクタレイヤ 「{}」に属性を追加しました: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="854"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="856"/>
         <source>Upload complete: {} / {} features</source>
         <translation type="unfinished">アップロード完了: {} / {} 個のフィーチャ</translation>
     </message>
@@ -1536,37 +1547,37 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
 入力ベクタレイヤのドロップダウンには、現在のQGISプロジェクトのベクタレイヤが表示されます。マップが開いていない場合は空になります。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="509"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="511"/>
         <source>Filtering features using expression: {}</source>
         <translation type="unfinished">次の式でフィーチャをフィルタリング中: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="538"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="540"/>
         <source>No features remain after filtering invalid geometries</source>
         <translation type="unfinished"> 無効なジオメトリをフィルタリングした結果、地物が残りませんでした。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="531"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="533"/>
         <source>Removed {} features with missing or incompatible geometries.</source>
         <translation type="unfinished">{}個の地物は、ジオメトリが存在しないか互換性がないため削除されました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="563"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="565"/>
         <source>Repairing geometries...</source>
         <translation type="unfinished">ジオメトリを修復中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="614"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="616"/>
         <source>Refactoring attributes...</source>
         <translation type="unfinished">属性を処理中...</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="702"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="704"/>
         <source>Filtering failed due to an unsupported geometry type.</source>
         <translation type="unfinished">ジオメトリタイプがサポートされていないため、フィルタリングに失敗しました。</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="813"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="815"/>
         <source>The &apos;{}&apos; processing step failed to create a valid layer.</source>
         <translation type="unfinished">処理ステップ「{}」で有効なレイヤを作成できませんでした。</translation>
     </message>
@@ -1576,27 +1587,27 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <translation type="unfinished">プロセシングの初期化エラー: {}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="644"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="646"/>
         <source>Skipping reserved field name &apos;{}&apos;</source>
         <translation type="unfinished">予約されたフィールド名「{}」をスキップします</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="657"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="659"/>
         <source>Unexpected field type for field &apos;{}&apos;: {}</source>
         <translation type="unfinished">フィールド「{}」に想定外の型が指定されています：{}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="753"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="755"/>
         <source>Converting field &apos;{}&apos; to string type</source>
         <translation type="unfinished">フィールド「{}」を文字列型に変換中</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="866"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="868"/>
         <source>Cannot upload feature: geometry is too large. Please simplify the geometry or split it into smaller parts. Details: {}</source>
         <translation type="unfinished">地物をアップロードできません。ジオメトリが大きすぎます。ジオメトリを単純化するか、分割してください。詳細：{}</translation>
     </message>
     <message>
-        <location filename="../processing/upload_vector/algorithm.py" line="288"/>
+        <location filename="../processing/upload_vector/algorithm.py" line="290"/>
         <source>You do not have permission to upload vectors to this project. </source>
         <translation type="unfinished">このプロジェクトにベクターをアップロードする権限がありません。</translation>
     </message>
@@ -1604,6 +1615,11 @@ The Input Vector Layer dropdown shows vector layers in your current map. If no m
         <location filename="../processing/upload_vector/algorithm.py" line="271"/>
         <source>Invalid destination project selection.</source>
         <translation type="unfinished">宛先プロジェクトの選択が正しくありません。</translation>
+    </message>
+    <message>
+        <location filename="../processing/upload_vector/algorithm.py" line="876"/>
+        <source>Cannot upload features: your plan quota has been exceeded. Details: {}</source>
+        <translation type="unfinished">地物をアップロードできません。ご利用のプランの上限に達しました。詳細：{}</translation>
     </message>
 </context>
 <context>
@@ -1726,67 +1742,67 @@ Do you want to continue?</source>
         <translation type="unfinished">アップロード</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="552"/>
+        <location filename="../ui/browser/vector.py" line="555"/>
         <source>Error</source>
         <translation type="unfinished">エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="452"/>
+        <location filename="../ui/browser/vector.py" line="455"/>
         <source>You have reached your plan&apos;s limit of {} vector layers. Please delete one or upgrade your plan to continue.</source>
         <translation type="unfinished">新しいベクタレイヤを作成できません。現在のプランでは最大{}個のベクタが許可されていますが、制限に達しています。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="463"/>
+        <location filename="../ui/browser/vector.py" line="466"/>
         <source>Create New Vector Layer</source>
         <translation type="unfinished">新規ベクタレイヤの作成</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="473"/>
+        <location filename="../ui/browser/vector.py" line="476"/>
         <source>Name:</source>
         <translation type="unfinished">名前:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="480"/>
+        <location filename="../ui/browser/vector.py" line="483"/>
         <source>Geometry Type:</source>
         <translation type="unfinished">ジオメトリタイプ:</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="491"/>
+        <location filename="../ui/browser/vector.py" line="494"/>
         <source>This will create an empty vector layer in the project.</source>
         <translation type="unfinished">プロジェクトに空のベクタレイヤを作成します。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="525"/>
+        <location filename="../ui/browser/vector.py" line="528"/>
         <source>Please enter a name for your vector layer.</source>
         <translation type="unfinished">ベクタ名は空にできません。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="537"/>
+        <location filename="../ui/browser/vector.py" line="540"/>
         <source>Successfully created vector layer &apos;{}&apos; in project &apos;{}&apos;</source>
         <translation type="unfinished">プロジェクト 「{}」 に新しいベクタレイヤ 「{}」 を作成しました</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="552"/>
+        <location filename="../ui/browser/vector.py" line="555"/>
         <source>Error adding vector: {}</source>
         <translation type="unfinished">ベクター追加エラー {}</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="572"/>
+        <location filename="../ui/browser/vector.py" line="575"/>
         <source>No project selected</source>
         <translation type="unfinished">プロジェクトが選択されていません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="583"/>
+        <location filename="../ui/browser/vector.py" line="586"/>
         <source>Error loading vectors</source>
         <translation type="unfinished">ベクターの取得エラー</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="586"/>
+        <location filename="../ui/browser/vector.py" line="589"/>
         <source>No vector layers found in this project</source>
         <translation type="unfinished">プロジェクトにベクターが存在しません</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="635"/>
+        <location filename="../ui/browser/vector.py" line="638"/>
         <source>Success</source>
         <translation type="unfinished">成功</translation>
     </message>
@@ -1796,12 +1812,12 @@ Do you want to continue?</source>
         <translation type="unfinished">ベクターキャッシュデータを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="614"/>
+        <location filename="../ui/browser/vector.py" line="617"/>
         <source>Clear Vector Cache</source>
         <translation type="unfinished">ベクターキャッシュを削除</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="614"/>
+        <location filename="../ui/browser/vector.py" line="617"/>
         <source>This will clear all locally cached vector files. Data will be re-downloaded next time you access vectors.
 
 Continue?</source>
@@ -1810,37 +1826,37 @@ Continue?</source>
 続行しますか？</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="630"/>
+        <location filename="../ui/browser/vector.py" line="633"/>
         <source>All vector cache files cleared successfully.</source>
         <translation type="unfinished">ベクターデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="635"/>
+        <location filename="../ui/browser/vector.py" line="638"/>
         <source>All vector cache files have been cleared successfully.</source>
         <translation type="unfinished">ベクターデータのキャッシュを正常にクリアしました。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="640"/>
+        <location filename="../ui/browser/vector.py" line="643"/>
         <source>Vector Cache Clear Failed</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="640"/>
+        <location filename="../ui/browser/vector.py" line="643"/>
         <source>Some vector cache files could not be cleared. Please try again after closing QGIS or ensure no files are locked.</source>
         <translation type="unfinished">キャッシュを完全にクリアできませんでした。QGISを再起動後、ベクターを開いていない状態で再度お試しください</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="604"/>
+        <location filename="../ui/browser/vector.py" line="607"/>
         <source>Cannot clear vector cache while vector layers are loaded on the map. Please close your map first.</source>
         <translation type="unfinished">ベクターがプロジェクトに読み込まれているため、キャッシュを削除できません。先にマップを閉じてください。</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="604"/>
+        <location filename="../ui/browser/vector.py" line="607"/>
         <source>Cannot Clear Cache</source>
         <translation type="unfinished">失敗</translation>
     </message>
     <message>
-        <location filename="../ui/browser/vector.py" line="488"/>
+        <location filename="../ui/browser/vector.py" line="491"/>
         <source>Attribution:</source>
         <translation type="unfinished">出典:</translation>
     </message>

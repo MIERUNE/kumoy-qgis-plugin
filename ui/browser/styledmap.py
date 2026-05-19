@@ -22,13 +22,13 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ... import settings_manager
+from ...kumoy import settings_manager
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
-from ...kumoy.local_cache.map import (
-    show_map_save_result,
-    write_qgsfile,
-)
+from ...kumoy.api.error import UnauthorizedError, format_api_error
+from ...kumoy.local_cache.map import write_qgsfile
+from ..project_save_handler import show_map_save_result
+from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
@@ -41,7 +41,7 @@ from ...qgis_version import (
     restore_project_crs_if_invalid,
     restore_xyz_layer_datasources,
 )
-from ...settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
@@ -146,17 +146,7 @@ class StyledMapItem(QgsDataItem):
         try:
             styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error loading map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error loading map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
             return
 
         # XML文字列をQGISプロジェクトにロード
@@ -222,17 +212,7 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error updating map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error updating map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error updating map"))
             return
 
         # Itemを更新
@@ -294,25 +274,24 @@ class StyledMapItem(QgsDataItem):
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
-            # Overwrite styled map
+            # Generate sprites and upload if changed
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = sprite_data.assets_hash if sprite_data else None
+
+            update_options = api.styledmap.UpdateStyledMapOptions(
+                qgisproject=new_qgisproject,
+            )
+            if new_assets_hash != self.styled_map.assetsHash:
+                if sprite_data is not None:
+                    upload_sprites(self.styled_map.id, sprite_data)
+                update_options.assetsHash = new_assets_hash
+
             updated_styled_map = api.styledmap.update_styled_map(
                 self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=new_qgisproject,
-                ),
+                update_options,
             )
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                self.tr("Error saving map: {}").format(error_text),
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error saving map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error saving map"))
             return
 
         # Itemを更新
@@ -331,6 +310,12 @@ class StyledMapItem(QgsDataItem):
 
     def process_delete_map(self) -> None:
         api.styledmap.delete_styled_map(self.styled_map.id)
+
+        # Close the map if it's currently loaded in QGIS
+        custom_vars = QgsProject.instance().customVariables()
+        if custom_vars.get("kumoy_map_id") == self.styled_map.id:
+            QgsProject.instance().clear()
+
         local_cache.map.clear(self.styled_map.id)
 
     def delete_styled_map(self) -> None:
@@ -355,16 +340,8 @@ class StyledMapItem(QgsDataItem):
                     ),
                 )
             except Exception as e:
-                error_text = format_api_error(e)
-                QgsMessageLog.logMessage(
-                    self.tr("Error deleting map: {}").format(error_text),
-                    constants.LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                QMessageBox.critical(
-                    None,
-                    self.tr("Error"),
-                    self.tr("Failed to delete the map: {}").format(error_text),
+                handle_api_error(
+                    e, parent=None, log_prefix=self.tr("Error deleting map")
                 )
 
     def process_map_cache_clear(self) -> bool:
@@ -477,7 +454,10 @@ class StyledMapRoot(QgsDataItem):
 
         try:
             # Check plan limits before creating styled map
-            plan_limit = api.plan.get_plan_limits(self.organization.subscriptionPlan)
+            plan_limit = api.plan.get_plan_limits(
+                self.organization.subscriptionPlan,
+                self.organization.storageUnits,
+            )
             current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
             current_styled_map_count = len(current_styled_maps) + 1
             if current_styled_map_count > plan_limit.maxStyledMaps:
@@ -564,6 +544,25 @@ class StyledMapRoot(QgsDataItem):
                 {"kumoy_map_id": new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
+
+            # Save kumoy_map_id to project custom variables to link the new styled map
+            updated_qgisproject = write_qgsfile(new_styled_map.id)
+
+            # Generate and upload sprites
+            sprite_data = generate_sprite(QgsProject.instance())
+            new_assets_hash = None
+            if sprite_data is not None:
+                new_assets_hash = sprite_data.assets_hash
+                upload_sprites(new_styled_map.id, sprite_data)
+
+            api.styledmap.update_styled_map(
+                new_styled_map.id,
+                api.styledmap.UpdateStyledMapOptions(
+                    qgisproject=updated_qgisproject,
+                    assetsHash=new_assets_hash,  # memo: new_assets_hashがNoneならnullをセットする
+                ),
+            )
+
             # reload browser panel
             self.parent().refresh()
 
@@ -574,17 +573,7 @@ class StyledMapRoot(QgsDataItem):
             )
             QgsProject.instance().setDirty(False)
         except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error adding map: {error_text}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            QMessageBox.critical(
-                None,
-                self.tr("Error"),
-                self.tr("Error adding map: {}").format(error_text),
-            )
+            handle_api_error(e, parent=None, log_prefix=self.tr("Error adding map"))
 
     def createChildren(self) -> list[QgsDataItem]:
         project_id = get_settings().selected_project_id
@@ -593,7 +582,18 @@ class StyledMapRoot(QgsDataItem):
             return [ErrorItem(self, self.tr("No project selected"))]
 
         # プロジェクトのスタイルマップを取得
-        styled_maps = api.styledmap.get_styled_maps(project_id)
+        try:
+            styled_maps = api.styledmap.get_styled_maps(project_id)
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            return [ErrorItem(self, self.tr("Session expired - please log in"))]
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                f"Error loading maps: {format_api_error(e)}",
+                constants.LOG_CATEGORY,
+                Qgis.Critical,
+            )
+            return [ErrorItem(self, self.tr("Error loading maps"))]
 
         if not styled_maps:
             return [ErrorItem(self, self.tr("No maps available."))]
@@ -737,10 +737,15 @@ def delete_multiple_maps(items: list[StyledMapItem]) -> None:
     deleted_count = 0
     parent_item = items[0].parent() if items else None
 
+    aborted_unauthorized = False
     for item in items:
         try:
             item.process_delete_map()
             deleted_count += 1
+        except UnauthorizedError as e:
+            handle_api_error(e, parent=None)
+            aborted_unauthorized = True
+            break
         except Exception as e:
             error_text = format_api_error(e)
             QgsMessageLog.logMessage(
@@ -752,6 +757,9 @@ def delete_multiple_maps(items: list[StyledMapItem]) -> None:
 
     if parent_item:
         parent_item.refresh()
+
+    if aborted_unauthorized:
+        return
 
     if errors:
         QMessageBox.critical(

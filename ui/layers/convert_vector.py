@@ -20,6 +20,7 @@ from qgis.utils import iface
 
 import processing
 
+from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import (
@@ -97,14 +98,11 @@ def convert_local_layers(
         project = api.project.get_project(project_id)
         org_id = project.team.organization.id
         org_detail = api.organization.get_organization(org_id)
-        plan_limits = api.plan.get_plan_limits(org_detail.subscriptionPlan)
-    except Exception as e:
-        error_msg = format_api_error(e)
-        QMessageBox.warning(
-            None,
-            tr("Error"),
-            tr("Failed to check layer limits: {}").format(error_msg),
+        plan_limits = api.plan.get_plan_limits(
+            org_detail.subscriptionPlan, org_detail.storageUnits
         )
+    except Exception as e:
+        handle_api_error(e, parent=None, log_prefix=tr("Failed to check layer limits"))
         return (True, [])
 
     current_vector_count = org_detail.usage.vectors
