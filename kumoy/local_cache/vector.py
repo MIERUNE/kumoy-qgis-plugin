@@ -7,7 +7,6 @@ from qgis.core import (
     QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsFeature,
-    QgsField,
     QgsFields,
     QgsGeometry,
     QgsMessageLog,
@@ -119,9 +118,58 @@ def _create_new_cache(
     return updated_at
 
 
+def _columns_match(cache_file: str, fields: QgsFields) -> bool:
+    """
+    キャッシュGPKGの物理カラム順とサーバー側 fields のカラム順を比較する。
+    kumoy_id は FID として特別扱いされるので比較対象から除外する。
+    一致すれば True、不一致なら False。GPKGがロードできない場合も False。
+    """
+    vlayer = QgsVectorLayer(cache_file, "tmp", "ogr")
+    if not vlayer.isValid():
+        del vlayer
+        return False
+
+    cache_names = [n for n in vlayer.fields().names() if n != "kumoy_id"]
+    server_names = [n for n in fields.names() if n != "kumoy_id"]
+    del vlayer
+
+    return cache_names == server_names
+
+
+def _recreate_cache(
+    cache_file: str,
+    vector_id: str,
+    fields: QgsFields,
+    geometry_type: QgsWkbTypes.GeometryType,
+    progress_callback: Optional[Callable[[int], None]],
+    reason: str,
+) -> str:
+    """既存キャッシュを破棄して新規作成する"""
+    QgsMessageLog.logMessage(
+        f"Recreating cache for vector {vector_id}: {reason}",
+        LOG_CATEGORY,
+        Qgis.Info,
+    )
+    if not clear(vector_id):
+        # clear() がファイルロック等で失敗した場合、上書き作成も失敗するので
+        # 部分的な再生成で壊れた状態にしないように中断する
+        raise Exception(
+            f"Failed to clear cache for vector {vector_id} "
+            "(file may be locked by another process)"
+        )
+    return _create_new_cache(
+        cache_file,
+        vector_id,
+        fields,
+        geometry_type,
+        progress_callback=progress_callback,
+    )
+
+
 def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> str:
     """
-    既存のキャッシュファイルを更新する
+    既存のキャッシュファイルに差分を適用する。
+    カラム集合・順序の整合は呼び出し側で担保する前提（不一致なら再生成パスに入る）。
 
     Returns:
         updated_at: 最終更新日時
@@ -129,19 +177,6 @@ def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> st
 
     vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
     vlayer.startEditing()
-
-    # サーバーに存在しないカラムをキャッシュから削除
-    for cache_colname in vlayer.fields().names():
-        if cache_colname == "kumoy_id":
-            continue
-        # キャッシュにはあるが、現在のサーバー上のカラムには存在しないキャッシュのカラムを削除
-        if fields.indexOf(cache_colname) == -1:
-            vlayer.deleteAttribute(vlayer.fields().indexOf(cache_colname))
-
-    # サーバーだけに存在するカラムをキャッシュに追加
-    for name in fields.names():
-        if vlayer.fields().indexOf(name) == -1:
-            vlayer.addAttribute(QgsField(name, fields[name].type()))
 
     updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -222,29 +257,35 @@ def sync_local_cache(
             raise Exception(
                 "Inconsistent state: cache file exists but last_updated is None"
             )
-        try:
-            # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
-            diff = api.qgis_vector.get_diff(vector_id, last_updated)
-            # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-            updated_at = _update_existing_cache(cache_file, fields, diff)
-        except api.error.AppError as e:
-            if e.error == "MAX_DIFF_COUNT_EXCEEDED":
-                # 差分が大きすぎる場合はキャッシュファイルを削除して新規作成する
-                QgsMessageLog.logMessage(
-                    f"Diff for vector {vector_id} is too large, recreating cache file.",
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-                clear(vector_id)
-                updated_at = _create_new_cache(
-                    cache_file,
-                    vector_id,
-                    fields,
-                    geometry_type,
-                    progress_callback=progress_callback,
-                )
-            else:
-                raise e
+
+        if not _columns_match(cache_file, fields):
+            # 物理カラム順とサーバー順が一致しない → 再生成
+            updated_at = _recreate_cache(
+                cache_file,
+                vector_id,
+                fields,
+                geometry_type,
+                progress_callback,
+                reason="cache column order differs from server",
+            )
+        else:
+            try:
+                # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
+                diff = api.qgis_vector.get_diff(vector_id, last_updated)
+                # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
+                updated_at = _update_existing_cache(cache_file, fields, diff)
+            except api.error.AppError as e:
+                if e.error == "MAX_DIFF_COUNT_EXCEEDED":
+                    updated_at = _recreate_cache(
+                        cache_file,
+                        vector_id,
+                        fields,
+                        geometry_type,
+                        progress_callback,
+                        reason="MAX_DIFF_COUNT_EXCEEDED",
+                    )
+                else:
+                    raise
     else:
         # 新規キャッシュファイルを作成
         updated_at = _create_new_cache(
@@ -337,7 +378,11 @@ def clear(vector_id: str) -> bool:
                     Qgis.Critical,
                 )
                 success = False
-    # Delete last updated timestamp
-    delete_last_updated(vector_id)
+    # ファイル削除に失敗した状態で last_updated を消すと、GPKGは残るのに
+    # タイムスタンプだけ消える不整合状態になり、以後の同期が
+    # 'cache file exists but last_updated is None' で固まる。
+    # 削除が全件成功した場合のみタイムスタンプも消す。
+    if success:
+        delete_last_updated(vector_id)
 
     return success

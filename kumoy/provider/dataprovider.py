@@ -15,6 +15,7 @@ from qgis.core import (
     QgsProviderRegistry,
     QgsRectangle,
     QgsVectorDataProvider,
+    QgsVectorLayer,
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
@@ -111,6 +112,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # local cache
         self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None
+        self.cached_layer: Optional[QgsVectorLayer] = None
         self._reload_vector()
 
         if self.kumoy_vector is None:
@@ -245,6 +247,12 @@ class KumoyDataProvider(QgsVectorDataProvider):
         sync_worker.progress.connect(on_worker_progress)
         progress.canceled.connect(on_progress_cancelled)
 
+        # sync 中に clear/再生成が走っても GPKG ファイルロックが残らないよう、
+        # 既存の cached_layer を sync 開始前に解放しておく（特にWindows対策）
+        if self.cached_layer is not None:
+            del self.cached_layer
+            self.cached_layer = None
+
         # Start sync in background and wait for completion
         sync_worker.start()
         exec_event_loop(loop)  # This keeps UI responsive while waiting
@@ -269,11 +277,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 ),
                 level=Qgis.Warning,
             )
-
-        # Delete existing cached_layer before reloading
-        if hasattr(self, "cached_layer") and self.cached_layer is not None:
-            # Force closing connection with GPKG file
-            del self.cached_layer
 
         self.cached_layer = local_cache.vector.get_layer(self.kumoy_vector.id)
 

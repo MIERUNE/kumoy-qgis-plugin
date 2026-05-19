@@ -237,6 +237,10 @@ class KumoyPlugin:
                 str(e),
             )
             return
+        # provider.fields() がカラム順・追加・削除で変わっている可能性があるので、
+        # レイヤー側のフィールドキャッシュを更新し、属性テーブル等にも変更を通知する
+        layer.updateFields()
+        layer.dataChanged.emit()
         layer.triggerRepaint()
         self.iface.mapCanvas().refresh()
 
