@@ -17,6 +17,8 @@ SOURCES = __init__.py \
           ui/browser/vector.py \
           ui/dialog_layer_select.py \
           ui/utils.py \
+          ui/error_handler.py \
+          ui/project_save_handler.py \
           kumoy/auth_manager.py \
           kumoy/constants.py \
           kumoy/get_token.py \
