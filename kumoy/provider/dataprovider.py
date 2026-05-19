@@ -85,9 +85,7 @@ def parse_uri(
 
     # check parsing results
     if vector_id == "" or project_id == "":
-        raise ValueError(
-            "Invalid URI. 'endpoint', 'project_id' and 'vector_id' are required."
-        )
+        raise ValueError("Invalid URI. 'project_id' and 'vector_id' are required.")
 
     return (project_id, vector_id, vector_name, subset)
 
@@ -124,9 +122,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Apply subset string from URI (persisted across project save/reload)
         if subset:
-            self._subset_string = subset
-            if self.cached_layer:
-                self.cached_layer.setSubsetString(subset)
+            self.setSubsetString(subset, update_feature_count=False)
 
         self._is_valid = True
 

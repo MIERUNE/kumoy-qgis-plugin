@@ -43,10 +43,15 @@ class KumoyProviderMetadata(QgsProviderMetadata):
         :param Dict[str, str] parts: Parts as returned by decodeUri
         :returns: URI as string
         """
-        project_id = parts.get("project_id", "")
-        vector_id = parts.get("vector_id", "")
-        uri = f"project_id={project_id};vector_id={vector_id}"
+        # Build URI from all known keys, keeping subset last
+        # (its value may contain semicolons)
         subset = parts.get("subset", "")
+        segments = []
+        for key, value in parts.items():
+            if key == "subset":
+                continue
+            segments.append(f"{key}={value}")
+        uri = ";".join(segments)
         if subset:
             uri += f";subset={subset}"
         return uri
