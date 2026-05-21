@@ -14,6 +14,7 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
         self._provider = source.get_provider()
         self._request = request if request is not None else QgsFeatureRequest()
         self._transform = QgsCoordinateTransform()
+        self._feature_iterator = None
 
         if (
             self._request.destinationCrs().isValid()
@@ -31,18 +32,21 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
             self.close()
             return
 
+        if self._provider.cached_layer is None:
+            self.close()
+            return
+
         self._feature_iterator = self._provider.cached_layer.getFeatures(self._request)
 
     def fetchFeature(self, f: QgsFeature) -> bool:
         """読むべき地物の数だけ実行される。引数のQgsFeatureを破壊的に更新する。"""
-        if not self._provider.isValid():
+        if not self._provider.isValid() or self._feature_iterator is None:
             f.setValid(False)
             return False
 
         res = self._feature_iterator.nextFeature(f)
 
         if not res:
-            # If no more features are available, return False
             f.setValid(False)
             return False
 
@@ -58,7 +62,8 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
 
     def __iter__(self):
         """Return self as an iterator object."""
-        self._feature_iterator.rewind()
+        if self._feature_iterator is not None:
+            self._feature_iterator.rewind()
         return self
 
     def __next__(self) -> QgsFeature:
@@ -71,8 +76,12 @@ class KumoyFeatureIterator(QgsAbstractFeatureIterator):
 
     def rewind(self) -> bool:
         """Reset the iterator."""
+        if self._feature_iterator is None:
+            return False
         return self._feature_iterator.rewind()
 
     def close(self) -> bool:
         """Close the iterator and release resources."""
+        if self._feature_iterator is None:
+            return True
         return self._feature_iterator.close()
