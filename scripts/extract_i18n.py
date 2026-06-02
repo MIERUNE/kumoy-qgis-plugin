@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """翻訳キーの抽出・更新ツール (Qt の pylupdate 代替)。
 
-ソース中の ``tr("...")`` / ``self.tr("...")`` 呼び出しの文字列リテラルを ast で
+ソース中の ``tr("...")`` / ``i18n.tr("...")`` 呼び出しの文字列リテラルを ast で
 収集し、`i18n/<locale>.json` を更新する:
 
   - コードに在るが JSON に無いキー  -> 空訳 "" を追加（未翻訳として）
@@ -36,44 +36,13 @@ def _iter_py_files(root: str):
 
 
 def _is_tr_call(node: ast.Call) -> bool:
-    """tr(...) もしくは <obj>.tr(...) の呼び出しか。"""
+    """``tr(...)`` または ``i18n.tr(...)`` の呼び出しか。"""
     func = node.func
     if isinstance(func, ast.Name):
         return func.id == "tr"
     if isinstance(func, ast.Attribute):
         return func.attr == "tr"
     return False
-
-
-class _Collector(ast.NodeVisitor):
-    """tr() 呼び出しの文字列リテラルを収集する。
-
-    ``def tr`` 自体の本体（i18n.tr へ委譲するラッパ ``return tr(message)`` 等）は
-    翻訳サイトではないので走査対象から外す。
-    """
-
-    def __init__(self, rel: str):
-        self.rel = rel
-        self.keys: set = set()
-        self.warnings: list = []
-
-    def visit_FunctionDef(self, node):
-        if node.name == "tr":
-            return  # 委譲ラッパ。中の tr(message) は翻訳サイトではない。
-        self.generic_visit(node)
-
-    visit_AsyncFunctionDef = visit_FunctionDef
-
-    def visit_Call(self, node):
-        if _is_tr_call(node) and node.args:
-            first = node.args[0]
-            if isinstance(first, ast.Constant) and isinstance(first.value, str):
-                self.keys.add(first.value)
-            else:
-                self.warnings.append(
-                    f"{self.rel}:{node.lineno}: tr() に非リテラル引数（抽出不可）"
-                )
-        self.generic_visit(node)
 
 
 def collect(root: str):
@@ -87,10 +56,15 @@ def collect(root: str):
             except SyntaxError as e:
                 warnings.append(f"{path}: parse error: {e}")
                 continue
-        collector = _Collector(os.path.relpath(path, root))
-        collector.visit(tree)
-        keys |= collector.keys
-        warnings.extend(collector.warnings)
+        rel = os.path.relpath(path, root)
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and _is_tr_call(node) and node.args):
+                continue
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                keys.add(first.value)
+            else:
+                warnings.append(f"{rel}:{node.lineno}: tr() に非リテラル引数（抽出不可）")
     return keys, warnings
 
 

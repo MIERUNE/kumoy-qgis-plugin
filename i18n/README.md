@@ -28,16 +28,14 @@ scripts/
 
 ### コード中で翻訳する
 
+QObject サブクラス（QDialog 等）の中でも、import した `tr(...)` を直接呼ぶ。
+
 ```python
 from ..i18n import tr   # 相対パスはファイル位置に合わせる（.. / ... 等）
 
 label.setText(tr("Save Map"))
 msg = tr("An error occurred: {}").format(error_text)
 ```
-
-QObject サブクラス（QDialog 等）の中でも `self.tr(...)` ではなく、import した
-`tr(...)` を直接呼ぶ。Qt 標準の `QObject.tr` はクラス名コンテキストで JSON を引けない
-ため使わない。クラスに `def tr` を定義する必要はない。
 
 ### 翻訳キーを追加・更新する
 
