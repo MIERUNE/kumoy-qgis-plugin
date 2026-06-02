@@ -1,7 +1,6 @@
 from typing import List
 
 from qgis.core import QgsVectorLayer
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -15,6 +14,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from .. import i18n
 from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
 
@@ -45,9 +45,6 @@ class LayerSelectDialog(QDialog):
         self._checkboxes: List[QCheckBox] = []
         self._setup_ui()
 
-    def tr(self, message: str) -> str:
-        return QCoreApplication.translate("LayerSelectDialog", message)
-
     @property
     def selected_layers(self) -> List[QgsVectorLayer]:
         return [
@@ -55,7 +52,7 @@ class LayerSelectDialog(QDialog):
         ]
 
     def _setup_ui(self) -> None:
-        self.setWindowTitle(self.tr("Select Layers to Convert"))
+        self.setWindowTitle(i18n.tr("Select Layers to Convert"))
         self.setMinimumWidth(400)
         self.setMinimumHeight(300)
 
@@ -64,7 +61,7 @@ class LayerSelectDialog(QDialog):
 
         if self._max_layers == 0:
             limit_label = QLabel(
-                self.tr(
+                i18n.tr(
                     "Vector limit ({}) has been reached. No more vectors can be added."
                 ).format(self._max_vectors)
             )
@@ -92,7 +89,7 @@ class LayerSelectDialog(QDialog):
             cb.setChecked(False)
             if layer.isModified():
                 cb.setEnabled(False)
-                cb.setText(self.tr("{} (unsaved edits)").format(layer.name()))
+                cb.setText(i18n.tr("{} (unsaved edits)").format(layer.name()))
             else:
                 cb.toggled.connect(self._on_checkbox_toggled)
             self._checkboxes.append(cb)
@@ -120,11 +117,11 @@ class LayerSelectDialog(QDialog):
         # Bottom row: Select all / Deselect all (left) + OK / Cancel (right)
         bottom_row = QHBoxLayout()
 
-        self._select_all_btn = QPushButton(self.tr("Select all"))
+        self._select_all_btn = QPushButton(i18n.tr("Select all"))
         self._select_all_btn.clicked.connect(self._select_all)
         bottom_row.addWidget(self._select_all_btn)
 
-        self._deselect_all_btn = QPushButton(self.tr("Deselect all"))
+        self._deselect_all_btn = QPushButton(i18n.tr("Deselect all"))
         self._deselect_all_btn.clicked.connect(self._deselect_all)
         bottom_row.addWidget(self._deselect_all_btn)
 
@@ -157,7 +154,7 @@ class LayerSelectDialog(QDialog):
                 cb.setEnabled(not at_limit)
 
         self._count_label.setText(
-            self.tr("{} selected ({} max)").format(checked_count, self._max_layers)
+            i18n.tr("{} selected ({} max)").format(checked_count, self._max_layers)
         )
 
         percentage = checked_count / self._max_layers * 100

@@ -20,7 +20,6 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
-    QCoreApplication,
     QEventLoop,
     QThread,
     QVariant,
@@ -29,6 +28,7 @@ from qgis.PyQt.QtCore import (
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 from qgis.utils import iface
 
+from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
 from ..api.error import format_api_error
@@ -178,10 +178,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
             ]
         )
 
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("KumoyDataProvider", message)
-
     def _reload_vector(self):
         """Refresh local cache"""
         try:
@@ -190,8 +186,8 @@ class KumoyDataProvider(QgsVectorDataProvider):
             if e.args[0] == "Not Found":
                 QMessageBox.information(
                     None,
-                    self.tr("Vector not found"),
-                    self.tr("The following vector does not exist: {}").format(
+                    i18n.tr("Vector not found"),
+                    i18n.tr("The following vector does not exist: {}").format(
                         self.vector_name
                     ),
                 )
@@ -201,13 +197,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
-            self.tr("Syncing: {}").format(self.kumoy_vector.name),
-            self.tr("Cancel"),
+            i18n.tr("Syncing: {}").format(self.kumoy_vector.name),
+            i18n.tr("Cancel"),
             0,
             0,
             iface.mainWindow(),  # Parent to center on QGIS window
         )
-        progress.setWindowTitle(self.tr("Data Sync"))
+        progress.setWindowTitle(i18n.tr("Data Sync"))
         progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setAutoClose(False)  # Don't auto-close
@@ -270,15 +266,15 @@ class KumoyDataProvider(QgsVectorDataProvider):
         # Handle results
         if sync_cancelled:
             # キャンセル時はレイヤーを追加したくないので例外を投げる
-            raise Exception(self.tr("Sync cancelled by user"))
+            raise Exception(i18n.tr("Sync cancelled by user"))
         elif sync_error:
             # Log error but continue with existing cached data
             QgsMessageLog.logMessage(
-                self.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
+                i18n.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
             )
             iface.messageBar().pushMessage(
-                self.tr("Sync error"),
-                self.tr("Failed to sync {}: {}").format(
+                i18n.tr("Sync error"),
+                i18n.tr("Failed to sync {}: {}").format(
                     self.kumoy_vector.name, sync_error
                 ),
                 level=Qgis.Warning,

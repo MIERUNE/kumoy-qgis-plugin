@@ -7,10 +7,10 @@
 import os
 
 from qgis.core import QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
+from .. import i18n
 from ..kumoy import settings_manager
 from .error_handler import handle_api_error
 from ..kumoy import api
@@ -18,10 +18,6 @@ from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite, upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .layers.convert_vector import convert_local_layers
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def show_map_save_result(
@@ -37,15 +33,15 @@ def show_map_save_result(
         if len(error_details) > msg_max_length:
             error_details = error_details[:msg_max_length] + "..."
 
-        report_msg = tr(
+        report_msg = i18n.tr(
             "Map '{}' has been saved successfully.\n\n"
             "Warning: {} layers could not be converted:\n\n{}"
         ).format(map_name, len(conversion_errors), error_details)
 
-        QMessageBox.warning(None, tr("Map Saved with Warnings"), report_msg)
+        QMessageBox.warning(None, i18n.tr("Map Saved with Warnings"), report_msg)
     else:
-        report_msg = tr("Map '{}' has been saved successfully.").format(map_name)
-        iface.messageBar().pushSuccess(tr("Success"), report_msg)
+        report_msg = i18n.tr("Map '{}' has been saved successfully.").format(map_name)
+        iface.messageBar().pushSuccess(i18n.tr("Success"), report_msg)
 
 
 def handle_project_saved() -> None:
@@ -90,28 +86,28 @@ def handle_project_saved() -> None:
         if settings.selected_project_id != styled_map_detail.projectId:
             QMessageBox.critical(
                 None,
-                tr("Wrong Project"),
-                tr(
+                i18n.tr("Wrong Project"),
+                i18n.tr(
                     "This map belongs to a different Kumoy project. "
                     "Please switch to the correct project."
                 ),
             )
             return
     except Exception as e:
-        handle_api_error(e, parent=None, log_prefix=tr("Error loading map"))
+        handle_api_error(e, parent=None, log_prefix=i18n.tr("Error loading map"))
         return
 
     if styled_map_detail.role not in ["ADMIN", "OWNER"]:
         iface.messageBar().pushMessage(
-            tr("Failed"),
-            tr("You do not have permission to save this map to Kumoy."),
+            i18n.tr("Failed"),
+            i18n.tr("You do not have permission to save this map to Kumoy."),
         )
         return
 
     confirm = QMessageBox.question(
         None,
-        tr("Save Map"),
-        tr(
+        i18n.tr("Save Map"),
+        i18n.tr(
             "Are you sure you want to overwrite the map '{}' with the current project state?"
         ).format(styled_map_detail.name),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
@@ -143,7 +139,7 @@ def handle_project_saved() -> None:
             update_options,
         )
     except Exception as e:
-        handle_api_error(e, parent=None, log_prefix=tr("Error saving map"))
+        handle_api_error(e, parent=None, log_prefix=i18n.tr("Error saving map"))
         return
 
     QgsProject.instance().setTitle(updated_styled_map.name)

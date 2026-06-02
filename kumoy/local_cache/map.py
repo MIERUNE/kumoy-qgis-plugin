@@ -1,8 +1,8 @@
 import os
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 
+from ... import i18n
 from ..constants import LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
@@ -10,10 +10,6 @@ from ..sprite import pin_fixed_aspect_ratios
 # write_qgsfile() で QGIS プロジェクトをディスクに書き出す際、
 # QgsProject.projectSaved シグナル経由で再入することを防ぐためのフラグ。
 is_updating = False
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def get_cache_dir() -> str:
@@ -127,7 +123,7 @@ def _get_qgs_str(map_path: str) -> str:
     LENGTH_LIMIT = 3000000  # 300万文字
     actual_length = len(qgs_str)
     if actual_length > LENGTH_LIMIT:
-        err = tr(
+        err = i18n.tr(
             "Project file size is too large. Limit is {} bytes. your: {} bytes"
         ).format(LENGTH_LIMIT, actual_length)
         QgsMessageLog.logMessage(

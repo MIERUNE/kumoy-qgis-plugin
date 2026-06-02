@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional, Set
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -24,6 +23,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from .. import i18n
 from ..kumoy import api
 from .error_handler import handle_api_error
 from ..kumoy.api.error import UnauthorizedError, format_api_error
@@ -80,7 +80,7 @@ class ProjectSelectDialog(QDialog):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(self.tr("Select Project"))
+        self.setWindowTitle(i18n.tr("Select Project"))
         self.resize(550, 600)
         self.setMinimumWidth(500)
         self.selected_project = None
@@ -92,10 +92,6 @@ class ProjectSelectDialog(QDialog):
         self.load_user_info()
         self.load_organizations()
         self.load_saved_selection()
-
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("ProjectSelectDialog", message)
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -125,7 +121,7 @@ class ProjectSelectDialog(QDialog):
     def _create_account_org_panel(self):
         account_org_layout = QGridLayout()
         # Account label
-        account_label = QLabel(self.tr("Account"))
+        account_label = QLabel(i18n.tr("Account"))
         account_org_layout.addWidget(account_label, 0, 0, 1, 2)
         # Avatar and user name
         avatar_name_layout = QHBoxLayout()
@@ -136,14 +132,14 @@ class ProjectSelectDialog(QDialog):
         avatar_name_layout.addWidget(avatar_label)
 
         # User name label
-        user_name_label = QLabel(self.tr("Loading..."))
+        user_name_label = QLabel(i18n.tr("Loading..."))
         avatar_name_layout.addWidget(user_name_label)
         account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)
         # Organization label
-        org_label = QLabel(self.tr("Organization"))
+        org_label = QLabel(i18n.tr("Organization"))
         account_org_layout.addWidget(org_label, 0, 2)
         # "show details" link
-        details_toggle = QLabel(self.tr("<a href='#'>Show details &#9660;</a>"))
+        details_toggle = QLabel(i18n.tr("<a href='#'>Show details &#9660;</a>"))
         details_toggle.setAlignment(QT_ALIGN.AlignRight)
         details_toggle.linkActivated.connect(self.toggle_details)
         account_org_layout.addWidget(details_toggle, 0, 3)
@@ -163,7 +159,7 @@ class ProjectSelectDialog(QDialog):
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
 
         refresh_button = QPushButton(RELOAD_ICON, "")
-        refresh_button.setToolTip(self.tr("Refresh"))
+        refresh_button.setToolTip(i18n.tr("Refresh"))
         refresh_button.setFixedSize(32, 32)
         refresh_button.clicked.connect(self.reload_dialog)
 
@@ -198,7 +194,7 @@ class ProjectSelectDialog(QDialog):
         )
         header_layout.addWidget(plan_role_label)
         # Organization Settings link
-        org_settings_button = QPushButton(self.tr("Organization Settings"))
+        org_settings_button = QPushButton(i18n.tr("Organization Settings"))
         org_settings_button.clicked.connect(self.open_organization_settings)
         header_layout.addWidget(org_settings_button)
 
@@ -282,7 +278,7 @@ class ProjectSelectDialog(QDialog):
 
         # Search box (left)
         search_input = QLineEdit()
-        search_input.setPlaceholderText(self.tr("Search..."))
+        search_input.setPlaceholderText(i18n.tr("Search..."))
         search_input.setClearButtonEnabled(True)
         search_input.addAction(SEARCH_ICON, QT_LINEEDIT_ACTION_POSITION.LeadingPosition)
         search_input.setMinimumHeight(32)
@@ -357,24 +353,24 @@ class ProjectSelectDialog(QDialog):
         button_layout.setSpacing(8)
 
         # Help button
-        help_btn = QPushButton(self.tr("Help"))
+        help_btn = QPushButton(i18n.tr("Help"))
         help_btn.setAutoDefault(False)
         help_btn.clicked.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
         button_layout.addWidget(help_btn)
 
         # New Project button on the left
-        new_project_button = QPushButton(self.tr("+ New Project"))
+        new_project_button = QPushButton(i18n.tr("+ New Project"))
         new_project_button.clicked.connect(self.create_new_project)
         button_layout.addWidget(new_project_button)
 
         button_layout.addStretch()
 
         # Cancel and OK buttons
-        cancel_btn = QPushButton(self.tr("Cancel"))
+        cancel_btn = QPushButton(i18n.tr("Cancel"))
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
 
-        ok_btn = QPushButton(self.tr("OK"))
+        ok_btn = QPushButton(i18n.tr("OK"))
         ok_btn.setEnabled(False)
         ok_btn.clicked.connect(self.accept)
         button_layout.addWidget(ok_btn)
@@ -408,12 +404,12 @@ class ProjectSelectDialog(QDialog):
         no_org_layout.setSpacing(8)
 
         msg_label = QLabel(
-            self.tr("No organization available. Please create one to get started.")
+            i18n.tr("No organization available. Please create one to get started.")
         )
         msg_label.setAlignment(QT_ALIGN.AlignCenter)
         no_org_layout.addWidget(msg_label)
 
-        create_org_btn = QPushButton(self.tr("Create Organization"))
+        create_org_btn = QPushButton(i18n.tr("Create Organization"))
         create_org_url = f"{api.config.get_api_config().SERVER_URL}/organization"
         create_org_btn.clicked.connect(lambda: webbrowser.open(create_org_url))
         no_org_layout.addWidget(create_org_btn, alignment=QT_ALIGN.AlignCenter)
@@ -426,7 +422,7 @@ class ProjectSelectDialog(QDialog):
 
         # Clear organization details
         self.org_details_panel["plan_role_label"].setText(
-            self.tr("<div><span>No organization available</span></div>")
+            i18n.tr("<div><span>No organization available</span></div>")
         )
 
         keys = ["projects", "maps", "vectors", "members", "storage"]
@@ -460,7 +456,7 @@ class ProjectSelectDialog(QDialog):
         except Exception as e:
             self.myteams = []
             self.admin_team_ids = set()
-            handle_api_error(e, parent=self, log_prefix=self.tr("Failed to load teams"))
+            handle_api_error(e, parent=self, log_prefix=i18n.tr("Failed to load teams"))
 
         # Handle "New Project" button based on admin teams
         has_admin = bool(self.admin_team_ids)
@@ -475,7 +471,7 @@ class ProjectSelectDialog(QDialog):
         combo = self.project_section["team_combo"]
         combo.blockSignals(True)
         combo.clear()
-        combo.addItem(self.tr("All teams"), None)
+        combo.addItem(i18n.tr("All teams"), None)
         combo.insertSeparator(1)
         for team in self.myteams:
             combo.addItem(team.name, team.id)
@@ -493,7 +489,7 @@ class ProjectSelectDialog(QDialog):
             handle_api_error(
                 e,
                 parent=self,
-                log_prefix=self.tr("Failed to load organization details"),
+                log_prefix=i18n.tr("Failed to load organization details"),
             )
             return
 
@@ -523,11 +519,11 @@ class ProjectSelectDialog(QDialog):
 
         if self.details_visible:
             self.account_org_panel["details_toggle"].setText(
-                self.tr("<a href='#'>Hide details &#9650;</a>")
+                i18n.tr("<a href='#'>Hide details &#9650;</a>")
             )
         else:
             self.account_org_panel["details_toggle"].setText(
-                self.tr("<a href='#'>Show details &#9660;</a>")
+                i18n.tr("<a href='#'>Show details &#9660;</a>")
             )
 
     def open_organization_settings(self):
@@ -540,15 +536,15 @@ class ProjectSelectDialog(QDialog):
         try:
             webbrowser.open(settings_url)
         except Exception as e:
-            msg = self.tr("Error opening web browser: {}").format(format_api_error(e))
+            msg = i18n.tr("Error opening web browser: {}").format(format_api_error(e))
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, self.tr("Error"), msg)
+            QMessageBox.critical(self, i18n.tr("Error"), msg)
 
     def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
         """Update the usage display with organization details"""
         # Update plan label
         self.org_details_panel["plan_role_label"].setText(
-            self.tr("<div><span>{} Plan</span><br /><span>{}</span></div>").format(
+            i18n.tr("<div><span>{} Plan</span><br /><span>{}</span></div>").format(
                 org_detail.subscriptionPlan.capitalize(), org_detail.role.capitalize()
             )
         )
@@ -561,11 +557,11 @@ class ProjectSelectDialog(QDialog):
             handle_api_error(e, parent=self)
             plan_limits = _empty_plan_limits()
         except Exception as e:
-            msg = self.tr("Failed to retrieve plan limits: {}").format(
+            msg = i18n.tr("Failed to retrieve plan limits: {}").format(
                 format_api_error(e)
             )
             QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.warning(self, self.tr("Warning"), msg)
+            QMessageBox.warning(self, i18n.tr("Warning"), msg)
             plan_limits = _empty_plan_limits()
 
         # Define resource mappings
@@ -664,7 +660,7 @@ class ProjectSelectDialog(QDialog):
 
         except Exception as e:
             handle_api_error(
-                e, parent=self, log_prefix=self.tr("Failed to load projects")
+                e, parent=self, log_prefix=i18n.tr("Failed to load projects")
             )
 
         self.filter_projects()
@@ -739,7 +735,7 @@ class ProjectSelectDialog(QDialog):
                 self._select_organization_by_id(org_id)
         except Exception as e:
             handle_api_error(
-                e, parent=self, log_prefix=self.tr("Failed to reload dialog")
+                e, parent=self, log_prefix=i18n.tr("Failed to reload dialog")
             )
             return
         finally:
@@ -757,8 +753,8 @@ class ProjectSelectDialog(QDialog):
         if not (org := self.get_selected_organization()):
             QMessageBox.warning(
                 self,
-                self.tr("No Organization Selected"),
-                self.tr("Please select an organization first."),
+                i18n.tr("No Organization Selected"),
+                i18n.tr("Please select an organization first."),
             )
             return
 
@@ -778,7 +774,7 @@ class ProjectSelectDialog(QDialog):
                 description=project_description,
             )
             QgsMessageLog.logMessage(
-                self.tr("Project '{}' created successfully").format(project_name),
+                i18n.tr("Project '{}' created successfully").format(project_name),
                 LOG_CATEGORY,
                 Qgis.Info,
             )
@@ -789,14 +785,14 @@ class ProjectSelectDialog(QDialog):
 
             show_plain_text_message(
                 self,
-                self.tr("Project Created"),
-                self.tr("Project '{}' has been created successfully.").format(
+                i18n.tr("Project Created"),
+                i18n.tr("Project '{}' has been created successfully.").format(
                     project_name
                 ),
             )
         except Exception as e:
             handle_api_error(
-                e, parent=self, log_prefix=self.tr("Failed to create project")
+                e, parent=self, log_prefix=i18n.tr("Failed to create project")
             )
 
     def _select_organization_by_id(self, org_id: str):
@@ -839,10 +835,6 @@ class ProjectItemWidget(QWidget):
         self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.setup_ui()
-
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("ProjectItemWidget", message)
 
     def setup_ui(self):
         """Set up the project item UI"""
@@ -944,35 +936,35 @@ class ProjectItemWidget(QWidget):
 
         if delta.days == 0:
             if delta.seconds < 3600:
-                return self.tr("{} minutes ago").format(delta.seconds // 60)
+                return i18n.tr("{} minutes ago").format(delta.seconds // 60)
             else:
-                return self.tr("{} hours ago").format(delta.seconds // 3600)
+                return i18n.tr("{} hours ago").format(delta.seconds // 3600)
         elif delta.days == 1:
-            return self.tr("1 day ago")
+            return i18n.tr("1 day ago")
         elif delta.days < 30:
-            return self.tr("{} days ago").format(delta.days)
+            return i18n.tr("{} days ago").format(delta.days)
         elif delta.days < 365:
-            return self.tr("{} months ago").format(delta.days // 30)
+            return i18n.tr("{} months ago").format(delta.days // 30)
         else:
-            return self.tr("{} years ago").format(delta.days // 365)
+            return i18n.tr("{} years ago").format(delta.days // 365)
 
     def show_context_menu(self, position):
         """Show context menu for project item"""
         menu = QMenu(self)
 
         # Open in Web action
-        open_web_action = menu.addAction(self.tr("Open in Web App"))
+        open_web_action = menu.addAction(i18n.tr("Open in Web App"))
         open_web_action.triggered.connect(self.open_in_web)
 
         if self.is_admin:
             # Edit action
-            edit_action = menu.addAction(self.tr("Edit Project"))
+            edit_action = menu.addAction(i18n.tr("Edit Project"))
             edit_action.triggered.connect(self.edit_project)
 
             menu.addSeparator()
 
             # Delete action
-            delete_action = menu.addAction(self.tr("Delete Project"))
+            delete_action = menu.addAction(i18n.tr("Delete Project"))
             delete_action.triggered.connect(self.delete_project)
 
         exec_menu(menu, self.mapToGlobal(position))
@@ -990,7 +982,7 @@ class ProjectItemWidget(QWidget):
             webbrowser.open(project_url)
         except Exception as e:
             QgsMessageLog.logMessage(
-                self.tr("Error opening web browser: {}").format(format_api_error(e)),
+                i18n.tr("Error opening web browser: {}").format(format_api_error(e)),
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -1002,9 +994,9 @@ class ProjectItemWidget(QWidget):
 
         # Show confirmation dialog
         msg_box = QMessageBox(self.parent_dialog)
-        msg_box.setWindowTitle(self.tr("Delete Project"))
+        msg_box.setWindowTitle(i18n.tr("Delete Project"))
         msg_box.setText(
-            self.tr(
+            i18n.tr(
                 "Are you sure you want to delete project '{}'?\n"
                 "This action can't be undone."
             ).format(self.project.name)
@@ -1022,7 +1014,7 @@ class ProjectItemWidget(QWidget):
                 api.project.delete_project(self.project.id)
 
                 QgsMessageLog.logMessage(
-                    self.tr("Project '{}' deleted successfully.").format(
+                    i18n.tr("Project '{}' deleted successfully.").format(
                         self.project.name
                     ),
                     LOG_CATEGORY,
@@ -1038,8 +1030,8 @@ class ProjectItemWidget(QWidget):
 
                 show_plain_text_message(
                     self.parent_dialog,
-                    self.tr("Project Deleted"),
-                    self.tr("Project '{}' has been deleted successfully.").format(
+                    i18n.tr("Project Deleted"),
+                    i18n.tr("Project '{}' has been deleted successfully.").format(
                         self.project.name
                     ),
                 )
@@ -1047,7 +1039,7 @@ class ProjectItemWidget(QWidget):
                 handle_api_error(
                     e,
                     parent=self.parent_dialog,
-                    log_prefix=self.tr("Failed to delete project"),
+                    log_prefix=i18n.tr("Failed to delete project"),
                 )
 
     def edit_project(self):
@@ -1067,7 +1059,7 @@ class ProjectItemWidget(QWidget):
             handle_api_error(
                 e,
                 parent=self.parent_dialog,
-                log_prefix=self.tr("Failed to load project details"),
+                log_prefix=i18n.tr("Failed to load project details"),
             )
             return
 
@@ -1079,7 +1071,7 @@ class ProjectItemWidget(QWidget):
             initial_name=project_detail.name,
             initial_description=project_detail.description,
         )
-        edit_dialog.setWindowTitle(self.tr("Edit Project"))
+        edit_dialog.setWindowTitle(i18n.tr("Edit Project"))
 
         if exec_dialog(edit_dialog) != QDIALOG_CODE.Accepted:
             return
@@ -1101,7 +1093,7 @@ class ProjectItemWidget(QWidget):
             )
 
             QgsMessageLog.logMessage(
-                self.tr("Project '{}' updated successfully").format(self.project.name),
+                i18n.tr("Project '{}' updated successfully").format(self.project.name),
                 LOG_CATEGORY,
                 Qgis.Info,
             )
@@ -1115,12 +1107,12 @@ class ProjectItemWidget(QWidget):
 
             show_plain_text_message(
                 self.parent_dialog,
-                self.tr("Project Updated"),
-                self.tr("Project '{}' has been updated successfully.").format(new_name),
+                i18n.tr("Project Updated"),
+                i18n.tr("Project '{}' has been updated successfully.").format(new_name),
             )
         except Exception as e:
             handle_api_error(
                 e,
                 parent=self.parent_dialog,
-                log_prefix=self.tr("Failed to update project"),
+                log_prefix=i18n.tr("Failed to update project"),
             )

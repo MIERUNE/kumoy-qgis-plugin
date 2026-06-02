@@ -1,53 +1,58 @@
 # 翻訳ガイド (Translation Guide)
 
-この QGIS プラグインは Qt 翻訳システムを使用して多言語対応しています。
+*English: [README.en.md](README.en.md)*
+
+このプラグインは Qt の .ts/.qm パイプラインを使わず、**原文(英語)をキーにした
+JSON 辞書**で翻訳する。`i18n/__init__.py` が辞書のロードとルックアップを担う。
 
 ## ファイル構成
 
 ```
-qgis-plugin/
-├── kumoy.pro            # Qt プロジェクトファイル（翻訳対象ファイルを定義）
-├── i18n/                 # 翻訳ファイルディレクトリ
-│   ├── kumoy_ja.ts      # 日本語翻訳ソースファイル
-│   └── kumoy_ja.qm      # 日本語翻訳バイナリファイル
+i18n/
+├── __init__.py   # load(locale) と tr(message)
+├── extract.py    # コードから tr("...") を抽出して JSON を更新（pylupdate 相当）
+├── ja.json       # 日本語訳（原文 -> 訳文）
+└── en.json       # （任意）英語。原文=英語なので無ければ原文フォールバック
 ```
 
-## 翻訳の仕組み
+## 仕組み
 
-1. **翻訳関数**: 各クラスで `tr()`メソッドを使用して文字列を翻訳可能にしています
-2. **自動言語検出**: プラグイン初期化時に QGIS のロケール設定を自動検出
-3. **フォールバック**: 翻訳ファイルが見つからない場合は英語（デフォルト）で表示
+1. **翻訳関数**: コード側は `i18n.tr("英語原文")` を呼ぶ。`tr()` は辞書を引き、未登録なら
+   原文をそのまま返す（＝英語フォールバック）。
+2. **言語検出**: プラグイン初期化時に `i18n.load(QgsApplication.instance().locale())` を
+   1回呼び、`<locale>.json` を読み込む。QGIS のロケール変更は QGIS 再起動で反映される
+   （Qt 方式と同じ挙動）。
+3. プレースホルダは原文側に書き、`.format()` は呼び出し側で適用する:
+   `i18n.tr("count: {}").format(n)`
+
+## 使い方
+
+### コード中で翻訳する
+
+`i18n` モジュールをインポートし、`i18n.tr(...)` で呼ぶ（QObject サブクラス内でも同じ）。
+出所が明示され読みやすいので `from ..i18n import tr` ではなくモジュール経由にする。
+
+```python
+from .. import i18n   # 相対パスはファイル位置に合わせる（.. / ... 等）
+
+label.setText(i18n.tr("Save Map"))
+msg = i18n.tr("An error occurred: {}").format(error_text)
+```
+
+### 翻訳キーを追加・更新する
+
+新しい `tr("...")` を書いたら抽出スクリプトを実行する。コードに在って JSON に無い
+キーは空訳 `""` で追加され、JSON に在ってコードに無いキーは「未使用」として報告される
+（自動削除はしない）:
+
+```bash
+python3 i18n/extract.py            # i18n/ja.json を更新
+python3 i18n/extract.py --check    # 未更新なら非0終了（CI 用）
+```
+
+その後 `i18n/ja.json` の空訳を埋める（エディタで直接編集。バイナリ化・コンパイル不要）。
 
 ## 対応言語
 
-- 英語 (en) - デフォルト
-- 日本語 (ja) - 完全対応
-
-## 翻訳ファイルの更新方法
-
-### 1. 新しい翻訳文字列を追加した場合
-
-```bash
-# プロジェクトファイルを更新（必要に応じて）
-# kumoy.pro のSOURCESセクションに新しいファイルを追加
-
-# 翻訳ファイルを更新
-/Applications/QGIS.app/Contents/MacOS/bin/python3.9 -m PyQt5.pylupdate_main kumoy.pro
-```
-
-### 2. 翻訳の追加・編集
-
-```bash
-# Qt Linguistを使用（推奨）
-linguist i18n/kumoy_ja.ts
-
-# またはテキストエディタで直接編集
-# i18n/kumoy_ja.ts ファイルを編集
-```
-
-### 3. バイナリファイルのコンパイル
-
-```bash
-# .ts から .qm ファイルを生成
-lrelease i18n/kumoy_ja.ts
-```
+- 英語 (en) — デフォルト（原文）
+- 日本語 (ja) — `ja.json`

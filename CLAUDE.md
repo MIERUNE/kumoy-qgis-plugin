@@ -74,26 +74,21 @@ plugin.py
 
 ### 翻訳ヘルパーの書き方
 
-Qt の翻訳は「コンテキスト名」と「メッセージ」のペアで lookup される。コンテキスト名を間違えると翻訳が引かれず原文のまま表示されるので注意。
+Qt の .ts/.qm パイプラインは使わない。原文(英語)をキーにした JSON 辞書を `i18n/`
+パッケージが引く（コンテキスト名は無い）。詳細は `i18n/README.md`。
 
-- **QObject サブクラス内（QDialog, QgsDataItem 等）**: クラスのメンバ `self.tr()` をそのまま使ってよい。コンテキストにはクラス名が自動で入る。`.ts` ファイル側もクラス名で揃える。
+- 翻訳したい文字列は `i18n.tr("英語原文")` を呼ぶ（QObject サブクラス内でも同じ）。
+  `i18n` モジュールをインポートする（相対パスはファイル位置に合わせる）。出所が明示され
+  読みやすいので、`from ..i18n import tr` ではなくモジュール経由で呼ぶ。プレースホルダは
+  原文側に書き `.format()` で埋める。
   ```python
-  class MyDialog(QDialog):
-      def tr(self, message):
-          return QCoreApplication.translate("MyDialog", message)
+  from .. import i18n        # ui/ 直下なら .. 、ui/browser/ なら ... など
+  label.setText(i18n.tr("Save Map"))
+  msg = i18n.tr("An error occurred: {}").format(error_text)
   ```
 
-- **モジュールレベル関数や非 QObject のクラス内**: `QCoreApplication.translate("@default", message)` を使う。`"@default"` は Qt が用意している共有コンテキスト。クラス名を勝手に入れると、その名前のクラスが存在しないため翻訳が引かれない。
-  ```python
-  # 良い例（error_handler.py, ui/browser/styledmap.py, kumoy/local_cache/map.py など）
-  def tr(message: str, context: str = "@default") -> str:
-      return QCoreApplication.translate(context, message)
-
-  # 悪い例: クラス名でないコンテキストを勝手に作る
-  def _tr(message): return QCoreApplication.translate("KumoyErrorHandler", message)
-  ```
-
-- 新規ファイル/関数を追加するときは既存の `tr()` ヘルパーの書き方に揃える。`grep` で `QCoreApplication.translate` を確認して、QObject 側はクラス名、非 QObject 側は `"@default"` という分け方になっているかを確認すること。
+- 文字列を追加・変更したら `python3 i18n/extract.py` を実行して `i18n/ja.json`
+  に新規キー（空訳）を追加し、訳を埋める。`--check` で CI 検証できる。
 
 ## Git ワークフロー
 

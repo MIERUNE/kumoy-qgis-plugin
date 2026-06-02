@@ -16,7 +16,6 @@ from qgis.core import (
     QgsUnitTypes,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
     QComboBox,
@@ -47,11 +46,8 @@ from ..icons import (
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
+from ... import i18n
 from .utils import ErrorItem
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 class VectorItem(QgsDataItem):
@@ -86,10 +82,6 @@ class VectorItem(QgsDataItem):
 
         self.populate()
 
-    def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("VectorItem", message)
-
     def hasDragEnabled(self) -> bool:
         return True
 
@@ -107,23 +99,23 @@ class VectorItem(QgsDataItem):
         actions = []
 
         # Add to map action
-        add_action = QAction(self.tr("Add to Map"), parent)
+        add_action = QAction(i18n.tr("Add to Map"), parent)
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+        clear_cache_action = QAction(i18n.tr("Clear Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
             # Edit vector action
-            edit_action = QAction(self.tr("Edit Vector"), parent)
+            edit_action = QAction(i18n.tr("Edit Vector"), parent)
             edit_action.triggered.connect(self.edit_vector)
             actions.append(edit_action)
 
             # Delete vector action
-            delete_action = QAction(self.tr("Delete Vector"), parent)
+            delete_action = QAction(i18n.tr("Delete Vector"), parent)
             delete_action.triggered.connect(self.delete_vector)
             actions.append(delete_action)
 
@@ -146,7 +138,7 @@ class VectorItem(QgsDataItem):
                 layer.setEditFormConfig(config)
             QgsProject.instance().addMapLayer(layer)
         else:
-            raise RuntimeError(self.tr("Layer is invalid: {}").format(self.vector_uri))
+            raise RuntimeError(i18n.tr("Layer is invalid: {}").format(self.vector_uri))
 
     def add_to_map(self) -> None:
         """Add vector layer to QGIS map"""
@@ -156,7 +148,7 @@ class VectorItem(QgsDataItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error adding vector to map"),
+                log_prefix=i18n.tr("Error adding vector to map"),
             )
 
     def _set_pixel_based_style(self, layer: QgsVectorLayer) -> None:
@@ -220,7 +212,7 @@ class VectorItem(QgsDataItem):
         """Edit vector details"""
         # Create dialog
         dialog = QDialog()
-        dialog.setWindowTitle(self.tr("Edit Vector"))
+        dialog.setWindowTitle(i18n.tr("Edit Vector"))
         dialog.resize(400, 250)
 
         # Create layout
@@ -235,9 +227,9 @@ class VectorItem(QgsDataItem):
 
         # Add fields to form
         form_layout.addRow(
-            self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+            i18n.tr("Name:") + ' <span style="color: red;">*</span>', name_field
         )
-        form_layout.addRow(self.tr("Attribution:"), attribution_field)
+        form_layout.addRow(i18n.tr("Attribution:"), attribution_field)
 
         # Create buttons
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
@@ -277,7 +269,7 @@ class VectorItem(QgsDataItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error updating vector"),
+                log_prefix=i18n.tr("Error updating vector"),
             )
             return
 
@@ -303,8 +295,8 @@ class VectorItem(QgsDataItem):
         """Delete the vector"""
         confirm = QMessageBox.question(
             None,
-            self.tr("Delete Vector"),
-            self.tr("Are you sure you want to delete vector '{}'?").format(
+            i18n.tr("Delete Vector"),
+            i18n.tr("Are you sure you want to delete vector '{}'?").format(
                 self.vector.name
             ),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
@@ -318,15 +310,15 @@ class VectorItem(QgsDataItem):
                 handle_api_error(
                     e,
                     parent=None,
-                    log_prefix=self.tr("Error deleting vector"),
+                    log_prefix=i18n.tr("Error deleting vector"),
                 )
                 return
 
             self.parent().refresh()
             iface.mapCanvas().refresh()
             iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("Vector '{}' deleted successfully.").format(self.vector.name),
+                i18n.tr("Success"),
+                i18n.tr("Vector '{}' deleted successfully.").format(self.vector.name),
             )
 
     def is_loaded_on_map(self) -> bool:
@@ -347,8 +339,8 @@ class VectorItem(QgsDataItem):
         """Clear cache for this specific vector"""
         if self.is_loaded_on_map():
             iface.messageBar().pushMessage(
-                self.tr("Cannot Clear Cache"),
-                self.tr(
+                i18n.tr("Cannot Clear Cache"),
+                i18n.tr(
                     "Cannot clear cache for vector '{}' while it is loaded on the map. "
                     "Please close the map first."
                 ).format(self.vector.name),
@@ -357,8 +349,8 @@ class VectorItem(QgsDataItem):
 
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Cache Data"),
-            self.tr(
+            i18n.tr("Clear Cache Data"),
+            i18n.tr(
                 "This will clear the local cache for vector '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
@@ -370,15 +362,15 @@ class VectorItem(QgsDataItem):
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             if self.process_vector_cache_clear():
                 iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("Cache cleared successfully for vector '{}'.").format(
+                    i18n.tr("Success"),
+                    i18n.tr("Cache cleared successfully for vector '{}'.").format(
                         self.vector.name
                     ),
                 )
             else:
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Failed"),
-                    self.tr(
+                    i18n.tr("Cache Clear Failed"),
+                    i18n.tr(
                         "Cache could not be cleared for vector '{}'. "
                         "Please try again while vector is not open after restarting QGIS"
                     ).format(self.vector.name),
@@ -409,26 +401,22 @@ class VectorRoot(QgsDataItem):
         self.organization = organization
         self.project = project
 
-    def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("VectorRoot", message)
-
     def actions(self, parent: QMenu) -> list[QAction]:
         actions = []
 
         if self.project.role in ["ADMIN", "OWNER"]:
             # New vector action
-            new_vector_action = QAction(self.tr("Create Vector"), parent)
+            new_vector_action = QAction(i18n.tr("Create Vector"), parent)
             new_vector_action.triggered.connect(self.new_vector)
             actions.append(new_vector_action)
 
             # Upload vector action
-            upload_vector_action = QAction(self.tr("Upload Vector"), parent)
+            upload_vector_action = QAction(i18n.tr("Upload Vector"), parent)
             upload_vector_action.triggered.connect(self.upload_vector)
             actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(self.tr("Clear Vector Cache Data"), parent)
+        clear_cache_action = QAction(i18n.tr("Clear Vector Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_cache)
         actions.append(clear_cache_action)
 
@@ -447,8 +435,8 @@ class VectorRoot(QgsDataItem):
             if upload_vector_count > plan_limit.maxVectors:
                 QMessageBox.critical(
                     None,
-                    self.tr("Error"),
-                    self.tr(
+                    i18n.tr("Error"),
+                    i18n.tr(
                         "You have reached your plan's limit of {} vector layers. "
                         "Please delete one or upgrade your plan to continue."
                     ).format(plan_limit.maxVectors),
@@ -456,7 +444,7 @@ class VectorRoot(QgsDataItem):
                 return
 
             dialog = QDialog()
-            dialog.setWindowTitle(self.tr("Create New Vector Layer"))
+            dialog.setWindowTitle(i18n.tr("Create New Vector Layer"))
             dialog.resize(400, 200)
 
             # Create layout
@@ -467,25 +455,25 @@ class VectorRoot(QgsDataItem):
             name_field = QLineEdit()
             name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
             form_layout.addRow(
-                self.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+                i18n.tr("Name:") + ' <span style="color: red;">*</span>', name_field
             )
 
             # Type field
             type_field = QComboBox()
             type_field.addItems(["POINT", "LINESTRING", "POLYGON"])
             form_layout.addRow(
-                self.tr("Geometry Type:") + ' <span style="color: red;">*</span>',
+                i18n.tr("Geometry Type:") + ' <span style="color: red;">*</span>',
                 type_field,
             )
 
             # Attribution field
             attribution_field = QLineEdit()
             attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
-            form_layout.addRow(self.tr("Attribution:"), attribution_field)
+            form_layout.addRow(i18n.tr("Attribution:"), attribution_field)
 
             # Add description
             description = QLabel(
-                self.tr("This will create an empty vector layer in the project.")
+                i18n.tr("This will create an empty vector layer in the project.")
             )
             description.setWordWrap(True)
 
@@ -520,8 +508,8 @@ class VectorRoot(QgsDataItem):
             if not name:
                 QMessageBox.critical(
                     None,
-                    self.tr("Error"),
-                    self.tr("Please enter a name for your vector layer."),
+                    i18n.tr("Error"),
+                    i18n.tr("Please enter a name for your vector layer."),
                 )
                 return
 
@@ -531,7 +519,7 @@ class VectorRoot(QgsDataItem):
             )
             api.vector.add_vector(self.project.id, options)
             QgsMessageLog.logMessage(
-                self.tr(
+                i18n.tr(
                     "Successfully created vector layer '{}' in project '{}'"
                 ).format(name, self.project.id),
                 constants.LOG_CATEGORY,
@@ -543,7 +531,7 @@ class VectorRoot(QgsDataItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error adding vector"),
+                log_prefix=i18n.tr("Error adding vector"),
             )
 
     def upload_vector(self) -> None:
@@ -560,24 +548,24 @@ class VectorRoot(QgsDataItem):
         project_id = get_settings().selected_project_id
 
         if not project_id:
-            return [ErrorItem(self, self.tr("No project selected"))]
+            return [ErrorItem(self, i18n.tr("No project selected"))]
 
         # Get vectors for this project
         try:
             vectors = api.vector.get_vectors(project_id)
         except UnauthorizedError as e:
             handle_api_error(e, parent=None)
-            return [ErrorItem(self, self.tr("Session expired - please log in"))]
+            return [ErrorItem(self, i18n.tr("Session expired - please log in"))]
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading vectors: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
-            return [ErrorItem(self, self.tr("Error loading vectors"))]
+            return [ErrorItem(self, i18n.tr("Error loading vectors"))]
 
         if len(vectors) == 0:
-            return [ErrorItem(self, self.tr("No vector layers found in this project"))]
+            return [ErrorItem(self, i18n.tr("No vector layers found in this project"))]
 
         children = []
 
@@ -596,8 +584,8 @@ class VectorRoot(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             if layer.providerType() == constants.DATA_PROVIDER_KEY:
                 iface.messageBar().pushMessage(
-                    self.tr("Cannot Clear Cache"),
-                    self.tr(
+                    i18n.tr("Cannot Clear Cache"),
+                    i18n.tr(
                         "Cannot clear vector cache while vector layers are loaded on the map. "
                         "Please close your map first."
                     ),
@@ -607,8 +595,8 @@ class VectorRoot(QgsDataItem):
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Vector Cache"),
-            self.tr(
+            i18n.tr("Clear Vector Cache"),
+            i18n.tr(
                 "This will clear all locally cached vector files. "
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
@@ -622,18 +610,18 @@ class VectorRoot(QgsDataItem):
 
             if cache_cleared:
                 QgsMessageLog.logMessage(
-                    self.tr("All vector cache files cleared successfully."),
+                    i18n.tr("All vector cache files cleared successfully."),
                     constants.LOG_CATEGORY,
                     Qgis.Info,
                 )
                 iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("All vector cache files have been cleared successfully."),
+                    i18n.tr("Success"),
+                    i18n.tr("All vector cache files have been cleared successfully."),
                 )
             else:
                 iface.messageBar().pushMessage(
-                    self.tr("Vector Cache Clear Failed"),
-                    self.tr(
+                    i18n.tr("Vector Cache Clear Failed"),
+                    i18n.tr(
                         "Some vector cache files could not be cleared. "
                         "Please try again after closing QGIS or ensure no files are locked."
                     ),
@@ -660,8 +648,8 @@ def add_multiple_vectors(items: list[VectorItem]) -> None:
     if errors:
         QMessageBox.critical(
             None,
-            tr("Error"),
-            tr("Some vectors could not be added:\n{}").format("\n".join(errors)),
+            i18n.tr("Error"),
+            i18n.tr("Some vectors could not be added:\n{}").format("\n".join(errors)),
         )
 
 
@@ -670,8 +658,8 @@ def clear_cache_multiple_vectors(items: list[VectorItem]) -> None:
 
     if loaded_names:
         iface.messageBar().pushMessage(
-            tr("Cannot Clear Cache"),
-            tr("Cannot clear cache for vectors loaded on the map: {}").format(
+            i18n.tr("Cannot Clear Cache"),
+            i18n.tr("Cannot clear cache for vectors loaded on the map: {}").format(
                 ", ".join(loaded_names)
             ),
         )
@@ -679,8 +667,8 @@ def clear_cache_multiple_vectors(items: list[VectorItem]) -> None:
 
     confirm = QMessageBox.question(
         None,
-        tr("Clear Cache Data"),
-        tr(
+        i18n.tr("Clear Cache Data"),
+        i18n.tr(
             "This will clear the local cache for {} vectors.\n"
             "The cached data will be re-downloaded when you access it next time.\n"
             "Do you want to continue?"
@@ -695,13 +683,13 @@ def clear_cache_multiple_vectors(items: list[VectorItem]) -> None:
 
     if failed:
         iface.messageBar().pushMessage(
-            tr("Cache Clear Failed"),
-            tr("Could not clear cache for: {}").format(", ".join(failed)),
+            i18n.tr("Cache Clear Failed"),
+            i18n.tr("Could not clear cache for: {}").format(", ".join(failed)),
         )
     else:
         iface.messageBar().pushSuccess(
-            tr("Success"),
-            tr("Cache cleared successfully for {} vectors.").format(len(items)),
+            i18n.tr("Success"),
+            i18n.tr("Cache cleared successfully for {} vectors.").format(len(items)),
         )
 
 
@@ -709,8 +697,10 @@ def delete_multiple_vectors(items: list[VectorItem]) -> None:
     names = "\n".join(f"  - {i.vector.name}" for i in items)
     confirm = QMessageBox.question(
         None,
-        tr("Delete Vectors"),
-        tr("Are you sure you want to delete {} vectors?\n{}").format(len(items), names),
+        i18n.tr("Delete Vectors"),
+        i18n.tr("Are you sure you want to delete {} vectors?\n{}").format(
+            len(items), names
+        ),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
         Q_MESSAGEBOX_STD_BUTTON.No,
     )
@@ -750,11 +740,11 @@ def delete_multiple_vectors(items: list[VectorItem]) -> None:
     if errors:
         QMessageBox.critical(
             None,
-            tr("Error"),
-            tr("Some vectors could not be deleted:\n{}").format("\n".join(errors)),
+            i18n.tr("Error"),
+            i18n.tr("Some vectors could not be deleted:\n{}").format("\n".join(errors)),
         )
     else:
         iface.messageBar().pushSuccess(
-            tr("Success"),
-            tr("{} vectors have been deleted successfully.").format(deleted_count),
+            i18n.tr("Success"),
+            i18n.tr("{} vectors have been deleted successfully.").format(deleted_count),
         )

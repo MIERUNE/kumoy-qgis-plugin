@@ -1,7 +1,6 @@
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -11,6 +10,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from .. import i18n
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import read_plugin_version
@@ -40,12 +40,8 @@ class DialogAccount(QDialog):
         self._load_user_info()
         self._load_server_config()
 
-    def tr(self, message: str) -> str:
-        """Qt translation helper."""
-        return QCoreApplication.translate("DialogAccount", message)
-
     def _init_ui(self) -> None:
-        self.setWindowTitle(self.tr("Account"))
+        self.setWindowTitle(i18n.tr("Account"))
         self.setMinimumSize(480, 360)
         self.setSizeGripEnabled(False)
 
@@ -75,7 +71,7 @@ class DialogAccount(QDialog):
 
         # powered by
         powered_label = QLabel(
-            self.tr('Powered by <a href="https://www.mierune.co.jp/">MIERUNE Inc.</a>')
+            i18n.tr('Powered by <a href="https://www.mierune.co.jp/">MIERUNE Inc.</a>')
         )
         powered_label.setTextInteractionFlags(
             QT_TEXT_INTERACTION.TextBrowserInteraction
@@ -110,7 +106,7 @@ class DialogAccount(QDialog):
         self.avatar_label.setAlignment(QT_ALIGN.AlignCenter)
 
         # Name label
-        self.name_label = QLabel(self.tr("Unknown user"))
+        self.name_label = QLabel(i18n.tr("Unknown user"))
         self.name_label.setAlignment(QT_ALIGN.AlignCenter)
         self.name_label.setStyleSheet("font-size: 18px; font-weight: 600;")
 
@@ -118,7 +114,7 @@ class DialogAccount(QDialog):
         self.email_label.setAlignment(QT_ALIGN.AlignCenter)
         self.email_label.setStyleSheet("font-size: 13px;")
 
-        self.account_settings_button = QPushButton(self.tr("Account settings"))
+        self.account_settings_button = QPushButton(i18n.tr("Account settings"))
         self.account_settings_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.account_settings_button.clicked.connect(self._open_account_settings)
         self.account_settings_button.setStyleSheet(
@@ -141,7 +137,7 @@ class DialogAccount(QDialog):
         server_layout.setSpacing(6)
         server_layout.setContentsMargins(0, 0, 0, 0)
 
-        server_label = QLabel(self.tr("Server configuration"))
+        server_label = QLabel(i18n.tr("Server configuration"))
         server_label.setStyleSheet("font-weight: 600;")
         server_layout.addWidget(server_label)
 
@@ -157,7 +153,7 @@ class DialogAccount(QDialog):
         main_layout.addStretch()
 
         # Logout button
-        self.logout_button = QPushButton(self.tr("Logout"))
+        self.logout_button = QPushButton(i18n.tr("Logout"))
         self.logout_button.setMinimumHeight(28)
         self.logout_button.setCursor(QT_CURSOR_SHAPE.PointingHandCursor)
         self.logout_button.clicked.connect(self._logout)
@@ -166,7 +162,7 @@ class DialogAccount(QDialog):
     def _load_user_info(self) -> None:
         self.user_info = api.user.get_me()
 
-        name = self.user_info.name or self.user_info.email or self.tr("Unknown user")
+        name = self.user_info.name or self.user_info.email or i18n.tr("Unknown user")
         email = self.user_info.email or ""
 
         self.name_label.setText(name)
@@ -184,7 +180,7 @@ class DialogAccount(QDialog):
         config = api.config.get_api_config()
         self.server_url = config.SERVER_URL
         self.account_settings_url = self.server_url.rstrip("/") + "/organization"
-        self.server_url_label.setText(self.tr("Server URL\n{}").format(self.server_url))
+        self.server_url_label.setText(i18n.tr("Server URL\n{}").format(self.server_url))
 
     def _create_initials(self, name: str) -> str:
         parts = [part.strip() for part in name.split() if part.strip()]
@@ -201,16 +197,16 @@ class DialogAccount(QDialog):
         except Exception as exc:  # pylint: disable=broad-except
             QMessageBox.warning(
                 self,
-                self.tr("Error"),
-                self.tr("Error opening web browser: {}").format(str(exc)),
+                i18n.tr("Error"),
+                i18n.tr("Error opening web browser: {}").format(str(exc)),
             )
 
     def _logout(self) -> None:
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 self,
-                self.tr("Logout"),
-                self.tr(
+                i18n.tr("Logout"),
+                i18n.tr(
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
@@ -235,7 +231,7 @@ class DialogAccount(QDialog):
         )
         QMessageBox.information(
             self,
-            self.tr("Logout"),
-            self.tr("You have been logged out from Kumoy."),
+            i18n.tr("Logout"),
+            i18n.tr("You have been logged out from Kumoy."),
         )
         self.accept()

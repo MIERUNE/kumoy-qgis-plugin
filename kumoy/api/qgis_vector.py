@@ -2,14 +2,11 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QCoreApplication, QDate, QDateTime, QTime, QVariant
+from qgis.PyQt.QtCore import QDate, QDateTime, QTime, QVariant
 
 from .. import constants
+from ... import i18n
 from .client import ApiClient
-
-
-def tr(message: str) -> str:
-    return QCoreApplication.translate("@default", message)
 
 
 def get_features(
@@ -50,7 +47,7 @@ def add_features(
         kumoy_wkb = base64.b64encode(f.geometry().asWkb()).decode("utf-8")
         if len(kumoy_wkb) > constants.MAX_WKB_LENGTH:
             raise WkbTooLargeError(
-                tr("Feature geometry exceeds maximum WKB length ({} > {})").format(
+                i18n.tr("Feature geometry exceeds maximum WKB length ({} > {})").format(
                     f"{len(kumoy_wkb):,}", f"{constants.MAX_WKB_LENGTH:,}"
                 )
             )
