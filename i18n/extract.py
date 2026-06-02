@@ -78,10 +78,15 @@ def update(locale: str, check: bool) -> int:
         with open(path, encoding="utf-8") as f:
             existing = json.load(f)
 
-    merged = {k: existing.get(k, "") for k in sorted(keys)}
+    # 既存の訳を保持し、コードにある新規キーを空訳 "" で追加する。
+    # コードから消えたキーは「未使用」として報告するだけで削除しない（破壊的変更を避ける）。
+    merged = dict(existing)
+    for k in keys:
+        merged.setdefault(k, "")
     unused = sorted(set(existing) - keys)
     added = sorted(k for k in keys if k not in existing)
 
+    # 未使用キーが在るだけでは --check を失敗させない。新規キー追加時のみ更新が必要。
     changed = merged != existing
     if check:
         if changed:
@@ -101,7 +106,7 @@ def update(locale: str, check: bool) -> int:
     for w in warnings:
         print(f"  ! {w}")
 
-    untranslated = [k for k, v in merged.items() if not v]
+    untranslated = [k for k in keys if not merged.get(k)]
     if untranslated:
         print(f"i18n: 未翻訳 {len(untranslated)} キー")
 

@@ -35,9 +35,12 @@ def load(locale: str) -> None:
 
 
 def tr(message: str) -> str:
-    """原文をキーに訳文を引く。未登録なら原文を返す。
+    """原文をキーに訳文を引く。未登録または空訳なら原文を返す。
 
-    プレースホルダは原文側にそのまま書き（例 ``tr("count: {}").format(n)``）、
+    抽出ツールは未翻訳キーを空文字 "" として JSON に追加するため、空訳も
+    「未翻訳」とみなして原文（英語）にフォールバックする。
+
+    プレースホルダは原文側にそのまま書き（例 ``i18n.tr("count: {}").format(n)``）、
     .format() 等は呼び出し側で適用する。
     """
-    return _translations.get(message, message)
+    return _translations.get(message) or message

@@ -29,6 +29,12 @@ def test_tr_falls_back_to_source_when_missing():
     assert i18n.tr("Unknown String") == "Unknown String"
 
 
+def test_tr_falls_back_to_source_when_translation_empty():
+    # 抽出ツールが付ける空訳（未翻訳）は原文（英語）にフォールバックする
+    i18n._translations = {"Welcome": ""}
+    assert i18n.tr("Welcome") == "Welcome"
+
+
 def test_tr_placeholder_is_left_for_caller_format():
     i18n._translations = {"count: {}": "件数: {}"}
     assert i18n.tr("count: {}").format(3) == "件数: 3"

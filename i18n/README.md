@@ -1,5 +1,7 @@
 # 翻訳ガイド (Translation Guide)
 
+*English: [README.en.md](README.en.md)*
+
 このプラグインは Qt の .ts/.qm パイプラインを使わず、**原文(英語)をキーにした
 JSON 辞書**で翻訳する。`i18n/__init__.py` が辞書のロードとルックアップを担う。
 
