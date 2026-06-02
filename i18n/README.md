@@ -15,25 +15,26 @@ i18n/
 
 ## 仕組み
 
-1. **翻訳関数**: コード側は `tr("英語原文")` を呼ぶ。`tr()` は辞書を引き、未登録なら
+1. **翻訳関数**: コード側は `i18n.tr("英語原文")` を呼ぶ。`tr()` は辞書を引き、未登録なら
    原文をそのまま返す（＝英語フォールバック）。
 2. **言語検出**: プラグイン初期化時に `i18n.load(QgsApplication.instance().locale())` を
    1回呼び、`<locale>.json` を読み込む。QGIS のロケール変更は QGIS 再起動で反映される
    （Qt 方式と同じ挙動）。
 3. プレースホルダは原文側に書き、`.format()` は呼び出し側で適用する:
-   `tr("count: {}").format(n)`
+   `i18n.tr("count: {}").format(n)`
 
 ## 使い方
 
 ### コード中で翻訳する
 
-QObject サブクラス（QDialog 等）の中でも、import した `tr(...)` を直接呼ぶ。
+`i18n` モジュールをインポートし、`i18n.tr(...)` で呼ぶ（QObject サブクラス内でも同じ）。
+出所が明示され読みやすいので `from ..i18n import tr` ではなくモジュール経由にする。
 
 ```python
-from ..i18n import tr   # 相対パスはファイル位置に合わせる（.. / ... 等）
+from .. import i18n   # 相対パスはファイル位置に合わせる（.. / ... 等）
 
-label.setText(tr("Save Map"))
-msg = tr("An error occurred: {}").format(error_text)
+label.setText(i18n.tr("Save Map"))
+msg = i18n.tr("An error occurred: {}").format(error_text)
 ```
 
 ### 翻訳キーを追加・更新する

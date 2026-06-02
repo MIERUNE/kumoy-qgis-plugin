@@ -77,13 +77,14 @@ plugin.py
 Qt の .ts/.qm パイプラインは使わない。原文(英語)をキーにした JSON 辞書を `i18n/`
 パッケージが引く（コンテキスト名は無い）。詳細は `i18n/README.md`。
 
-- 翻訳したい文字列は import した `tr("英語原文")` を呼ぶ（QObject サブクラス内でも同じ）。
-  `tr` は `i18n` からインポートする（相対パスはファイル位置に合わせる）。プレースホルダは
+- 翻訳したい文字列は `i18n.tr("英語原文")` を呼ぶ（QObject サブクラス内でも同じ）。
+  `i18n` モジュールをインポートする（相対パスはファイル位置に合わせる）。出所が明示され
+  読みやすいので、`from ..i18n import tr` ではなくモジュール経由で呼ぶ。プレースホルダは
   原文側に書き `.format()` で埋める。
   ```python
-  from ..i18n import tr        # ui/ 直下なら .. 、ui/browser/ なら ... など
-  label.setText(tr("Save Map"))
-  msg = tr("An error occurred: {}").format(error_text)
+  from .. import i18n        # ui/ 直下なら .. 、ui/browser/ なら ... など
+  label.setText(i18n.tr("Save Map"))
+  msg = i18n.tr("An error occurred: {}").format(error_text)
   ```
 
 - 文字列を追加・変更したら `python3 i18n/extract.py` を実行して `i18n/ja.json`

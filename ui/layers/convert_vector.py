@@ -20,7 +20,7 @@ from qgis.utils import iface
 
 import processing
 
-from ...i18n import tr
+from ... import i18n
 from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
@@ -38,8 +38,8 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
     if not layer or not layer.isValid():
         QMessageBox.warning(
             None,
-            tr("Invalid Layer"),
-            tr("The selected layer is no longer valid or has been removed."),
+            i18n.tr("Invalid Layer"),
+            i18n.tr("The selected layer is no longer valid or has been removed."),
         )
         return
 
@@ -48,8 +48,8 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
     if not project_id:
         QMessageBox.warning(
             None,
-            tr("No Project Selected"),
-            tr("Please select a Kumoy project before converting a layer."),
+            i18n.tr("No Project Selected"),
+            i18n.tr("Please select a Kumoy project before converting a layer."),
         )
         return
 
@@ -58,15 +58,17 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
     if success:
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
-            tr("Layer '{}' converted to Kumoy successfully.").format(layer_name),
+            i18n.tr("Layer '{}' converted to Kumoy successfully.").format(layer_name),
             level=Qgis.Success,
             duration=5,
         )
     else:
         QMessageBox.warning(
             None,
-            tr("Conversion Failed"),
-            tr("Failed to convert layer '{}' to Kumoy:\n{}").format(layer_name, error),
+            i18n.tr("Conversion Failed"),
+            i18n.tr("Failed to convert layer '{}' to Kumoy:\n{}").format(
+                layer_name, error
+            ),
         )
 
 
@@ -99,7 +101,9 @@ def convert_local_layers(
             org_detail.subscriptionPlan, org_detail.storageUnits
         )
     except Exception as e:
-        handle_api_error(e, parent=None, log_prefix=tr("Failed to check layer limits"))
+        handle_api_error(
+            e, parent=None, log_prefix=i18n.tr("Failed to check layer limits")
+        )
         return (True, [])
 
     current_vector_count = org_detail.usage.vectors
@@ -139,7 +143,7 @@ def convert_to_kumoy(
 
     # Validate layer before proceeding
     if not layer or not layer.isValid():
-        return (False, tr("The layer is no longer valid or has been removed."))
+        return (False, i18n.tr("The layer is no longer valid or has been removed."))
 
     progress_dialog = None
 
@@ -151,13 +155,13 @@ def convert_to_kumoy(
 
         # Create progress dialog
         progress_dialog = QProgressDialog(
-            tr("Uploading layer '{}'...").format(vector_name),
-            tr("Cancel"),
+            i18n.tr("Uploading layer '{}'...").format(vector_name),
+            i18n.tr("Cancel"),
             0,
             100,
             iface.mainWindow(),
         )
-        progress_dialog.setWindowTitle(tr("Kumoy Upload"))
+        progress_dialog.setWindowTitle(i18n.tr("Kumoy Upload"))
         progress_dialog.setWindowModality(QT_APPLICATION_MODAL)
         progress_dialog.setMinimumDuration(0)
         progress_dialog.setValue(0)
@@ -198,7 +202,7 @@ def convert_to_kumoy(
                 break
 
         if project_index is None:
-            raise Exception(tr("Project not found in organization list"))
+            raise Exception(i18n.tr("Project not found in organization list"))
 
         # Run the upload algorithm
         result = processing.run(
@@ -218,14 +222,14 @@ def convert_to_kumoy(
             progress_dialog.close()
             iface.messageBar().pushMessage(
                 constants.PLUGIN_NAME,
-                tr("Upload cancelled"),
+                i18n.tr("Upload cancelled"),
                 level=Qgis.Warning,
                 duration=3,
             )
-            return (False, tr("Upload cancelled by user"))
+            return (False, i18n.tr("Upload cancelled by user"))
 
         if not result or "VECTOR_ID" not in result:
-            raise Exception(tr("Upload failed - unable to get vector id"))
+            raise Exception(i18n.tr("Upload failed - unable to get vector id"))
 
         vector_id = result["VECTOR_ID"]
 
@@ -287,7 +291,9 @@ def convert_to_kumoy(
                 if kumoy_layer.error()
                 else "Unknown error"
             )
-            raise Exception(tr("Failed to create Kumoy layer: {}").format(error_msg))
+            raise Exception(
+                i18n.tr("Failed to create Kumoy layer: {}").format(error_msg)
+            )
 
         # Success
         return (True, None)

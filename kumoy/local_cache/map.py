@@ -2,7 +2,7 @@ import os
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 
-from ...i18n import tr
+from ... import i18n
 from ..constants import LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
@@ -123,7 +123,7 @@ def _get_qgs_str(map_path: str) -> str:
     LENGTH_LIMIT = 3000000  # 300万文字
     actual_length = len(qgs_str)
     if actual_length > LENGTH_LIMIT:
-        err = tr(
+        err = i18n.tr(
             "Project file size is too large. Limit is {} bytes. your: {} bytes"
         ).format(LENGTH_LIMIT, actual_length)
         QgsMessageLog.logMessage(

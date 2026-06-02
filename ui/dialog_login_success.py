@@ -8,7 +8,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from ..i18n import tr
+from .. import i18n
 from ..pyqt_version import (
     QT_ALIGN,
     QT_PEN_CAP_STYLE,
@@ -50,7 +50,7 @@ class CheckmarkWidget(QWidget):
 class LoginSuccess(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(tr("Authentication"))
+        self.setWindowTitle(i18n.tr("Authentication"))
         self.setFixedSize(500, 350)
         self.setModal(True)
 
@@ -68,7 +68,7 @@ class LoginSuccess(QDialog):
         main_layout.addLayout(checkmark_container)
 
         # Title label
-        title_label = QLabel(tr("Welcome!\nYou are now logged in."))
+        title_label = QLabel(i18n.tr("Welcome!\nYou are now logged in."))
         title_label.setAlignment(QT_ALIGN.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
@@ -78,7 +78,9 @@ class LoginSuccess(QDialog):
         main_layout.addWidget(title_label)
 
         # Subtitle label
-        subtitle_label = QLabel(tr("Next, please select a project\nto open in Kumoy."))
+        subtitle_label = QLabel(
+            i18n.tr("Next, please select a project\nto open in Kumoy.")
+        )
         subtitle_label.setAlignment(QT_ALIGN.AlignCenter)
         subtitle_font = QFont()
         subtitle_font.setPointSize(14)
@@ -90,7 +92,7 @@ class LoginSuccess(QDialog):
         main_layout.addStretch()
 
         # Continue button
-        self.continue_button = QPushButton(tr("Continue"))
+        self.continue_button = QPushButton(i18n.tr("Continue"))
         self.continue_button.clicked.connect(self.accept)
         main_layout.addWidget(self.continue_button)
 

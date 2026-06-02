@@ -11,7 +11,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..i18n import tr
+from .. import i18n
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     MAX_CHARACTERS_PROJECT_NAME,
@@ -42,35 +42,35 @@ class ProjectEditDialog(QDialog):
         self.setup_ui()
 
     def setup_ui(self):
-        self.setWindowTitle(tr("New Project"))
+        self.setWindowTitle(i18n.tr("New Project"))
 
         layout = QVBoxLayout()
 
         # Team field (only shown when teams are provided)
         self.team_combo = QComboBox()
         if self.teams:
-            team_label = QLabel(tr("Team") + ' <span style="color: red;">*</span>')
+            team_label = QLabel(i18n.tr("Team") + ' <span style="color: red;">*</span>')
             layout.addWidget(team_label)
             for team in self.teams:
                 self.team_combo.addItem(team.name, team)
             layout.addWidget(self.team_combo)
 
         # Name field
-        name_label = QLabel(tr("Name") + ' <span style="color: red;">*</span>')
+        name_label = QLabel(i18n.tr("Name") + ' <span style="color: red;">*</span>')
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText(tr("Enter project name"))
+        self.name_input.setPlaceholderText(i18n.tr("Enter project name"))
         self.name_input.setMaxLength(MAX_CHARACTERS_PROJECT_NAME)
         self.name_input.setText(self.initial_name)
         layout.addWidget(self.name_input)
 
         # Description field
-        description_label = QLabel(tr("Description"))
+        description_label = QLabel(i18n.tr("Description"))
         layout.addWidget(description_label)
 
         self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText(tr("Enter project description"))
+        self.description_input.setPlaceholderText(i18n.tr("Enter project description"))
         self.description_input.setMaximumHeight(100)
         self.description_input.textChanged.connect(self._limit_description)
         self.description_input.setPlainText(self.initial_description or "")
@@ -108,8 +108,8 @@ class ProjectEditDialog(QDialog):
         if not self.project_name:
             QMessageBox.warning(
                 self,
-                tr("Invalid Input"),
-                tr("Project name cannot be empty."),
+                i18n.tr("Invalid Input"),
+                i18n.tr("Project name cannot be empty."),
             )
             return
 

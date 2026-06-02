@@ -22,7 +22,7 @@ from qgis.utils import iface
 
 import processing
 
-from ...i18n import tr
+from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
@@ -139,7 +139,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def displayName(self) -> str:
         """Algorithm display name"""
-        return tr("Upload Vector Layer to Kumoy")
+        return i18n.tr("Upload Vector Layer to Kumoy")
 
     def group(self):
         return None
@@ -153,7 +153,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self) -> str:
         """Short help string"""
-        return tr(
+        return i18n.tr(
             "Upload a vector layer to the Kumoy cloud.\n\n"
             "The Input Vector Layer dropdown shows vector layers in your current map. "
             "If no map is open, it will be empty."
@@ -168,7 +168,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
-                tr("Input vector layer"),
+                i18n.tr("Input vector layer"),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -190,7 +190,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                     self.project_ids.append(project.id)
 
         except Exception as e:
-            msg = tr("Error Initializing Processing: {}").format(format_api_error(e))
+            msg = i18n.tr("Error Initializing Processing: {}").format(
+                format_api_error(e)
+            )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
             iface.messageBar().pushMessage(
                 constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
@@ -210,7 +212,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.KUMOY_PROJECT,
-                tr("Destination project"),
+                i18n.tr("Destination project"),
                 options=project_options,
                 allowMultiple=False,
                 optional=False,
@@ -222,7 +224,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.SELECTED_FIELDS,
-                tr("Attributes to upload"),
+                i18n.tr("Attributes to upload"),
                 parentLayerParameterName=self.INPUT_LAYER,
                 type=QgsProcessingParameterField.Any,
                 optional=True,
@@ -235,7 +237,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.VECTOR_NAME,
-                tr("Vector layer name"),
+                i18n.tr("Vector layer name"),
                 defaultValue="",
                 optional=True,
             )
@@ -244,7 +246,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Hidden output parameter for internal processing
         param = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
-            tr("Temporary output"),
+            i18n.tr("Temporary output"),
             type=QgsProcessing.TypeVectorAnyGeometry,
             createByDefault=True,
             defaultValue="TEMPORARY_OUTPUT",
@@ -263,7 +265,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Get project ID
         project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
         if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(tr("Invalid destination project selection."))
+            raise QgsProcessingException(
+                i18n.tr("Invalid destination project selection.")
+            )
         project_id = self.project_ids[project_index]
 
         # Get vector name
@@ -281,7 +285,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Check role
         if project.role not in ["ADMIN", "OWNER"]:
             raise QgsProcessingException(
-                tr("You do not have permission to upload vectors to this project. ")
+                i18n.tr(
+                    "You do not have permission to upload vectors to this project. "
+                )
             )
 
         # Check vector count limit
@@ -289,7 +295,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         upload_vector_count = len(current_vectors) + 1
         if upload_vector_count > plan_limits.maxVectors:
             raise QgsProcessingException(
-                tr(
+                i18n.tr(
                     "Cannot upload vector. Your plan allows up to {} vectors per project, "
                     "but you already have {} vectors."
                 ).format(plan_limits.maxVectors, upload_vector_count)
@@ -319,10 +325,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # 入力レイヤーのproviderチェック
             layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
             if layer is None:
-                raise QgsProcessingException(tr("Invalid input layer"))
+                raise QgsProcessingException(i18n.tr("Invalid input layer"))
             if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
                 raise QgsProcessingException(
-                    tr("Cannot upload a layer that is already stored in server.")
+                    i18n.tr("Cannot upload a layer that is already stored in server.")
                 )
 
             self._raise_if_canceled(feedback)
@@ -336,7 +342,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             layer_feature_count = layer.featureCount()
             if layer_feature_count > plan_limits.maxVectorFeatures:
                 raise QgsProcessingException(
-                    tr(
+                    i18n.tr(
                         "Cannot upload vector. The layer has {} features, "
                         "but your plan allows up to {} features per vector."
                     ).format(layer_feature_count, plan_limits.maxVectorFeatures)
@@ -347,7 +353,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Determine geometry type
             geometry_type = _get_geometry_type(layer)
             if geometry_type is None:
-                raise QgsProcessingException(tr("Unsupported geometry type"))
+                raise QgsProcessingException(i18n.tr("Unsupported geometry type"))
 
             # Process layer: convert to singlepart and reproject in one step
             selected_fields = set(
@@ -358,7 +364,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             if selected_fields:
                 feedback.pushInfo(
-                    tr("Using {} of {} attributes for upload").format(
+                    i18n.tr("Using {} of {} attributes for upload").format(
                         len(selected_fields), fields_count
                     )
                 )
@@ -366,7 +372,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             if fields_count > plan_limits.maxVectorAttributes:
                 raise QgsProcessingException(
-                    tr(
+                    i18n.tr(
                         "Cannot upload vector. The layer has {} attributes, "
                         "but your plan allows up to {} attributes per vector."
                     ).format(fields_count, plan_limits.maxVectorAttributes)
@@ -408,7 +414,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             proc_feature_count = processed_layer.featureCount()
             if proc_feature_count > plan_limits.maxVectorFeatures:
                 raise QgsProcessingException(
-                    tr(
+                    i18n.tr(
                         "Cannot upload vector. The layer has {} features, "
                         "but your plan allows up to {} features per vector."
                     ).format(proc_feature_count, plan_limits.maxVectorFeatures)
@@ -424,7 +430,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
             vector = api.vector.add_vector(project_id, options)
             feedback.pushInfo(
-                tr("Created vector layer '{}' with ID: {}").format(
+                i18n.tr("Created vector layer '{}' with ID: {}").format(
                     vector_name, vector.id
                 )
             )
@@ -435,7 +441,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             # Add attributes to vector
             api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_list)
             feedback.pushInfo(
-                tr("Added attributes to vector layer '{}': {}").format(
+                i18n.tr("Added attributes to vector layer '{}': {}").format(
                     vector_name, ", ".join(a["name"] for a in attr_list)
                 )
             )
@@ -454,13 +460,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 try:
                     api.vector.delete_vector(vector.id)
                     feedback.pushInfo(
-                        tr("Cleaned up incomplete vector layer due to upload failure")
+                        i18n.tr(
+                            "Cleaned up incomplete vector layer due to upload failure"
+                        )
                     )
                 except Exception as cleanup_error:
                     feedback.reportError(
-                        tr("Failed to clean up incomplete vector layer: {}").format(
-                            str(cleanup_error)
-                        )
+                        i18n.tr(
+                            "Failed to clean up incomplete vector layer: {}"
+                        ).format(str(cleanup_error))
                     )
 
             if not isinstance(e, _UserCanceled):
@@ -481,7 +489,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         source_crs = layer.crs()
         if not source_crs.isValid():
             raise QgsProcessingException(
-                tr(
+                i18n.tr(
                     "The input layer has an undefined or invalid coordinate reference system. "
                     "Please assign a valid CRS to the layer before uploading."
                 )
@@ -498,7 +506,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         geometry_filter_expr = self._build_geometry_filter_expression(layer)
         feedback.pushInfo(
-            tr("Filtering features using expression: {}").format(geometry_filter_expr)
+            i18n.tr("Filtering features using expression: {}").format(
+                geometry_filter_expr
+            )
         )
         self._raise_if_canceled(feedback)
         filtered_layer = self._run_child_algorithm(
@@ -518,21 +528,21 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         filtered_count = filtered_layer.featureCount()
         if filtered_count < layer.featureCount():
             feedback.pushInfo(
-                tr(
+                i18n.tr(
                     "Removed {} features with missing or incompatible geometries."
                 ).format(layer.featureCount() - filtered_count)
             )
 
         if filtered_layer.featureCount() == 0:
             raise QgsProcessingException(
-                tr("No features remain after filtering invalid geometries")
+                i18n.tr("No features remain after filtering invalid geometries")
             )
 
         current_layer = filtered_layer
 
         # Step 2: drop Z (keep M values untouched)
         if QgsWkbTypes.hasZ(current_layer.wkbType()):
-            feedback.pushInfo(tr("Dropping Z coordinates"))
+            feedback.pushInfo(i18n.tr("Dropping Z coordinates"))
             current_layer = self._run_child_algorithm(
                 "native:dropmzvalues",
                 {
@@ -549,7 +559,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self._raise_if_canceled(feedback)
 
         # Step 3: repair geometries prior to other operations
-        feedback.pushInfo(tr("Repairing geometries..."))
+        feedback.pushInfo(i18n.tr("Repairing geometries..."))
         current_layer = self._run_child_algorithm(
             "native:fixgeometries",
             {
@@ -565,7 +575,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Step 4: convert to singlepart if needed
         if QgsWkbTypes.isMultiType(current_layer.wkbType()):
-            feedback.pushInfo(tr("Converting multipart to singlepart"))
+            feedback.pushInfo(i18n.tr("Converting multipart to singlepart"))
             current_layer = self._run_child_algorithm(
                 "native:multiparttosingleparts",
                 {
@@ -582,7 +592,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Step 5: transform to EPSG:4326 when needed
         if current_layer.crs().authid() != "EPSG:4326":
             feedback.pushInfo(
-                tr("Reprojecting from {} to EPSG:4326").format(
+                i18n.tr("Reprojecting from {} to EPSG:4326").format(
                     current_layer.crs().authid()
                 )
             )
@@ -600,7 +610,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         self._raise_if_canceled(feedback)
 
-        feedback.pushInfo(tr("Refactoring attributes..."))
+        feedback.pushInfo(i18n.tr("Refactoring attributes..."))
         current_layer = self._run_child_algorithm(
             "native:refactorfields",
             {
@@ -631,7 +641,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             if field.name().startswith(constants.RESERVED_FIELD_NAME_PREFIX):
                 feedback.pushWarning(
-                    tr("Skipping reserved field name '{}'").format(field.name())
+                    i18n.tr("Skipping reserved field name '{}'").format(field.name())
                 )
                 continue
 
@@ -644,7 +654,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 QVariant.Bool,
             ]:
                 raise QgsProcessingException(
-                    tr("Unexpected field type for field '{}': {}").format(
+                    i18n.tr("Unexpected field type for field '{}': {}").format(
                         field.name(), field.type()
                     )
                 )
@@ -672,7 +682,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             }
 
             feedback.pushInfo(
-                tr("Field '{}' normalized to '{}'").format(
+                i18n.tr("Field '{}' normalized to '{}'").format(
                     field.name(), normalized_name
                 )
             )
@@ -689,7 +699,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             allowed_type = "Polygon"
         else:
             raise QgsProcessingException(
-                tr("Filtering failed due to an unsupported geometry type.")
+                i18n.tr("Filtering failed due to an unsupported geometry type.")
             )
 
         return (
@@ -740,7 +750,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 precision = 0
                 needs_conversion = True
                 feedback.pushInfo(
-                    tr("Converting field '{}' to string type").format(field.name())
+                    i18n.tr("Converting field '{}' to string type").format(field.name())
                 )
 
             mapping_list.append(
@@ -800,7 +810,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 return layer
 
         raise QgsProcessingException(
-            tr("The '{}' processing step failed to create a valid layer.").format(
+            i18n.tr("The '{}' processing step failed to create a valid layer.").format(
                 algorithm_id
             )
         )
@@ -824,7 +834,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
                 accumulated_features += len(cur_features)
                 feedback.pushInfo(
-                    tr("Upload complete: {} / {} features").format(
+                    i18n.tr("Upload complete: {} / {} features").format(
                         accumulated_features, valid_fields_layer.featureCount()
                     )
                 )
@@ -841,7 +851,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             self._add_features_batch(vector_id, cur_features)
             accumulated_features += len(cur_features)
             feedback.pushInfo(
-                tr("Upload complete: {} / {} features").format(
+                i18n.tr("Upload complete: {} / {} features").format(
                     accumulated_features, valid_fields_layer.featureCount()
                 )
             )
@@ -853,7 +863,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             api.qgis_vector.add_features(vector_id, features)
         except api.qgis_vector.WkbTooLargeError as e:
             raise QgsProcessingException(
-                tr(
+                i18n.tr(
                     "Cannot upload feature: geometry is too large. "
                     "Please simplify the geometry or split it into smaller parts. "
                     "Details: {}"
@@ -861,7 +871,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
         except api.error.QuotaExceededError as e:
             raise QgsProcessingException(
-                tr(
+                i18n.tr(
                     "Cannot upload features: your plan quota has been exceeded. "
                     "Details: {}"
                 ).format(str(e))
