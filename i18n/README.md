@@ -35,13 +35,9 @@ label.setText(tr("Save Map"))
 msg = tr("An error occurred: {}").format(error_text)
 ```
 
-QObject サブクラス（QDialog 等）で `self.tr(...)` を使いたい場合は、メソッドを
-`i18n.tr` に委譲させる:
-
-```python
-def tr(self, message):
-    return tr(message)   # モジュールトップで from ..i18n import tr 済み
-```
+QObject サブクラス（QDialog 等）の中でも `self.tr(...)` ではなく、import した
+`tr(...)` を直接呼ぶ。Qt 標準の `QObject.tr` はクラス名コンテキストで JSON を引けない
+ため使わない。クラスに `def tr` を定義する必要はない。
 
 ### 翻訳キーを追加・更新する
 

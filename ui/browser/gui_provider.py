@@ -16,9 +16,6 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
     def name(self) -> str:
         return "Kumoy"
 
-    def tr(self, message: str) -> str:
-        return tr(message)
-
     def populateContextMenu(
         self,
         item: QgsDataItem,
@@ -47,7 +44,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         else:
             # Multi-selection
             clear_action = QAction(
-                self.tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
+                tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
             )
             clear_action.triggered.connect(
                 lambda checked=False, items=list(styledmap_items): (
@@ -59,7 +56,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styledmap_items)
             if can_delete:
                 delete_action = QAction(
-                    self.tr("Delete {} Maps").format(len(styledmap_items)), menu
+                    tr("Delete {} Maps").format(len(styledmap_items)), menu
                 )
                 delete_action.triggered.connect(
                     lambda checked=False, items=list(styledmap_items): (
@@ -77,7 +74,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         else:
             # Multi-selection
             add_action = QAction(
-                self.tr("Add {} Vectors to Map").format(len(vector_items)), menu
+                tr("Add {} Vectors to Map").format(len(vector_items)), menu
             )
             add_action.triggered.connect(
                 lambda checked=False, items=list(vector_items): add_multiple_vectors(
@@ -87,7 +84,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             menu.addAction(add_action)
 
             clear_action = QAction(
-                self.tr("Clear Cache for {} Vectors").format(len(vector_items)), menu
+                tr("Clear Cache for {} Vectors").format(len(vector_items)), menu
             )
             clear_action.triggered.connect(
                 lambda checked=False, items=list(vector_items): (
@@ -99,7 +96,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             can_delete = all(i.role in ["ADMIN", "OWNER"] for i in vector_items)
             if can_delete:
                 delete_action = QAction(
-                    self.tr("Delete {} Vectors").format(len(vector_items)), menu
+                    tr("Delete {} Vectors").format(len(vector_items)), menu
                 )
                 delete_action.triggered.connect(
                     lambda checked=False, items=list(vector_items): (

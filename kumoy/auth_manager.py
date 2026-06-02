@@ -53,9 +53,6 @@ class AuthManager(QObject):
         self._cancelled: bool = False
         self._completed: bool = False
 
-    def tr(self, message: str) -> str:
-        return tr(message)
-
     def request_device_code(self) -> Tuple[bool, str]:
         """デバイスコードをリクエストする。
 
@@ -91,7 +88,7 @@ class AuthManager(QObject):
                     LOG_CATEGORY,
                     Qgis.Warning,
                 )
-                return False, self.tr("Failed to request device code: {}").format(
+                return False, tr("Failed to request device code: {}").format(
                     error_message
                 )
 
@@ -114,15 +111,15 @@ class AuthManager(QObject):
             )
 
             if not self.device_code or not self.user_code:
-                return False, self.tr("Server did not return device code")
+                return False, tr("Server did not return device code")
 
             if not self.verification_uri_complete and not self.verification_uri:
-                return False, self.tr("Server did not return verification URL")
+                return False, tr("Server did not return verification URL")
 
             return True, self.user_code
 
         except Exception as e:
-            return False, self.tr("Failed to request device code: {}").format(
+            return False, tr("Failed to request device code: {}").format(
                 format_api_error(e)
             )
 
@@ -154,7 +151,7 @@ class AuthManager(QObject):
         if time.time() - self._auth_start_time > self._expires_in_device:
             self._cleanup()
             self.auth_completed.emit(
-                False, self.tr("Device code expired. Please try again.")
+                False, tr("Device code expired. Please try again.")
             )
             return
 
@@ -233,17 +230,17 @@ class AuthManager(QObject):
             return
         elif error == "access_denied":
             self._cleanup()
-            self.auth_completed.emit(False, self.tr("Authorization was denied."))
+            self.auth_completed.emit(False, tr("Authorization was denied."))
         elif error == "expired_token":
             self._cleanup()
             self.auth_completed.emit(
-                False, self.tr("Device code expired. Please try again.")
+                False, tr("Device code expired. Please try again.")
             )
         elif error:
             description = resp_data.get("error_description", error)
             self._cleanup()
             self.auth_completed.emit(
-                False, self.tr("Authentication error: {}").format(description)
+                False, tr("Authentication error: {}").format(description)
             )
 
     def _cleanup(self):

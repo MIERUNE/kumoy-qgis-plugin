@@ -49,7 +49,7 @@ class DialogLogin(QDialog):
         self.setObjectName("Dialog")
         self.resize(400, 400)
         self.setMinimumSize(400, 0)
-        self.setWindowTitle(self.tr("Authentication"))
+        self.setWindowTitle(tr("Authentication"))
         # set padding
         self.setContentsMargins(10, 10, 10, 10)
 
@@ -84,7 +84,7 @@ class DialogLogin(QDialog):
         # Info label with HTML content
         version_and_credits_label = QLabel()
         version_and_credits_label.setText(
-            self.tr(
+            tr(
                 '<html>\
                 <head/>\
                 <body>\
@@ -105,7 +105,7 @@ class DialogLogin(QDialog):
 
         # Login buttons layout
         self.login_button = QPushButton()
-        self.login_button.setText(self.tr("Login"))
+        self.login_button.setText(tr("Login"))
         self.login_button.clicked.connect(self.login)
         verticalLayout.addWidget(self.login_button)
 
@@ -128,7 +128,7 @@ class DialogLogin(QDialog):
         # Collapsible group box for server config
         self.custom_server_config_group = QgsCollapsibleGroupBox()
         self.custom_server_config_group.setEnabled(True)
-        self.custom_server_config_group.setTitle(self.tr("Custom server configuration"))
+        self.custom_server_config_group.setTitle(tr("Custom server configuration"))
         self.custom_server_config_group.setCheckable(True)
         self.custom_server_config_group.setChecked(False)
         self.custom_server_config_group.setCollapsed(True)
@@ -139,7 +139,7 @@ class DialogLogin(QDialog):
 
         # Server URL row
         server_url_label = QLabel()
-        server_url_label.setText(self.tr("Server URL"))
+        server_url_label.setText(tr("Server URL"))
         gridLayout.addWidget(server_url_label, 1, 0)
 
         self.kumoy_server_url_input = QLineEdit()
@@ -156,13 +156,10 @@ class DialogLogin(QDialog):
 
         # Cancel button (shown during code verification)
         self.cancel_button = QPushButton()
-        self.cancel_button.setText(self.tr("Cancel"))
+        self.cancel_button.setText(tr("Cancel"))
         self.cancel_button.clicked.connect(self._cancel_login)
         self.cancel_button.hide()
         verticalLayout.addWidget(self.cancel_button)
-
-    def tr(self, message):
-        return tr(message)
 
     def changeEvent(self, event):
         """ウィンドウがアクティブになった時に即座にポーリングを実行する"""
@@ -185,7 +182,7 @@ class DialogLogin(QDialog):
         session_token = get_settings().session_token
 
         if session_token:
-            self.login_status_label.setText(self.tr("Logged in"))
+            self.login_status_label.setText(tr("Logged in"))
             self.login_status_label.setStyleSheet(
                 "color: green; font-weight: bold; font-size: 24px;"
             )
@@ -208,8 +205,8 @@ class DialogLogin(QDialog):
         if not success:
             QMessageBox.warning(
                 self,
-                self.tr("Login Error"),
-                self.tr("Authentication failed: {}").format(error),
+                tr("Login Error"),
+                tr("Authentication failed: {}").format(error),
             )
             self.update_login_status()
             return
@@ -246,8 +243,8 @@ class DialogLogin(QDialog):
             ):
                 QMessageBox.critical(
                     self,
-                    self.tr("Plugin Version Error"),
-                    self.tr(
+                    tr("Plugin Version Error"),
+                    tr(
                         "Please update the Kumoy plugin.\nMinimum required version: {}"
                     ).format(min_qgisplugin_version),
                 )
@@ -259,8 +256,8 @@ class DialogLogin(QDialog):
             )
             QMessageBox.critical(
                 self,
-                self.tr("Login Error"),
-                self.tr(
+                tr("Login Error"),
+                tr(
                     "Unable to connect to the server or retrieve plugin version information.\n\n"
                     "Details: {}"
                 ).format(error_text),
@@ -275,8 +272,8 @@ class DialogLogin(QDialog):
             )
             QMessageBox.critical(
                 self,
-                self.tr("Login Error"),
-                self.tr("An error occurred while logging in: {}").format(error_text),
+                tr("Login Error"),
+                tr("An error occurred while logging in: {}").format(error_text),
             )
             self.update_login_status()
             self.login_button.setEnabled(True)
@@ -284,7 +281,7 @@ class DialogLogin(QDialog):
 
         self.auth_manager = AuthManager(api_config.SERVER_URL)
 
-        self.login_status_label.setText(self.tr("Requesting device code..."))
+        self.login_status_label.setText(tr("Requesting device code..."))
         self.login_status_label.setStyleSheet("color: orange; font-weight: bold;")
         self.login_button.setEnabled(False)
 
@@ -293,8 +290,8 @@ class DialogLogin(QDialog):
         if not success:
             QMessageBox.warning(
                 self,
-                self.tr("Login Error"),
-                self.tr("Failed to start authentication: {}").format(result),
+                tr("Login Error"),
+                tr("Failed to start authentication: {}").format(result),
             )
             self.update_login_status()
             self.login_button.setEnabled(True)
@@ -312,7 +309,7 @@ class DialogLogin(QDialog):
         verification_uri = self.auth_manager.verification_uri or verification_url
         self.login_status_label.setTextFormat(QT_TEXT_FORMAT_RICH)
         self.login_status_label.setText(
-            self.tr(
+            tr(
                 "Enter the code above in your browser to sign in.<br>"
                 "If the browser does not open, go to:<br>"
                 '<a href="{0}">{0}</a>'
@@ -380,18 +377,18 @@ class DialogLogin(QDialog):
         if server_url == "":
             QMessageBox.warning(
                 self,
-                self.tr("Custom Server Configuration Error"),
-                self.tr(
+                tr("Custom Server Configuration Error"),
+                tr(
                     "Some required settings are missing:\n{}\n\nPlease update your configuration before logging in."
-                ).format(self.tr("Server URL")),
+                ).format(tr("Server URL")),
             )
             return False
 
         if not server_url.startswith("http"):
             QMessageBox.warning(
                 self,
-                self.tr("Custom Server Configuration Error"),
-                self.tr("The Server URL must start with http or https."),
+                tr("Custom Server Configuration Error"),
+                tr("The Server URL must start with http or https."),
             )
             return False
 

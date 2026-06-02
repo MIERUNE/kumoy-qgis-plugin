@@ -73,42 +73,39 @@ class StyledMapItem(QgsDataItem):
 
         self.populate()
 
-    def tr(self, message: str) -> str:
-        return tr(message)
-
     def build_actions(self, parent: QMenu) -> list[QAction]:
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
         actions = []
 
         # スタイルマップ適用アクション
-        apply_action = QAction(self.tr("Load into QGIS"), parent)
+        apply_action = QAction(tr("Load into QGIS"), parent)
         apply_action.triggered.connect(self.apply_style)
         actions.append(apply_action)
 
         if self.styled_map.isPublic:
             # 公開マップの場合、公開ページを開くアクション
-            open_public_action = QAction(self.tr("Open Public Page"), parent)
+            open_public_action = QAction(tr("Open Public Page"), parent)
             open_public_action.triggered.connect(self.open_public_page)
             actions.append(open_public_action)
 
         # Clear map cache action
-        clear_cache_action = QAction(self.tr("Clear Cache Data"), parent)
+        clear_cache_action = QAction(tr("Clear Cache Data"), parent)
         clear_cache_action.triggered.connect(self.clear_map_cache)
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
             # スタイルマップ上書き保存アクション
-            save_action = QAction(self.tr("Overwrite with current state"), parent)
+            save_action = QAction(tr("Overwrite with current state"), parent)
             save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
             actions.append(save_action)
 
             # スタイルマップ編集アクション
-            edit_action = QAction(self.tr("Edit Metadata"), parent)
+            edit_action = QAction(tr("Edit Metadata"), parent)
             edit_action.triggered.connect(self.update_metadata_styled_map)
             actions.append(edit_action)
 
             # スタイルマップ削除アクション
-            delete_action = QAction(self.tr("Delete"), parent)
+            delete_action = QAction(tr("Delete"), parent)
             delete_action.triggered.connect(self.delete_styled_map)
             actions.append(delete_action)
 
@@ -128,8 +125,8 @@ class StyledMapItem(QgsDataItem):
         if QgsProject.instance().isDirty():
             confirm = QMessageBox.question(
                 None,
-                self.tr("Load Map"),
-                self.tr(
+                tr("Load Map"),
+                tr(
                     "Are you sure you want to load the map '{}'? This will replace your current project."
                 ).format(self.styled_map.name),
                 Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
@@ -141,7 +138,7 @@ class StyledMapItem(QgsDataItem):
         try:
             styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
         except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
+            handle_api_error(e, parent=None, log_prefix=tr("Error loading map"))
             return
 
         # XML文字列をQGISプロジェクトにロード
@@ -174,7 +171,7 @@ class StyledMapItem(QgsDataItem):
         # Create dialog
         dialog, name_field, description_field, attribution_field, is_public_field = (
             _create_styled_map_dialog(
-                self.tr("Edit Map"),
+                tr("Edit Map"),
                 name=self.styled_map.name,
                 description=self.styled_map.description,
                 attribution=self.styled_map.attribution,
@@ -207,7 +204,7 @@ class StyledMapItem(QgsDataItem):
                 ),
             )
         except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=self.tr("Error updating map"))
+            handle_api_error(e, parent=None, log_prefix=tr("Error updating map"))
             return
 
         # Itemを更新
@@ -219,16 +216,16 @@ class StyledMapItem(QgsDataItem):
         QgsProject.instance().setDirty(False)
 
         iface.messageBar().pushSuccess(
-            self.tr("Success"),
-            self.tr("Map '{}' has been updated successfully.").format(new_name),
+            tr("Success"),
+            tr("Map '{}' has been updated successfully.").format(new_name),
         )
 
     def apply_qgisproject_to_styledmap(self) -> None:
         # 確認ダイアログ
         confirm = QMessageBox.question(
             None,
-            self.tr("Save Map"),
-            self.tr(
+            tr("Save Map"),
+            tr(
                 "Are you sure you want to overwrite the map '{}' with the current project state?"
             ).format(self.styled_map.name),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
@@ -248,10 +245,8 @@ class StyledMapItem(QgsDataItem):
             if self.styled_map.projectId != styled_map_detail.projectId:
                 QMessageBox.critical(
                     None,
-                    self.tr("Wrong Project"),
-                    self.tr(
-                        "Please switch to the correct Kumoy project to create a map."
-                    ),
+                    tr("Wrong Project"),
+                    tr("Please switch to the correct Kumoy project to create a map."),
                 )
                 return
 
@@ -286,7 +281,7 @@ class StyledMapItem(QgsDataItem):
                 update_options,
             )
         except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=self.tr("Error saving map"))
+            handle_api_error(e, parent=None, log_prefix=tr("Error saving map"))
             return
 
         # Itemを更新
@@ -316,8 +311,8 @@ class StyledMapItem(QgsDataItem):
     def delete_styled_map(self) -> None:
         confirm = QMessageBox.question(
             None,
-            self.tr("Delete Map"),
-            self.tr("Are you sure you want to delete map '{}'?").format(
+            tr("Delete Map"),
+            tr("Are you sure you want to delete map '{}'?").format(
                 self.styled_map.name
             ),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
@@ -329,15 +324,13 @@ class StyledMapItem(QgsDataItem):
                 self.process_delete_map()
                 self.parent().refresh()
                 iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("Map '{}' has been deleted successfully.").format(
+                    tr("Success"),
+                    tr("Map '{}' has been deleted successfully.").format(
                         self.styled_map.name
                     ),
                 )
             except Exception as e:
-                handle_api_error(
-                    e, parent=None, log_prefix=self.tr("Error deleting map")
-                )
+                handle_api_error(e, parent=None, log_prefix=tr("Error deleting map"))
 
     def process_map_cache_clear(self) -> bool:
         cleared = local_cache.map.clear(self.styled_map.id)
@@ -346,8 +339,8 @@ class StyledMapItem(QgsDataItem):
     def clear_map_cache(self) -> None:
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Map Cache Data"),
-            self.tr(
+            tr("Clear Map Cache Data"),
+            tr(
                 "This will clear the local cache for map '{}'.\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
@@ -359,15 +352,15 @@ class StyledMapItem(QgsDataItem):
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
             if self.process_map_cache_clear():
                 iface.messageBar().pushSuccess(
-                    self.tr("Success"),
-                    self.tr("Cache cleared successfully for map '{}'.").format(
+                    tr("Success"),
+                    tr("Cache cleared successfully for map '{}'.").format(
                         self.styled_map.name
                     ),
                 )
             else:
                 iface.messageBar().pushMessage(
-                    self.tr("Cache Clear Failed"),
-                    self.tr("Cache could not be cleared for map '{}'. ").format(
+                    tr("Cache Clear Failed"),
+                    tr("Cache could not be cleared for map '{}'. ").format(
                         self.styled_map.name
                     ),
                 )
@@ -397,25 +390,22 @@ class StyledMapRoot(QgsDataItem):
         self.organization = organization
         self.project = project
 
-    def tr(self, message: str) -> str:
-        return tr(message)
-
     def actions(self, parent: QMenu) -> list[QAction]:
         actions = []
 
         if self.project.role in ["ADMIN", "OWNER"]:
             # 空のMapを作成する
-            empty_map_action = QAction(self.tr("Create New Map"), parent)
+            empty_map_action = QAction(tr("Create New Map"), parent)
             empty_map_action.triggered.connect(self.add_empty_map)
             actions.append(empty_map_action)
 
             # Upload current QGIS project as new Kumoy styled map
-            new_action = QAction(self.tr("Save Current Project As..."), parent)
+            new_action = QAction(tr("Save Current Project As..."), parent)
             new_action.triggered.connect(self.add_styled_map)
             actions.append(new_action)
 
         # Clear map cache data
-        clear_all_cache_action = QAction(self.tr("Clear Map Cache Data"), parent)
+        clear_all_cache_action = QAction(tr("Clear Map Cache Data"), parent)
         clear_all_cache_action.triggered.connect(self.clear_all_map_cache)
         actions.append(clear_all_cache_action)
 
@@ -425,10 +415,8 @@ class StyledMapRoot(QgsDataItem):
         if QgsProject.instance().isDirty():
             confirm = QMessageBox.question(
                 None,
-                self.tr("Create new Map"),
-                self.tr(
-                    "Creating an new map will clear your current project. Continue?"
-                ),
+                tr("Create new Map"),
+                tr("Creating an new map will clear your current project. Continue?"),
                 Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
                 Q_MESSAGEBOX_STD_BUTTON.No,
             )
@@ -457,8 +445,8 @@ class StyledMapRoot(QgsDataItem):
             if current_styled_map_count > plan_limit.maxStyledMaps:
                 QMessageBox.critical(
                     None,
-                    self.tr("Error"),
-                    self.tr(
+                    tr("Error"),
+                    tr(
                         "Cannot create new map. Your plan allows up to {} maps, "
                         "but you have reached the limit."
                     ).format(plan_limit.maxStyledMaps),
@@ -477,8 +465,8 @@ class StyledMapRoot(QgsDataItem):
                 if settings.selected_project_id != styled_map_detail.projectId:
                     QMessageBox.critical(
                         None,
-                        self.tr("Wrong Project"),
-                        self.tr(
+                        tr("Wrong Project"),
+                        tr(
                             "Please switch to the correct Kumoy project to create a map."
                         ),
                     )
@@ -492,7 +480,7 @@ class StyledMapRoot(QgsDataItem):
                 attribution_field,
                 is_public_field,
             ) = _create_styled_map_dialog(
-                self.tr("Add Map"),
+                tr("Add Map"),
             )
 
             # Show dialog
@@ -567,30 +555,30 @@ class StyledMapRoot(QgsDataItem):
             )
             QgsProject.instance().setDirty(False)
         except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=self.tr("Error adding map"))
+            handle_api_error(e, parent=None, log_prefix=tr("Error adding map"))
 
     def createChildren(self) -> list[QgsDataItem]:
         project_id = get_settings().selected_project_id
 
         if not project_id:
-            return [ErrorItem(self, self.tr("No project selected"))]
+            return [ErrorItem(self, tr("No project selected"))]
 
         # プロジェクトのスタイルマップを取得
         try:
             styled_maps = api.styledmap.get_styled_maps(project_id)
         except UnauthorizedError as e:
             handle_api_error(e, parent=None)
-            return [ErrorItem(self, self.tr("Session expired - please log in"))]
+            return [ErrorItem(self, tr("Session expired - please log in"))]
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error loading maps: {format_api_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
-            return [ErrorItem(self, self.tr("Error loading maps"))]
+            return [ErrorItem(self, tr("Error loading maps"))]
 
         if not styled_maps:
-            return [ErrorItem(self, self.tr("No maps available."))]
+            return [ErrorItem(self, tr("No maps available."))]
 
         children = []
         for styled_map in styled_maps:
@@ -604,8 +592,8 @@ class StyledMapRoot(QgsDataItem):
         # Show confirmation dialog
         confirm = QMessageBox.question(
             None,
-            self.tr("Clear Map Cache"),
-            self.tr(
+            tr("Clear Map Cache"),
+            tr(
                 "This will clear all locally cached map files. "
                 "Data will be re-downloaded next time you access maps.\n\n"
                 "Continue?"
@@ -619,18 +607,18 @@ class StyledMapRoot(QgsDataItem):
         cache_cleared = local_cache.map.clear_all()
         if cache_cleared:
             QgsMessageLog.logMessage(
-                self.tr("All map cache files cleared successfully."),
+                tr("All map cache files cleared successfully."),
                 constants.LOG_CATEGORY,
                 Qgis.Info,
             )
             iface.messageBar().pushSuccess(
-                self.tr("Success"),
-                self.tr("All map cache files have been cleared successfully."),
+                tr("Success"),
+                tr("All map cache files have been cleared successfully."),
             )
         else:
             iface.messageBar().pushMessage(
-                self.tr("Map Cache Clear Failed"),
-                self.tr(
+                tr("Map Cache Clear Failed"),
+                tr(
                     "Some map cache files could not be cleared. "
                     "Please try again after closing QGIS or ensure no files are locked."
                 ),

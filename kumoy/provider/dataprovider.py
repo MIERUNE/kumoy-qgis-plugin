@@ -178,9 +178,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
             ]
         )
 
-    def tr(self, message):
-        return tr(message)
-
     def _reload_vector(self):
         """Refresh local cache"""
         try:
@@ -189,8 +186,8 @@ class KumoyDataProvider(QgsVectorDataProvider):
             if e.args[0] == "Not Found":
                 QMessageBox.information(
                     None,
-                    self.tr("Vector not found"),
-                    self.tr("The following vector does not exist: {}").format(
+                    tr("Vector not found"),
+                    tr("The following vector does not exist: {}").format(
                         self.vector_name
                     ),
                 )
@@ -200,13 +197,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
-            self.tr("Syncing: {}").format(self.kumoy_vector.name),
-            self.tr("Cancel"),
+            tr("Syncing: {}").format(self.kumoy_vector.name),
+            tr("Cancel"),
             0,
             0,
             iface.mainWindow(),  # Parent to center on QGIS window
         )
-        progress.setWindowTitle(self.tr("Data Sync"))
+        progress.setWindowTitle(tr("Data Sync"))
         progress.setWindowModality(QT_APPLICATION_MODAL)
         progress.setMinimumDuration(0)  # Show immediately
         progress.setAutoClose(False)  # Don't auto-close
@@ -269,17 +266,15 @@ class KumoyDataProvider(QgsVectorDataProvider):
         # Handle results
         if sync_cancelled:
             # キャンセル時はレイヤーを追加したくないので例外を投げる
-            raise Exception(self.tr("Sync cancelled by user"))
+            raise Exception(tr("Sync cancelled by user"))
         elif sync_error:
             # Log error but continue with existing cached data
             QgsMessageLog.logMessage(
-                self.tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
+                tr("Sync error: {}").format(sync_error), "Kumoy", Qgis.Warning
             )
             iface.messageBar().pushMessage(
-                self.tr("Sync error"),
-                self.tr("Failed to sync {}: {}").format(
-                    self.kumoy_vector.name, sync_error
-                ),
+                tr("Sync error"),
+                tr("Failed to sync {}: {}").format(self.kumoy_vector.name, sync_error),
                 level=Qgis.Warning,
             )
 

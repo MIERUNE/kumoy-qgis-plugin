@@ -70,15 +70,12 @@ class KumoyPlugin:
         """Load translations for the current QGIS locale."""
         i18n.load(QgsApplication.instance().locale())
 
-    def tr(self, message):
-        return i18n.tr(message)
-
     def on_reset_settings(self):
         """Handle reset settings action"""
         reply = QMessageBox.question(
             self.win,
-            self.tr("Reset Plugin Settings"),
-            self.tr(
+            i18n.tr("Reset Plugin Settings"),
+            i18n.tr(
                 'Are you sure you want to reset all settings for the "Kumoy" plugin? '
                 "This will clear your current project."
             ),
@@ -90,8 +87,8 @@ class KumoyPlugin:
             if QgsProject.instance().isDirty():
                 confirmed = QMessageBox.question(
                     self.win,
-                    self.tr("Reset Plugin Settings"),
-                    self.tr(
+                    i18n.tr("Reset Plugin Settings"),
+                    i18n.tr(
                         "You have unsaved changes. "
                         "Resetting settings will clear your current project. Continue?"
                     ),
@@ -110,8 +107,8 @@ class KumoyPlugin:
 
             QMessageBox.information(
                 self.win,
-                self.tr("Reset Plugin Settings"),
-                self.tr("Plugin settings have been reset successfully."),
+                i18n.tr("Reset Plugin Settings"),
+                i18n.tr("Plugin settings have been reset successfully."),
             )
 
     def on_logout(self):
@@ -119,8 +116,8 @@ class KumoyPlugin:
         if QgsProject.instance().isDirty():
             confirmed = QMessageBox.question(
                 self.win,
-                self.tr("Logout"),
-                self.tr(
+                i18n.tr("Logout"),
+                i18n.tr(
                     "You have unsaved changes. "
                     "Logging out will clear your current project. Continue?"
                 ),
@@ -144,8 +141,8 @@ class KumoyPlugin:
         QgsMessageLog.logMessage("Logged out via menu", PLUGIN_NAME, Qgis.Info)
         QMessageBox.information(
             self.win,
-            self.tr("Logout"),
-            self.tr("You have been logged out from Kumoy."),
+            i18n.tr("Logout"),
+            i18n.tr("You have been logged out from Kumoy."),
         )
 
         self._refresh_browser_panel()
@@ -170,7 +167,7 @@ class KumoyPlugin:
 
         if provider.name() == DATA_PROVIDER_KEY:
             # Kumoyレイヤーの場合: 同期アクションを追加
-            sync_action = QAction(MAIN_ICON, self.tr("Sync Data"), menu)
+            sync_action = QAction(MAIN_ICON, i18n.tr("Sync Data"), menu)
             sync_action.setIconVisibleInMenu(True)
             sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
             if layer.isEditable():
@@ -188,7 +185,7 @@ class KumoyPlugin:
             return
 
         # Create and add convert action
-        convert_action = QAction(MAIN_ICON, self.tr("Convert to Kumoy Vector"), menu)
+        convert_action = QAction(MAIN_ICON, i18n.tr("Convert to Kumoy Vector"), menu)
         convert_action.setIconVisibleInMenu(True)
         convert_action.triggered.connect(
             lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
@@ -225,7 +222,7 @@ class KumoyPlugin:
         except Exception as e:
             QMessageBox.warning(
                 self.win,
-                self.tr("Sync Error"),
+                i18n.tr("Sync Error"),
                 str(e),
             )
             return
@@ -256,8 +253,8 @@ class KumoyPlugin:
             if settings.selected_project_id != styled_map_detail.projectId:
                 QMessageBox.critical(
                     None,
-                    self.tr("Wrong Project"),
-                    self.tr(
+                    i18n.tr("Wrong Project"),
+                    i18n.tr(
                         "This map belongs to a different Kumoy project. "
                         "Please switch to the correct project."
                     ),
@@ -265,7 +262,7 @@ class KumoyPlugin:
                 QgsProject.instance().clear()
                 return
         except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=self.tr("Error loading map"))
+            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error loading map"))
             QgsProject.instance().clear()
             return
 
@@ -280,8 +277,8 @@ class KumoyPlugin:
             )
             QMessageBox.critical(
                 None,
-                self.tr("Error"),
-                self.tr(
+                i18n.tr("Error"),
+                i18n.tr(
                     "Unable to connect to the server or retrieve plugin version information.\n\n"
                     "Details: {}"
                 ).format(error_text),
@@ -294,8 +291,8 @@ class KumoyPlugin:
             )
             QMessageBox.critical(
                 None,
-                self.tr("Error"),
-                self.tr("An error occurred: {}").format(error_text),
+                i18n.tr("Error"),
+                i18n.tr("An error occurred: {}").format(error_text),
             )
             return
 
@@ -305,8 +302,8 @@ class KumoyPlugin:
         ):
             QMessageBox.critical(
                 None,
-                self.tr("Plugin Version Error"),
-                self.tr(
+                i18n.tr("Plugin Version Error"),
+                i18n.tr(
                     "Please update the Kumoy plugin.\nMinimum required version: {}"
                 ).format(min_qgisplugin_version),
             )
@@ -375,17 +372,17 @@ class KumoyPlugin:
         self.iface.pluginMenu().addMenu(self.kumoy_menu)
 
         # Add menu action for logout
-        self.logout_action = QAction(self.tr("Logout"), self.win)
+        self.logout_action = QAction(i18n.tr("Logout"), self.win)
         self.logout_action.triggered.connect(self.on_logout)
         self.kumoy_menu.addAction(self.logout_action)
 
         # Add menu action for resetting settings
-        self.reset_plugin_settings = QAction(self.tr("Reset Plugin Settings"), self.win)
+        self.reset_plugin_settings = QAction(i18n.tr("Reset Plugin Settings"), self.win)
         self.reset_plugin_settings.triggered.connect(self.on_reset_settings)
         self.kumoy_menu.addAction(self.reset_plugin_settings)
 
         # Add menu action for help/documentation
-        self.help_action = QAction(self.tr("Help"), self.win)
+        self.help_action = QAction(i18n.tr("Help"), self.win)
         self.help_action.triggered.connect(lambda: webbrowser.open(DOCUMENTATION_URL))
         self.kumoy_menu.addAction(self.help_action)
 

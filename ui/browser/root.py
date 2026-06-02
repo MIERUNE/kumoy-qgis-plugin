@@ -62,7 +62,7 @@ class RootCollection(QgsDataCollectionItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error loading organization/project data"),
+                log_prefix=tr("Error loading organization/project data"),
             )
 
     def load_organization_project(self):
@@ -89,9 +89,6 @@ class RootCollection(QgsDataCollectionItem):
             f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
         )
 
-    def tr(self, message):
-        return tr(message)
-
     def handleDoubleClick(self):
         # 非ログイン時ならログイン画面を開く
         if not get_settings().session_token:
@@ -103,20 +100,20 @@ class RootCollection(QgsDataCollectionItem):
         session_token = get_settings().session_token
         if not session_token:
             # Login action
-            login_action = QAction(self.tr("Login"), parent)
+            login_action = QAction(tr("Login"), parent)
             login_action.triggered.connect(self.login)
             return [login_action]
 
         # Select Project action
-        select_project_action = QAction(self.tr("Select Project"), parent)
+        select_project_action = QAction(tr("Select Project"), parent)
         select_project_action.triggered.connect(self.select_project)
 
         # Refresh action
-        refresh_action = QAction(self.tr("Refresh"), parent)
+        refresh_action = QAction(tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
 
         # Account action
-        account_action = QAction(self.tr("Account"), parent)
+        account_action = QAction(tr("Account"), parent)
         account_action.triggered.connect(self.account_settings)
 
         return [select_project_action, refresh_action, account_action]
@@ -131,7 +128,7 @@ class RootCollection(QgsDataCollectionItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error loading organization/project data"),
+                log_prefix=tr("Error loading organization/project data"),
             )
 
         self.depopulate()
@@ -152,10 +149,8 @@ class RootCollection(QgsDataCollectionItem):
         if QgsProject.instance().isDirty() and (
             QMessageBox.question(
                 None,
-                self.tr("Change Project"),
-                self.tr(
-                    "Switching projects will discard the current map state. Continue?"
-                ),
+                tr("Change Project"),
+                tr("Switching projects will discard the current map state. Continue?"),
                 Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
                 Q_MESSAGEBOX_STD_BUTTON.No,
             )
@@ -177,7 +172,7 @@ class RootCollection(QgsDataCollectionItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error loading project selection dialog"),
+                log_prefix=tr("Error loading project selection dialog"),
             )
             return
 
@@ -193,10 +188,8 @@ class RootCollection(QgsDataCollectionItem):
         if prev_project_id != get_settings().selected_project_id:
             QgsProject.instance().clear()
             iface.messageBar().pushSuccess(
-                self.tr("Project Changed"),
-                self.tr(
-                    "Your QGIS project was cleared because the active project changed."
-                ),
+                tr("Project Changed"),
+                tr("Your QGIS project was cleared because the active project changed."),
             )
         self.refresh()
 
@@ -212,7 +205,7 @@ class RootCollection(QgsDataCollectionItem):
             handle_api_error(
                 e,
                 parent=None,
-                log_prefix=self.tr("Error loading account settings dialog"),
+                log_prefix=tr("Error loading account settings dialog"),
             )
             return
 
@@ -235,14 +228,14 @@ class RootCollection(QgsDataCollectionItem):
             return [
                 ErrorItem(
                     self,
-                    self.tr("Please select a project"),
+                    tr("Please select a project"),
                 )
             ]
 
         vector_path = f"{self.path()}/vectors"
         vector_root = VectorRoot(
             self,
-            self.tr("Vectors"),
+            tr("Vectors"),
             vector_path,
             self.organization_data,
             self.project_data,
@@ -254,7 +247,7 @@ class RootCollection(QgsDataCollectionItem):
         styled_map_path = f"{self.path()}/styledmaps"
         styled_map_root = StyledMapRoot(
             self,
-            self.tr("Maps"),
+            tr("Maps"),
             styled_map_path,
             self.organization_data,
             self.project_data,

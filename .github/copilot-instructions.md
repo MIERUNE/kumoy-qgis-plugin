@@ -26,7 +26,7 @@ QGIS用クラウド連携プラグイン。Python 3.9+、Qt5/Qt6両対応。
 ## 国際化（i18n）
 
 - UIテキストは必ず `i18n` の `tr("英語原文")` で翻訳対応する（`from ..i18n import tr`）。
-  QObject 内で `self.tr()` を使う場合はメソッドを `return tr(message)` で `i18n.tr` に委譲する。
+  QObject 内でも `self.tr()` ではなく import した `tr(...)` を直接呼ぶ（`def tr` は定義しない）。
   追加後は `python3 scripts/extract_i18n.py` で `i18n/ja.json` を更新。詳細は `i18n/README.md`
 - ユーザーに表示されない内部ログ・デバッグメッセージは翻訳不要
 

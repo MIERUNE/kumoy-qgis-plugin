@@ -41,39 +41,36 @@ class ProjectEditDialog(QDialog):
         self.initial_description = initial_description
         self.setup_ui()
 
-    def tr(self, message):
-        return tr(message)
-
     def setup_ui(self):
-        self.setWindowTitle(self.tr("New Project"))
+        self.setWindowTitle(tr("New Project"))
 
         layout = QVBoxLayout()
 
         # Team field (only shown when teams are provided)
         self.team_combo = QComboBox()
         if self.teams:
-            team_label = QLabel(self.tr("Team") + ' <span style="color: red;">*</span>')
+            team_label = QLabel(tr("Team") + ' <span style="color: red;">*</span>')
             layout.addWidget(team_label)
             for team in self.teams:
                 self.team_combo.addItem(team.name, team)
             layout.addWidget(self.team_combo)
 
         # Name field
-        name_label = QLabel(self.tr("Name") + ' <span style="color: red;">*</span>')
+        name_label = QLabel(tr("Name") + ' <span style="color: red;">*</span>')
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText(self.tr("Enter project name"))
+        self.name_input.setPlaceholderText(tr("Enter project name"))
         self.name_input.setMaxLength(MAX_CHARACTERS_PROJECT_NAME)
         self.name_input.setText(self.initial_name)
         layout.addWidget(self.name_input)
 
         # Description field
-        description_label = QLabel(self.tr("Description"))
+        description_label = QLabel(tr("Description"))
         layout.addWidget(description_label)
 
         self.description_input = QTextEdit()
-        self.description_input.setPlaceholderText(self.tr("Enter project description"))
+        self.description_input.setPlaceholderText(tr("Enter project description"))
         self.description_input.setMaximumHeight(100)
         self.description_input.textChanged.connect(self._limit_description)
         self.description_input.setPlainText(self.initial_description or "")
@@ -111,8 +108,8 @@ class ProjectEditDialog(QDialog):
         if not self.project_name:
             QMessageBox.warning(
                 self,
-                self.tr("Invalid Input"),
-                self.tr("Project name cannot be empty."),
+                tr("Invalid Input"),
+                tr("Project name cannot be empty."),
             )
             return
 

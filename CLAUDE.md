@@ -85,12 +85,9 @@ Qt の .ts/.qm パイプラインは使わない。原文(英語)をキーにし
   msg = tr("An error occurred: {}").format(error_text)
   ```
 
-- QObject サブクラス（QDialog 等）で `self.tr(...)` を使いたい場合は `i18n.tr` に委譲する。
-  Qt 標準の `QObject.tr` はクラス名コンテキストで JSON を引けないので、必ずこの委譲を書く。
-  ```python
-  def tr(self, message):
-      return tr(message)      # モジュールトップで from ..i18n import tr 済み
-  ```
+- QObject サブクラス（QDialog 等）の中でも `self.tr(...)` ではなく、import した `tr(...)`
+  を直接呼ぶ。Qt 標準の `QObject.tr` はクラス名コンテキストで JSON を引けないため使わない。
+  クラスに `def tr` を定義する必要はない。
 
 - 文字列を追加・変更したら `python3 scripts/extract_i18n.py` を実行して `i18n/ja.json`
   に新規キー（空訳）を追加し、訳を埋める。`--check` で CI 検証できる。
