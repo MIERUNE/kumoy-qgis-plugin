@@ -7,10 +7,10 @@
 import os
 
 from qgis.core import QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
+from ..i18n import tr
 from ..kumoy import settings_manager
 from .error_handler import handle_api_error
 from ..kumoy import api
@@ -18,10 +18,6 @@ from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite, upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .layers.convert_vector import convert_local_layers
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def show_map_save_result(

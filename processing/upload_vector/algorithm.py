@@ -17,11 +17,12 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QVariant
 from qgis.utils import iface
 
 import processing
 
+from ...i18n import tr
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
@@ -129,8 +130,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.project_ids = []
 
     def tr(self, string: str) -> str:
-        """Translate string"""
-        return QCoreApplication.translate("UploadVectorAlgorithm", string)
+        return tr(string)
 
     def createInstance(self) -> "UploadVectorAlgorithm":
         """Create new instance of algorithm"""

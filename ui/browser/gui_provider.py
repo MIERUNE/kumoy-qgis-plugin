@@ -1,8 +1,8 @@
 from qgis.core import QgsDataItem
 from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMenu
 
+from ...i18n import tr
 from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
 from .vector import (
     VectorItem,
@@ -17,7 +17,7 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         return "Kumoy"
 
     def tr(self, message: str) -> str:
-        return QCoreApplication.translate("KumoyDataItemGuiProvider", message)
+        return tr(message)
 
     def populateContextMenu(
         self,

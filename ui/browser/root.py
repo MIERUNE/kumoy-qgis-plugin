@@ -4,10 +4,10 @@ from qgis.core import (
     QgsDataProvider,
     QgsProject,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from qgis.utils import iface
 
+from ...i18n import tr
 from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
@@ -90,8 +90,7 @@ class RootCollection(QgsDataCollectionItem):
         )
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("RootCollection", message)
+        return tr(message)
 
     def handleDoubleClick(self):
         # 非ログイン時ならログイン画面を開く

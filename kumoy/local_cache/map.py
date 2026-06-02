@@ -1,8 +1,8 @@
 import os
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 
+from ...i18n import tr
 from ..constants import LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
@@ -10,10 +10,6 @@ from ..sprite import pin_fixed_aspect_ratios
 # write_qgsfile() で QGIS プロジェクトをディスクに書き出す際、
 # QgsProject.projectSaved シグナル経由で再入することを防ぐためのフラグ。
 is_updating = False
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def get_cache_dir() -> str:

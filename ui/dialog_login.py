@@ -2,7 +2,6 @@ import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -16,6 +15,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..i18n import tr
 from ..kumoy import api
 from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
@@ -162,8 +162,7 @@ class DialogLogin(QDialog):
         verticalLayout.addWidget(self.cancel_button)
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("DialogLogin", message)
+        return tr(message)
 
     def changeEvent(self, event):
         """ウィンドウがアクティブになった時に即座にポーリングを実行する"""
@@ -192,7 +191,7 @@ class DialogLogin(QDialog):
             )
 
         else:
-            self.login_status_label.setText(self.tr(""))
+            self.login_status_label.setText("")
             self.login_status_label.setStyleSheet("")
 
     def on_auth_completed(self, success: bool, error: str):

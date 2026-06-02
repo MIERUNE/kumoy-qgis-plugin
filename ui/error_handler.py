@@ -13,16 +13,13 @@ QMessageBox 表示や Browser パネルの再構築など UI 操作を含むた�
 from typing import Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication, QTimer
+from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
+from ..i18n import tr
 from ..kumoy import constants
 from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.settings_manager import get_settings, store_setting
-
-
-def tr(message: str) -> str:
-    return QCoreApplication.translate("@default", message)
 
 
 def _clear_session() -> None:

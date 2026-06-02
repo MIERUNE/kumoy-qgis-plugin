@@ -10,7 +10,6 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import (
     QByteArray,
-    QCoreApplication,
     QObject,
     QTimer,
     QUrl,
@@ -23,6 +22,7 @@ from ..pyqt_version import (
     Q_NETWORK_REQUEST_ATTRIBUTE,
     Q_NETWORK_REQUEST_HEADER,
 )
+from ..i18n import tr
 from .api.error import format_api_error
 from .constants import LOG_CATEGORY
 
@@ -54,7 +54,7 @@ class AuthManager(QObject):
         self._completed: bool = False
 
     def tr(self, message: str) -> str:
-        return QCoreApplication.translate("AuthManager", message)
+        return tr(message)
 
     def request_device_code(self) -> Tuple[bool, str]:
         """デバイスコードをリクエストする。

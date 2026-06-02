@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -9,6 +9,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..i18n import tr
 from ..pyqt_version import (
     QT_ALIGN,
     QT_PEN_CAP_STYLE,
@@ -99,4 +100,4 @@ class LoginSuccess(QDialog):
         self.setLayout(main_layout)
 
     def tr(self, text):
-        return QCoreApplication.translate("LoginSuccess", text)
+        return tr(text)

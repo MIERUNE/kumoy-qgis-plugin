@@ -16,7 +16,6 @@ from qgis.core import (
     QgsUnitTypes,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
     QComboBox,
@@ -47,11 +46,8 @@ from ..icons import (
     BROWSER_GEOMETRY_POINT_ICON,
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
+from ...i18n import tr
 from .utils import ErrorItem
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 class VectorItem(QgsDataItem):
@@ -87,8 +83,7 @@ class VectorItem(QgsDataItem):
         self.populate()
 
     def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("VectorItem", message)
+        return tr(message)
 
     def hasDragEnabled(self) -> bool:
         return True
@@ -410,8 +405,7 @@ class VectorRoot(QgsDataItem):
         self.project = project
 
     def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("VectorRoot", message)
+        return tr(message)
 
     def actions(self, parent: QMenu) -> list[QAction]:
         actions = []

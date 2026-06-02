@@ -7,7 +7,6 @@ from qgis.core import (
     QgsMessageLog,
     QgsProject,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
@@ -45,12 +44,9 @@ from ...kumoy.settings_manager import get_settings
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
+from ...i18n import tr
 from ..icons import BROWSER_MAP_ICON
 from .utils import ErrorItem
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 class StyledMapItem(QgsDataItem):
@@ -78,8 +74,7 @@ class StyledMapItem(QgsDataItem):
         self.populate()
 
     def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("StyledMapItem", message)
+        return tr(message)
 
     def build_actions(self, parent: QMenu) -> list[QAction]:
         """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
@@ -403,8 +398,7 @@ class StyledMapRoot(QgsDataItem):
         self.project = project
 
     def tr(self, message: str) -> str:
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("StyledMapRoot", message)
+        return tr(message)
 
     def actions(self, parent: QMenu) -> list[QAction]:
         actions = []

@@ -20,6 +20,7 @@ from qgis.utils import iface
 
 import processing
 
+from ...i18n import tr
 from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
@@ -30,10 +31,6 @@ from ...pyqt_version import (
 )
 from ..dialog_layer_select import LayerSelectDialog
 from ..utils import get_local_vector_layers
-
-
-def tr(message: str, context: str = "@default") -> str:
-    return QCoreApplication.translate(context, message)
 
 
 def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:

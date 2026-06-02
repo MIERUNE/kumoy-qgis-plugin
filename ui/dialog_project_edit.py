@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -12,6 +11,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..i18n import tr
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     MAX_CHARACTERS_PROJECT_NAME,
@@ -42,7 +42,7 @@ class ProjectEditDialog(QDialog):
         self.setup_ui()
 
     def tr(self, message):
-        return QCoreApplication.translate("ProjectEditDialog", message)
+        return tr(message)
 
     def setup_ui(self):
         self.setWindowTitle(self.tr("New Project"))

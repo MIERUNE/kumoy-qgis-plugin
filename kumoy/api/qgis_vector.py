@@ -2,14 +2,11 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QCoreApplication, QDate, QDateTime, QTime, QVariant
+from qgis.PyQt.QtCore import QDate, QDateTime, QTime, QVariant
 
 from .. import constants
+from ...i18n import tr
 from .client import ApiClient
-
-
-def tr(message: str) -> str:
-    return QCoreApplication.translate("@default", message)
 
 
 def get_features(

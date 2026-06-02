@@ -1,7 +1,6 @@
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -11,6 +10,7 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..i18n import tr
 from ..kumoy import api
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import read_plugin_version
@@ -41,8 +41,7 @@ class DialogAccount(QDialog):
         self._load_server_config()
 
     def tr(self, message: str) -> str:
-        """Qt translation helper."""
-        return QCoreApplication.translate("DialogAccount", message)
+        return tr(message)
 
     def _init_ui(self) -> None:
         self.setWindowTitle(self.tr("Account"))

@@ -20,7 +20,6 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import (
-    QCoreApplication,
     QEventLoop,
     QThread,
     QVariant,
@@ -29,6 +28,7 @@ from qgis.PyQt.QtCore import (
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
 from qgis.utils import iface
 
+from ...i18n import tr
 from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
 from ..api.error import format_api_error
@@ -179,8 +179,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
         )
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("KumoyDataProvider", message)
+        return tr(message)
 
     def _reload_vector(self):
         """Refresh local cache"""

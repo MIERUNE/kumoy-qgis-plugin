@@ -11,9 +11,9 @@ from qgis.core import (
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface, QgsGui
-from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
+from . import i18n
 from .ui.error_handler import handle_api_error
 from .kumoy import api
 from .kumoy.api.error import AppError, format_api_error
@@ -48,7 +48,6 @@ class KumoyPlugin:
         self.plugin_dir = os.path.dirname(__file__)
 
         # Initialize translation
-        self.translator = None
         self.init_translation()
 
         registry = QgsProviderRegistry.instance()
@@ -68,18 +67,11 @@ class KumoyPlugin:
         self.data_item_gui_provider = None
 
     def init_translation(self):
-        """Initialize translation for the plugin"""
-        locale = QgsApplication.instance().locale()
-        locale_path = os.path.join(self.plugin_dir, "i18n", f"kumoy_{locale}.qm")
-
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+        """Load translations for the current QGIS locale."""
+        i18n.load(QgsApplication.instance().locale())
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("KumoyPlugin", message)
+        return i18n.tr(message)
 
     def on_reset_settings(self):
         """Handle reset settings action"""
@@ -417,10 +409,6 @@ class KumoyPlugin:
             self.iface.pluginMenu().removeAction(self.kumoy_menu.menuAction())
             self.kumoy_menu.deleteLater()
             self.kumoy_menu = None
-
-        # Remove translator
-        if self.translator:
-            QCoreApplication.removeTranslator(self.translator)
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
 

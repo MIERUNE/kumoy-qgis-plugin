@@ -1,7 +1,6 @@
 from typing import List
 
 from qgis.core import QgsVectorLayer
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -15,6 +14,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..i18n import tr
 from ..pyqt_version import QT_DIALOG_BUTTON_CANCEL, QT_DIALOG_BUTTON_OK
 
 
@@ -46,7 +46,7 @@ class LayerSelectDialog(QDialog):
         self._setup_ui()
 
     def tr(self, message: str) -> str:
-        return QCoreApplication.translate("LayerSelectDialog", message)
+        return tr(message)
 
     @property
     def selected_layers(self) -> List[QgsVectorLayer]:

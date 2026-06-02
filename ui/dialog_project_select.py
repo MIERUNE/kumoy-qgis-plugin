@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional, Set
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
@@ -24,6 +24,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..i18n import tr
 from ..kumoy import api
 from .error_handler import handle_api_error
 from ..kumoy.api.error import UnauthorizedError, format_api_error
@@ -94,8 +95,7 @@ class ProjectSelectDialog(QDialog):
         self.load_saved_selection()
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("ProjectSelectDialog", message)
+        return tr(message)
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -841,8 +841,7 @@ class ProjectItemWidget(QWidget):
         self.setup_ui()
 
     def tr(self, message):
-        """Get the translation for a string using Qt translation API"""
-        return QCoreApplication.translate("ProjectItemWidget", message)
+        return tr(message)
 
     def setup_ui(self):
         """Set up the project item UI"""
