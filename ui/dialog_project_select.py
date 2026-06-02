@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional, Set
 
 from qgis.core import Qgis, QgsMessageLog
-from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,

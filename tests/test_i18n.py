@@ -10,8 +10,11 @@ from plugin_dir import i18n
 
 @pytest.fixture(autouse=True)
 def _restore_translations():
-    """各テストが _translations を汚さないよう退避・復元する。"""
-    saved = i18n._translations
+    """各テストが _translations を汚さないよう退避・復元する。
+
+    in-place mutation されても元状態に戻せるよう、コピーを保持する。
+    """
+    saved = dict(i18n._translations)
     yield
     i18n._translations = saved
 

@@ -47,8 +47,8 @@ def _is_tr_call(node: ast.Call) -> bool:
 
 def collect(root: str):
     """(翻訳キー集合, 動的引数の警告リスト) を返す。"""
-    keys: set = set()
-    warnings: list = []
+    keys: set[str] = set()
+    warnings: list[str] = []
     for path in _iter_py_files(root):
         with open(path, encoding="utf-8") as f:
             try:
@@ -64,7 +64,9 @@ def collect(root: str):
             if isinstance(first, ast.Constant) and isinstance(first.value, str):
                 keys.add(first.value)
             else:
-                warnings.append(f"{rel}:{node.lineno}: tr() に非リテラル引数（抽出不可）")
+                warnings.append(
+                    f"{rel}:{node.lineno}: tr() に非リテラル引数（抽出不可）"
+                )
     return keys, warnings
 
 

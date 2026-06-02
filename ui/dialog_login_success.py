@@ -1,4 +1,3 @@
-from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from qgis.PyQt.QtWidgets import (
     QDialog,

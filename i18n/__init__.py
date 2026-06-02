@@ -9,22 +9,29 @@ import json
 import os
 
 # 現在ロード中の翻訳辞書（原文 -> 訳文）。未ロード時は空 = 全て原文フォールバック。
-_translations: dict = {}
+_translations: dict[str, str] = {}
 
 
 def load(locale: str) -> None:
     """同ディレクトリの ``<locale>.json`` を読み込む。
 
-    locale は QGIS のロケール文字列（例 "ja", "en"）。ファイルが無ければ
-    辞書を空にし、tr() は原文をそのまま返す（英語フォールバック）。
+    locale は QGIS のロケール文字列。"ja" のことも "ja_JP" のこともあるため、
+    完全一致 → 言語部分（"ja"）の順に探す。どれも無ければ辞書を空にし、tr() は
+    原文をそのまま返す（英語フォールバック）。
     """
     global _translations
-    path = os.path.join(os.path.dirname(__file__), f"{locale}.json")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            _translations = json.load(f)
-    else:
-        _translations = {}
+    here = os.path.dirname(__file__)
+    candidates = [locale]
+    lang = locale.split("_")[0]
+    if lang != locale:
+        candidates.append(lang)
+    for name in candidates:
+        path = os.path.join(here, f"{name}.json")
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                _translations = json.load(f)
+            return
+    _translations = {}
 
 
 def tr(message: str) -> str:
