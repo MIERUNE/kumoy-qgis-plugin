@@ -8,10 +8,9 @@ JSON 辞書**で翻訳する。`i18n/__init__.py` が辞書のロードとルッ
 ```
 i18n/
 ├── __init__.py   # load(locale) と tr(message)
+├── extract.py    # コードから tr("...") を抽出して JSON を更新（pylupdate 相当）
 ├── ja.json       # 日本語訳（原文 -> 訳文）
 └── en.json       # （任意）英語。原文=英語なので無ければ原文フォールバック
-scripts/
-└── extract_i18n.py   # コードから tr("...") を抽出して JSON を更新（pylupdate 相当）
 ```
 
 ## 仕組み
@@ -44,8 +43,8 @@ msg = tr("An error occurred: {}").format(error_text)
 （自動削除はしない）:
 
 ```bash
-python3 scripts/extract_i18n.py            # i18n/ja.json を更新
-python3 scripts/extract_i18n.py --check    # 未更新なら非0終了（CI 用）
+python3 i18n/extract.py            # i18n/ja.json を更新
+python3 i18n/extract.py --check    # 未更新なら非0終了（CI 用）
 ```
 
 その後 `i18n/ja.json` の空訳を埋める（エディタで直接編集。バイナリ化・コンパイル不要）。

@@ -11,9 +11,9 @@
 リテラルでない引数（f-string・変数渡し）は静的に拾えないため警告する。
 
 使い方:
-    python3 scripts/extract_i18n.py            # i18n/ja.json を更新
-    python3 scripts/extract_i18n.py --locale en
-    python3 scripts/extract_i18n.py --check    # 変更が必要なら非0終了（CI用）
+    python3 i18n/extract.py            # i18n/ja.json を更新
+    python3 i18n/extract.py --locale en
+    python3 i18n/extract.py --check    # 変更が必要なら非0終了（CI用）
 """
 
 import argparse
@@ -23,8 +23,8 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 走査対象外。翻訳対象は実行コードのみ（テスト/依存/ツール自身は除外）。
-EXCLUDE_DIRS = {".venv", ".git", ".claude", "tests", "scripts", "i18n", "__pycache__"}
+# 走査対象外。翻訳対象は実行コードのみ（テスト/依存/i18n自身は除外）。
+EXCLUDE_DIRS = {".venv", ".git", ".claude", "tests", "i18n", "__pycache__"}
 
 
 def _iter_py_files(root: str):
@@ -84,7 +84,7 @@ def update(locale: str, check: bool) -> int:
     if check:
         if changed:
             print(
-                "i18n: 更新が必要です。`python3 scripts/extract_i18n.py` を実行してください。"
+                "i18n: 更新が必要です。`python3 i18n/extract.py` を実行してください。"
             )
         for k in added:
             print(f"  + 新規キー（未翻訳）: {k!r}")

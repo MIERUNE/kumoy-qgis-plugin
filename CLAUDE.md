@@ -86,7 +86,7 @@ Qt の .ts/.qm パイプラインは使わない。原文(英語)をキーにし
   msg = tr("An error occurred: {}").format(error_text)
   ```
 
-- 文字列を追加・変更したら `python3 scripts/extract_i18n.py` を実行して `i18n/ja.json`
+- 文字列を追加・変更したら `python3 i18n/extract.py` を実行して `i18n/ja.json`
   に新規キー（空訳）を追加し、訳を埋める。`--check` で CI 検証できる。
 
 ## Git ワークフロー
