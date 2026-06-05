@@ -176,31 +176,31 @@ def _gather_config():
     settings.endGroup()
 
     dialog = QDialog(iface.mainWindow() if iface else None)
-    dialog.setWindowTitle("Kumoy E2E test — Configuration")
+    dialog.setWindowTitle("Kumoy E2E test configuration")
     dialog.setMinimumWidth(500)
 
     layout = QVBoxLayout(dialog)
     intro = QLabel(
-        "Configure the E2E test. Values are remembered across runs.\n"
-        "Required fields: email, organization, team."
+        "⚠️ The test will create and delete resources in the account/"
+        "organization/team specified below."
     )
     intro.setWordWrap(True)
     layout.addWidget(intro)
 
     form = QFormLayout()
     email_field = QLineEdit(defaults["email"])
-    email_field.setPlaceholderText("you@mierune.co.jp")
+    email_field.setPlaceholderText("you@example.com")
     org_field = QLineEdit(defaults["org"])
-    org_field.setPlaceholderText("Organization name (case-sensitive)")
+    org_field.setPlaceholderText("Organization name")
     team_field = QLineEdit(defaults["team"])
-    team_field.setPlaceholderText("Team name (case-sensitive)")
+    team_field.setPlaceholderText("Team name")
     custom_server_field = QLineEdit(defaults["custom_server"])
     custom_server_field.setPlaceholderText("Leave empty to use the default server")
 
-    form.addRow("Expected user email:", email_field)
-    form.addRow("Organization name:", org_field)
-    form.addRow("Team name:", team_field)
-    form.addRow("Custom server URL:", custom_server_field)
+    form.addRow("User email*", email_field)
+    form.addRow("Organization*", org_field)
+    form.addRow("Team name*", team_field)
+    form.addRow("Custom server URL", custom_server_field)
     layout.addLayout(form)
 
     buttons = QDialogButtonBox(
