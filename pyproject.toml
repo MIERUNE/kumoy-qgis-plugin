@@ -20,7 +20,7 @@ target-version = "py39"
 ignore = ["N802", "E501", "RUF001", "F401"]
 
 [tool.bandit]
-exclude_dirs = ["tests", ".venv", ".claude"]
+exclude_dirs = ["tests", "scripts", ".venv", ".claude"]
 
 [tool.uv]
 exclude-newer = "1 week"
