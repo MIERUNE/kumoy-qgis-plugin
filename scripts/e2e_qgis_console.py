@@ -28,14 +28,16 @@ What the script does
 3. Open map in QGIS: reproduce ``apply_style`` from ``ui/browser/styledmap.py``
    — write the project file to the local cache, ``iface.addProject``,
    set ``kumoy_map_id`` custom variable.
-4. Add a couple of local in-memory layers (points + polygon).
+4. Add local layers: OSM XYZ basemap + memory polygons + lines + points,
+   ordered so points render on top.
 5. Save: monkey-patch the modal dialogs that ``handle_project_saved`` /
    ``convert_local_layers`` would normally open, then call ``QgsProject.write()``
    to fire ``projectSaved``. The full hook chain runs: vectors are converted
    and uploaded via ``convert_to_kumoy``, then ``update_styled_map`` pushes
    the resulting .qgs back to the server.
-6. Verify via API direct: vector count > 0, styled map qgisproject contains
-   references to Kumoy layers.
+6. Verify via API direct: at least 3 vectors uploaded (points + lines +
+   polygons), styled map qgisproject references Kumoy layers and preserves
+   the OSM basemap.
 7. Cleanup: delete the project (cascade), logout.
 
 Cleanup robustness
@@ -341,8 +343,7 @@ def phase_1_login(config, server_url, state):
 
     auth.auth_completed.connect(_on_completed)
     auth.start_polling()
-    # Qt5 → exec_, Qt6 → exec
-    (loop.exec if hasattr(loop, "exec") else loop.exec_)()
+    pyqt_version_module.exec_event_loop(loop)
 
     if not result["success"]:
         raise RuntimeError(f"Login failed: {result['error']}")
@@ -418,10 +419,12 @@ def phase_2_setup(config, timestamp, state):
         with open(tmp_path, "r", encoding="utf-8") as f:
             empty_qgs = f.read()
     finally:
+        # Best-effort cleanup of the temp file. A leftover .qgs in /tmp is
+        # harmless, so we log and continue rather than aborting.
         try:
             os.unlink(tmp_path)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"  ⚠ Could not remove temp file {tmp_path}: {e}")
 
     map_name = f"__E2E_TEST__{timestamp}"
     _step(f"Creating empty styled map: {map_name}")
@@ -666,11 +669,12 @@ def phase_7_cleanup(state):
             )
 
     if qgis_project_touched:
+        # Best-effort: cleanup is non-fatal. Log and continue.
         try:
             QgsProject.instance().clear()
             _ok("Cleared QGIS project")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠ Failed to clear QGIS project: {e}")
 
     if session_logged_in:
         settings_manager.store_setting("session_token", "")
