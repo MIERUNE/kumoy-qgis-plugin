@@ -8,13 +8,13 @@ plumbing end-to-end: auth flow, provider, Processing, save hook, API roundtrips.
 How to run
 ----------
 1. Open QGIS with the Kumoy plugin loaded.
-2. Save any unsaved QGIS work — the script will replace the current project.
-3. From the QGIS Python console::
+2. From the QGIS Python console::
 
        exec(open("/abs/path/to/kumoy-qgis-plugin/scripts/e2e_qgis_console.py").read())
 
    A configuration dialog opens on each run. Fields are persisted to QSettings,
-   so they're pre-filled on subsequent runs.
+   so they're pre-filled on subsequent runs. If you have an unsaved project,
+   the script asks whether to save / discard / cancel before replacing it.
 
 What the script does
 --------------------
@@ -234,6 +234,44 @@ def _gather_config():
     return config
 
 
+def _handle_unsaved_current_project():
+    """If the current QGIS project has unsaved changes, let the user save or
+    discard them before the script clears the project. Cancel aborts the run.
+
+    We do this AFTER the config dialog (so cancelling the config doesn't
+    trigger a save prompt for nothing) and BEFORE phase 0.
+    """
+    project = QgsProject.instance()
+    if not project.isDirty():
+        return
+
+    buttons = (
+        Q_MESSAGEBOX_STD_BUTTON.Save
+        | Q_MESSAGEBOX_STD_BUTTON.Discard
+        | Q_MESSAGEBOX_STD_BUTTON.Cancel
+    )
+    default_button = Q_MESSAGEBOX_STD_BUTTON.Cancel  # safest if user hits Enter
+    response = QMessageBox.question(
+        iface.mainWindow() if iface else None,
+        "Kumoy E2E test",
+        "Your current QGIS project has unsaved changes. The E2E test will "
+        "replace it. What do you want to do?",
+        buttons,
+        default_button,
+    )
+
+    if response == Q_MESSAGEBOX_STD_BUTTON.Cancel:
+        raise E2EUserError("Cancelled by user (unsaved project).")
+    if response == Q_MESSAGEBOX_STD_BUTTON.Save:
+        # Trigger QGIS's native save action. If the project has no file path
+        # yet, this opens the standard "Save As" dialog.
+        if iface is not None:
+            iface.actionSaveProject().trigger()
+        # If the user cancelled the Save As dialog, the project is still dirty.
+        if project.isDirty():
+            raise E2EUserError("Save cancelled — aborting test.")
+
+
 # ─── Phase 0 : Pre-flight ──────────────────────────────────────────────────
 def phase_0_preflight(config):
     _phase(0, "Pre-flight")
@@ -275,7 +313,7 @@ def phase_0_preflight(config):
 
 
 # ─── Phase 1 : Login ───────────────────────────────────────────────────────
-def phase_1_login(config, server_url):
+def phase_1_login(config, server_url, state):
     _phase(1, "Login")
 
     auth = auth_module.AuthManager(server_url)
@@ -310,6 +348,7 @@ def phase_1_login(config, server_url):
         raise RuntimeError(f"Login failed: {result['error']}")
 
     settings_manager.store_setting("session_token", auth.get_access_token())
+    state["session_logged_in"] = True
     _ok("Token persisted to QSettings")
 
     # Identity check — refuses to continue if the wrong account was used.
@@ -324,7 +363,7 @@ def phase_1_login(config, server_url):
 
 
 # ─── Phase 2 : Server setup ────────────────────────────────────────────────
-def phase_2_setup(config, timestamp):
+def phase_2_setup(config, timestamp, state):
     _phase(2, "Server setup")
 
     orgs = api.organization.get_organizations()
@@ -363,10 +402,13 @@ def phase_2_setup(config, timestamp):
     project = api.project.create_project(
         team.id, project_name, "Created by scripts/e2e_qgis_console.py"
     )
+    state["project"] = project
     _ok(f"Project created: id={project.id}")
 
     # We need a valid (empty) QGIS project XML to bootstrap the styled map.
-    # Easiest way: clear, write to a temp file, read it back.
+    # Easiest way: clear, write to a temp file, read it back. About to mutate
+    # the user's current QGIS project — track it for cleanup.
+    state["qgis_project_touched"] = True
     QgsProject.instance().clear()
     tmp = tempfile.NamedTemporaryFile(suffix=".qgs", delete=False)
     tmp_path = tmp.name
@@ -599,12 +641,20 @@ def phase_6_verify(project, styled_map):
 
 
 # ─── Phase 7 : Cleanup ─────────────────────────────────────────────────────
-def phase_7_cleanup(project):
+def phase_7_cleanup(state):
     _phase(7, "Cleanup")
 
-    if project is None:
-        _step("No project to delete (setup didn't complete)")
-    else:
+    project = state["project"]
+    session_logged_in = state["session_logged_in"]
+    qgis_project_touched = state["qgis_project_touched"]
+
+    if not project and not session_logged_in and not qgis_project_touched:
+        # Nothing destructive happened — likely the user cancelled before
+        # any phase mutated state. Don't touch their QGIS / session.
+        _step("Nothing to clean (cancelled before any destructive operation).")
+        return
+
+    if project is not None:
         try:
             api.project.delete_project(project.id)
             _ok(f"Deleted project {project.id} (cascade)")
@@ -615,14 +665,16 @@ def phase_7_cleanup(project):
                 "(look for __E2E_TEST__ prefix in your org)."
             )
 
-    try:
-        QgsProject.instance().clear()
-        _ok("Cleared QGIS project")
-    except Exception:
-        pass
+    if qgis_project_touched:
+        try:
+            QgsProject.instance().clear()
+            _ok("Cleared QGIS project")
+        except Exception:
+            pass
 
-    settings_manager.store_setting("session_token", "")
-    _ok("Cleared QGIS session token (logout)")
+    if session_logged_in:
+        settings_manager.store_setting("session_token", "")
+        _ok("Cleared QGIS session token (logout)")
 
 
 # ─── Main ──────────────────────────────────────────────────────────────────
@@ -635,13 +687,18 @@ def _run():
     timestamp = datetime.now().strftime("%Y-%m-%d_%Hh%Mm%Ss")
     print(f"  Run ID: {timestamp}")
 
-    project = None
+    state = {
+        "project": None,
+        "session_logged_in": False,
+        "qgis_project_touched": False,
+    }
     failed = False
     try:
         config = _gather_config()
+        _handle_unsaved_current_project()
         server_url = phase_0_preflight(config)
-        phase_1_login(config, server_url)
-        project, styled_map = phase_2_setup(config, timestamp)
+        phase_1_login(config, server_url, state)
+        project, styled_map = phase_2_setup(config, timestamp, state)
         phase_3_open_map(styled_map)
         phase_4_add_local_layers()
         phase_5_save()
@@ -660,7 +717,7 @@ def _run():
         print("═" * 64)
     finally:
         try:
-            phase_7_cleanup(project)
+            phase_7_cleanup(state)
         except Exception as e:
             print(f"⚠ Cleanup error: {e}")
 
