@@ -128,6 +128,8 @@ dialog_layer_select_module = _imp("ui.dialog_layer_select")
 LayerSelectDialog = dialog_layer_select_module.LayerSelectDialog
 QDIALOG_CODE = pyqt_version_module.QDIALOG_CODE
 Q_MESSAGEBOX_STD_BUTTON = pyqt_version_module.Q_MESSAGEBOX_STD_BUTTON
+QT_DIALOG_BUTTON_OK = pyqt_version_module.QT_DIALOG_BUTTON_OK
+QT_DIALOG_BUTTON_CANCEL = pyqt_version_module.QT_DIALOG_BUTTON_CANCEL
 
 
 # ─── Errors ────────────────────────────────────────────────────────────────
@@ -204,7 +206,7 @@ def _gather_config():
     layout.addLayout(form)
 
     buttons = QDialogButtonBox(
-        QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+        QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL,
         parent=dialog,
     )
     buttons.accepted.connect(dialog.accept)
