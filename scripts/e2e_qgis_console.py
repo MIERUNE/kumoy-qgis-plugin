@@ -23,8 +23,9 @@ What the script does
    Post-login, ``api.user.get_me().email`` is checked against the email
    entered in the dialog to prevent running against the wrong account.
    No server resource is created if this check fails.
-2. Server setup (via API direct, as setup): list orgs/teams, create a project
-   and an empty styled map, both named ``__E2E_TEST__<timestamp>``.
+2. Server setup (via API direct, as setup): look up the organization by ID,
+   auto-pick a team where the user has OWNER or ADMIN role, then create a
+   project and an empty styled map, both named ``__E2E_TEST__<timestamp>``.
 3. Open map in QGIS: reproduce ``apply_style`` from ``ui/browser/styledmap.py``
    — write the project file to the local cache, ``iface.addProject``,
    set ``kumoy_map_id`` custom variable.
@@ -173,8 +174,7 @@ def _gather_config():
     settings.beginGroup(_E2E_SETTINGS_GROUP)
     defaults = {
         "email": settings.value("email", "", type=str),
-        "org": settings.value("org", "", type=str),
-        "team": settings.value("team", "", type=str),
+        "org_id": settings.value("org_id", "", type=str),
         "custom_server": settings.value("custom_server", "", type=str),
     }
     settings.endGroup()
@@ -185,8 +185,9 @@ def _gather_config():
 
     layout = QVBoxLayout(dialog)
     intro = QLabel(
-        "⚠️ The test will create and delete resources in the account/"
-        "organization/team specified below."
+        "⚠️ The test will create and delete resources in the account / "
+        "organization specified below. The team is auto-picked from the ones "
+        "where you have OWNER or ADMIN role."
     )
     intro.setWordWrap(True)
     layout.addWidget(intro)
@@ -194,16 +195,13 @@ def _gather_config():
     form = QFormLayout()
     email_field = QLineEdit(defaults["email"])
     email_field.setPlaceholderText("you@example.com")
-    org_field = QLineEdit(defaults["org"])
-    org_field.setPlaceholderText("Organization name")
-    team_field = QLineEdit(defaults["team"])
-    team_field.setPlaceholderText("Team name")
+    org_id_field = QLineEdit(defaults["org_id"])
+    org_id_field.setPlaceholderText("Organization UUID (from the Kumoy web UI)")
     custom_server_field = QLineEdit(defaults["custom_server"])
     custom_server_field.setPlaceholderText("Leave empty to use the default server")
 
     form.addRow("User email*", email_field)
-    form.addRow("Organization*", org_field)
-    form.addRow("Team name*", team_field)
+    form.addRow("Organization ID*", org_id_field)
     form.addRow("Custom server URL", custom_server_field)
     layout.addLayout(form)
 
@@ -221,8 +219,7 @@ def _gather_config():
 
     config = {
         "email": email_field.text().strip(),
-        "org": org_field.text().strip(),
-        "team": team_field.text().strip(),
+        "org_id": org_id_field.text().strip(),
         "custom_server": custom_server_field.text().strip(),
     }
 
@@ -286,10 +283,8 @@ def phase_0_preflight(config):
             "Email is required — set it in the configuration dialog. "
             "It's the safety check that prevents writing to the wrong account."
         )
-    if not config["org"]:
-        raise E2EUserError("Organization name is required.")
-    if not config["team"]:
-        raise E2EUserError("Team name is required.")
+    if not config["org_id"]:
+        raise E2EUserError("Organization ID is required.")
 
     # Custom server is auto-detected from the URL field: filled = use it,
     # empty = use the plugin's default.
@@ -300,10 +295,9 @@ def phase_0_preflight(config):
         settings_manager.store_setting("use_custom_server", "false")
 
     server_url = api.config.get_api_config().SERVER_URL
-    _step(f"Server URL    : {server_url}")
-    _step(f"Expected email: {config['email']}")
-    _step(f"Organization  : {config['org']}")
-    _step(f"Team          : {config['team']}")
+    _step(f"Server URL     : {server_url}")
+    _step(f"Expected email : {config['email']}")
+    _step(f"Organization ID: {config['org_id']}")
 
     # Wipe the current QGIS-side session so we exercise the real login.
     # If the wrong account is used during login, phase 1 will refuse to
@@ -367,36 +361,34 @@ def phase_1_login(config, server_url, state):
 def phase_2_setup(config, timestamp, state):
     _phase(2, "Server setup")
 
-    orgs = api.organization.get_organizations()
-    if not orgs:
-        raise E2EUserError("No organizations available for this account")
-    org = next((o for o in orgs if o.name == config["org"]), None)
-    if org is None:
-        available = ", ".join(repr(o.name) for o in orgs)
+    # Look up the org directly by ID. The API returns 401/403 if the user
+    # has no access, which surfaces as UnauthorizedError to the user.
+    try:
+        org = api.organization.get_organization(config["org_id"])
+    except Exception as e:
         raise E2EUserError(
-            f"Organization {config['org']!r} not found for this account. "
-            f"Available: {available}"
-        )
+            f"Could not access organization {config['org_id']!r}: {e}"
+        ) from e
     _ok(f"Using organization: {org.name} (id={org.id}, role={org.role})")
 
+    # Auto-pick a team where the user has editor permission. We rely on
+    # `get_organization_myteams` which only lists teams the user belongs to.
     teams = api.team.get_organization_myteams(org.id)
-    if not teams:
-        raise E2EUserError(f"No teams available in organization {org.name}")
-    team = next((t for t in teams if t.name == config["team"]), None)
-    if team is None:
-        available = ", ".join(f"{t.name!r} [{t.role}]" for t in teams)
+    editor_teams = [t for t in teams if t.role in ("OWNER", "ADMIN")]
+    if not editor_teams:
+        if teams:
+            available = ", ".join(f"{t.name!r} [{t.role}]" for t in teams)
+            raise E2EUserError(
+                f"No team with OWNER or ADMIN role found in {org.name!r}. "
+                f"The test requires editor access to create a project. "
+                f"Teams you belong to: {available}"
+            )
         raise E2EUserError(
-            f"Team {config['team']!r} not found in organization {org.name!r}. "
-            f"Available: {available}"
+            f"You don't belong to any team in {org.name!r}. "
+            "Ask an admin to add you to a team with editor role."
         )
-    _ok(f"Using team: {team.name} (id={team.id}, role={team.role})")
-    if team.role == "MEMBER":
-        # MEMBER role typically can't create projects on Kumoy. Warn upfront
-        # so the user can pick a different team if they have a choice.
-        print(
-            f"  ⚠ Your role in team {team.name!r} is MEMBER — project creation "
-            "will likely fail. Pick a team where you are OWNER or ADMIN."
-        )
+    team = editor_teams[0]
+    _ok(f"Auto-picked team: {team.name} (id={team.id}, role={team.role})")
 
     project_name = f"__E2E_TEST__{timestamp}"
     _step(f"Creating project: {project_name}")
