@@ -475,17 +475,15 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if isinstance(e, _UserCanceled):
                 return {}
 
-            # QgsProcessingException already carries a translated, user-facing
-            # message (e.g. the per-feature quota), so re-raise it untouched.
-            if isinstance(e, QgsProcessingException):
-                raise e
-
-            # Kumoy/server errors only return English messages. Replace them with a
-            # translated message here, and keep the raw server text in the log only.
-            QgsMessageLog.logMessage(
-                format_api_error(e), constants.LOG_CATEGORY, Qgis.Critical
-            )
+            # The org-wide vector quota can be exceeded between the pre-check and
+            # the create call (race, or stale usage). Surface it as a clean,
+            # translated message instead of a raw traceback, and keep the English
+            # server detail in the log only. Everything else (including any
+            # QgsProcessingException raised above) keeps its original behavior.
             if isinstance(e, api.error.QuotaExceededError):
+                QgsMessageLog.logMessage(
+                    format_api_error(e), constants.LOG_CATEGORY, Qgis.Critical
+                )
                 raise QgsProcessingException(
                     i18n.tr(
                         "Cannot upload vector: your organization has reached your "
@@ -493,11 +491,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         "your plan to add more."
                     )
                 ) from None
-            raise QgsProcessingException(
-                i18n.tr("An error occurred while uploading the vector: {}").format(
-                    format_api_error(e)
-                )
-            ) from None
+
+            raise e
 
     def _process_layer_geometry(
         self,
