@@ -167,7 +167,9 @@ def _gather_config():
     Values are read from / written back to QSettings under
     ``_E2E_SETTINGS_GROUP``, so the dialog is pre-filled on subsequent runs.
 
-    Returns a dict with keys: email, org, team, custom_server.
+    Returns a dict with keys: email, org_id, custom_server.
+    The team is not asked for — it's auto-picked in phase 2 from teams where
+    the user has OWNER or ADMIN role.
     Raises E2EUserError if the user cancels.
     """
     settings = QSettings()
@@ -289,6 +291,11 @@ def phase_0_preflight(config):
     # Custom server is auto-detected from the URL field: filled = use it,
     # empty = use the plugin's default.
     if config["custom_server"]:
+        if not config["custom_server"].startswith(("http://", "https://")):
+            raise E2EUserError(
+                f"Custom server URL must start with http:// or https:// "
+                f"(got {config['custom_server']!r})"
+            )
         settings_manager.store_setting("use_custom_server", "true")
         settings_manager.store_setting("custom_server_url", config["custom_server"])
     else:
@@ -347,9 +354,11 @@ def phase_1_login(config, server_url, state):
     _ok("Token persisted to QSettings")
 
     # Identity check — refuses to continue if the wrong account was used.
+    # Compare case-insensitively since the server may normalize emails and
+    # we don't want to abort over "Foo@bar.com" vs "foo@bar.com".
     me = api.user.get_me()
     _ok(f"Authenticated as: {me.email} (id={me.id})")
-    if me.email != config["email"]:
+    if me.email.lower() != config["email"].lower():
         raise E2EUserError(
             f"Wrong account! Got {me.email!r}, expected {config['email']!r}. "
             "Aborting before touching any resource."
@@ -407,7 +416,11 @@ def phase_2_setup(config, timestamp, state):
     tmp_path = tmp.name
     tmp.close()
     try:
-        QgsProject.instance().write(tmp_path)
+        if not QgsProject.instance().write(tmp_path):
+            raise RuntimeError(
+                f"QgsProject.write({tmp_path!r}) returned False — "
+                "could not bootstrap the empty styled map."
+            )
         with open(tmp_path, "r", encoding="utf-8") as f:
             empty_qgs = f.read()
     finally:
@@ -565,14 +578,15 @@ def phase_5_save():
         return Q_MESSAGEBOX_STD_BUTTON.Yes
 
     def _patched_exec_dialog(dialog):
-        # `convert_local_layers` opens a LayerSelectDialog. We auto-check
-        # every available layer and accept.
+        # `convert_local_layers` opens a LayerSelectDialog. We delegate to
+        # the dialog's own `_select_all()` method so we respect:
+        #   - the vector quota (max_vectors - current_vectors),
+        #   - disabled checkboxes (layers with unsaved edits).
+        # Then we accept it.
         if isinstance(dialog, LayerSelectDialog):
-            for cb in dialog._checkboxes:
-                cb.setChecked(True)
-            _step(
-                f"Auto-selected {len(dialog._checkboxes)} layer(s) in LayerSelectDialog"
-            )
+            dialog._select_all()
+            selected_count = len(dialog.selected_layers)
+            _step(f"Auto-selected {selected_count} layer(s) in LayerSelectDialog")
             return QDIALOG_CODE.Accepted
         # Any other modal dialog is unexpected — fail-fast.
         print(f"  ⚠ Unexpected dialog during E2E save: {type(dialog).__name__}")
