@@ -69,4 +69,4 @@ For a manual end-to-end check against a real Kumoy server, `scripts/e2e_qgis_con
 exec(open("/abs/path/to/kumoy-qgis-plugin/scripts/e2e_qgis_console.py").read())
 ```
 
-A configuration dialog asks for the account email and organization ID; a usable team is auto-picked. See the script's docstring for details.
+A configuration dialog asks for the account email and team ID (the organization is derived from the team). See the script's docstring for details.
