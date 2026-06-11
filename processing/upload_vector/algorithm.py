@@ -293,7 +293,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Check vector count limit (organization-wide quota, not per project).
         # maxVectors is the org-wide cap; usage.vectors is the total across all projects.
         current_vector_count = organization.usage.vectors
-        if current_vector_count + 1 > plan_limits.maxVectors:
+        if current_vector_count >= plan_limits.maxVectors:
             raise QgsProcessingException(
                 i18n.tr(
                     "Cannot upload vector: your organization has reached your "
@@ -475,11 +475,8 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             if isinstance(e, _UserCanceled):
                 return {}
 
-            # The org-wide vector quota can be exceeded between the pre-check and
-            # the create call (race, or stale usage). Surface it as a clean,
-            # translated message instead of a raw traceback, and keep the English
-            # server detail in the log only. Everything else (including any
-            # QgsProcessingException raised above) keeps its original behavior.
+            # Quota is enforced server-side too: surface its rejection as a clean,
+            # translated message instead of a raw traceback (English detail -> log).
             if isinstance(e, api.error.QuotaExceededError):
                 QgsMessageLog.logMessage(
                     format_api_error(e), constants.LOG_CATEGORY, Qgis.Critical
