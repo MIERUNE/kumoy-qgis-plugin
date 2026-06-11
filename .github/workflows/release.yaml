@@ -18,6 +18,7 @@ jobs:
             -ve './.vscode' \
             -ve '__pycache__/' \
             -ve './tests' \
+            -ve './scripts' \
             -ve './pyproject.toml' \
             -ve './.gitignore' \
             -ve './.python-version' \

@@ -49,6 +49,8 @@ https://app.kumoy.io/public/map/2ad587d4-ae5b-40bb-b9f2-fb26c1b94672
 
 ### Running Tests
 
+Automated unit/integration tests run headless against mocks via pytest:
+
 ```bash
 docker run --rm \
   -v "$(pwd)":/plugin \
@@ -60,3 +62,11 @@ docker run --rm \
       python3 -m pytest tests/ -v
   "
 ```
+
+For a manual end-to-end check against a real Kumoy server, `scripts/e2e_qgis_console.py` exercises the full user workflow (login → project → vectors → save → upload). Run it from the QGIS Python console with the plugin loaded:
+
+```python
+exec(open("/abs/path/to/kumoy-qgis-plugin/scripts/e2e_qgis_console.py").read())
+```
+
+A configuration dialog asks for the account email and team ID (the organization is derived from the team). See the script's docstring for details.
