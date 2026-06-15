@@ -290,15 +290,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
-        # Check vector count limit
-        current_vectors = api.vector.get_vectors(project_id)
-        upload_vector_count = len(current_vectors) + 1
-        if upload_vector_count > plan_limits.maxVectors:
+        # Check vector count limit (organization-wide quota, not per project).
+        # maxVectors is the org-wide cap; usage.vectors is the total across all projects.
+        current_vector_count = organization.usage.vectors
+        if current_vector_count >= plan_limits.maxVectors:
             raise QgsProcessingException(
                 i18n.tr(
-                    "Cannot upload vector. Your plan allows up to {} vectors per project, "
-                    "but you already have {} vectors."
-                ).format(plan_limits.maxVectors, upload_vector_count)
+                    "Cannot upload vector: your organization has reached your "
+                    "plan's limit of {} vectors. Delete an existing vector or "
+                    "upgrade your plan to add more."
+                ).format(plan_limits.maxVectors)
             )
 
         return project_id, vector_name, plan_limits
@@ -471,10 +472,24 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                         ).format(str(cleanup_error))
                     )
 
-            if not isinstance(e, _UserCanceled):
-                raise e
-            else:
+            if isinstance(e, _UserCanceled):
                 return {}
+
+            # Quota is enforced server-side too: surface its rejection as a clean,
+            # translated message instead of a raw traceback (English detail -> log).
+            if isinstance(e, api.error.QuotaExceededError):
+                QgsMessageLog.logMessage(
+                    format_api_error(e), constants.LOG_CATEGORY, Qgis.Critical
+                )
+                raise QgsProcessingException(
+                    i18n.tr(
+                        "Cannot upload vector: your organization has reached your "
+                        "plan's vector limit. Delete an existing vector or upgrade "
+                        "your plan to add more."
+                    )
+                ) from None
+
+            raise e
 
     def _process_layer_geometry(
         self,
