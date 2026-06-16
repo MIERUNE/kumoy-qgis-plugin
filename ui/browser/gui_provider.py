@@ -3,6 +3,7 @@ from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
 from qgis.PyQt.QtWidgets import QAction, QMenu
 
 from ... import i18n
+from .raster import RasterItem, delete_multiple_rasters
 from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
 from .vector import (
     VectorItem,
@@ -34,6 +35,11 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 i for i in selectedItems if isinstance(i, VectorItem)
             ]
             self._populate_vector_menu(menu, vector_items)
+        elif isinstance(item, RasterItem):
+            raster_items: list[RasterItem] = [
+                i for i in selectedItems if isinstance(i, RasterItem)
+            ]
+            self._populate_raster_menu(menu, raster_items)
 
     def _populate_styled_map_menu(
         self, menu: QMenu, styledmap_items: list[StyledMapItem]
@@ -61,6 +67,26 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 delete_action.triggered.connect(
                     lambda checked=False, items=list(styledmap_items): (
                         delete_multiple_maps(items)
+                    )
+                )
+                menu.addAction(delete_action)
+
+    def _populate_raster_menu(
+        self, menu: QMenu, raster_items: list[RasterItem]
+    ) -> None:
+        if len(raster_items) == 1:
+            for action in raster_items[0].build_actions(menu):
+                menu.addAction(action)
+        else:
+            # Multi-selection
+            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in raster_items)
+            if can_delete:
+                delete_action = QAction(
+                    i18n.tr("Delete {} Rasters").format(len(raster_items)), menu
+                )
+                delete_action.triggered.connect(
+                    lambda checked=False, items=list(raster_items): (
+                        delete_multiple_rasters(items)
                     )
                 )
                 menu.addAction(delete_action)

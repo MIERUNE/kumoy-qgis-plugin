@@ -63,6 +63,47 @@ class TestCreateRaster:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestGetRasters:
+    def test_parses_list(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        captured = {}
+
+        def fake_get(endpoint, params=None):
+            captured["endpoint"] = endpoint
+            return [
+                {
+                    "id": "r-1",
+                    "name": "dem",
+                    "projectId": "p-1",
+                    "attribution": "© me",
+                    "bytes": 100,
+                    "createdAt": "2026-01-01",
+                    "updatedAt": "2026-01-02",
+                }
+            ]
+
+        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
+
+        result = raster.get_rasters("p-1")
+
+        assert captured["endpoint"] == "/project/p-1/raster"
+        assert len(result) == 1
+        assert result[0].id == "r-1"
+        assert result[0].name == "dem"
+        assert result[0].bytes == 100
+
+    def test_empty_list(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        monkeypatch.setattr(
+            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: [])
+        )
+
+        assert raster.get_rasters("p-1") == []
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestDeleteRaster:
     def test_calls_delete_endpoint(self, monkeypatch):
         from plugin_dir.kumoy.api import raster

@@ -1,7 +1,37 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from .client import ApiClient
+
+
+@dataclass
+class KumoyRaster:
+    """プロジェクト内のラスタ一覧の1件。"""
+
+    id: str
+    name: str
+    projectId: str
+    attribution: str
+    bytes: int
+    createdAt: str
+    updatedAt: str
+
+
+def get_rasters(project_id: str) -> List[KumoyRaster]:
+    """プロジェクトのラスタ一覧を取得する。"""
+    response = ApiClient.get(f"/project/{project_id}/raster")
+    return [
+        KumoyRaster(
+            id=item.get("id", ""),
+            name=item.get("name", ""),
+            projectId=item.get("projectId", ""),
+            attribution=item.get("attribution", ""),
+            bytes=item.get("bytes", 0),
+            createdAt=item.get("createdAt", ""),
+            updatedAt=item.get("updatedAt", ""),
+        )
+        for item in response
+    ]
 
 
 @dataclass
