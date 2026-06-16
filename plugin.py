@@ -25,6 +25,7 @@ from .kumoy.constants import (
 )
 from .ui.project_save_handler import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
+from .kumoy.provider.raster_dataprovider_metadata import KumoyRasterProviderMetadata
 from .plugin_version import is_plugin_version_compatible, read_plugin_version
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
@@ -53,6 +54,8 @@ class KumoyPlugin:
         registry = QgsProviderRegistry.instance()
         metadata = KumoyProviderMetadata()
         registry.registerProvider(metadata)  # needs reopen QGIS to unregister
+        # ラスタは別プロバイダキーで登録する（ベクタと責務を分離）
+        registry.registerProvider(KumoyRasterProviderMetadata())
 
         # Initialize processing provider
         self.processing_provider = None

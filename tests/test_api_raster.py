@@ -102,6 +102,72 @@ class TestGetRasters:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestGetRaster:
+    def test_parses_detail_with_role(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        captured = {}
+
+        def fake_get(endpoint, params=None):
+            captured["endpoint"] = endpoint
+            return {
+                "id": "r-1",
+                "name": "dem",
+                "projectId": "p-1",
+                "attribution": "© me",
+                "bytes": 100,
+                "role": "OWNER",
+                "createdAt": "2026-01-01",
+                "updatedAt": "2026-01-02",
+            }
+
+        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
+
+        result = raster.get_raster("r-1")
+
+        assert captured["endpoint"] == "/raster/r-1"
+        assert result.id == "r-1"
+        assert result.role == "OWNER"
+
+    def test_defaults_role_to_member(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        monkeypatch.setattr(
+            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: {})
+        )
+
+        assert raster.get_raster("r-1").role == "MEMBER"
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestGetDownloadUrl:
+    def test_returns_presigned_url(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        captured = {}
+
+        def fake_get(endpoint, params=None):
+            captured["endpoint"] = endpoint
+            return {"url": "https://s3.example.com/key?X-Amz-Signature=abc"}
+
+        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
+
+        url = raster.get_download_url("r-9")
+
+        assert captured["endpoint"] == "/raster/r-9/download"
+        assert "X-Amz-Signature" in url
+
+    def test_returns_empty_when_missing(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        monkeypatch.setattr(
+            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: {})
+        )
+
+        assert raster.get_download_url("r-9") == ""
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestDeleteRaster:
     def test_calls_delete_endpoint(self, monkeypatch):
         from plugin_dir.kumoy.api import raster

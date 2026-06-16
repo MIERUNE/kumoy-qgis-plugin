@@ -2,7 +2,7 @@ from qgis.core import QgsProject
 from qgis.gui import QgsLayerTreeViewIndicator
 from qgis.utils import iface
 
-from ...kumoy.constants import DATA_PROVIDER_KEY
+from ...kumoy.constants import DATA_PROVIDER_KEY, RASTER_DATA_PROVIDER_KEY
 from ..icons import MAIN_ICON
 
 
@@ -12,7 +12,7 @@ def update_kumoy_indicator():
     view = iface.layerTreeView()
 
     for layer in QgsProject.instance().mapLayers().values():
-        if layer.providerType() != DATA_PROVIDER_KEY:
+        if layer.providerType() not in (DATA_PROVIDER_KEY, RASTER_DATA_PROVIDER_KEY):
             continue
         node = root.findLayer(layer.id())
         if not node:

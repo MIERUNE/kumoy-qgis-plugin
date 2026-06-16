@@ -3,7 +3,12 @@ from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
 from qgis.PyQt.QtWidgets import QAction, QMenu
 
 from ... import i18n
-from .raster import RasterItem, delete_multiple_rasters
+from .raster import (
+    RasterItem,
+    add_multiple_rasters,
+    clear_cache_multiple_rasters,
+    delete_multiple_rasters,
+)
 from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
 from .vector import (
     VectorItem,
@@ -79,6 +84,26 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 menu.addAction(action)
         else:
             # Multi-selection
+            add_action = QAction(
+                i18n.tr("Add {} Rasters to Map").format(len(raster_items)), menu
+            )
+            add_action.triggered.connect(
+                lambda checked=False, items=list(raster_items): add_multiple_rasters(
+                    items
+                )
+            )
+            menu.addAction(add_action)
+
+            clear_action = QAction(
+                i18n.tr("Clear Cache for {} Rasters").format(len(raster_items)), menu
+            )
+            clear_action.triggered.connect(
+                lambda checked=False, items=list(raster_items): (
+                    clear_cache_multiple_rasters(items)
+                )
+            )
+            menu.addAction(clear_action)
+
             can_delete = all(i.role in ["ADMIN", "OWNER"] for i in raster_items)
             if can_delete:
                 delete_action = QAction(

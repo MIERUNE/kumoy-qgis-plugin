@@ -15,6 +15,12 @@ BROWSER_ROOT_PATH = "kumoy:/"
 DATA_PROVIDER_KEY = "kumoy"
 DATA_PROVIDER_DESCRIPTION = "Kumoy Data Provider"
 
+# ラスタ用は別プロバイダキーにする。QGIS は同一キーのプロバイダを
+# ベクタ／ラスタどちらかに紐づけるため、ベクタの "kumoy" と分けることで
+# それぞれのメタデータを単一責務に保つ。
+RASTER_DATA_PROVIDER_KEY = "kumoyraster"
+RASTER_DATA_PROVIDER_DESCRIPTION = "Kumoy Raster Data Provider"
+
 # 各種名称の最大文字数
 MAX_CHARACTERS_ORGANIZATION_NAME = 32
 MAX_CHARACTERS_PROJECT_NAME = 32

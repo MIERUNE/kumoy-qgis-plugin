@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from .client import ApiClient
 
@@ -17,6 +17,13 @@ class KumoyRaster:
     updatedAt: str
 
 
+@dataclass
+class KumoyRasterDetail(KumoyRaster):
+    """``GET /raster/{rasterId}`` の単体取得結果。一覧に加えて ``role`` を持つ。"""
+
+    role: Literal["OWNER", "ADMIN", "MEMBER"]
+
+
 def get_rasters(project_id: str) -> List[KumoyRaster]:
     """プロジェクトのラスタ一覧を取得する。"""
     response = ApiClient.get(f"/project/{project_id}/raster")
@@ -32,6 +39,31 @@ def get_rasters(project_id: str) -> List[KumoyRaster]:
         )
         for item in response
     ]
+
+
+def get_raster(raster_id: str) -> KumoyRasterDetail:
+    """ラスタ単体のメタデータを取得する。"""
+    response = ApiClient.get(f"/raster/{raster_id}")
+    return KumoyRasterDetail(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        projectId=response.get("projectId", ""),
+        attribution=response.get("attribution", ""),
+        bytes=response.get("bytes", 0),
+        createdAt=response.get("createdAt", ""),
+        updatedAt=response.get("updatedAt", ""),
+        role=response.get("role", "MEMBER"),
+    )
+
+
+def get_download_url(raster_id: str) -> str:
+    """COG を S3 から取得するための presigned GET URL を発行する。
+
+    返る URL は署名済みの絶対 URL で、認証ヘッダ無しでそのまま GET できる。
+    短時間で失効するため、ダウンロード直前に都度取得する（保存・使い回ししない）。
+    """
+    response = ApiClient.get(f"/raster/{raster_id}/download")
+    return response.get("url", "")
 
 
 @dataclass
