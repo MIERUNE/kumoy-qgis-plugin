@@ -27,7 +27,8 @@ from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.local_cache.map import write_qgsfile
 from ..project_save_handler import show_map_save_result
-from ...kumoy.sprite import generate_sprite, upload_sprites
+from ...kumoy.sprite import generate_sprite
+from ...kumoy.sprite.uploader import upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,

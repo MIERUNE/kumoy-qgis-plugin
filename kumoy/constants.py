@@ -29,6 +29,10 @@ MAX_CHARACTERS_STYLEDMAP_DESCRIPTION = 255
 MAX_CHARACTERS_STRING_FIELD = 255
 MAX_WKB_LENGTH = 10_000_000  # WKBのbase64エンコード後の最大文字列長
 
+# ラスタ(COG)アップロードの上限。S3の単一POST/PUTは最大5GiBのため、
+# それ未満の5GB(10進)に余裕をもってキャップする（multipartは使わない）。
+MAX_RASTER_UPLOAD_BYTES = 5_000_000_000
+
 # 予約しているカラム名の接頭辞
 RESERVED_FIELD_NAME_PREFIX = "kumoy_"
 
