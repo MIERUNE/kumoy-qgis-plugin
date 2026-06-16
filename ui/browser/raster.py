@@ -243,7 +243,60 @@ class RasterRoot(QgsDataItem):
             upload_raster_action.triggered.connect(self.upload_raster)
             actions.append(upload_raster_action)
 
+        # Clear cache action
+        clear_cache_action = QAction(i18n.tr("Clear Raster Cache Data"), parent)
+        clear_cache_action.triggered.connect(self.clear_cache)
+        actions.append(clear_cache_action)
+
         return actions
+
+    def clear_cache(self) -> None:
+        """Clear all raster cache data"""
+        # Check if any kumoy raster layer is currently loaded on the map
+        for layer in QgsProject.instance().mapLayers().values():
+            if layer.providerType() == constants.RASTER_DATA_PROVIDER_KEY:
+                iface.messageBar().pushMessage(
+                    i18n.tr("Cannot Clear Cache"),
+                    i18n.tr(
+                        "Cannot clear raster cache while raster layers are loaded on the map. "
+                        "Please close your map first."
+                    ),
+                )
+                return
+
+        confirm = QMessageBox.question(
+            None,
+            i18n.tr("Clear Raster Cache"),
+            i18n.tr(
+                "This will clear all locally cached raster files. "
+                "Data will be re-downloaded next time you access rasters.\n\n"
+                "Continue?"
+            ),
+            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+            Q_MESSAGEBOX_STD_BUTTON.No,
+        )
+
+        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+            cache_cleared = local_cache.raster.clear_all()
+
+            if cache_cleared:
+                QgsMessageLog.logMessage(
+                    i18n.tr("All raster cache files cleared successfully."),
+                    constants.LOG_CATEGORY,
+                    Qgis.Info,
+                )
+                iface.messageBar().pushSuccess(
+                    i18n.tr("Success"),
+                    i18n.tr("All raster cache files have been cleared successfully."),
+                )
+            else:
+                iface.messageBar().pushMessage(
+                    i18n.tr("Raster Cache Clear Failed"),
+                    i18n.tr(
+                        "Some raster cache files could not be cleared. "
+                        "Please try again after closing QGIS or ensure no files are locked."
+                    ),
+                )
 
     def upload_raster(self) -> None:
         """processingを利用してラスターレイヤーをアップロード"""
