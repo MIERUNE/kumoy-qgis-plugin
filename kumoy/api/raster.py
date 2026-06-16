@@ -39,13 +39,12 @@ class RasterUpload:
     """``POST /project/{projectId}/raster`` のレスポンス。
 
     メタデータ登録の結果（``raster_id``）と、COG を S3 へ送るための
-    presigned POST 情報（``url`` / ``fields``）を持つ。``fields`` には S3 キーを
-    含むフォームフィールド一式が入っており、そのままアップロードに渡せる。
+    presigned PUT URL（``upload_url``）を持つ。``upload_url`` は署名済みの
+    絶対 URL であり、そのまま PUT リクエストに使える。
     """
 
     raster_id: str
-    url: str
-    fields: Dict[str, str]
+    upload_url: str
 
 
 def create_raster(
@@ -54,7 +53,7 @@ def create_raster(
     bytes: int,
     attribution: Optional[str] = None,
 ) -> RasterUpload:
-    """Raster メタデータを登録し、COG アップロード用の presigned POST を取得する。
+    """Raster メタデータを登録し、COG アップロード用の presigned PUT URL を取得する。
 
     Args:
         project_id: 登録先プロジェクト ID
@@ -74,8 +73,7 @@ def create_raster(
 
     return RasterUpload(
         raster_id=response.get("rasterId", ""),
-        url=response.get("url", ""),
-        fields=response.get("fields", {}),
+        upload_url=response.get("uploadUrl", ""),
     )
 
 
