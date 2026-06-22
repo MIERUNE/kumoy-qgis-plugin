@@ -2,7 +2,8 @@
 
 再投影はしない。元データの破壊を避けるため、元の CRS とピクセル値・データ型を
 そのまま保持する。CRS が未設定のラスタにだけ、呼び出し側が指定した CRS を
-ヘッダへ割り当てる（``-a_srs`` 相当。ピクセルは触らない）。
+ヘッダへ割り当てる（``-a_srs`` 相当。ピクセルは触らない）。GeoTransform が
+未設定のラスタには identity を割り当て、地理参照を欠いた COG が出力されるのを防ぐ。
 """
 
 from typing import Callable, Optional
@@ -55,10 +56,22 @@ def convert_to_cog(
         callback=_gdal_callback,
     )
 
+    src_ds = gdal.Open(src_path)
+    if src_ds is None:
+        raise Exception(f"GDAL failed to open raster: {src_path}")
+
+    # 元データに GeoTransform が無いと COG ドライバが地理参照タグを欠いた出力を
+    # 作り、下流の gdal ラッパー(kumoyraster)で扱えなくなる。位置情報が無くても
+    # 変換・表示を通すため、恣意的な identity を割り当てる（画素は触らない）。
+    # can_return_null=True にしないと未設定でも既定 (0,1,0,0,0,1) が返り判定できない。
+    if src_ds.GetGeoTransform(can_return_null=True) is None:
+        # 北上画像になるよう y 方向は -1。原点・スケールは便宜上のピクセル空間。
+        src_ds.SetGeoTransform([0.0, 1.0, 0.0, 0.0, 0.0, -1.0])
+
     # GDAL は中断時に「例外を送出」または「None を返す」のどちらにもなり得るため、
     # canceled フラグを正にして両方の経路で CogConversionCanceled に正規化する。
     try:
-        result = gdal.Translate(dst_path, src_path, options=options)
+        result = gdal.Translate(dst_path, src_ds, options=options)
     except Exception:
         if canceled["value"]:
             raise CogConversionCanceled()
