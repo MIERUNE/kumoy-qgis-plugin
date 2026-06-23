@@ -70,13 +70,16 @@ def get_download_url(raster_id: str) -> str:
 class RasterUpload:
     """``POST /project/{projectId}/raster`` のレスポンス。
 
-    メタデータ登録の結果（``raster_id``）と、COG を S3 へ送るための
-    presigned PUT URL（``upload_url``）を持つ。``upload_url`` は署名済みの
-    絶対 URL であり、そのまま PUT リクエストに使える。
+    メタデータ登録の結果（``raster_id``）と、COG を S3 へ送るための presigned
+    POST 情報（``upload_url`` / ``upload_fields``）を持つ。``upload_url`` は S3
+    バケットのエンドポイント、``upload_fields`` は multipart/form-data として
+    ファイルの前に並べる署名フィールド群（``key`` や ``Policy`` 等）。S3 側で
+    ファイルサイズ上限が強制されるため、申告 ``bytes`` を超えると 400 で拒否される。
     """
 
     raster_id: str
     upload_url: str
+    upload_fields: Dict[str, str]
 
 
 def create_raster(
@@ -85,13 +88,14 @@ def create_raster(
     bytes: int,
     attribution: Optional[str] = None,
 ) -> RasterUpload:
-    """Raster メタデータを登録し、COG アップロード用の presigned PUT URL を取得する。
+    """Raster メタデータを登録し、COG アップロード用の presigned POST 情報を取得する。
 
     Args:
         project_id: 登録先プロジェクト ID
         name: 表示名（最大 32 文字）
         bytes: アップロードする COG のサイズ（バイト）。サーバ側のストレージ
             クォータ判定に使われ、登録時に確定する（COG は immutable）。
+            申告値より大きいファイルは S3 が 400 で拒否する。
         attribution: 出典表記（任意）
 
     Raises:
@@ -106,6 +110,7 @@ def create_raster(
     return RasterUpload(
         raster_id=response.get("rasterId", ""),
         upload_url=response.get("uploadUrl", ""),
+        upload_fields=response.get("uploadFields", {}),
     )
 
 

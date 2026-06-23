@@ -1,14 +1,14 @@
-"""S3 presigned POST/PUT へのアップロード。
+"""S3 presigned POST へのアップロード。
 
 本体を ``QIODevice`` から逐次送信するため、数 GB 級のファイルでもメモリに全量を
 載せない。これにより OOM と、Qt5 の ``QByteArray`` が ``int`` サイズ（最大約
 2GB）に制限される問題の両方を回避する。
 
-presigned POST (multipart form) と presigned PUT (raw binary) の2方式をサポートする。
-QHttpMultiPart + setBodyDevice を使った POST は Qt のバージョンによって
-Transfer-Encoding: chunked で送信され、MinIO/rustfs 系の S3 互換実装が
-"failed to read file stream" で拒否することがある。ラスターのような大容量バイナリ
-ファイルには PUT 方式を推奨する。
+メモリ上のバイト列（``upload_bytes_to_presigned_post``）とディスク上のファイル
+（``upload_file_to_presigned_post``）の2経路を提供する。どちらも presigned の
+各フォームフィールドを順序通りに並べ、本体を ``name="file"`` のパートとして最後に
+置く（S3 の POST ポリシーはファイルパートが最後である必要がある）。multipart の
+``Content-Type``（boundary 付き）は Qt が自動設定するので手動で上書きしない。
 
 進捗・中断は呼び出し側のコールバックで受け取る（``QgsProcessingFeedback`` 等の
 上位概念には依存しない）。総時間ではなく「無通信が続いた時間」でタイムアウト
@@ -89,18 +89,19 @@ def upload_bytes_to_presigned_post(
     _await_upload(reply, None, None)
 
 
-def upload_file_to_presigned_put(
+def upload_file_to_presigned_post(
     url: str,
+    fields: Dict[str, str],
     file_path: str,
-    content_type: str,
+    filename: str = "upload.tif",
     progress_callback: Optional[ProgressCallback] = None,
     is_canceled: Optional[IsCanceledCallback] = None,
 ) -> None:
-    """ファイルを presigned PUT でストリーミングアップロードする。
+    """ディスク上のファイルを presigned POST (multipart/form-data) で送信する。
 
-    presigned POST (multipart form) と異なり、ファイルデータをそのまま PUT
-    ボディとして送信するため、Qt バージョンに関係なく Content-Length が正しく
-    設定され、MinIO/rustfs 系の実装との互換性が高い。
+    ``upload_bytes_to_presigned_post`` のディスク版。本体を ``QFile`` から逐次
+    送信するため、数 GB 級の COG でもメモリに載せない。ファイルパートの
+    Content-Type は S3 に無視されるため設定しない（署名値は ``fields`` 側にある）。
 
     Raises:
         UploadCanceled: ``is_canceled`` が True を返した場合。
@@ -110,11 +111,28 @@ def upload_file_to_presigned_put(
     if not file.open(Q_IODEVICE_OPEN_MODE.ReadOnly):
         raise Exception(f"Cannot open file for upload: {file_path}")
 
-    request = QNetworkRequest(QUrl(url))
-    request.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, content_type)
+    multipart = QHttpMultiPart(Q_HTTP_MULTIPART_CONTENT_TYPE.FormDataType)
+    for field_name, field_value in fields.items():
+        part = QHttpPart()
+        part.setHeader(
+            Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
+            f'form-data; name="{field_name}"',
+        )
+        part.setBody(QByteArray(str(field_value).encode("utf-8")))
+        multipart.append(part)
 
-    reply = QgsNetworkAccessManager.instance().put(request, file)
-    file.setParent(reply)  # prevent GC; device must outlive the request
+    file_part = QHttpPart()
+    file_part.setHeader(
+        Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
+        f'form-data; name="file"; filename="{filename}"',
+    )
+    file.setParent(multipart)  # prevent GC; device must outlive the request
+    file_part.setBodyDevice(file)
+    multipart.append(file_part)
+
+    request = QNetworkRequest(QUrl(url))
+    reply = QgsNetworkAccessManager.instance().post(request, multipart)
+    multipart.setParent(reply)  # prevent GC
     _await_upload(reply, progress_callback, is_canceled)
 
 
