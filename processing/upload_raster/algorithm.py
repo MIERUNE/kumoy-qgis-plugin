@@ -24,7 +24,7 @@ from ...kumoy.get_token import get_token
 from ...kumoy.settings_manager import get_settings
 from ...kumoy.upload.presigned import (
     UploadCanceled,
-    upload_file_to_presigned_post,
+    upload_file_to_presigned_put,
 )
 from .cog import CogConversionCanceled, convert_to_cog
 
@@ -252,13 +252,13 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             feedback.setProgress(72)
             self._raise_if_canceled(feedback)
 
-            # COG を S3 へ presigned POST でストリーミングアップロード。進捗 72-100%。
-            # upload_fields の署名フィールドを順序通りに並べ、ファイルは最後に送る。
+            # COG を S3 へストリーミングアップロード。進捗 72-100%。
+            # upload_url は署名済みの絶対 URL（S3/rustfs エンドポイント直指定）。
             feedback.pushInfo(i18n.tr("Uploading COG..."))
-            upload_file_to_presigned_post(
+            upload_file_to_presigned_put(
                 url=upload.upload_url,
-                fields=upload.upload_fields,
                 file_path=cog_path,
+                content_type="image/tiff",
                 progress_callback=lambda p: feedback.setProgress(72 + int(p * 0.28)),
                 is_canceled=feedback.isCanceled,
             )

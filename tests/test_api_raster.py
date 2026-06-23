@@ -19,13 +19,7 @@ class TestCreateRaster:
             captured["data"] = data
             return {
                 "rasterId": "r-123",
-                "uploadUrl": "https://s3.example.com/",
-                "uploadFields": {
-                    "key": "rasters/r-123.tif",
-                    "Content-Type": "image/tiff",
-                    "Policy": "base64policy",
-                    "X-Amz-Signature": "abc",
-                },
+                "uploadUrl": "https://s3.example.com/bucket/raster/r-123/data.tif?X-Amz-Signature=abc",
             }
 
         monkeypatch.setattr(raster.ApiClient, "post", staticmethod(fake_post))
@@ -35,9 +29,7 @@ class TestCreateRaster:
         assert captured["endpoint"] == "/project/p-1/raster"
         assert captured["data"] == {"name": "dem", "bytes": 52428800}
         assert result.raster_id == "r-123"
-        assert result.upload_url == "https://s3.example.com/"
-        assert result.upload_fields["key"] == "rasters/r-123.tif"
-        assert result.upload_fields["X-Amz-Signature"] == "abc"
+        assert "X-Amz-Signature" in result.upload_url
 
     def test_includes_attribution_when_given(self, monkeypatch):
         raster = self._mod()
