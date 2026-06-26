@@ -5,7 +5,6 @@ from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsDataProvider,
-    QgsExpression,
     QgsFeature,
     QgsFeatureIterator,
     QgsFeatureRequest,
@@ -384,19 +383,23 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def supportsSubsetString(self) -> bool:
         return True
 
+    def subsetStringDialect(self) -> str:
+        return "GeoPackage query"
+
+    def subsetStringHelpUrl(self) -> str:
+        return "https://gdal.org/drivers/vector/gpkg.html"
+
     def subsetString(self) -> str:
         return self._subset_string
 
     def setSubsetString(
         self, subset_string: str, update_feature_count: bool = True
     ) -> bool:
-        if subset_string:
-            expr = QgsExpression(subset_string)
-            if expr.hasParserError():
-                return False
+        if not self.cached_layer:
+            return False
 
-        if self.cached_layer:
-            self.cached_layer.setSubsetString(subset_string)
+        if not self.cached_layer.setSubsetString(subset_string):
+            return False
 
         self._subset_string = subset_string
 
