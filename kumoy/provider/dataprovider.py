@@ -395,11 +395,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def setSubsetString(
         self, subset_string: str, update_feature_count: bool = True
     ) -> bool:
-        if not self.cached_layer:
-            return False
-
-        if not self.cached_layer.setSubsetString(subset_string):
-            return False
+        if self.cached_layer:
+            if not self.cached_layer.setSubsetString(subset_string):
+                return False
 
         self._subset_string = subset_string
 
