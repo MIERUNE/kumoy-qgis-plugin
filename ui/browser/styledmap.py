@@ -24,7 +24,11 @@ from qgis.utils import iface
 from ... import i18n
 from ...kumoy import api, constants, local_cache, settings_manager
 from ...kumoy.api.error import UnauthorizedError, format_api_error
-from ...kumoy.local_cache.map import write_qgsfile
+from ...kumoy.local_cache.map import (
+    assert_within_size_limit,
+    commit_to_cache,
+    serialize_project,
+)
 from ...kumoy.settings_manager import get_settings
 from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
@@ -256,8 +260,12 @@ class StyledMapItem(QgsDataItem):
             layer.extent()
 
         try:
-            # Pre-flight size check before any upload
-            write_qgsfile(self.styled_map.id)
+            # Pre-flight size check before any upload: serialize to a throwaway
+            # temp file and validate, without touching the cache. The .qgs size
+            # barely changes after conversion (only datasource strings are
+            # swapped), so failing here avoids converting/uploading layers for a
+            # project that will be rejected anyway.
+            assert_within_size_limit(serialize_project())
 
             # Convert local layers to Kumoy layers if any
             cancelled, conversion_errors = convert_local_layers(
@@ -266,7 +274,8 @@ class StyledMapItem(QgsDataItem):
             if cancelled:
                 return
 
-            new_qgisproject = write_qgsfile(self.styled_map.id)
+            new_qgisproject = serialize_project()
+            assert_within_size_limit(new_qgisproject)
 
             # Generate sprites and upload if changed
             sprite_data = generate_sprite(QgsProject.instance())
@@ -284,6 +293,9 @@ class StyledMapItem(QgsDataItem):
                 self.styled_map.id,
                 update_options,
             )
+
+            # Persist to cache only after a successful server save.
+            commit_to_cache(self.styled_map.id, new_qgisproject)
         except Exception as e:
             handle_api_error(e, parent=None, log_prefix=i18n.tr("Error saving map"))
             return
@@ -508,8 +520,9 @@ class StyledMapRoot(QgsDataItem):
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
 
-            # Pre-flight size check before any upload
-            write_qgsfile(self.project.id)
+            # Pre-flight size check before any upload: serialize to a throwaway
+            # temp file and validate, without touching the cache.
+            assert_within_size_limit(serialize_project())
 
             # Convert local layers to Kumoy layers
             cancelled, conversion_errors = convert_local_layers(
@@ -518,9 +531,10 @@ class StyledMapRoot(QgsDataItem):
             if cancelled:
                 return
 
-            qgisproject = write_qgsfile(self.project.id)
+            qgisproject = serialize_project()
+            assert_within_size_limit(qgisproject)
 
-            # スタイルマップ作成
+            # Create the styled map
             new_styled_map = api.styledmap.add_styled_map(
                 self.project.id,
                 api.styledmap.AddStyledMapOptions(
@@ -532,14 +546,14 @@ class StyledMapRoot(QgsDataItem):
                 ),
             )
 
-            # 保存完了後のUI更新
+            # Update UI after the save completes
             QgsProject.instance().setCustomVariables(
                 {"kumoy_map_id": new_styled_map.id}
             )
             QgsProject.instance().setTitle(new_styled_map.name)
 
-            # Save kumoy_map_id to project custom variables to link the new styled map
-            updated_qgisproject = write_qgsfile(new_styled_map.id)
+            # Re-serialize so the file embeds kumoy_map_id linking the new map
+            updated_qgisproject = serialize_project()
 
             # Generate and upload sprites
             sprite_data = generate_sprite(QgsProject.instance())
@@ -552,9 +566,12 @@ class StyledMapRoot(QgsDataItem):
                 new_styled_map.id,
                 api.styledmap.UpdateStyledMapOptions(
                     qgisproject=updated_qgisproject,
-                    assetsHash=new_assets_hash,  # memo: new_assets_hashがNoneならnullをセットする
+                    assetsHash=new_assets_hash,  # memo: set null when new_assets_hash is None
                 ),
             )
+
+            # Persist to cache only after a successful server save.
+            commit_to_cache(new_styled_map.id, updated_qgisproject)
 
             # reload browser panel
             self.parent().refresh()

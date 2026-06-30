@@ -45,7 +45,8 @@ def show_map_save_result(
 
 def handle_project_saved() -> None:
     """Update current project to Kumoy when QGIS project is saved"""
-    # write_qgsfile() 経由の自前保存中は再入を防ぐ
+    # Prevent re-entrancy while we are saving the project ourselves via
+    # serialize_project().
     if cache_map.is_updating:
         return
 
@@ -116,14 +117,16 @@ def handle_project_saved() -> None:
         return
 
     try:
-        # Pre-flight size check before any upload
-        cache_map.write_qgsfile(styled_map_id)
+        # Pre-flight size check before any upload: serialize to a throwaway
+        # temp file and validate, without touching the cache.
+        cache_map.assert_within_size_limit(cache_map.serialize_project())
 
         cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
         if cancelled:
             return
 
-        qgsproject_str = cache_map.write_qgsfile(styled_map_id)
+        qgsproject_str = cache_map.serialize_project()
+        cache_map.assert_within_size_limit(qgsproject_str)
 
         sprite_data = generate_sprite(project)
         new_assets_hash = sprite_data.assets_hash if sprite_data else None
@@ -134,12 +137,15 @@ def handle_project_saved() -> None:
         if new_assets_hash != styled_map_detail.assetsHash:
             if sprite_data is not None:
                 upload_sprites(styled_map_id, sprite_data)
-            # memo: new_assets_hashがNoneならnullをセットする
+            # memo: set null when new_assets_hash is None
             update_options.assetsHash = new_assets_hash
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
             update_options,
         )
+
+        # Persist to cache only after a successful server save.
+        cache_map.commit_to_cache(styled_map_id, qgsproject_str)
     except Exception as e:
         handle_api_error(e, parent=None, log_prefix=i18n.tr("Error saving map"))
         return
