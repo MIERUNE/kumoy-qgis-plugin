@@ -11,12 +11,11 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 from .. import i18n
-from ..kumoy import settings_manager
-from .error_handler import handle_api_error
-from ..kumoy import api
+from ..kumoy import api, settings_manager
 from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite, upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .error_handler import handle_api_error
 from .layers.convert_vector import convert_local_layers
 
 
@@ -116,11 +115,14 @@ def handle_project_saved() -> None:
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
-    cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
-    if cancelled:
-        return
-
     try:
+        # Pre-flight size check before any upload
+        cache_map.write_qgsfile(styled_map_id)
+
+        cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
+        if cancelled:
+            return
+
         qgsproject_str = cache_map.write_qgsfile(styled_map_id)
 
         sprite_data = generate_sprite(project)
