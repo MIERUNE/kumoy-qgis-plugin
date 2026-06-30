@@ -43,6 +43,15 @@ def show_map_save_result(
         iface.messageBar().pushSuccess(i18n.tr("Success"), report_msg)
 
 
+def warn_if_project_too_large(qgs_str: str) -> bool:
+    """Show an error dialog and return True if the project exceeds the size limit."""
+    size_error = cache_map.size_limit_error(qgs_str)
+    if size_error:
+        QMessageBox.critical(None, i18n.tr("Error"), size_error)
+        return True
+    return False
+
+
 def handle_project_saved() -> None:
     """Update current project to Kumoy when QGIS project is saved"""
     # Prevent re-entrancy while we are saving the project ourselves via
@@ -116,18 +125,20 @@ def handle_project_saved() -> None:
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
+    # Pre-flight size check before any upload: serialize to a throwaway temp
+    # file and validate, without touching the cache.
+    if warn_if_project_too_large(cache_map.serialize_project()):
+        return
+
+    cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
+    if cancelled:
+        return
+
+    qgsproject_str = cache_map.serialize_project()
+    if warn_if_project_too_large(qgsproject_str):
+        return
+
     try:
-        # Pre-flight size check before any upload: serialize to a throwaway
-        # temp file and validate, without touching the cache.
-        cache_map.assert_within_size_limit(cache_map.serialize_project())
-
-        cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
-        if cancelled:
-            return
-
-        qgsproject_str = cache_map.serialize_project()
-        cache_map.assert_within_size_limit(qgsproject_str)
-
         sprite_data = generate_sprite(project)
         new_assets_hash = sprite_data.assets_hash if sprite_data else None
 

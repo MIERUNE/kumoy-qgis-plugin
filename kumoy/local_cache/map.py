@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 
@@ -125,23 +126,34 @@ def serialize_project() -> str:
         project.setDirty(prev_dirty)
         try:
             os.remove(tmp_path)
-        except OSError:
-            pass
+        except OSError as e:
+            QgsMessageLog.logMessage(
+                f"Failed to remove temp project file {tmp_path}: {e}",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
 
 
-def assert_within_size_limit(qgs_str: str) -> None:
-    """Raise if the serialized project exceeds the server-side size limit."""
+def size_limit_error(qgs_str: str) -> Optional[str]:
+    """Return an error message if the serialized project exceeds the size limit.
+
+    Returns None when within the limit. Returning a message (instead of raising)
+    lets callers validate without wrapping the call in try/except. A warning is
+    also logged when over the limit.
+    """
     actual_length = len(qgs_str)
-    if actual_length > LENGTH_LIMIT:
-        err = i18n.tr(
-            "Project file size is too large. Limit is {} bytes. your: {} bytes"
-        ).format(LENGTH_LIMIT, actual_length)
-        QgsMessageLog.logMessage(
-            err,
-            LOG_CATEGORY,
-            Qgis.Warning,
-        )
-        raise Exception(err)
+    if actual_length <= LENGTH_LIMIT:
+        return None
+
+    err = i18n.tr(
+        "Project file size is too large. Limit is {} bytes. your: {} bytes"
+    ).format(LENGTH_LIMIT, actual_length)
+    QgsMessageLog.logMessage(
+        err,
+        LOG_CATEGORY,
+        Qgis.Warning,
+    )
+    return err
 
 
 def commit_to_cache(map_id: str, qgs_str: str) -> None:

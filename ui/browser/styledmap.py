@@ -25,7 +25,6 @@ from ... import i18n
 from ...kumoy import api, constants, local_cache, settings_manager
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.local_cache.map import (
-    assert_within_size_limit,
     commit_to_cache,
     serialize_project,
 )
@@ -48,7 +47,7 @@ from ...ui.layers.convert_vector import (
 )
 from ..error_handler import handle_api_error
 from ..icons import BROWSER_MAP_ICON
-from ..project_save_handler import show_map_save_result
+from ..project_save_handler import show_map_save_result, warn_if_project_too_large
 from .utils import ErrorItem
 
 
@@ -259,24 +258,26 @@ class StyledMapItem(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
+        # Pre-flight size check before any upload: serialize to a throwaway temp
+        # file and validate, without touching the cache. The .qgs size barely
+        # changes after conversion (only datasource strings are swapped), so
+        # failing here avoids converting/uploading layers for a project that
+        # would be rejected anyway.
+        if warn_if_project_too_large(serialize_project()):
+            return
+
+        # Convert local layers to Kumoy layers if any
+        cancelled, conversion_errors = convert_local_layers(
+            self.styled_map.projectId,
+        )
+        if cancelled:
+            return
+
+        new_qgisproject = serialize_project()
+        if warn_if_project_too_large(new_qgisproject):
+            return
+
         try:
-            # Pre-flight size check before any upload: serialize to a throwaway
-            # temp file and validate, without touching the cache. The .qgs size
-            # barely changes after conversion (only datasource strings are
-            # swapped), so failing here avoids converting/uploading layers for a
-            # project that will be rejected anyway.
-            assert_within_size_limit(serialize_project())
-
-            # Convert local layers to Kumoy layers if any
-            cancelled, conversion_errors = convert_local_layers(
-                self.styled_map.projectId,
-            )
-            if cancelled:
-                return
-
-            new_qgisproject = serialize_project()
-            assert_within_size_limit(new_qgisproject)
-
             # Generate sprites and upload if changed
             sprite_data = generate_sprite(QgsProject.instance())
             new_assets_hash = sprite_data.assets_hash if sprite_data else None
@@ -491,49 +492,55 @@ class StyledMapRoot(QgsDataItem):
                         ),
                     )
                     return
+        except Exception as e:
+            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error adding map"))
+            return
 
-            # Create dialog
-            (
-                dialog,
-                name_field,
-                description_field,
-                attribution_field,
-                is_public_field,
-            ) = _create_styled_map_dialog(
-                i18n.tr("Add Map"),
-            )
+        # Create dialog
+        (
+            dialog,
+            name_field,
+            description_field,
+            attribution_field,
+            is_public_field,
+        ) = _create_styled_map_dialog(
+            i18n.tr("Add Map"),
+        )
 
-            # Show dialog
-            if not exec_dialog(dialog):
-                return
+        # Show dialog
+        if not exec_dialog(dialog):
+            return
 
-            # Get values
-            name = name_field.text()
-            description = description_field.toPlainText()
-            attribution = attribution_field.text()
-            is_public = is_public_field.isChecked()
+        # Get values
+        name = name_field.text()
+        description = description_field.toPlainText()
+        attribution = attribution_field.text()
+        is_public = is_public_field.isChecked()
 
-            if not name:
-                return
+        if not name:
+            return
 
-            if clear:
-                # 空のQGISプロジェクトを作成
-                QgsProject.instance().clear()
+        if clear:
+            # Create an empty QGIS project
+            QgsProject.instance().clear()
 
-            # Pre-flight size check before any upload: serialize to a throwaway
-            # temp file and validate, without touching the cache.
-            assert_within_size_limit(serialize_project())
+        # Pre-flight size check before any upload: serialize to a throwaway temp
+        # file and validate, without touching the cache.
+        if warn_if_project_too_large(serialize_project()):
+            return
 
-            # Convert local layers to Kumoy layers
-            cancelled, conversion_errors = convert_local_layers(
-                self.project.id,
-            )
-            if cancelled:
-                return
+        # Convert local layers to Kumoy layers
+        cancelled, conversion_errors = convert_local_layers(
+            self.project.id,
+        )
+        if cancelled:
+            return
 
-            qgisproject = serialize_project()
-            assert_within_size_limit(qgisproject)
+        qgisproject = serialize_project()
+        if warn_if_project_too_large(qgisproject):
+            return
 
+        try:
             # Create the styled map
             new_styled_map = api.styledmap.add_styled_map(
                 self.project.id,
@@ -554,7 +561,8 @@ class StyledMapRoot(QgsDataItem):
 
             # Re-serialize so the file embeds kumoy_map_id linking the new map
             updated_qgisproject = serialize_project()
-            assert_within_size_limit(updated_qgisproject)
+            if warn_if_project_too_large(updated_qgisproject):
+                return
 
             # Generate and upload sprites
             sprite_data = generate_sprite(QgsProject.instance())
