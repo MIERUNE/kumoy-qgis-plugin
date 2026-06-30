@@ -21,12 +21,11 @@ from qgis.PyQt.QtWidgets import (
 )
 from qgis.utils import iface
 
-from ...kumoy import settings_manager
-from ..error_handler import handle_api_error
-from ...kumoy import api, constants, local_cache
+from ... import i18n
+from ...kumoy import api, constants, local_cache, settings_manager
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.local_cache.map import write_qgsfile
-from ..project_save_handler import show_map_save_result
+from ...kumoy.settings_manager import get_settings
 from ...kumoy.sprite import generate_sprite, upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -40,12 +39,12 @@ from ...qgis_version import (
     restore_project_crs_if_invalid,
     restore_xyz_layer_datasources,
 )
-from ...kumoy.settings_manager import get_settings
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
-from ... import i18n
+from ..error_handler import handle_api_error
 from ..icons import BROWSER_MAP_ICON
+from ..project_save_handler import show_map_save_result
 from .utils import ErrorItem
 
 
@@ -256,14 +255,17 @@ class StyledMapItem(QgsDataItem):
         for layer in QgsProject.instance().mapLayers().values():
             layer.extent()
 
-        # Convert local layers to Kumoy layers if any
-        cancelled, conversion_errors = convert_local_layers(
-            self.styled_map.projectId,
-        )
-        if cancelled:
-            return
-
         try:
+            # Pre-flight size check before any upload
+            write_qgsfile(self.styled_map.id)
+
+            # Convert local layers to Kumoy layers if any
+            cancelled, conversion_errors = convert_local_layers(
+                self.styled_map.projectId,
+            )
+            if cancelled:
+                return
+
             new_qgisproject = write_qgsfile(self.styled_map.id)
 
             # Generate sprites and upload if changed
@@ -505,6 +507,9 @@ class StyledMapRoot(QgsDataItem):
             if clear:
                 # 空のQGISプロジェクトを作成
                 QgsProject.instance().clear()
+
+            # Pre-flight size check before any upload
+            write_qgsfile(self.project.id)
 
             # Convert local layers to Kumoy layers
             cancelled, conversion_errors = convert_local_layers(
