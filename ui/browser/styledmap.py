@@ -554,6 +554,7 @@ class StyledMapRoot(QgsDataItem):
 
             # Re-serialize so the file embeds kumoy_map_id linking the new map
             updated_qgisproject = serialize_project()
+            assert_within_size_limit(updated_qgisproject)
 
             # Generate and upload sprites
             sprite_data = generate_sprite(QgsProject.instance())
@@ -572,6 +573,12 @@ class StyledMapRoot(QgsDataItem):
 
             # Persist to cache only after a successful server save.
             commit_to_cache(new_styled_map.id, updated_qgisproject)
+
+            # Point the project at the cache file so handle_project_saved()
+            # keeps the map linked on subsequent saves (in-cache check).
+            QgsProject.instance().setFileName(
+                local_cache.map.get_filepath(new_styled_map.id)
+            )
 
             # reload browser panel
             self.parent().refresh()
