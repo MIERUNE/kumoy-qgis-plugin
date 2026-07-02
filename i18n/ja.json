@@ -286,6 +286,7 @@
   "You have unsaved changes. Resetting settings will clear your current project. Continue?": "現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？",
   "Your Kumoy session has expired or is no longer valid.\nPlease log in again from the Kumoy item in the Browser panel.": "Kumoy のセッションの有効期限が切れたか、無効になっています。\nブラウザパネルの Kumoy から再度ログインしてください。",
   "Your QGIS project was cleared because the active project changed.": "QGISプロジェクトはプロジェクト変更により消去されました。",
+  "{} (scheduled for deletion)": "{} （削除予定）",
   "{} (unsaved edits)": "{} （未保存の編集）",
   "{} days ago": "{}日前",
   "{} hours ago": "{}時間前",

@@ -191,6 +191,10 @@ def convert_to_kumoy(
         organizations = api.organization.get_organizations()
         all_projects = []
         for org in organizations:
+            # Must match the filtering in UploadVectorAlgorithm.initAlgorithm:
+            # both sides index into the same flattened project list
+            if org.scheduledDeletionAt:
+                continue
             org_projects = api.project.get_projects_by_organization(org.id)
             all_projects.extend(org_projects)
 

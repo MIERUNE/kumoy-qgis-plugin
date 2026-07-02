@@ -25,13 +25,13 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
-from .error_handler import handle_api_error
 from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     DOCUMENTATION_URL,
     LOG_CATEGORY,
 )
+from ..kumoy.settings_manager import get_settings, store_setting
 from ..pyqt_version import (
     Q_LIST_VIEW_RESIZE_MODE,
     Q_MESSAGEBOX_STD_BUTTON,
@@ -45,8 +45,8 @@ from ..pyqt_version import (
     exec_dialog,
     exec_menu,
 )
-from ..kumoy.settings_manager import get_settings, store_setting
 from .dialog_project_edit import ProjectEditDialog
+from .error_handler import handle_api_error
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 from .utils import show_plain_text_message
@@ -383,14 +383,40 @@ class ProjectSelectDialog(QDialog):
 
     def load_organizations(self):
         """Load organizations into the combo box"""
-        self.account_org_panel["org_combo"].clear()
-        organizations = api.organization.get_organizations()
+        org_combo: QComboBox = self.account_org_panel["org_combo"]
+        # Populate silently, then select explicitly so the currentIndexChanged
+        # handler never fires for an organization scheduled for deletion
+        was_blocked = org_combo.blockSignals(True)
+        try:
+            org_combo.clear()
+            organizations = api.organization.get_organizations()
 
-        if not organizations:
+            if not organizations:
+                self._handle_no_organization()
+                return
+            for org in organizations:
+                if org.scheduledDeletionAt:
+                    # Deactivated on the web app: unusable until deleted for good
+                    org_combo.addItem(
+                        i18n.tr("{} (scheduled for deletion)").format(org.name), org
+                    )
+                    org_combo.model().item(org_combo.count() - 1).setEnabled(False)
+                else:
+                    org_combo.addItem(org.name, org)
+        finally:
+            org_combo.blockSignals(was_blocked)
+
+        first_selectable = next(
+            (
+                i
+                for i in range(org_combo.count())
+                if org_combo.model().item(i).isEnabled()
+            ),
+            -1,
+        )
+        org_combo.setCurrentIndex(first_selectable)
+        if first_selectable < 0:
             self._handle_no_organization()
-            return
-        for org in organizations:
-            self.account_org_panel["org_combo"].addItem(org.name, org)
 
     def _handle_no_organization(self):
         """Handle case when no organization is available"""
@@ -441,7 +467,9 @@ class ProjectSelectDialog(QDialog):
         self.project_section["project_list"].setCurrentItem(None)
         self.project_section["search_input"].clear()
         org_data = self.account_org_panel["org_combo"].itemData(index)
-        if org_data:
+        # An organization scheduled for deletion is not selectable in the UI,
+        # but guard against programmatic selection: its APIs return not found
+        if org_data and not org_data.scheduledDeletionAt:
             self.load_myteams(org_data)
             self.load_organization_detail(org_data)
             self.load_projects(org_data)
@@ -801,7 +829,10 @@ class ProjectSelectDialog(QDialog):
             if (
                 org := self.account_org_panel["org_combo"].itemData(i)
             ) and org.id == org_id:
-                self.account_org_panel["org_combo"].setCurrentIndex(i)
+                # Keep the default selection if the saved organization is
+                # scheduled for deletion
+                if not org.scheduledDeletionAt:
+                    self.account_org_panel["org_combo"].setCurrentIndex(i)
                 break
 
     def _select_project_by_id(self, project_id: str):
