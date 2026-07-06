@@ -62,6 +62,22 @@ def _get_usage_color(percentage: float) -> str:
     return "#8bc34a"  # Green
 
 
+def _scheduled_deletion_message(iso_string: str) -> str:
+    """Build the deletion notice from an ISO 8601 timestamp.
+
+    The date format lives in the translated sentence itself: each language
+    arranges the {year}/{month}/{day} placeholders in its own way (English
+    uses an unambiguous ISO date, Japanese uses 年月日).
+    """
+    try:
+        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return i18n.tr("This organization is scheduled for deletion.")
+    return i18n.tr(
+        "This organization is scheduled for deletion on {year}-{month:02d}-{day:02d}."
+    ).format(year=dt.year, month=dt.month, day=dt.day)
+
+
 def _empty_plan_limits() -> "api.plan.PlanLimits":
     """API失敗時のフォールバック値。表示は0/0で続行する。"""
     return api.plan.PlanLimits(
@@ -383,40 +399,14 @@ class ProjectSelectDialog(QDialog):
 
     def load_organizations(self):
         """Load organizations into the combo box"""
-        org_combo: QComboBox = self.account_org_panel["org_combo"]
-        # Populate silently, then select explicitly so the currentIndexChanged
-        # handler never fires for an organization scheduled for deletion
-        was_blocked = org_combo.blockSignals(True)
-        try:
-            org_combo.clear()
-            organizations = api.organization.get_organizations()
+        self.account_org_panel["org_combo"].clear()
+        organizations = api.organization.get_organizations()
 
-            if not organizations:
-                self._handle_no_organization()
-                return
-            for org in organizations:
-                if org.scheduledDeletionAt:
-                    # Deactivated on the web app: unusable until deleted for good
-                    org_combo.addItem(
-                        i18n.tr("{} (scheduled for deletion)").format(org.name), org
-                    )
-                    org_combo.model().item(org_combo.count() - 1).setEnabled(False)
-                else:
-                    org_combo.addItem(org.name, org)
-        finally:
-            org_combo.blockSignals(was_blocked)
-
-        first_selectable = next(
-            (
-                i
-                for i in range(org_combo.count())
-                if org_combo.model().item(i).isEnabled()
-            ),
-            -1,
-        )
-        org_combo.setCurrentIndex(first_selectable)
-        if first_selectable < 0:
+        if not organizations:
             self._handle_no_organization()
+            return
+        for org in organizations:
+            self.account_org_panel["org_combo"].addItem(org.name, org)
 
     def _handle_no_organization(self):
         """Handle case when no organization is available"""
@@ -450,7 +440,10 @@ class ProjectSelectDialog(QDialog):
         self.org_details_panel["plan_role_label"].setText(
             i18n.tr("<div><span>No organization available</span></div>")
         )
+        self._clear_org_details()
 
+    def _clear_org_details(self):
+        """Reset usage widgets and disable organization-scoped actions"""
         keys = ["projects", "maps", "vectors", "members", "storage"]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
@@ -462,17 +455,54 @@ class ProjectSelectDialog(QDialog):
         self.button_panel["new_project_btn"].setEnabled(False)
         self.org_details_panel["org_settings_button"].setEnabled(False)
 
+    def _show_scheduled_deletion_notice(
+        self, org: api.organization.OrganizationWithRole
+    ):
+        """Replace the project list with a notice that the organization is
+        scheduled for deletion"""
+        self.current_org_id = org.id
+        self.myteams = []
+        self.admin_team_ids = set()
+        self._update_team_filter_combo()
+        self.button_panel["new_project_btn"].setVisible(False)
+
+        project_list = self.project_section["project_list"]
+        project_list.clear()
+
+        notice_widget = QWidget()
+        notice_layout = QVBoxLayout(notice_widget)
+        notice_layout.setContentsMargins(12, 12, 12, 12)
+        msg_label = QLabel(_scheduled_deletion_message(org.scheduledDeletionAt))
+        msg_label.setWordWrap(True)
+        msg_label.setAlignment(QT_ALIGN.AlignCenter)
+        notice_layout.addWidget(msg_label)
+
+        notice_item = QListWidgetItem(project_list)
+        notice_item.setFlags(QT_NO_ITEM_FLAGS)  # Make it non-selectable
+        notice_item.setSizeHint(notice_widget.sizeHint())
+        project_list.addItem(notice_item)
+        project_list.setItemWidget(notice_item, notice_widget)
+
+        self.org_details_panel["plan_role_label"].setText(
+            i18n.tr("<div><span>Scheduled for deletion</span></div>")
+        )
+        self._clear_org_details()
+
     def on_organization_changed(self, index):
         """Reset project selection when organization changes"""
         self.project_section["project_list"].setCurrentItem(None)
         self.project_section["search_input"].clear()
         org_data = self.account_org_panel["org_combo"].itemData(index)
-        # An organization scheduled for deletion is not selectable in the UI,
-        # but guard against programmatic selection: its APIs return not found
-        if org_data and not org_data.scheduledDeletionAt:
-            self.load_myteams(org_data)
-            self.load_organization_detail(org_data)
-            self.load_projects(org_data)
+        if not org_data:
+            return
+        if org_data.scheduledDeletionAt:
+            # Deactivated on the web app: its detail/project APIs return not
+            # found, so show a notice instead of the project list
+            self._show_scheduled_deletion_notice(org_data)
+            return
+        self.load_myteams(org_data)
+        self.load_organization_detail(org_data)
+        self.load_projects(org_data)
 
     def load_myteams(self, org: api.organization.Organization):
         """Load teams the current user belongs to in the organization"""
@@ -829,10 +859,7 @@ class ProjectSelectDialog(QDialog):
             if (
                 org := self.account_org_panel["org_combo"].itemData(i)
             ) and org.id == org_id:
-                # Keep the default selection if the saved organization is
-                # scheduled for deletion
-                if not org.scheduledDeletionAt:
-                    self.account_org_panel["org_combo"].setCurrentIndex(i)
+                self.account_org_panel["org_combo"].setCurrentIndex(i)
                 break
 
     def _select_project_by_id(self, project_id: str):
