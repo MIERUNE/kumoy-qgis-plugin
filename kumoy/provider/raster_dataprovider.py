@@ -211,6 +211,11 @@ class KumoyRasterDataProvider(QgsRasterDataProvider):
     def colorInterpretation(self, bandNo):
         return self._gdal.colorInterpretation(bandNo)
 
+    def colorTable(self, bandNo):
+        # パレット付きラスタの描画に必要。委譲しないと基底の空テーブルが返り、
+        # PaletteIndex なバンドが正しく色付けされない。
+        return self._gdal.colorTable(bandNo)
+
     def generateBandName(self, bandNo):
         return self._gdal.generateBandName(bandNo)
 
@@ -225,6 +230,36 @@ class KumoyRasterDataProvider(QgsRasterDataProvider):
 
     def setUseSourceNoDataValue(self, bandNo, use):
         return self._gdal.setUseSourceNoDataValue(bandNo, use)
+
+    def userNoDataValues(self, bandNo):
+        return self._gdal.userNoDataValues(bandNo)
+
+    def setUserNoDataValue(self, bandNo, noData):
+        return self._gdal.setUserNoDataValue(bandNo, noData)
+
+    def userNoDataValuesContains(self, bandNo, value):
+        return self._gdal.userNoDataValuesContains(bandNo, value)
+
+    def enableProviderResampling(self, enable):
+        return self._gdal.enableProviderResampling(enable)
+
+    def setZoomedInResamplingMethod(self, method):
+        return self._gdal.setZoomedInResamplingMethod(method)
+
+    def zoomedInResamplingMethod(self):
+        return self._gdal.zoomedInResamplingMethod()
+
+    def setZoomedOutResamplingMethod(self, method):
+        return self._gdal.setZoomedOutResamplingMethod(method)
+
+    def zoomedOutResamplingMethod(self):
+        return self._gdal.zoomedOutResamplingMethod()
+
+    def setMaxOversampling(self, factor):
+        return self._gdal.setMaxOversampling(factor)
+
+    def maxOversampling(self):
+        return self._gdal.maxOversampling()
 
     def identify(
         self, point, format, boundingBox=QgsRectangle(), width=0, height=0, dpi=96
