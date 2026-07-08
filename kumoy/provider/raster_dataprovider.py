@@ -219,6 +219,16 @@ class KumoyRasterDataProvider(QgsRasterDataProvider):
     def generateBandName(self, bandNo):
         return self._gdal.generateBandName(bandNo)
 
+    # COG の内部オーバービュー（ピラミッド）。描画時の block() は GDAL が解像度に
+    # 応じて自動選択するので委譲不要だが、ピラミッドの有無を報告するメタデータ系は
+    # 委譲しないと基底の「ピラミッド無し」が返り、プロパティのピラミッドタブや
+    # ピラミッド前提のロジックが誤認する。
+    def hasPyramids(self) -> bool:
+        return self._gdal.hasPyramids() if self._gdal else False
+
+    def buildPyramidList(self, *args):
+        return self._gdal.buildPyramidList(*args) if self._gdal else []
+
     def sourceNoDataValue(self, bandNo):
         return self._gdal.sourceNoDataValue(bandNo)
 
