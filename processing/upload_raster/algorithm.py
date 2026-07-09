@@ -93,6 +93,10 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
 
             organizations = api.organization.get_organizations()
             for org in organizations:
+                # Organizations scheduled for deletion are unusable; their
+                # project APIs return not found
+                if org.scheduledDeletionAt:
+                    continue
                 projects = api.project.get_projects_by_organization(org.id)
                 for project in projects:
                     project_options.append(f"{org.name} / {project.name}")

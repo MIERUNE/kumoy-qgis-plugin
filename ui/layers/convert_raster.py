@@ -250,6 +250,10 @@ def _resolve_project_index(project_id: str) -> Optional[int]:
     """
     idx = 0
     for org in api.organization.get_organizations():
+        # UploadRasterAlgorithm.initAlgorithm と同じフィルタでないと
+        # インデックスがずれる（削除予約中の組織はプロジェクトAPIが404を返す）
+        if org.scheduledDeletionAt:
+            continue
         for proj in api.project.get_projects_by_organization(org.id):
             if proj.id == project_id:
                 return idx
