@@ -42,6 +42,7 @@ from ...qgis_version import (
     restore_xyz_layer_datasources,
 )
 from ...kumoy.settings_manager import get_settings
+from ...ui.layers.convert_raster import convert_local_raster_layers
 from ...ui.layers.convert_vector import (
     convert_local_layers,
 )
@@ -263,6 +264,13 @@ class StyledMapItem(QgsDataItem):
         )
         if cancelled:
             return
+
+        raster_cancelled, raster_errors = convert_local_raster_layers(
+            self.styled_map.projectId,
+        )
+        if raster_cancelled:
+            return
+        conversion_errors = conversion_errors + raster_errors
 
         try:
             new_qgisproject = write_qgsfile(self.styled_map.id)
@@ -513,6 +521,13 @@ class StyledMapRoot(QgsDataItem):
             )
             if cancelled:
                 return
+
+            raster_cancelled, raster_errors = convert_local_raster_layers(
+                self.project.id,
+            )
+            if raster_cancelled:
+                return
+            conversion_errors = conversion_errors + raster_errors
 
             qgisproject = write_qgsfile(self.project.id)
 

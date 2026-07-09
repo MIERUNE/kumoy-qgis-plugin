@@ -20,8 +20,15 @@ from qgis.utils import iface
 from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
+from ...pyqt_version import (
+    QDIALOG_CODE,
+    QT_APPLICATION_MODAL,
+    exec_dialog,
+    exec_event_loop,
+)
+from ..dialog_layer_select import LayerSelectDialog
 from ..error_handler import refresh_kumoy_browser
+from ..utils import get_local_raster_layers
 
 
 def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -> None:
@@ -59,6 +66,44 @@ def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -
                 layer_name, error
             ),
         )
+
+
+def convert_local_raster_layers(
+    project_id: str,
+) -> tuple[bool, list[tuple[str, str]]]:
+    """Prompt the user to select and convert local raster layers.
+
+    Mirrors ``convert_local_layers`` (vectors) but without a client-side quota
+    pre-check: raster count/storage limits are not exposed by the API, so the
+    server's 429/403 is surfaced per layer instead.
+
+    Returns:
+        tuple: (cancelled, conversion_errors)
+            cancelled: True if the user cancelled (map save should be aborted)
+            conversion_errors: (layer_name, error) for failed conversions
+    """
+    local_layers = get_local_raster_layers()
+    if not local_layers:
+        return (False, [])
+
+    dialog = LayerSelectDialog(local_layers)
+    if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
+        return (True, [])
+
+    selected_layers = dialog.selected_layers
+    if not selected_layers:
+        return (False, [])
+
+    conversion_errors = []
+    for layer in selected_layers:
+        success, error = convert_raster_to_kumoy(layer, project_id)
+        # error is None on user cancel of an individual upload — skip, not a failure.
+        if not success and error is not None:
+            conversion_errors.append((layer.name(), error))
+
+    iface.mapCanvas().refresh()
+
+    return (False, conversion_errors)
 
 
 def convert_raster_to_kumoy(

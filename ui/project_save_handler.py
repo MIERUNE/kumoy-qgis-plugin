@@ -18,6 +18,7 @@ from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .layers.convert_raster import convert_local_raster_layers
 from .layers.convert_vector import convert_local_layers
 
 
@@ -120,6 +121,13 @@ def handle_project_saved() -> None:
     cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
     if cancelled:
         return
+
+    raster_cancelled, raster_errors = convert_local_raster_layers(
+        styled_map_detail.projectId
+    )
+    if raster_cancelled:
+        return
+    conversion_errors = conversion_errors + raster_errors
 
     try:
         qgsproject_str = cache_map.write_qgsfile(styled_map_id)
