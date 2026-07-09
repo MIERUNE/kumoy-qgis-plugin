@@ -16,13 +16,13 @@ def _make_geotiff(path: str, with_crs: bool = True, size: int = 16) -> None:
     band = ds.GetRasterBand(1)
     band.Fill(42)
     ds.FlushCache()
-    ds = None
+    ds.Close()
 
 
 def _is_cog(path: str) -> bool:
     ds = gdal.Open(path)
     layout = ds.GetMetadataItem("LAYOUT", "IMAGE_STRUCTURE")
-    ds = None
+    ds.Close()
     return layout == "COG"
 
 
@@ -52,7 +52,7 @@ class TestConvertToCog:
         ds = gdal.Open(dst)
         srs = osr.SpatialReference(wkt=ds.GetProjection())
         assert srs.GetAuthorityCode(None) == "4326"
-        ds = None
+        ds.Close()
 
     def test_does_not_reproject(self, tmp_path):
         """元データの geotransform/ピクセル値がそのまま保持されること。"""
@@ -65,7 +65,7 @@ class TestConvertToCog:
         ds = gdal.Open(dst)
         assert ds.GetGeoTransform()[0] == 0
         assert ds.GetRasterBand(1).ReadAsArray()[0][0] == 42
-        ds = None
+        ds.Close()
 
     def test_assigns_crs_when_missing(self, tmp_path):
         src = str(tmp_path / "src.tif")
@@ -79,7 +79,7 @@ class TestConvertToCog:
         ds = gdal.Open(dst)
         out_srs = osr.SpatialReference(wkt=ds.GetProjection())
         assert out_srs.GetAuthorityCode(None) == "3857"
-        ds = None
+        ds.Close()
 
     def test_cancellation_raises(self, tmp_path):
         from plugin_dir.processing.upload_raster.cog import CogConversionCanceled
