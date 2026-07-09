@@ -29,7 +29,8 @@ from ...kumoy.local_cache.map import (
     serialize_project,
 )
 from ...kumoy.settings_manager import get_settings
-from ...kumoy.sprite import generate_sprite, upload_sprites
+from ...kumoy.sprite import generate_sprite
+from ...kumoy.sprite.uploader import upload_sprites
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
