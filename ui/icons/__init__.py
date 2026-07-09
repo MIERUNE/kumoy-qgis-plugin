@@ -31,3 +31,4 @@ BROWSER_GEOMETRY_POLYGON_ICON = QIcon(
     os.path.join(_IMGS_PATH, "browser_geometry_polygon.svg")
 )
 BROWSER_MAP_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_map.svg"))
+BROWSER_RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_raster.svg"))

@@ -18,7 +18,7 @@ from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.settings_manager import get_settings
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from ..error_handler import handle_api_error
-from ..icons import BROWSER_MAP_ICON
+from ..icons import BROWSER_FOLDER_ICON, BROWSER_RASTER_ICON
 from .utils import ErrorItem
 
 
@@ -51,7 +51,7 @@ class RasterItem(QgsDataItem):
             f"raster_name={self.raster.name};"
         )
         self.role = role
-        self.setIcon(BROWSER_MAP_ICON)
+        self.setIcon(BROWSER_RASTER_ICON)
         self.populate()  # 子を持たない葉アイテムにする
 
     def hasDragEnabled(self) -> bool:
@@ -231,7 +231,7 @@ class RasterRoot(QgsDataItem):
             path=path,
         )
 
-        self.setIcon(BROWSER_MAP_ICON)
+        self.setIcon(BROWSER_FOLDER_ICON)
         self.organization = organization
         self.project = project
 
