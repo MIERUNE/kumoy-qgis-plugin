@@ -1,4 +1,6 @@
 import os
+import tempfile
+from typing import Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 
@@ -6,10 +8,13 @@ from ... import i18n
 from ..constants import LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
-# Flag to prevent double updates when handling project saved event.
-# write_qgsfile() で QGIS プロジェクトをディスクに書き出す際、
-# QgsProject.projectSaved シグナル経由で再入することを防ぐためのフラグ。
+# Flag to prevent double updates when handling the project saved event.
+# When serialize_project() writes the QGIS project to disk, this guards against
+# re-entrancy via the QgsProject.projectSaved signal.
 is_updating = False
+
+# Maximum size (in characters) of a serialized project the server accepts.
+LENGTH_LIMIT = 3000000  # 3 million characters
 
 
 def get_cache_dir() -> str:
@@ -87,50 +92,71 @@ def clear_all() -> bool:
     return success
 
 
-def write_qgsfile(map_id: str) -> str:
-    """Save current project to local cache and return project file content as string."""
+def serialize_project() -> str:
+    """Serialize the current project to an XML string via a throwaway temp file.
+
+    The canonical cache file and the project state (fileName / dirty) are left
+    untouched — use commit_to_cache() to persist after a successful upload.
+
+    The temp file is created in the cache directory so QGIS resolves relative
+    layer paths exactly as it would for the real cache file. Projects may keep
+    local (unsupported) layers whose file paths must round-trip correctly, so
+    serializing elsewhere (e.g. the system temp dir) would rewrite those paths.
+
+    QgsProject.write() changes fileName and clears the dirty flag, so we
+    snapshot and restore both to hide that side effect from callers.
+    """
     global is_updating
+    project = QgsProject.instance()
+    pin_fixed_aspect_ratios(project)
+
+    prev_name = project.fileName()
+    prev_dirty = project.isDirty()
+    # Force .qgs (plain XML) — .qgz would be compressed.
+    fd, tmp_path = tempfile.mkstemp(suffix=".qgs", dir=get_cache_dir())
+    os.close(fd)
     is_updating = True
     try:
-        map_path = get_filepath(map_id)
-        project = QgsProject.instance()
-        pin_fixed_aspect_ratios(project)
-        project.write(map_path)
-        qgisproject_str = _get_qgs_str(map_path)
+        project.write(tmp_path)
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            return f.read()
     finally:
         is_updating = False
-    return qgisproject_str
+        project.setFileName(prev_name)
+        project.setDirty(prev_dirty)
+        try:
+            os.remove(tmp_path)
+        except OSError as e:
+            QgsMessageLog.logMessage(
+                f"Failed to remove temp project file {tmp_path}: {e}",
+                LOG_CATEGORY,
+                Qgis.Info,
+            )
 
 
-def _get_qgs_str(map_path: str) -> str:
+def size_limit_error(qgs_str: str) -> Optional[str]:
+    """Return an error message if the serialized project exceeds the size limit.
+
+    Returns None when within the limit. Returning a message (instead of raising)
+    lets callers validate without wrapping the call in try/except. A warning is
+    also logged when over the limit.
     """
-    Get Qgs project file content as string.
-
-    Args:
-        file_path (str): QGS project file path
-
-    Raises:
-        Exception: too large file size
-
-    Returns:
-        str: Qgs project file content
-    """
-
-    with open(map_path, "r", encoding="utf-8") as f:
-        qgs_str = f.read()
-
-    # Character length limit check
-    LENGTH_LIMIT = 3000000  # 300万文字
     actual_length = len(qgs_str)
-    if actual_length > LENGTH_LIMIT:
-        err = i18n.tr(
-            "Project file size is too large. Limit is {} bytes. your: {} bytes"
-        ).format(LENGTH_LIMIT, actual_length)
-        QgsMessageLog.logMessage(
-            err,
-            LOG_CATEGORY,
-            Qgis.Warning,
-        )
-        raise Exception(err)
+    if actual_length <= LENGTH_LIMIT:
+        return None
 
-    return qgs_str
+    err = i18n.tr(
+        "Project file size is too large. Limit is {} bytes. your: {} bytes"
+    ).format(LENGTH_LIMIT, actual_length)
+    QgsMessageLog.logMessage(
+        err,
+        LOG_CATEGORY,
+        Qgis.Warning,
+    )
+    return err
+
+
+def commit_to_cache(map_id: str, qgs_str: str) -> None:
+    """Persist a successfully-uploaded project to the cache (keeps cache == server)."""
+    with open(get_filepath(map_id), "w", encoding="utf-8") as f:
+        f.write(qgs_str)

@@ -18,6 +18,9 @@ class Organization:
 @dataclass
 class OrganizationWithRole(Organization):
     role: Literal["OWNER", "ADMIN", "MEMBER"]
+    # Set when the organization is deactivated and awaiting deletion (ISO 8601).
+    # Such organizations are unusable: detail/project APIs return not found.
+    scheduledDeletionAt: Optional[str]
 
 
 def get_organizations() -> List[OrganizationWithRole]:
@@ -41,6 +44,7 @@ def get_organizations() -> List[OrganizationWithRole]:
                 updatedAt=org.get("updatedAt", ""),
                 storageUnits=org.get("storageUnits", 0),
                 role=org.get("role", "MEMBER"),
+                scheduledDeletionAt=org.get("scheduledDeletionAt"),
             )
         )
     return organizations
@@ -83,6 +87,7 @@ def get_organization(organization_id: str) -> OrganizationDetail:
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
         role=response.get("role", "MEMBER"),
+        scheduledDeletionAt=response.get("scheduledDeletionAt"),
         usage=OrganizationUsage(
             projects=response.get("usage", {}).get("projects", 0),
             vectors=response.get("usage", {}).get("vectors", 0),

@@ -25,13 +25,13 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
-from .error_handler import handle_api_error
 from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     DOCUMENTATION_URL,
     LOG_CATEGORY,
 )
+from ..kumoy.settings_manager import get_settings, store_setting
 from ..pyqt_version import (
     Q_LIST_VIEW_RESIZE_MODE,
     Q_MESSAGEBOX_STD_BUTTON,
@@ -45,8 +45,8 @@ from ..pyqt_version import (
     exec_dialog,
     exec_menu,
 )
-from ..kumoy.settings_manager import get_settings, store_setting
 from .dialog_project_edit import ProjectEditDialog
+from .error_handler import handle_api_error
 from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 from .utils import show_plain_text_message
@@ -60,6 +60,22 @@ def _get_usage_color(percentage: float) -> str:
     elif percentage >= 75:
         return "#ffa726"  # Orange
     return "#8bc34a"  # Green
+
+
+def _scheduled_deletion_message(iso_string: str) -> str:
+    """Build the deletion notice from an ISO 8601 timestamp.
+
+    The date format lives in the translated sentence itself: each language
+    arranges the {year}/{month}/{day} placeholders in its own way (English
+    uses an unambiguous ISO date, Japanese uses 年月日).
+    """
+    try:
+        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return i18n.tr("This organization is scheduled for deletion.")
+    return i18n.tr(
+        "This organization is scheduled for deletion on {year}-{month:02d}-{day:02d}."
+    ).format(year=dt.year, month=dt.month, day=dt.day)
 
 
 def _empty_plan_limits() -> "api.plan.PlanLimits":
@@ -424,7 +440,10 @@ class ProjectSelectDialog(QDialog):
         self.org_details_panel["plan_role_label"].setText(
             i18n.tr("<div><span>No organization available</span></div>")
         )
+        self._clear_org_details()
 
+    def _clear_org_details(self):
+        """Reset usage widgets and disable organization-scoped actions"""
         keys = ["projects", "maps", "vectors", "members", "storage"]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
@@ -436,15 +455,54 @@ class ProjectSelectDialog(QDialog):
         self.button_panel["new_project_btn"].setEnabled(False)
         self.org_details_panel["org_settings_button"].setEnabled(False)
 
+    def _show_scheduled_deletion_notice(
+        self, org: api.organization.OrganizationWithRole
+    ):
+        """Replace the project list with a notice that the organization is
+        scheduled for deletion"""
+        self.current_org_id = org.id
+        self.myteams = []
+        self.admin_team_ids = set()
+        self._update_team_filter_combo()
+        self.button_panel["new_project_btn"].setVisible(False)
+
+        project_list = self.project_section["project_list"]
+        project_list.clear()
+
+        notice_widget = QWidget()
+        notice_layout = QVBoxLayout(notice_widget)
+        notice_layout.setContentsMargins(12, 12, 12, 12)
+        msg_label = QLabel(_scheduled_deletion_message(org.scheduledDeletionAt))
+        msg_label.setWordWrap(True)
+        msg_label.setAlignment(QT_ALIGN.AlignCenter)
+        notice_layout.addWidget(msg_label)
+
+        notice_item = QListWidgetItem(project_list)
+        notice_item.setFlags(QT_NO_ITEM_FLAGS)  # Make it non-selectable
+        notice_item.setSizeHint(notice_widget.sizeHint())
+        project_list.addItem(notice_item)
+        project_list.setItemWidget(notice_item, notice_widget)
+
+        self.org_details_panel["plan_role_label"].setText(
+            i18n.tr("<div><span>Scheduled for deletion</span></div>")
+        )
+        self._clear_org_details()
+
     def on_organization_changed(self, index):
         """Reset project selection when organization changes"""
         self.project_section["project_list"].setCurrentItem(None)
         self.project_section["search_input"].clear()
         org_data = self.account_org_panel["org_combo"].itemData(index)
-        if org_data:
-            self.load_myteams(org_data)
-            self.load_organization_detail(org_data)
-            self.load_projects(org_data)
+        if not org_data:
+            return
+        if org_data.scheduledDeletionAt:
+            # Deactivated on the web app: its detail/project APIs return not
+            # found, so show a notice instead of the project list
+            self._show_scheduled_deletion_notice(org_data)
+            return
+        self.load_myteams(org_data)
+        self.load_organization_detail(org_data)
+        self.load_projects(org_data)
 
     def load_myteams(self, org: api.organization.Organization):
         """Load teams the current user belongs to in the organization"""

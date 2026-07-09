@@ -11,13 +11,12 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.utils import iface
 
 from .. import i18n
-from ..kumoy import settings_manager
-from .error_handler import handle_api_error
-from ..kumoy import api
+from ..kumoy import api, settings_manager
 from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from .error_handler import handle_api_error
 from .layers.convert_raster import convert_local_raster_layers
 from .layers.convert_vector import convert_local_layers
 
@@ -46,9 +45,19 @@ def show_map_save_result(
         iface.messageBar().pushSuccess(i18n.tr("Success"), report_msg)
 
 
+def warn_if_project_too_large(qgs_str: str) -> bool:
+    """Show an error dialog and return True if the project exceeds the size limit."""
+    size_error = cache_map.size_limit_error(qgs_str)
+    if size_error:
+        QMessageBox.critical(None, i18n.tr("Error"), size_error)
+        return True
+    return False
+
+
 def handle_project_saved() -> None:
     """Update current project to Kumoy when QGIS project is saved"""
-    # write_qgsfile() 経由の自前保存中は再入を防ぐ
+    # Prevent re-entrancy while we are saving the project ourselves via
+    # serialize_project().
     if cache_map.is_updating:
         return
 
@@ -118,6 +127,11 @@ def handle_project_saved() -> None:
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
 
+    # Pre-flight size check before any upload: serialize to a throwaway temp
+    # file and validate, without touching the cache.
+    if warn_if_project_too_large(cache_map.serialize_project()):
+        return
+
     cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
     if cancelled:
         return
@@ -129,9 +143,11 @@ def handle_project_saved() -> None:
         return
     conversion_errors = conversion_errors + raster_errors
 
-    try:
-        qgsproject_str = cache_map.write_qgsfile(styled_map_id)
+    qgsproject_str = cache_map.serialize_project()
+    if warn_if_project_too_large(qgsproject_str):
+        return
 
+    try:
         sprite_data = generate_sprite(project)
         new_assets_hash = sprite_data.assets_hash if sprite_data else None
 
@@ -141,12 +157,15 @@ def handle_project_saved() -> None:
         if new_assets_hash != styled_map_detail.assetsHash:
             if sprite_data is not None:
                 upload_sprites(styled_map_id, sprite_data)
-            # memo: new_assets_hashがNoneならnullをセットする
+            # memo: set null when new_assets_hash is None
             update_options.assetsHash = new_assets_hash
         updated_styled_map = api.styledmap.update_styled_map(
             styled_map_id,
             update_options,
         )
+
+        # Persist to cache only after a successful server save.
+        cache_map.commit_to_cache(styled_map_id, qgsproject_str)
     except Exception as e:
         handle_api_error(e, parent=None, log_prefix=i18n.tr("Error saving map"))
         return
