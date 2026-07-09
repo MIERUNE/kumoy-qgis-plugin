@@ -1,6 +1,17 @@
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsMessageLog, QgsProject
 from qgis.PyQt.QtXml import QDomDocument
 
+# QGIS 4.2 renamed processing.gui.AlgorithmDialog.AlgorithmDialog to
+# processing.gui.algorithm_widget.AlgorithmWidget; fall back for QGIS < 4.2.
+try:
+    from processing.gui.algorithm_widget import (
+        AlgorithmWidget as PROCESSING_ALGORITHM_DIALOG,
+    )
+except ImportError:  # QGIS < 4.2
+    from processing.gui.AlgorithmDialog import (
+        AlgorithmDialog as PROCESSING_ALGORITHM_DIALOG,
+    )
+
 
 def restore_project_crs_if_invalid(qgisproject_xml: str) -> None:
     """Restore the project CRS if it became invalid after loading.
