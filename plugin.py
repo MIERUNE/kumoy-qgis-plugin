@@ -23,7 +23,6 @@ from .kumoy.constants import (
     DOCUMENTATION_URL,
     LOG_CATEGORY,
     PLUGIN_NAME,
-    RASTER_DATA_PROVIDER_KEY,
 )
 from .ui.project_save_handler import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
@@ -183,7 +182,10 @@ class KumoyPlugin:
                 return
         elif isinstance(layer, QgsRasterLayer):
             # Kumoyラスタは immutable なので同期アクションは無い。
-            if provider.name() == RASTER_DATA_PROVIDER_KEY:
+            # 変換はCOG変換が layer.source() をgdalで開ける前提のため、
+            # gdal以外(WMS/XYZ/WCS等のリモートラスタ)にも変換動線を出さない
+            # (get_local_raster_layers と同じ基準)。
+            if provider.name() != "gdal":
                 return
         else:
             return
