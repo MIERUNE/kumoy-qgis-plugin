@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
-from qgis.core import QgsMapLayer, QgsVectorLayer
+from qgis.core import QgsApplication, QgsMapLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -195,10 +195,19 @@ class LayerSelectDialog(QDialog):
 
         for layer in self._layers:
             cb = QCheckBox(layer.name())
+            # レイヤーパネルと同じQGISテーマアイコンでVector/Rasterを区別する
+            cb.setIcon(
+                QgsApplication.getThemeIcon(
+                    "/mIconVector.svg"
+                    if isinstance(layer, QgsVectorLayer)
+                    else "/mIconRaster.svg"
+                )
+            )
             cb.setChecked(False)
-            if self._is_locked(layer):
+            locked_reason = self._locked_reason(layer)
+            if locked_reason is not None:
                 cb.setEnabled(False)
-                cb.setText(i18n.tr("{} (unsaved edits)").format(layer.name()))
+                cb.setText(locked_reason.format(layer.name()))
             else:
                 cb.toggled.connect(self._on_checkbox_toggled)
             self._checkboxes.append(cb)
@@ -240,10 +249,21 @@ class LayerSelectDialog(QDialog):
         self._update_state()
 
     @staticmethod
-    def _is_locked(layer: QgsMapLayer) -> bool:
-        """Non-selectable layers: vectors with unsaved edits (would upload a
-        stale snapshot). Only vectors have this editing state."""
-        return isinstance(layer, QgsVectorLayer) and layer.isModified()
+    def _locked_reason(layer: QgsMapLayer) -> Optional[str]:
+        """Label format string ("{}" = layer name) if the layer cannot be
+        selected, else None. Vectors with unsaved edits would upload a stale
+        snapshot; rasters without a CRS cannot be placed on the map."""
+        if isinstance(layer, QgsVectorLayer):
+            if layer.isModified():
+                return i18n.tr("{} (unsaved edits)")
+            return None
+        if not layer.crs().isValid():
+            return i18n.tr("{} (CRS not set)")
+        return None
+
+    @classmethod
+    def _is_locked(cls, layer: QgsMapLayer) -> bool:
+        return cls._locked_reason(layer) is not None
 
     def _on_checkbox_toggled(self) -> None:
         self._update_state()
