@@ -43,10 +43,7 @@ from ...qgis_version import (
     restore_project_crs_if_invalid,
     restore_xyz_layer_datasources,
 )
-from ...ui.layers.convert_raster import convert_local_raster_layers
-from ...ui.layers.convert_vector import (
-    convert_local_layers,
-)
+from ...ui.layers.convert_local import convert_local_layers
 from ..error_handler import handle_api_error
 from ..icons import BROWSER_MAP_ICON
 from ..project_save_handler import show_map_save_result, warn_if_project_too_large
@@ -274,13 +271,6 @@ class StyledMapItem(QgsDataItem):
         )
         if cancelled:
             return
-
-        raster_cancelled, raster_errors = convert_local_raster_layers(
-            self.styled_map.projectId,
-        )
-        if raster_cancelled:
-            return
-        conversion_errors = conversion_errors + raster_errors
 
         new_qgisproject = serialize_project()
         if warn_if_project_too_large(new_qgisproject):
@@ -544,13 +534,6 @@ class StyledMapRoot(QgsDataItem):
         )
         if cancelled:
             return
-
-        raster_cancelled, raster_errors = convert_local_raster_layers(
-            self.project.id,
-        )
-        if raster_cancelled:
-            return
-        conversion_errors = conversion_errors + raster_errors
 
         qgisproject = serialize_project()
         if warn_if_project_too_large(qgisproject):

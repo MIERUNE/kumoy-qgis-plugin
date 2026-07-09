@@ -1,4 +1,5 @@
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 from qgis.core import QgsMapLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import (
@@ -27,29 +28,143 @@ def _get_usage_color(percentage: float) -> str:
     return "#8bc34a"
 
 
+def _usage_bar_style(percentage: float) -> str:
+    return f"""
+        QProgressBar {{
+            border: none;
+            border-radius: 3px;
+            background-color: #e0e0e0;
+        }}
+        QProgressBar::chunk {{
+            background-color: {_get_usage_color(percentage)};
+            border-radius: 3px;
+        }}
+    """
+
+
+@dataclass(frozen=True)
+class LayerQuota:
+    """Plan-based count quota for one layer type (vectors or rasters)."""
+
+    max_layers: int  # plan cap for the organization
+    current: int  # layers the organization already has
+
+    @property
+    def remaining(self) -> int:
+        return max(self.max_layers - self.current, 0)
+
+
+class _QuotaGroup:
+    """Selection state for one layer type under a count quota.
+
+    Owns the quota, the checkboxes of that type, and the usage row widgets;
+    the dialog just asks it to re-apply the cap after any toggle.
+    """
+
+    def __init__(
+        self,
+        quota: LayerQuota,
+        count_label_text: str,
+        limit_reached_text: str,
+    ) -> None:
+        self.quota = quota
+        self._count_label_text = count_label_text
+        self._limit_reached_text = limit_reached_text
+        self.entries: List[tuple[QgsMapLayer, QCheckBox]] = []
+        self._count_label: Optional[QLabel] = None
+        self._progress_bar: Optional[QProgressBar] = None
+
+    def add_usage_row(self, layout: QVBoxLayout) -> None:
+        if self.quota.remaining == 0:
+            limit_label = QLabel(self._limit_reached_text.format(self.quota.max_layers))
+            limit_label.setWordWrap(True)
+            layout.addWidget(limit_label)
+            return
+
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        self._count_label = QLabel()
+        self._count_label.setFixedWidth(180)
+        row.addWidget(self._count_label)
+
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setMinimumHeight(6)
+        self._progress_bar.setMaximumHeight(6)
+        self._progress_bar.setMaximum(self.quota.remaining)
+        row.addWidget(self._progress_bar, 1)
+        layout.addLayout(row)
+
+    def checked_count(self) -> int:
+        return sum(1 for _, cb in self.entries if cb.isChecked())
+
+    def at_limit(self) -> bool:
+        return self.checked_count() >= self.quota.remaining
+
+    def update(self, is_locked: Callable[[QgsMapLayer], bool]) -> None:
+        checked_count = self.checked_count()
+        at_limit = self.at_limit()
+
+        for layer, cb in self.entries:
+            if is_locked(layer):
+                continue
+            if not cb.isChecked():
+                cb.setEnabled(not at_limit)
+
+        if self._count_label is None or self._progress_bar is None:
+            return
+
+        self._count_label.setText(
+            self._count_label_text.format(checked_count, self.quota.remaining)
+        )
+        percentage = checked_count / self.quota.remaining * 100
+        self._progress_bar.setValue(min(checked_count, self.quota.remaining))
+        self._progress_bar.setStyleSheet(_usage_bar_style(percentage))
+
+
 class LayerSelectDialog(QDialog):
     """Dialog for selecting which local layers to convert to Kumoy layers.
 
-    A quota (``max_vectors``/``current_vectors``) is optional: pass it for
-    vectors, where the plan caps the number of layers, to show a usage bar and
-    cap the selection. Omit it (rasters have no client-side count quota — the
-    server enforces storage limits) and selection is unlimited with no bar.
+    Accepts a mixed list of vector and raster layers. Each layer type has its
+    own plan-based count quota (``vector_quota``/``raster_quota``): a usage
+    bar is shown per type and selection of that type is capped at the
+    remaining slots. Omit a quota and selection of that type is unlimited
+    with no bar.
     """
 
     def __init__(
         self,
         layers: List[QgsMapLayer],
-        max_vectors: Optional[int] = None,
-        current_vectors: int = 0,
+        vector_quota: Optional[LayerQuota] = None,
+        raster_quota: Optional[LayerQuota] = None,
         parent=None,
     ):
         super().__init__(parent)
         self._layers = layers
-        self._has_quota = max_vectors is not None
-        self._max_vectors = max_vectors or 0
-        self._current_vectors = current_vectors
-        self._max_layers = max(self._max_vectors - current_vectors, 0)
         self._checkboxes: List[QCheckBox] = []
+
+        self._vector_group = (
+            _QuotaGroup(
+                vector_quota,
+                i18n.tr("{} vectors selected ({} max)"),
+                i18n.tr(
+                    "Vector limit ({}) has been reached. No more vectors can be added."
+                ),
+            )
+            if vector_quota is not None
+            else None
+        )
+        self._raster_group = (
+            _QuotaGroup(
+                raster_quota,
+                i18n.tr("{} rasters selected ({} max)"),
+                i18n.tr(
+                    "Raster limit ({}) has been reached. No more rasters can be added."
+                ),
+            )
+            if raster_quota is not None
+            else None
+        )
         self._setup_ui()
 
     @property
@@ -57,6 +172,11 @@ class LayerSelectDialog(QDialog):
         return [
             layer for layer, cb in zip(self._layers, self._checkboxes) if cb.isChecked()
         ]
+
+    def _group_for(self, layer: QgsMapLayer) -> Optional[_QuotaGroup]:
+        if isinstance(layer, QgsVectorLayer):
+            return self._vector_group
+        return self._raster_group
 
     def _setup_ui(self) -> None:
         self.setWindowTitle(i18n.tr("Select Layers to Convert"))
@@ -66,24 +186,6 @@ class LayerSelectDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        if self._has_quota and self._max_layers == 0:
-            limit_label = QLabel(
-                i18n.tr(
-                    "Vector limit ({}) has been reached. No more vectors can be added."
-                ).format(self._max_vectors)
-            )
-            limit_label.setWordWrap(True)
-            layout.addWidget(limit_label)
-            layout.addStretch()
-
-            close_button_box = QDialogButtonBox(
-                QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL
-            )
-            close_button_box.accepted.connect(self.accept)
-            close_button_box.rejected.connect(self.reject)
-            layout.addWidget(close_button_box)
-            return
-
         # Scrollable checkbox list
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -91,7 +193,7 @@ class LayerSelectDialog(QDialog):
         self._list_layout = QVBoxLayout(scroll_widget)
         self._list_layout.setSpacing(4)
 
-        for i, layer in enumerate(self._layers):
+        for layer in self._layers:
             cb = QCheckBox(layer.name())
             cb.setChecked(False)
             if self._is_locked(layer):
@@ -102,25 +204,18 @@ class LayerSelectDialog(QDialog):
             self._checkboxes.append(cb)
             self._list_layout.addWidget(cb)
 
+            group = self._group_for(layer)
+            if group is not None:
+                group.entries.append((layer, cb))
+
         self._list_layout.addStretch()
         scroll_area.setWidget(scroll_widget)
         layout.addWidget(scroll_area)
 
-        # Usage bar (quota-based; only shown for layer types with a count limit)
-        if self._has_quota:
-            usage_row = QHBoxLayout()
-            usage_row.setSpacing(10)
-            self._count_label = QLabel()
-            self._count_label.setFixedWidth(140)
-            usage_row.addWidget(self._count_label)
-
-            self._progress_bar = QProgressBar()
-            self._progress_bar.setTextVisible(False)
-            self._progress_bar.setMinimumHeight(6)
-            self._progress_bar.setMaximumHeight(6)
-            self._progress_bar.setMaximum(max(self._max_layers, 1))
-            usage_row.addWidget(self._progress_bar, 1)
-            layout.addLayout(usage_row)
+        # One usage row per quota-capped layer type present in the list.
+        for group in (self._vector_group, self._raster_group):
+            if group is not None and group.entries:
+                group.add_usage_row(layout)
 
         # Bottom row: Select all / Deselect all (left) + OK / Cancel (right)
         bottom_row = QHBoxLayout()
@@ -138,15 +233,11 @@ class LayerSelectDialog(QDialog):
         button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
-        self._ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
         bottom_row.addWidget(button_box)
 
         layout.addLayout(bottom_row)
 
         self._update_state()
-
-    def _get_checked_count(self) -> int:
-        return sum(1 for cb in self._checkboxes if cb.isChecked())
 
     @staticmethod
     def _is_locked(layer: QgsMapLayer) -> bool:
@@ -158,53 +249,21 @@ class LayerSelectDialog(QDialog):
         self._update_state()
 
     def _update_state(self) -> None:
-        # Without a quota, selection is unlimited: no cap and no usage bar.
-        if not self._has_quota:
-            self._ok_button.setEnabled(True)
-            return
-
-        checked_count = self._get_checked_count()
-        at_limit = checked_count >= self._max_layers
-
-        for layer, cb in zip(self._layers, self._checkboxes):
-            if self._is_locked(layer):
-                continue
-            if not cb.isChecked():
-                cb.setEnabled(not at_limit)
-
-        self._count_label.setText(
-            i18n.tr("{} selected ({} max)").format(checked_count, self._max_layers)
-        )
-
-        percentage = checked_count / self._max_layers * 100
-        self._progress_bar.setValue(min(checked_count, self._max_layers))
-
-        self._progress_bar.setStyleSheet(
-            f"""
-            QProgressBar {{
-                border: none;
-                border-radius: 3px;
-                background-color: #e0e0e0;
-            }}
-            QProgressBar::chunk {{
-                background-color: {_get_usage_color(percentage)};
-                border-radius: 3px;
-            }}
-        """
-        )
-        self._ok_button.setEnabled(True)
-        self._select_all_btn.setEnabled(not at_limit)
+        for group in (self._vector_group, self._raster_group):
+            if group is not None:
+                group.update(self._is_locked)
 
     def _select_all(self) -> None:
         for cb in self._checkboxes:
             cb.blockSignals(True)
-        count = 0
+        counts = {self._vector_group: 0, self._raster_group: 0}
         for layer, cb in zip(self._layers, self._checkboxes):
             if self._is_locked(layer):
                 continue
-            if not self._has_quota or count < self._max_layers:
+            group = self._group_for(layer)
+            if group is None or counts[group] < group.quota.remaining:
                 cb.setChecked(True)
-                count += 1
+                counts[group] = counts.get(group, 0) + 1
             else:
                 cb.setChecked(False)
         for cb in self._checkboxes:

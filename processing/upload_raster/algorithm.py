@@ -168,6 +168,34 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
 
         return project_id, raster_name
 
+    def _validate_role_and_quota(self, project_id: str) -> None:
+        """Fail fast before the expensive COG conversion.
+
+        The server enforces both anyway (403/429 on create_raster), but that
+        happens after conversion; checking here saves the user the wait.
+        """
+        project = api.project.get_project(project_id)
+        organization = api.organization.get_organization(project.team.organizationId)
+
+        if project.role not in ["ADMIN", "OWNER"]:
+            raise QgsProcessingException(
+                i18n.tr("You do not have permission to upload rasters to this project.")
+            )
+
+        plan_limits = api.plan.get_plan_limits(
+            organization.subscriptionPlan, organization.storageUnits
+        )
+        # maxRasters is the org-wide cap; usage.rasters is the total across
+        # all projects.
+        if organization.usage.rasters >= plan_limits.maxRasters:
+            raise QgsProcessingException(
+                i18n.tr(
+                    "Cannot upload raster: your organization has reached your "
+                    "plan's limit of {} rasters. Delete an existing raster or "
+                    "upgrade your plan to add more."
+                ).format(plan_limits.maxRasters)
+            )
+
     def _resolve_assign_crs(
         self,
         parameters: Dict[str, Any],
@@ -216,6 +244,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 parameters, context, layer
             )
             assign_crs_wkt = self._resolve_assign_crs(parameters, context, layer)
+            self._validate_role_and_quota(project_id)
 
             self._raise_if_canceled(feedback)
             feedback.setProgress(5)

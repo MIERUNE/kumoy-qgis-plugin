@@ -8,6 +8,7 @@ from .client import ApiClient
 class PlanLimits:
     maxProjects: int
     maxVectors: int
+    maxRasters: int
     maxStyledMaps: int
     maxOrganizationMembers: int
     maxVectorFeatures: int
@@ -40,6 +41,7 @@ def get_plan_limits(
     return PlanLimits(
         maxProjects=response.get("maxProjects", 0),
         maxVectors=response.get("maxVectors", 0),
+        maxRasters=response.get("maxRasters", 0),
         maxStyledMaps=response.get("maxStyledMaps", 0),
         maxOrganizationMembers=response.get("maxOrganizationMembers", 0),
         maxVectorFeatures=response.get("maxVectorFeatures", 0),

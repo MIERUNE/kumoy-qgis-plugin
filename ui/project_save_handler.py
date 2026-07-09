@@ -17,8 +17,7 @@ from ..kumoy.sprite import generate_sprite
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .error_handler import handle_api_error
-from .layers.convert_raster import convert_local_raster_layers
-from .layers.convert_vector import convert_local_layers
+from .layers.convert_local import convert_local_layers
 
 
 def show_map_save_result(
@@ -135,13 +134,6 @@ def handle_project_saved() -> None:
     cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
     if cancelled:
         return
-
-    raster_cancelled, raster_errors = convert_local_raster_layers(
-        styled_map_detail.projectId
-    )
-    if raster_cancelled:
-        return
-    conversion_errors = conversion_errors + raster_errors
 
     qgsproject_str = cache_map.serialize_project()
     if warn_if_project_too_large(qgsproject_str):

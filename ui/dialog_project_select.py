@@ -83,6 +83,7 @@ def _empty_plan_limits() -> "api.plan.PlanLimits":
     return api.plan.PlanLimits(
         maxProjects=0,
         maxVectors=0,
+        maxRasters=0,
         maxStyledMaps=0,
         maxOrganizationMembers=0,
         maxVectorFeatures=0,
@@ -222,6 +223,7 @@ class ProjectSelectDialog(QDialog):
             ("projects", "Projects"),
             ("maps", "Maps"),
             ("vectors", "Vectors"),
+            ("rasters", "Rasters"),
             ("members", "Members"),
             ("storage", "Storage"),
         ]
@@ -444,7 +446,7 @@ class ProjectSelectDialog(QDialog):
 
     def _clear_org_details(self):
         """Reset usage widgets and disable organization-scoped actions"""
-        keys = ["projects", "maps", "vectors", "members", "storage"]
+        keys = ["projects", "maps", "vectors", "rasters", "members", "storage"]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
             widgets["label"].setText("")
@@ -627,6 +629,7 @@ class ProjectSelectDialog(QDialog):
             ("projects", org_detail.usage.projects, plan_limits.maxProjects),
             ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps),
             ("vectors", org_detail.usage.vectors, plan_limits.maxVectors),
+            ("rasters", org_detail.usage.rasters, plan_limits.maxRasters),
             (
                 "members",
                 org_detail.usage.organizationMembers,

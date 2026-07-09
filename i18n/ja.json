@@ -63,6 +63,7 @@
   "Cannot upload feature: geometry is too large. Please simplify the geometry or split it into smaller parts. Details: {}": "地物をアップロードできません。ジオメトリが大きすぎます。ジオメトリを単純化するか、分割してください。詳細：{}",
   "Cannot upload features: your plan quota has been exceeded. Details: {}": "地物をアップロードできません。ご利用のプランの上限に達しました。詳細：{}",
   "Cannot upload raster: the converted COG is {} bytes, which exceeds the {} bytes limit.": "ラスターをアップロードできません: 変換後のCOGは{}バイトで、上限の{}バイトを超えています。",
+  "Cannot upload raster: your organization has reached your plan's limit of {} rasters. Delete an existing raster or upgrade your plan to add more.": "ラスターをアップロードできません。組織がプランの上限（ラスター{}個）に達しています。既存のラスターを削除するか、プランをアップグレードして上限を増やしてください。",
   "Cannot upload raster: your organization has reached your plan's limit. Delete an existing item or upgrade your plan to add more.": "ラスターをアップロードできません: 組織がプランの上限に達しています。既存のアイテムを削除するか、プランをアップグレードしてください。",
   "Cannot upload vector. The layer has {} attributes, but your plan allows up to {} attributes per vector.": "ベクターをアップロードできません。レイヤには{}個の属性がありますが、現在のプランではベクターあたり最大{}個の属性が許可されています。",
   "Cannot upload vector. The layer has {} features, but your plan allows up to {} features per vector.": "ベクターをアップロードできません。レイヤには{}個のフィーチャがありますが、現在のプランではベクターあたり最大{}個のフィーチャが許可されています。",
@@ -241,6 +242,7 @@
   "Raster Cache Clear Failed": "ラスターキャッシュの削除に失敗",
   "Raster Download": "ラスターのダウンロード",
   "Raster layer name": "ラスターレイヤー名",
+  "Raster limit ({}) has been reached. No more rasters can be added.": "ラスターの上限（{}）に達しています。これ以上ラスターを追加できません。",
   "Raster not found": "エラー",
   "Rasters": "ラスター",
   "Refactoring attributes...": "属性を処理中...",
@@ -352,7 +354,8 @@
   "{} minutes ago": "{}分前",
   "{} months ago": "{}ヶ月前",
   "{} rasters have been deleted successfully.": "{} 件のラスターを削除しました。",
-  "{} selected ({} max)": "選択中 {}件 （最大 {}件）",
+  "{} rasters selected ({} max)": "ラスター選択中 {}件 （最大 {}件）",
   "{} vectors have been deleted successfully.": "{}個のベクターが正常に削除されました。",
+  "{} vectors selected ({} max)": "ベクター選択中 {}件 （最大 {}件）",
   "{} years ago": "{}年前"
 }

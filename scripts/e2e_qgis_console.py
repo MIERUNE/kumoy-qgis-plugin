@@ -124,7 +124,7 @@ settings_manager = _imp("kumoy.settings_manager")
 auth_module = _imp("kumoy.auth_manager")
 cache_map_module = _imp("kumoy.local_cache.map")
 pyqt_version_module = _imp("pyqt_version")
-convert_vector_module = _imp("ui.layers.convert_vector")
+convert_local_module = _imp("ui.layers.convert_local")
 dialog_layer_select_module = _imp("ui.dialog_layer_select")
 
 LayerSelectDialog = dialog_layer_select_module.LayerSelectDialog
@@ -556,7 +556,7 @@ def phase_5_save():
     _phase(5, "Save & auto-upload")
 
     original_question = QMessageBox.question
-    original_exec_dialog = convert_vector_module.exec_dialog
+    original_exec_dialog = convert_local_module.exec_dialog
 
     def _patched_question(*args, **kwargs):
         # `handle_project_saved` opens a QMessageBox.question to confirm
@@ -580,7 +580,7 @@ def phase_5_save():
 
     try:
         QMessageBox.question = staticmethod(_patched_question)
-        convert_vector_module.exec_dialog = _patched_exec_dialog
+        convert_local_module.exec_dialog = _patched_exec_dialog
         _step("Monkey-patched QMessageBox.question + exec_dialog")
 
         _step("Triggering QgsProject.write() → projectSaved → handle_project_saved")
@@ -591,7 +591,7 @@ def phase_5_save():
         _ok("Save flow completed (upload triggered by handler)")
     finally:
         QMessageBox.question = original_question
-        convert_vector_module.exec_dialog = original_exec_dialog
+        convert_local_module.exec_dialog = original_exec_dialog
         _step("Reverted dialog patches")
 
 
