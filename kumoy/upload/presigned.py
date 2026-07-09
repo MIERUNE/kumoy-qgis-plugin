@@ -13,6 +13,11 @@ Transfer-Encoding: chunked で送信され、MinIO/rustfs 系の S3 互換実装
 進捗・中断は呼び出し側のコールバックで受け取る（``QgsProcessingFeedback`` 等の
 上位概念には依存しない）。総時間ではなく「無通信が続いた時間」でタイムアウト
 判定するので、巨大ファイルを正常に送っている最中に誤って中断しない。
+
+なお進捗 100%（全バイトをソケットへ書き終えた時点）はアップロード完了ではない。
+S3 互換サーバはオブジェクトの書き込み・検証を終えるまで応答を返さないため、
+その後に「応答待ち」フェーズが残る。応答待ちは進捗イベントが一切来ないので、
+送信中の無通信ガードとは別の（十分長い）タイムアウトを適用する。
 """
 
 from typing import Callable, Dict, Optional
@@ -32,13 +37,24 @@ from ...pyqt_version import (
 # 一定時間アップロードの進捗が動かなければ中断する（ネットワーク無通信ガード）。
 _IDLE_TIMEOUT_MS = 60_000
 
+# 全バイト送信後、サーバの HTTP 応答を待つ上限。数 GB 級オブジェクトの書き込み・
+# 検証には分単位かかり得るため、送信中の無通信ガードよりずっと長くとる。
+_RESPONSE_TIMEOUT_MS = 600_000
+
+# 応答待ち中も Cancel を効かせるための is_canceled ポーリング間隔。
+_CANCEL_POLL_INTERVAL_MS = 500
+
 
 class UploadCanceled(Exception):
     """呼び出し側のコールバックがアップロードの中断を要求した。"""
 
 
 ProgressCallback = Callable[[float], None]
-"""(percent: 0-100) -> None"""
+"""(percent: 0-100) -> None
+
+percent は「ソケットへ書き終えたバイト数」の割合。100 でもサーバ応答待ちが
+残っており、アップロード完了は関数のリターンで判断すること。
+"""
 
 IsCanceledCallback = Callable[[], bool]
 """() -> 中断すべきなら True"""
@@ -132,7 +148,9 @@ def _await_upload(
     loop = QEventLoop()
     reply.finished.connect(loop.quit)
 
-    # アイドルタイムアウト: 進捗のたびに測り直すので、送信が進んでいる限り発火しない。
+    # タイムアウト: 進捗のたびに測り直すので、送信が進んでいる限り発火しない。
+    # 全バイト送信後はサーバ応答待ちに入り進捗イベントが来なくなるため、
+    # そこからは応答待ち用の長いタイムアウトに切り替える。
     # QTimer は reply を親にして、reply 削除後にコールバックが残らないようにする。
     idle_timer = QTimer(reply)
     idle_timer.setSingleShot(True)
@@ -140,13 +158,29 @@ def _await_upload(
     reply.finished.connect(idle_timer.stop)
 
     def on_progress(sent: int, total: int) -> None:
-        idle_timer.start(_IDLE_TIMEOUT_MS)
-        if is_canceled is not None and is_canceled():
-            canceled["value"] = True
-            reply.abort()
+        # Qt は中断時などに (0, 0) を発火することがあるので活動とみなさない。
+        if total <= 0:
             return
-        if progress_callback is not None and total > 0:
+        if sent >= total:
+            idle_timer.start(_RESPONSE_TIMEOUT_MS)
+        else:
+            idle_timer.start(_IDLE_TIMEOUT_MS)
+        if progress_callback is not None:
             progress_callback(sent / total * 100.0)
+
+    # Cancel は進捗イベント経由だと応答待ち中に検知できないため、
+    # 独立した周期タイマーでポーリングする。
+    if is_canceled is not None:
+        cancel_timer = QTimer(reply)
+        reply.finished.connect(cancel_timer.stop)
+
+        def poll_canceled() -> None:
+            if is_canceled():
+                canceled["value"] = True
+                reply.abort()
+
+        cancel_timer.timeout.connect(poll_canceled)
+        cancel_timer.start(_CANCEL_POLL_INTERVAL_MS)
 
     reply.uploadProgress.connect(on_progress)
     idle_timer.start(_IDLE_TIMEOUT_MS)

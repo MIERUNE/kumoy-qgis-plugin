@@ -332,6 +332,7 @@
   "Vector limit ({}) has been reached. No more vectors can be added.": "ベクタ制限「{}」に達しました。これ以上ベクタを追加できません。",
   "Vector not found": "エラー",
   "Vectors": "ベクター",
+  "Waiting for server response...": "サーバの応答を待っています...",
   "Warning": "注意",
   "Welcome!\nYou are now logged in.": "",
   "Wrong Project": "プロジェクトが一致しません",

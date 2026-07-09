@@ -252,14 +252,25 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             feedback.setProgress(72)
             self._raise_if_canceled(feedback)
 
-            # COG を S3 へストリーミングアップロード。進捗 72-100%。
+            # COG を S3 へストリーミングアップロード。進捗 72-99%。
             # upload_url は署名済みの絶対 URL（S3/rustfs エンドポイント直指定）。
+            # コールバックの 100% は「全バイトをソケットへ書き終えた」段階で、
+            # その後もサーバの応答待ちが残るため、完了(リターン)まで 99% で止める。
             feedback.pushInfo(i18n.tr("Uploading COG..."))
+            waiting_notified = False
+
+            def on_upload_progress(p: float) -> None:
+                nonlocal waiting_notified
+                feedback.setProgress(72 + int(p * 0.27))
+                if p >= 100.0 and not waiting_notified:
+                    waiting_notified = True
+                    feedback.pushInfo(i18n.tr("Waiting for server response..."))
+
             upload_file_to_presigned_put(
                 url=upload.upload_url,
                 file_path=cog_path,
                 content_type="image/tiff",
-                progress_callback=lambda p: feedback.setProgress(72 + int(p * 0.28)),
+                progress_callback=on_upload_progress,
                 is_canceled=feedback.isCanceled,
             )
             feedback.setProgress(100)
