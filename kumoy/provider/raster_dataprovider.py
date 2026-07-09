@@ -27,7 +27,7 @@ from qgis.utils import iface
 from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL
 from .. import constants, download, local_cache
-from ..api.error import format_api_error
+from ..api.error import NotFoundError, format_api_error
 
 
 def parse_uri(uri: str) -> tuple[str, str, str]:
@@ -104,6 +104,17 @@ class KumoyRasterDataProvider(QgsRasterDataProvider):
                 is_canceled=progress.wasCanceled,
             )
         except download.DownloadCanceled:
+            return None
+        except NotFoundError:
+            # サービス側で削除済み。vector と同じく、ブロッキングな警告ではなく
+            # 「存在しない」旨の情報ダイアログにとどめ、無効レイヤーとして扱う。
+            QMessageBox.information(
+                None,
+                i18n.tr("Raster not found"),
+                i18n.tr("The following raster does not exist: {}").format(
+                    self.raster_name
+                ),
+            )
             return None
         except Exception as e:
             error_text = format_api_error(e)

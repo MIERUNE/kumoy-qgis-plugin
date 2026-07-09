@@ -31,7 +31,7 @@ from qgis.utils import iface
 from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
 from .. import api, constants, local_cache
-from ..api.error import format_api_error
+from ..api.error import NotFoundError, format_api_error
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
 
@@ -182,18 +182,15 @@ class KumoyDataProvider(QgsVectorDataProvider):
         """Refresh local cache"""
         try:
             self.kumoy_vector = api.vector.get_vector(self.vector_id)
-        except Exception as e:
-            if e.args[0] == "Not Found":
-                QMessageBox.information(
-                    None,
-                    i18n.tr("Vector not found"),
-                    i18n.tr("The following vector does not exist: {}").format(
-                        self.vector_name
-                    ),
-                )
-                return
-            else:
-                raise e
+        except NotFoundError:
+            QMessageBox.information(
+                None,
+                i18n.tr("Vector not found"),
+                i18n.tr("The following vector does not exist: {}").format(
+                    self.vector_name
+                ),
+            )
+            return
 
         # Show loading dialog for sync_local_cache operation
         progress = QProgressDialog(
