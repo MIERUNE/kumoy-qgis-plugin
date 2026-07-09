@@ -32,7 +32,7 @@ def _clear_session() -> None:
     store_setting("user_info", "")
 
 
-def _refresh_kumoy_browser() -> None:
+def refresh_kumoy_browser() -> None:
     """QGIS の dataItemProviderRegistry を辿って Kumoy provider を見つけ、
     RootCollection.refresh() を呼ぶ。
 
@@ -59,7 +59,7 @@ def _show_session_expired_and_refresh() -> None:
             "Please log in again from the Kumoy item in the Browser panel."
         ),
     )
-    _refresh_kumoy_browser()
+    refresh_kumoy_browser()
 
 
 def handle_api_error(

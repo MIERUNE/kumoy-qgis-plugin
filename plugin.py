@@ -8,6 +8,7 @@ from qgis.core import (
     QgsMessageLog,
     QgsProject,
     QgsProviderRegistry,
+    QgsRasterLayer,
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface, QgsGui
@@ -22,6 +23,7 @@ from .kumoy.constants import (
     DOCUMENTATION_URL,
     LOG_CATEGORY,
     PLUGIN_NAME,
+    RASTER_DATA_PROVIDER_KEY,
 )
 from .ui.project_save_handler import handle_project_saved
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
@@ -38,6 +40,7 @@ from .kumoy.settings_manager import (
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
+from .ui.layers.convert_raster import on_convert_raster_to_kumoy_clicked
 from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
 from .ui.layers.indicators import update_kumoy_indicator
 
@@ -161,21 +164,28 @@ class KumoyPlugin:
 
         layer = current_node.layer()
 
-        if not layer or not layer.isValid() or not isinstance(layer, QgsVectorLayer):
+        if not layer or not layer.isValid():
             return
 
         provider = layer.dataProvider()
         if not provider:
             return
 
-        if provider.name() == DATA_PROVIDER_KEY:
-            # Kumoyレイヤーの場合: 同期アクションを追加
-            sync_action = QAction(MAIN_ICON, i18n.tr("Sync Data"), menu)
-            sync_action.setIconVisibleInMenu(True)
-            sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
-            if layer.isEditable():
-                sync_action.setEnabled(False)
-            self._insert_action_after_last_separator(menu, sync_action)
+        if isinstance(layer, QgsVectorLayer):
+            if provider.name() == DATA_PROVIDER_KEY:
+                # Kumoyレイヤーの場合: 同期アクションを追加
+                sync_action = QAction(MAIN_ICON, i18n.tr("Sync Data"), menu)
+                sync_action.setIconVisibleInMenu(True)
+                sync_action.triggered.connect(lambda: self._sync_kumoy_layer(layer))
+                if layer.isEditable():
+                    sync_action.setEnabled(False)
+                self._insert_action_after_last_separator(menu, sync_action)
+                return
+        elif isinstance(layer, QgsRasterLayer):
+            # Kumoyラスタは immutable なので同期アクションは無い。
+            if provider.name() == RASTER_DATA_PROVIDER_KEY:
+                return
+        else:
             return
 
         # Get current project id and role from browser root collection
@@ -188,13 +198,24 @@ class KumoyPlugin:
             return
 
         # Create and add convert action
-        convert_action = QAction(MAIN_ICON, i18n.tr("Convert to Kumoy Vector"), menu)
+        if isinstance(layer, QgsVectorLayer):
+            convert_action = QAction(
+                MAIN_ICON, i18n.tr("Convert to Kumoy Vector"), menu
+            )
+            convert_action.triggered.connect(
+                lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
+            )
+            # 編集中(未保存)のベクタは変換不可
+            if layer.isModified():
+                convert_action.setEnabled(False)
+        else:
+            convert_action = QAction(
+                MAIN_ICON, i18n.tr("Convert to Kumoy Raster"), menu
+            )
+            convert_action.triggered.connect(
+                lambda: on_convert_raster_to_kumoy_clicked(layer, root.project_data.id)
+            )
         convert_action.setIconVisibleInMenu(True)
-        convert_action.triggered.connect(
-            lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
-        )
-        if layer.isModified():
-            convert_action.setEnabled(False)
         self._insert_action_after_last_separator(menu, convert_action)
 
     def _insert_action_after_last_separator(self, menu: QMenu, action: QAction):
