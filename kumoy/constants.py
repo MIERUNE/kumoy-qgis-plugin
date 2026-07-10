@@ -35,9 +35,11 @@ MAX_CHARACTERS_STYLEDMAP_DESCRIPTION = 255
 MAX_CHARACTERS_STRING_FIELD = 255
 MAX_WKB_LENGTH = 10_000_000  # WKBのbase64エンコード後の最大文字列長
 
-# ラスタ(COG)アップロードの上限。S3の単一POST/PUTは最大5GiBのため、
-# それ未満の5GB(10進)に余裕をもってキャップする（multipartは使わない）。
-MAX_RASTER_UPLOAD_BYTES = 5_000_000_000
+# ラスタ(COG)アップロードの上限。BIGTIFF を使わず classic GeoTIFF に収める方針
+# のため、その4GiB上限を下回る4GB(10進)にキャップする（S3の単一PUT 5GiBにも収まる）。
+# 上限手前〜4GiB の出力は変換後バイト数で弾く。4GiB を超える出力はそもそも
+# classic TIFF に書けず変換段階で失敗し、これが物理的な天井として働く。
+MAX_RASTER_UPLOAD_BYTES = 4_000_000_000
 
 # 予約しているカラム名の接頭辞
 RESERVED_FIELD_NAME_PREFIX = "kumoy_"
