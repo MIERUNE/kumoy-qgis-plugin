@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 from qgis.core import (
@@ -11,6 +12,7 @@ from qgis.core import (
     QgsProject,
     QgsRasterLayer,
     QgsReadWriteContext,
+    QgsSingleBandPseudoColorRenderer,
 )
 from qgis.PyQt.QtCore import QEventLoop
 from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
@@ -270,4 +272,38 @@ def _copy_layer_style(
 
     source_layer.writeStyle(elem, doc, "", context, QgsMapLayer.AllStyleCategories)
     target_layer.readStyle(elem, "", context, QgsMapLayer.AllStyleCategories)
+    _repair_nan_classification(source_layer, target_layer)
     target_layer.triggerRepaint()
+
+
+def _repair_nan_classification(
+    source_layer: QgsRasterLayer, target_layer: QgsRasterLayer
+) -> None:
+    """スタイルXML往復で失われた疑似カラーの min/max をシェーダー値から復元する。
+
+    元レンダラーの classificationMin/Max が未設定(NaN)でも、シェーダー側の
+    min/max が有効なら描画・凡例とも正常に見える。ところがスタイルを XML 経由で
+    コピーすると、QgsSingleBandPseudoColorRenderer.create() が classificationMin/Max
+    属性("nan")でシェーダーの有効な min/max まで上書きするため、変換後のレイヤー
+    だけ凡例が「nan」表示になる（色分け項目は保持されるので描画は変わらない）。
+    """
+    renderer = target_layer.renderer()
+    source_renderer = source_layer.renderer()
+    if not isinstance(renderer, QgsSingleBandPseudoColorRenderer) or not isinstance(
+        source_renderer, QgsSingleBandPseudoColorRenderer
+    ):
+        return
+
+    source_shader = source_renderer.shader()
+    shader_fn = source_shader.rasterShaderFunction() if source_shader else None
+    if shader_fn is None:
+        return
+
+    if math.isnan(renderer.classificationMin()) and not math.isnan(
+        shader_fn.minimumValue()
+    ):
+        renderer.setClassificationMin(shader_fn.minimumValue())
+    if math.isnan(renderer.classificationMax()) and not math.isnan(
+        shader_fn.maximumValue()
+    ):
+        renderer.setClassificationMax(shader_fn.maximumValue())
