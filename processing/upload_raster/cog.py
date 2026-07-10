@@ -48,6 +48,7 @@ def convert_to_cog(
         return 1
 
     options = gdal.TranslateOptions(
+        options=["-approx_stats"],
         format="COG",
         # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
         creationOptions=["COMPRESS=DEFLATE"],

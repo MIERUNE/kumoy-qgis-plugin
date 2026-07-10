@@ -67,6 +67,20 @@ class TestConvertToCog:
         assert ds.GetRasterBand(1).ReadAsArray()[0][0] == 42
         ds.Close()
 
+    def test_writes_approximate_statistics(self, tmp_path):
+        src = str(tmp_path / "src.tif")
+        dst = str(tmp_path / "out.tif")
+        _make_geotiff(src, with_crs=True)
+
+        self._fn()(src, dst)
+
+        ds = gdal.Open(dst)
+        metadata = ds.GetRasterBand(1).GetMetadata()
+        assert float(metadata["STATISTICS_MINIMUM"]) == 42.0
+        assert float(metadata["STATISTICS_MAXIMUM"]) == 42.0
+        assert metadata["STATISTICS_APPROXIMATE"] == "YES"
+        ds.Close()
+
     def test_assigns_crs_when_missing(self, tmp_path):
         src = str(tmp_path / "src.tif")
         dst = str(tmp_path / "out.tif")
