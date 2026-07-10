@@ -35,6 +35,7 @@ def convert_to_cog(
         Exception: GDAL が変換に失敗した場合。
     """
     gdal.UseExceptions()
+    gdal.SetConfigOption("GDAL_CACHEMAX", "1024MB")
 
     canceled = {"value": False}
 
@@ -51,10 +52,11 @@ def convert_to_cog(
         options=["-approx_stats"],
         format="COG",
         # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
+        # NUM_THREADS=ALL_CPUS でタイル圧縮とオーバービュー生成を全コアに並列化する
         # BIGTIFF は付けない。4GiB を超える出力は classic TIFF に収まらず書き込みが
         # 失敗するが、それがそのままアップロード上限（4GB, MAX_RASTER_UPLOAD_BYTES）
         # の物理的な天井として働く。上限手前の超過は呼び出し側がバイト数で弾く。
-        creationOptions=["COMPRESS=DEFLATE"],
+        creationOptions=["COMPRESS=DEFLATE", "NUM_THREADS=ALL_CPUS"],
         # outputSRS は -a_srs 相当（割り当てのみ、再投影しない）。
         outputSRS=assign_crs_wkt if assign_crs_wkt else None,
         callback=_gdal_callback,
