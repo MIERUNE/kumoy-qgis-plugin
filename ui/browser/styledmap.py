@@ -44,7 +44,7 @@ from ...qgis_version import (
     restore_xyz_layer_datasources,
 )
 from ...ui.layers.convert_local import convert_local_layers
-from ..error_handler import handle_api_error
+from ..error_handler import handle_api_error, refresh_kumoy_browser
 from ..icons import BROWSER_MAP_ICON
 from ..project_save_handler import show_map_save_result, warn_if_project_too_large
 from .utils import ErrorItem
@@ -266,7 +266,7 @@ class StyledMapItem(QgsDataItem):
             return
 
         # Convert local layers to Kumoy layers if any
-        cancelled, conversion_errors = convert_local_layers(
+        cancelled, conversion_errors, converted = convert_local_layers(
             self.styled_map.projectId,
         )
         if cancelled:
@@ -313,6 +313,12 @@ class StyledMapItem(QgsDataItem):
             updated_styled_map.name,
             conversion_errors,
         )
+
+        # 変換で新しいKumoyレイヤーができた場合はツリー全体を更新する。
+        # 再構築で self ごとアイテムが破棄されるため、self を参照し終えた
+        # フローの最後に置くこと。
+        if converted:
+            refresh_kumoy_browser()
 
     def process_delete_map(self) -> None:
         api.styledmap.delete_styled_map(self.styled_map.id)
@@ -529,7 +535,9 @@ class StyledMapRoot(QgsDataItem):
             return
 
         # Convert local layers to Kumoy layers
-        cancelled, conversion_errors = convert_local_layers(
+        # (converted は不要: このフローは最後に self.parent().refresh() で
+        # ルートごとツリーを再構築するため、新規レイヤーもそこで現れる)
+        cancelled, conversion_errors, _ = convert_local_layers(
             self.project.id,
         )
         if cancelled:

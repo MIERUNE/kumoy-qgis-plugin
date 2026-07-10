@@ -20,20 +20,26 @@ from .convert_vector import convert_to_kumoy
 
 def convert_local_layers(
     project_id: str,
-) -> tuple[bool, list[tuple[str, str]]]:
+) -> tuple[bool, list[tuple[str, str]], bool]:
     """Prompt the user to select and convert local layers (vector and raster).
 
     A single dialog lists both layer types in layer panel order. Each type
     has a plan-based count quota capping how many can be selected.
 
+    ここではブラウザパネルをリフレッシュしない。呼び出し元（保存フロー）が
+    ブラウザアイテム(self等)を保持したまま実行されるため、途中でツリーを
+    再構築するとそのアイテムが破棄されてしまう。converted が True なら
+    呼び出し元がフローの最後にリフレッシュすること。
+
     Returns:
-        tuple: (cancelled, conversion_errors)
+        tuple: (cancelled, conversion_errors, converted)
             cancelled: True if the user cancelled (map save should be aborted)
             conversion_errors: (layer_name, error) for failed conversions
+            converted: True if at least one layer was converted
     """
     local_layers = get_local_layers()
     if not local_layers:
-        return (False, [])
+        return (False, [], False)
 
     try:
         project = api.project.get_project(project_id)
@@ -45,7 +51,7 @@ def convert_local_layers(
         handle_api_error(
             e, parent=None, log_prefix=i18n.tr("Failed to check layer limits")
         )
-        return (True, [])
+        return (True, [], False)
 
     dialog = LayerSelectDialog(
         local_layers,
@@ -59,13 +65,14 @@ def convert_local_layers(
         ),
     )
     if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
-        return (True, [])
+        return (True, [], False)
 
     selected_layers = dialog.selected_layers
     if not selected_layers:
-        return (False, [])
+        return (False, [], False)
 
     conversion_errors = []
+    converted = False
     for layer in selected_layers:
         if isinstance(layer, QgsVectorLayer):
             success, error = convert_to_kumoy(layer, project_id)
@@ -77,7 +84,8 @@ def convert_local_layers(
             # skip, not a failure.
             if not success and error is not None:
                 conversion_errors.append((layer.name(), error))
+        converted = converted or success
 
     iface.mapCanvas().refresh()
 
-    return (False, conversion_errors)
+    return (False, conversion_errors, converted)

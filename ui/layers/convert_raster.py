@@ -48,6 +48,10 @@ def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -
     success, error = convert_raster_to_kumoy(layer, project_id)
 
     if success:
+        # ブラウザ更新はこの（レイヤーパネル起点の）経路でのみ行う。
+        # Map保存フローは呼び出し元がブラウザアイテムを保持したまま変換を走らせる
+        # ため、変換内でツリーを再構築すると保持中のアイテムが破棄されてしまう。
+        refresh_kumoy_browser()
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
             i18n.tr("Layer '{}' converted to Kumoy successfully.").format(layer_name),
@@ -92,9 +96,6 @@ def convert_raster_to_kumoy(
             raise Exception(i18n.tr("Upload failed - unable to get raster id"))
 
         _replace_with_kumoy_layer(layer, result["RASTER_ID"])
-
-        # 新しいラスタがブラウザパネルに現れるようリフレッシュする。
-        refresh_kumoy_browser()
         return (True, None)
 
     except Exception as e:

@@ -16,7 +16,7 @@ from ..kumoy.local_cache import map as cache_map
 from ..kumoy.sprite import generate_sprite
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
-from .error_handler import handle_api_error
+from .error_handler import handle_api_error, refresh_kumoy_browser
 from .layers.convert_local import convert_local_layers
 
 
@@ -131,7 +131,9 @@ def handle_project_saved() -> None:
     if warn_if_project_too_large(cache_map.serialize_project()):
         return
 
-    cancelled, conversion_errors = convert_local_layers(styled_map_detail.projectId)
+    cancelled, conversion_errors, converted = convert_local_layers(
+        styled_map_detail.projectId
+    )
     if cancelled:
         return
 
@@ -166,3 +168,8 @@ def handle_project_saved() -> None:
     QgsProject.instance().setDirty(False)
 
     show_map_save_result(updated_styled_map.name, conversion_errors)
+
+    # 変換で新しいKumoyレイヤーができた場合のみブラウザを更新する。
+    # ツリー再構築でアイテムが破棄されるので、フローの最後に置くこと。
+    if converted:
+        refresh_kumoy_browser()
