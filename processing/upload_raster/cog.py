@@ -53,10 +53,16 @@ def convert_to_cog(
         format="COG",
         # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
         # NUM_THREADS=ALL_CPUS でタイル圧縮とオーバービュー生成を全コアに並列化する
+        # INTERLEAVE=BAND: 全バンドを同時に読む用途がないため、バンドごとに連続配置し
+        # 単一バンドの読み出し（DEFLATE 展開）を局所化する。
         # BIGTIFF は付けない。4GiB を超える出力は classic TIFF に収まらず書き込みが
         # 失敗するが、それがそのままアップロード上限（4GB, MAX_RASTER_UPLOAD_BYTES）
         # の物理的な天井として働く。上限手前の超過は呼び出し側がバイト数で弾く。
-        creationOptions=["COMPRESS=DEFLATE", "NUM_THREADS=ALL_CPUS"],
+        creationOptions=[
+            "COMPRESS=DEFLATE",
+            "NUM_THREADS=ALL_CPUS",
+            "INTERLEAVE=BAND",
+        ],
         # outputSRS は -a_srs 相当（割り当てのみ、再投影しない）。
         outputSRS=assign_crs_wkt if assign_crs_wkt else None,
         callback=_gdal_callback,
