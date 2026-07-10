@@ -1,14 +1,13 @@
 """S3 presigned POST/PUT へのアップロード。
 
-本体を ``QIODevice`` から逐次送信するため、数 GB 級のファイルでもメモリに全量を
-載せない。これにより OOM と、Qt5 の ``QByteArray`` が ``int`` サイズ（最大約
-2GB）に制限される問題の両方を回避する。
-
-presigned POST (multipart form) と presigned PUT (raw binary) の2方式をサポートする。
-QHttpMultiPart + setBodyDevice を使った POST は Qt のバージョンによって
-Transfer-Encoding: chunked で送信され、MinIO/rustfs 系の S3 互換実装が
-"failed to read file stream" で拒否することがある。ラスターのような大容量バイナリ
-ファイルには PUT 方式を推奨する。
+- PUT (raw binary): ラスタ COG 用。ファイルを ``QIODevice`` から逐次送信する
+  ため、数 GB 級でもメモリに全量を載せない。これにより OOM と、Qt5 の
+  ``QByteArray`` が ``int`` サイズ（最大約 2GB）に制限される問題の両方を回避する。
+- POST (multipart form): スプライト等、メモリ上の小さなアセット用。大容量
+  ファイルを QHttpMultiPart + setBodyDevice で POST すると Qt のバージョンに
+  よって Transfer-Encoding: chunked で送信され、MinIO/rustfs 系の S3 互換実装が
+  "failed to read file stream" で拒否することがあるため、大容量バイナリには
+  PUT を使う。
 
 進捗・中断は呼び出し側のコールバックで受け取る（``QgsProcessingFeedback`` 等の
 上位概念には依存しない）。総時間ではなく「無通信が続いた時間」でタイムアウト
@@ -18,13 +17,23 @@ Transfer-Encoding: chunked で送信され、MinIO/rustfs 系の S3 互換実装
 S3 互換サーバはオブジェクトの書き込み・検証を終えるまで応答を返さないため、
 その後に「応答待ち」フェーズが残る。応答待ちは進捗イベントが一切来ないので、
 送信中の無通信ガードとは別の（十分長い）タイムアウトを適用する。
+
+QgsNetworkAccessManager 自身も無通信タイムアウト（デフォルト60秒）で reply を
+abort するため、そのままでは応答待ちフェーズが 60 秒を超えると QGIS 側に
+中断されてしまう。ガードは本モジュールの二段タイムアウトに一本化し、QGIS 側の
+タイマーは reply ごとに無効化する（``_neutralize_qgis_network_timeout``）。
 """
 
 from typing import Callable, Dict, Optional
 
 from qgis.core import QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QBuffer, QByteArray, QEventLoop, QFile, QTimer, QUrl
-from qgis.PyQt.QtNetwork import QHttpMultiPart, QHttpPart, QNetworkRequest
+from qgis.PyQt.QtNetwork import (
+    QHttpMultiPart,
+    QHttpPart,
+    QNetworkReply,
+    QNetworkRequest,
+)
 
 from ...pyqt_version import (
     Q_HTTP_MULTIPART_CONTENT_TYPE,
@@ -134,8 +143,27 @@ def upload_file_to_presigned_put(
     _await_upload(reply, progress_callback, is_canceled)
 
 
+def _neutralize_qgis_network_timeout(reply: QNetworkReply) -> None:
+    """QGIS (QgsNetworkAccessManager) 側の無通信タイムアウトを無効化する。
+
+    QGIS は reply 生成時に objectName "timeoutTimer" の QTimer を子として付け、
+    無通信が続くと reply を abort する。このタイマーは進捗イベントのたびに
+    ``timer.start()`` で再始動されるため stop だけでは足りず、timeout シグナルを
+    切断して発火しても何も起きないようにする。タイマーが見つからない場合
+    （ユーザー設定でタイムアウト無効、または将来の QGIS 内部変更）は何もしない。
+    """
+    timer = reply.findChild(QTimer, "timeoutTimer")
+    if timer is None:
+        return
+    timer.stop()
+    try:
+        timer.timeout.disconnect()
+    except TypeError:
+        pass
+
+
 def _await_upload(
-    reply,
+    reply: QNetworkReply,
     progress_callback: Optional[ProgressCallback],
     is_canceled: Optional[IsCanceledCallback],
 ) -> None:
@@ -143,6 +171,8 @@ def _await_upload(
 
     POST/PUT どちらの送信方法でも結果待ちのロジックは同じなので共有する。
     """
+    _neutralize_qgis_network_timeout(reply)
+
     canceled = {"value": False}
 
     loop = QEventLoop()

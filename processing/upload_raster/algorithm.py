@@ -272,7 +272,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                     ).format(f"{cog_bytes:,}", f"{constants.MAX_RASTER_UPLOAD_BYTES:,}")
                 )
 
-            # メタデータ登録 + presigned POST 取得。
+            # メタデータ登録 + presigned PUT URL 取得。
             upload = api.raster.create_raster(
                 project_id=project_id, name=raster_name, bytes=cog_bytes
             )
