@@ -159,6 +159,7 @@ def _neutralize_qgis_network_timeout(reply: QNetworkReply) -> None:
     try:
         timer.timeout.disconnect()
     except TypeError:
+        # timeout が未接続（または既に切断済み）でも、無効化は best-effort で継続する。
         pass
 
 
