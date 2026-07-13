@@ -10,9 +10,23 @@ from typing import Callable, Optional
 
 from osgeo import gdal
 
+from ... import i18n
+
 
 class CogConversionCanceled(Exception):
     """進捗コールバックが変換の中断を要求した。"""
+
+
+def _cog_supports_band_interleave() -> bool:
+    """COG ドライバが INTERLEAVE 作成オプション（=BAND 格納）に対応するか。
+
+    GDAL のバージョン番号ではなくドライバの能力を直接見る。COG の INTERLEAVE
+    作成オプションは GDAL 3.11 で追加されたが、実環境の GDAL は QGIS のバージョンと
+    無関係にばらつく（同じ QGIS 3.44 でも 3.10〜3.12）ため、能力検出が唯一堅牢。
+    """
+    driver = gdal.GetDriverByName("COG")
+    option_list = driver.GetMetadataItem("DMD_CREATIONOPTIONLIST") or ""
+    return "INTERLEAVE" in option_list
 
 
 def convert_to_cog(
@@ -48,26 +62,6 @@ def convert_to_cog(
             progress_callback(complete * 100.0)
         return 1
 
-    options = gdal.TranslateOptions(
-        options=["-approx_stats"],
-        format="COG",
-        # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
-        # NUM_THREADS=ALL_CPUS でタイル圧縮とオーバービュー生成を全コアに並列化する
-        # INTERLEAVE=BAND: 全バンドを同時に読む用途がないため、バンドごとに連続配置し
-        # 単一バンドの読み出し（DEFLATE 展開）を局所化する。
-        # BIGTIFF は付けない。4GiB を超える出力は classic TIFF に収まらず書き込みが
-        # 失敗するが、それがそのままアップロード上限（4GB, MAX_RASTER_UPLOAD_BYTES）
-        # の物理的な天井として働く。上限手前の超過は呼び出し側がバイト数で弾く。
-        creationOptions=[
-            "COMPRESS=DEFLATE",
-            "NUM_THREADS=ALL_CPUS",
-            "INTERLEAVE=BAND",
-        ],
-        # outputSRS は -a_srs 相当（割り当てのみ、再投影しない）。
-        outputSRS=assign_crs_wkt if assign_crs_wkt else None,
-        callback=_gdal_callback,
-    )
-
     src_ds = gdal.Open(src_path)
     if src_ds is None:
         raise Exception(f"GDAL failed to open raster: {src_path}")
@@ -79,6 +73,38 @@ def convert_to_cog(
     if src_ds.GetGeoTransform(can_return_null=True) is None:
         # 北上画像になるよう y 方向は -1。原点・スケールは便宜上のピクセル空間。
         src_ds.SetGeoTransform([0.0, 1.0, 0.0, 0.0, 0.0, -1.0])
+
+    # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
+    # NUM_THREADS=ALL_CPUS でタイル圧縮とオーバービュー生成を全コアに並列化する。
+    # BIGTIFF は付けない。4GiB を超える出力は classic TIFF に収まらず書き込みが
+    # 失敗するが、それがそのままアップロード上限（4GB, MAX_RASTER_UPLOAD_BYTES）
+    # の物理的な天井として働く。上限手前の超過は呼び出し側がバイト数で弾く。
+    creation_options = ["COMPRESS=DEFLATE", "NUM_THREADS=ALL_CPUS"]
+
+    # INTERLEAVE=BAND: バンドごとに連続配置し、単一バンドの読み出し（DEFLATE 展開）を
+    # 局所化する。このオプションは GDAL 3.11+ の COG ドライバでしか使えない。多バンドを
+    # 既定の PIXEL 格納で出すと単一バンド読み出しが遅くなり、COG は immutable で後から
+    # 作り直せないため、能力の無い GDAL では多バンドの変換を拒否する。単バンドは PIXEL /
+    # BAND が同義で無害なのでそのまま通す。
+    if _cog_supports_band_interleave():
+        creation_options.append("INTERLEAVE=BAND")
+    elif src_ds.RasterCount > 3:
+        raise Exception(
+            i18n.tr(
+                "This raster has {} bands, but your GDAL version is too old to store "
+                "a multi-band Cloud Optimized GeoTIFF efficiently (GDAL 3.11 or newer "
+                "is required). Please update QGIS/GDAL and try again."
+            ).format(src_ds.RasterCount)
+        )
+
+    options = gdal.TranslateOptions(
+        options=["-approx_stats"],
+        format="COG",
+        creationOptions=creation_options,
+        # outputSRS は -a_srs 相当（割り当てのみ、再投影しない）。
+        outputSRS=assign_crs_wkt if assign_crs_wkt else None,
+        callback=_gdal_callback,
+    )
 
     # GDAL は中断時に「例外を送出」または「None を返す」のどちらにもなり得るため、
     # canceled フラグを正にして両方の経路で CogConversionCanceled に正規化する。
