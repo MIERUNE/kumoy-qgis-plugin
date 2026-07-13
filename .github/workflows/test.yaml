@@ -37,3 +37,24 @@ jobs:
               xvfb-run -s '+extension GLX -screen 0 1024x768x24' \
                 python3 -m pytest tests/ -v
             "
+
+  # COG 変換の成功パスは COG ドライバの INTERLEAVE=BAND (GDAL 3.11+) を要る。
+  # qgis/qgis イメージは GDAL 3.10.3 止まりでこのパスを skip してしまうため、
+  # QGIS 非依存の GDAL イメージ (3.11+) で cog のテストだけ実行して成功パスを守る。
+  Test-cog-modern-gdal:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run COG tests on modern GDAL
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}":/plugin \
+            -w /plugin \
+            ghcr.io/osgeo/gdal:ubuntu-small-latest \
+            sh -c "
+              apt-get update -qq && apt-get install -y -qq python3-pytest &&
+              python3 -m pytest tests/test_cog.py -v
+            "

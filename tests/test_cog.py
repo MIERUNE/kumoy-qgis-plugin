@@ -51,7 +51,6 @@ only_without_gdal_311 = pytest.mark.skipif(
 
 
 @requires_gdal_311
-@pytest.mark.usefixtures("qgis_plugin_path")
 class TestConvertToCog:
     def _fn(self):
         from plugin_dir.processing.upload_raster.cog import convert_to_cog
@@ -162,7 +161,6 @@ class TestConvertToCog:
 
 
 @only_without_gdal_311
-@pytest.mark.usefixtures("qgis_plugin_path")
 def test_convert_errors_without_gdal_311(tmp_path):
     """GDAL 3.11 未満では、COG 変換を成果物を残さず拒否する。"""
     from plugin_dir.processing.upload_raster.cog import convert_to_cog
