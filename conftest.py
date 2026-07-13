@@ -26,20 +26,6 @@ sys.modules["plugin_dir"] = _pkg
 _plugin_root_str = str(_plugin_root)
 sys.path[:] = [p for p in sys.path if p not in (_plugin_root_str, "")]
 
-# `processing/__init__.py` eagerly imports the Processing provider (QGIS-dependent).
-# Pre-register the processing subpackages as namespace packages so importing a
-# QGIS-free leaf module (e.g. processing.upload_raster.cog) does NOT execute that
-# __init__. This lets pure-GDAL modules be tested without QGIS (e.g. a GDAL 3.11+
-# image with no QGIS). Submodule imports (e.g. processing.upload_vector.algorithm)
-# still load their own files normally.
-for _name, _rel in (
-    ("plugin_dir.processing", "processing"),
-    ("plugin_dir.processing.upload_raster", "processing/upload_raster"),
-):
-    _ns = types.ModuleType(_name)
-    _ns.__path__ = [str(_plugin_root / _rel)]
-    sys.modules[_name] = _ns
-
 
 @pytest.fixture(scope="session")
 def qgis_plugin_path(qgis_app):
