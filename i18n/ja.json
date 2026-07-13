@@ -344,7 +344,7 @@
   "You have reached your plan's limit of {} vector layers. Please delete one or upgrade your plan to continue.": "新しいベクタレイヤを作成できません。現在のプランでは最大{}個のベクタが許可されていますが、制限に達しています。",
   "You have unsaved changes. Logging out will clear your current project. Continue?": "現在のプロジェクトに未保存の変更があります。ログアウトすると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？",
   "You have unsaved changes. Resetting settings will clear your current project. Continue?": "現在のプロジェクトに未保存の変更があります。プラグインの設定を削除すると現在のプロジェクトの内容が消去されます。続行してもよろしいですか？",
-  "Your GDAL version is too old to create a Cloud Optimized GeoTIFF for upload (GDAL 3.11 or newer is required). Please update QGIS/GDAL and try again.": "お使いの GDAL のバージョンが古く、アップロード用の Cloud Optimized GeoTIFF を作成できません（GDAL 3.11 以降が必要です）。QGIS/GDAL を更新してから再度お試しください。",
+  "This raster has {} bands, but your GDAL version is too old to create a multi-band Cloud Optimized GeoTIFF for upload (GDAL 3.11 or newer is required). Please update QGIS/GDAL and try again.": "このラスタは {} バンドありますが、お使いの GDAL のバージョンが古く、多バンドの Cloud Optimized GeoTIFF を作成できません（GDAL 3.11 以降が必要です）。QGIS/GDAL を更新してから再度お試しください。",
   "Your Kumoy session has expired or is no longer valid.\nPlease log in again from the Kumoy item in the Browser panel.": "Kumoy のセッションの有効期限が切れたか、無効になっています。\nブラウザパネルの Kumoy から再度ログインしてください。",
   "Your QGIS project was cleared because the active project changed.": "QGISプロジェクトはプロジェクト変更により消去されました。",
   "{} (CRS not set)": "{} （CRS未設定）",

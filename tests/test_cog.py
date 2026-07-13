@@ -37,20 +37,19 @@ def _cog_band_interleave_supported() -> bool:
     return "INTERLEAVE" in col
 
 
-# 変換成功パスは GDAL 3.11+ が要る。それ未満(CI の docker=GDAL 3.10.3 等)では
-# convert_to_cog が必ず例外を出すため、成功パスのテストはスキップし、拒否の
-# 挙動だけを別テストで検証する。
+# 単バンドの変換は古い GDAL でも通る（CI の docker=GDAL 3.10.3 でも検証できる）。
+# 多バンドの成功パス（INTERLEAVE=BAND 格納）だけは GDAL 3.11+ が要るのでスキップ、
+# その拒否挙動を別テストで検証する。
 requires_gdal_311 = pytest.mark.skipif(
     not _cog_band_interleave_supported(),
-    reason="COG conversion requires GDAL 3.11+ (INTERLEAVE creation option)",
+    reason="multi-band COG requires GDAL 3.11+ (INTERLEAVE creation option)",
 )
 only_without_gdal_311 = pytest.mark.skipif(
     _cog_band_interleave_supported(),
-    reason="exercises the GDAL < 3.11 rejection path",
+    reason="exercises the GDAL < 3.11 multi-band rejection path",
 )
 
 
-@requires_gdal_311
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestConvertToCog:
     def _fn(self):
@@ -108,8 +107,9 @@ class TestConvertToCog:
         assert float(metadata["STATISTICS_MAXIMUM"]) == 42.0
         ds.Close()
 
+    @requires_gdal_311
     def test_stores_band_interleaved(self, tmp_path):
-        """対応 GDAL では INTERLEAVE=BAND で格納される。"""
+        """対応 GDAL では多バンドが INTERLEAVE=BAND で格納される。"""
         src = str(tmp_path / "src.tif")
         dst = str(tmp_path / "out.tif")
         ds = gdal.GetDriverByName("GTiff").Create(src, 16, 16, 3, gdal.GDT_Byte)
@@ -163,13 +163,20 @@ class TestConvertToCog:
 
 @only_without_gdal_311
 @pytest.mark.usefixtures("qgis_plugin_path")
-def test_convert_errors_without_gdal_311(tmp_path):
-    """GDAL 3.11 未満では、COG 変換を成果物を残さず拒否する。"""
+def test_multiband_errors_without_gdal_311(tmp_path):
+    """GDAL 3.11 未満では、多バンドの変換を成果物を残さず拒否する。
+
+    単バンドは古い GDAL でも通る（TestConvertToCog の各テストが担保）。
+    """
     from plugin_dir.processing.upload_raster.cog import convert_to_cog
 
     src = str(tmp_path / "src.tif")
     dst = str(tmp_path / "out.tif")
-    _make_geotiff(src, with_crs=True)
+    ds = gdal.GetDriverByName("GTiff").Create(src, 16, 16, 3, gdal.GDT_Byte)
+    ds.SetGeoTransform([0, 1, 0, 16, 0, -1])
+    for i in (1, 2, 3):
+        ds.GetRasterBand(i).Fill(i * 10)
+    ds.Close()
 
     with pytest.raises(Exception, match="GDAL 3.11"):
         convert_to_cog(src, dst)

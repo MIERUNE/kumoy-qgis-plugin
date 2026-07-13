@@ -82,18 +82,19 @@ def convert_to_cog(
     creation_options = ["COMPRESS=DEFLATE", "NUM_THREADS=ALL_CPUS"]
 
     # INTERLEAVE=BAND: バンドごとに連続配置し、単一バンドの読み出し（DEFLATE 展開）を
-    # 局所化する。このオプションは GDAL 3.11+ の COG ドライバでしか使えない。PIXEL 格納の
-    # COG は単一バンド読み出しが遅く、COG は immutable で後から作り直せないため、能力の
-    # 無い（3.11 未満の）GDAL では COG 変換自体を拒否する。
+    # 局所化する。このオプションは GDAL 3.11+ の COG ドライバでしか使えない。非対応の
+    # GDAL では多バンドが PIXEL 格納になり単一バンド読み出しが遅くなる。COG は immutable
+    # で後から作り直せないため、多バンドはこの能力の無い GDAL では拒否する。単バンドは
+    # PIXEL / BAND が同義で無害なので、古い GDAL でもそのまま通す。
     if _cog_supports_band_interleave():
         creation_options.append("INTERLEAVE=BAND")
-    else:
+    elif src_ds.RasterCount > 1:
         raise Exception(
             i18n.tr(
-                "Your GDAL version is too old to create a Cloud Optimized GeoTIFF for "
-                "upload (GDAL 3.11 or newer is required). Please update QGIS/GDAL and "
-                "try again."
-            )
+                "This raster has {} bands, but your GDAL version is too old to create "
+                "a multi-band Cloud Optimized GeoTIFF for upload (GDAL 3.11 or newer is "
+                "required). Please update QGIS/GDAL and try again."
+            ).format(src_ds.RasterCount)
         )
 
     options = gdal.TranslateOptions(
