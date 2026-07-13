@@ -26,7 +26,7 @@ def _make_gradient_tif(path: str):
     for y in range(48):
         row = [float(x + y) for x in range(64)]
         band.WriteRaster(0, y, 64, 1, struct.pack("f" * 64, *row))
-    ds = None
+    ds.Close()
 
 
 def _set_pseudocolor(layer, with_classification: bool):

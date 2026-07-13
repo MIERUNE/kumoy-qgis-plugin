@@ -18,7 +18,7 @@ def _make_geotiff(path: str):
     ds.SetGeoTransform([10.0, 0.1, 0, 50.0, 0, -0.1])
     for b in range(1, 4):
         ds.GetRasterBand(b).Fill(b * 40)
-    ds = None
+    ds.Close()
 
 
 @pytest.fixture(scope="module")
