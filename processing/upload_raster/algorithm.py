@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     Qgis,
@@ -27,10 +27,18 @@ from ...kumoy.upload.presigned import (
     upload_file_to_presigned_put,
 )
 from .cog import CogConversionCanceled, convert_to_cog
+from .materialize import RasterMaterializeCanceled, materialize_to_geotiff
 
 
 class _UserCanceled(Exception):
     """Internal exception used to short-circuit on user cancellation"""
+
+
+def _progress_range(
+    feedback: QgsProcessingFeedback, start: int, end: int
+) -> Callable[[float], None]:
+    """0-100 の進捗を全体進捗の [start, end] 区間へ写像するコールバックを返す"""
+    return lambda p: feedback.setProgress(start + int(p * (end - start) / 100))
 
 
 class UploadRasterAlgorithm(QgsProcessingAlgorithm):
@@ -67,12 +75,18 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Convert a raster layer to Cloud Optimized GeoTIFF (COG) and upload "
-            "it to the Kumoy cloud.\n\n"
-            "The raster is not reprojected: its original CRS and pixel values are "
-            "preserved. If the layer has no CRS, set one in the 'Assign CRS' field.\n\n"
-            "The Input Raster Layer dropdown shows raster layers in your current map. "
-            "If no map is open, it will be empty."
+            "Upload a raster layer to the Kumoy cloud.\n\n"
+            "You can upload:\n"
+            "- Raster files such as GeoTIFF\n"
+            "- QGIS virtual rasters (e.g. a virtual output of the raster "
+            "calculator)\n\n"
+            "Web-based layers such as WMS, WCS, or XYZ tiles cannot be uploaded "
+            "because they don't contain the original pixel data.\n\n"
+            "No reprojection is applied: the original CRS and pixel values are "
+            "preserved. If the layer has no CRS, set one in the 'Assign CRS' "
+            "field.\n\n"
+            "The input dropdown lists raster layers in your current project. "
+            "If no project is open, it will be empty."
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
@@ -231,6 +245,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
     ) -> Dict[str, Any]:
         raster_id: Optional[str] = None
         cog_path: Optional[str] = None
+        materialized_path: Optional[str] = None
 
         try:
             feedback.setProgress(0)
@@ -249,15 +264,35 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             self._raise_if_canceled(feedback)
             feedback.setProgress(5)
 
-            # COG へ変換（再投影なし）。進捗 5-70%。
+            # gdal プロバイダは元ファイルのパスをそのまま COG 変換へ渡す。
+            # それ以外（gdal.Open できない仮想ラスタ等）は一時 GeoTIFF に実体化して
+            # から変換する（進捗 5-35%）。非対応プロバイダは materialize が弾く。
+            src_path = layer.source()
+            if layer.providerType() != "gdal":
+                fd, materialized_path = tempfile.mkstemp(
+                    suffix=".tif", prefix="kumoy_materialized_"
+                )
+                os.close(fd)
+                feedback.pushInfo(i18n.tr("Rendering raster to a temporary file..."))
+                materialize_to_geotiff(
+                    layer,
+                    materialized_path,
+                    progress_callback=_progress_range(feedback, 5, 35),
+                    is_canceled=feedback.isCanceled,
+                )
+                src_path = materialized_path
+                self._raise_if_canceled(feedback)
+
+            # COG へ変換（再投影なし）。実体化ありなら進捗 35-70%、なしなら 5-70%。
+            cog_start = 35 if materialized_path else 5
             fd, cog_path = tempfile.mkstemp(suffix=".tif", prefix="kumoy_raster_")
             os.close(fd)
             feedback.pushInfo(i18n.tr("Converting raster to COG..."))
             convert_to_cog(
-                src_path=layer.source(),
+                src_path=src_path,
                 dst_path=cog_path,
                 assign_crs_wkt=assign_crs_wkt,
-                progress_callback=lambda p: feedback.setProgress(5 + int(p * 0.65)),
+                progress_callback=_progress_range(feedback, cog_start, 70),
                 is_canceled=feedback.isCanceled,
             )
             feedback.setProgress(70)
@@ -326,7 +361,15 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                         )
                     )
 
-            if isinstance(e, (_UserCanceled, CogConversionCanceled, UploadCanceled)):
+            if isinstance(
+                e,
+                (
+                    _UserCanceled,
+                    CogConversionCanceled,
+                    UploadCanceled,
+                    RasterMaterializeCanceled,
+                ),
+            ):
                 return {}
 
             if isinstance(e, api.error.QuotaExceededError):
@@ -354,8 +397,9 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             raise e
 
         finally:
-            if cog_path is not None and os.path.exists(cog_path):
-                try:
-                    os.remove(cog_path)
-                except OSError:
-                    pass
+            for path in (materialized_path, cog_path):
+                if path is not None and os.path.exists(path):
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass

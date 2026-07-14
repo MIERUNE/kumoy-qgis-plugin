@@ -1,6 +1,6 @@
 import os
 
-from qgis.core import QgsProcessingProvider
+from qgis.core import Qgis, QgsProcessingProvider
 
 from ..kumoy.constants import PLUGIN_NAME
 from ..ui.icons import MAIN_ICON
@@ -13,6 +13,14 @@ class KumoyProcessingProvider(QgsProcessingProvider):
 
     def __init__(self):
         super().__init__()
+
+    def flags(self):
+        """
+        CompatibleWithVirtualRaster: これがないと Processing の入力UIがvirtualrasterを候補から除外してしまう
+        非ファイルラスタを一括で候補に含めるため WMS/WCS 等も UI 上は選べてしまうが
+        それらは algorithm 側(materialize)が実行時に明示的に弾く。
+        """
+        return Qgis.ProcessingProviderFlag.CompatibleWithVirtualRaster
 
     def id(self):
         """Unique ID for this provider"""
