@@ -401,5 +401,11 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 if path is not None and os.path.exists(path):
                     try:
                         os.remove(path)
-                    except OSError:
-                        pass
+                    except OSError as cleanup_error:
+                        # 一時ファイル削除の失敗は非致死。本来の結果/例外を
+                        # 優先し、診断用にログだけ残す。
+                        QgsMessageLog.logMessage(
+                            f"Failed to remove temporary file {path}: {cleanup_error}",
+                            constants.LOG_CATEGORY,
+                            Qgis.Warning,
+                        )
