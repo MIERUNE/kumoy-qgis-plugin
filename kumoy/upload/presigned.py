@@ -100,10 +100,14 @@ def upload_bytes_to_presigned_post(
         Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
         'form-data; name="file"; filename="upload"',
     )
-    file_part.setHeader(
-        Q_NETWORK_REQUEST_HEADER.ContentTypeHeader,
-        fields.get("Content-Type", ""),
-    )
+    # Content-Type は署名対象なので fields にある場合のみ付与する。空値で
+    # ヘッダを立てると S3 互換実装のポリシー検証を壊しうるため、無ければ省略。
+    content_type = fields.get("Content-Type")
+    if content_type:
+        file_part.setHeader(
+            Q_NETWORK_REQUEST_HEADER.ContentTypeHeader,
+            content_type,
+        )
     buffer.setParent(multipart)  # prevent GC; device must outlive the request
     file_part.setBodyDevice(buffer)
     multipart.append(file_part)

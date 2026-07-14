@@ -188,11 +188,15 @@ def _run_upload(
     progress.show()
     exec_event_loop(loop)
 
-    # QProgressDialog.close() は canceled() を発火する。ここで feedback.cancel を
+    # ダイアログを閉じると canceled() が発火しうる。ここで feedback.cancel を
     # 呼ばせると、成功した実行を後追いでキャンセル扱いにしてしまうため、閉じる前に
     # 接続を切る（実行中のユーザーキャンセルは既に feedback に反映済み）。
     progress.canceled.disconnect(feedback.cancel)
-    progress.close()
+    # accept() で終了させる。macOS の ApplicationModal はネイティブのモーダル
+    # セッションを張るため、close()/hide() ではセッションが残ってダイアログが
+    # 閉じないことがある（raster_dataprovider の後始末と同じ）。
+    progress.accept()
+    progress.deleteLater()
 
     if feedback.isCanceled():
         return None

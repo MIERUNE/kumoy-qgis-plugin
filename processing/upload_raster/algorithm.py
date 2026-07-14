@@ -394,7 +394,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                     )
                 ) from None
 
-            raise e
+            raise
 
         finally:
             for path in (materialized_path, cog_path):
