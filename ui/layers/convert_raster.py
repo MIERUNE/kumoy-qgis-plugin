@@ -251,11 +251,13 @@ def _replace_with_kumoy_layer(local_layer: QgsRasterLayer, raster_id: str) -> No
     original_layer_node = root.findLayer(local_layer.id())
 
     if original_layer_node:
+        was_checked = original_layer_node.itemVisibilityChecked()
         parent_node = original_layer_node.parent()
         index = parent_node.children().index(original_layer_node)
 
         QgsProject.instance().addMapLayer(kumoy_layer, False)
-        parent_node.insertLayer(index, kumoy_layer)
+        new_layer_node = parent_node.insertLayer(index, kumoy_layer)
+        new_layer_node.setItemVisibilityChecked(was_checked)
         parent_node.removeChildNode(original_layer_node)
         QgsProject.instance().removeMapLayer(local_layer.id())
     else:
