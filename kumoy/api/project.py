@@ -157,6 +157,7 @@ def delete_project(project_id: str) -> None:
 @dataclass
 class ProjectsInOrganization(ProjectWithThumbnail):
     vectorCount: int
+    rasterCount: int
     mapCount: int
     storageUnitsSum: float
 
@@ -214,6 +215,7 @@ def get_projects_by_organization(organization_id: str) -> List[ProjectsInOrganiz
                     ),
                 ),
                 vectorCount=project.get("vectorCount", 0),
+                rasterCount=project.get("rasterCount", 0),
                 mapCount=project.get("mapCount", 0),
                 storageUnitsSum=project.get("storageUnitsSum", 0.0),
             )
