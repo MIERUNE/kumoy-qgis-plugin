@@ -48,7 +48,7 @@ class TestResolveAssignCrsWkt:
         _make_geotiff(src, with_crs=True)
         layer = _load_layer(src)
 
-        assert self._fn()(layer, QgsCoordinateReferenceSystem()) is None
+        assert self._fn()(layer) is None
 
     def test_uses_manually_set_layer_crs(self, tmp_path):
         """CRS 無しファイル + QGIS 上の手動設定 → その CRS を割り当てる。"""
@@ -57,19 +57,9 @@ class TestResolveAssignCrsWkt:
         layer = _load_layer(src)
         layer.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
 
-        wkt = self._fn()(layer, QgsCoordinateReferenceSystem())
+        wkt = self._fn()(layer)
         assert wkt is not None
         assert QgsCoordinateReferenceSystem.fromWkt(wkt).authid() == "EPSG:3857"
-
-    def test_assign_crs_param_takes_precedence(self, tmp_path):
-        """このアルゴリズム実行への明示指定はレイヤ CRS より優先される。"""
-        src = str(tmp_path / "src.tif")
-        _make_geotiff(src, with_crs=False)
-        layer = _load_layer(src)
-        layer.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
-
-        wkt = self._fn()(layer, QgsCoordinateReferenceSystem("EPSG:6668"))
-        assert QgsCoordinateReferenceSystem.fromWkt(wkt).authid() == "EPSG:6668"
 
     def test_raises_when_no_crs_anywhere(self, tmp_path):
         src = str(tmp_path / "src.tif")
@@ -78,4 +68,4 @@ class TestResolveAssignCrsWkt:
         layer.setCrs(QgsCoordinateReferenceSystem())
 
         with pytest.raises(QgsProcessingException):
-            self._fn()(layer, QgsCoordinateReferenceSystem())
+            self._fn()(layer)
