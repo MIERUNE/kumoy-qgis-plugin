@@ -94,3 +94,21 @@ class TestSyncLocalCache:
         assert s.mod.is_cached("r-5") is False
         s.mod.sync_local_cache("r-5")
         assert s.mod.is_cached("r-5") is True
+
+    def test_store_adopts_local_file_and_skips_download(self, setup, tmp_path):
+        s = setup
+        src = tmp_path / "uploaded.tif"
+        src.write_bytes(b"UPLOADED-COG")
+
+        path = s.mod.store("r-6", str(src))
+
+        assert path == os.path.join(s.cache_dir, "r-6.tif")
+        with open(path, "rb") as f:
+            assert f.read() == b"UPLOADED-COG"
+        # src は移動により消費され、.part も残らない
+        assert not src.exists()
+        assert not os.path.exists(path + ".part")
+        # 以降の sync はネットワークに触れない
+        assert s.mod.sync_local_cache("r-6") == path
+        assert s.calls["download"] == 0
+        assert s.calls["get_url"] == 0

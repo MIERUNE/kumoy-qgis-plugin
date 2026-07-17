@@ -9,6 +9,7 @@ COG は immutable（rasterId が同じなら中身は変わらない）ため、
 """
 
 import os
+import shutil
 from typing import Optional
 
 from qgis.core import QgsApplication
@@ -58,6 +59,24 @@ def sync_local_cache(
     # ここでも本物のキャッシュパスを最後まで作らないことで二重に守る。
     part_path = f"{cache_path}.part"
     download.download_to_file(url, part_path, progress_callback, is_canceled)
+    os.replace(part_path, cache_path)
+    return cache_path
+
+
+def store(raster_id: str, src_path: str) -> str:
+    """手元にある COG ファイルをキャッシュへ取り込み、キャッシュパスを返す。
+
+    アップロード直後など「S3 上の実体と同一のファイル」が既にローカルにある場合、
+    これで取り込んでおけば以降の sync_local_cache はダウンロードせずに済む。
+    COG は immutable なのでこの同一性が崩れることはない。
+
+    src_path は移動により消費される（アップロード後の一時ファイルを想定）。
+    tempdir とキャッシュディレクトリは別ファイルシステムのことがあるため、
+    ダウンロード時と同じく .part 経由で原子的に確定させる。
+    """
+    cache_path = get_cache_path(raster_id)
+    part_path = f"{cache_path}.part"
+    shutil.move(src_path, part_path)
     os.replace(part_path, cache_path)
     return cache_path
 

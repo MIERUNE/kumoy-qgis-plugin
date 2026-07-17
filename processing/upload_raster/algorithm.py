@@ -18,7 +18,7 @@ from qgis.core import (
 from qgis.utils import iface
 
 from ... import i18n
-from ...kumoy import api, constants
+from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
 from ...kumoy.settings_manager import get_settings
@@ -356,6 +356,19 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             )
             feedback.setProgress(100)
             feedback.pushInfo(i18n.tr("Upload complete"))
+
+            # アップロードした COG は S3 上の実体と同一なので、そのままローカル
+            # キャッシュへ取り込み、レイヤ追加時の再ダウンロードを省く。
+            # 失敗してもアップロード自体は成功しているので best-effort。
+            try:
+                local_cache.raster.store(raster_id, cog_path)
+                cog_path = None  # store が消費済み。finally での削除対象から外す
+            except OSError as cache_error:
+                QgsMessageLog.logMessage(
+                    f"Failed to store uploaded COG in local cache: {cache_error}",
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
+                )
 
             return {"RASTER_ID": raster_id}
 
