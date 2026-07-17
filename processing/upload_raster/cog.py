@@ -17,6 +17,27 @@ class CogConversionCanceled(Exception):
     """進捗コールバックが変換の中断を要求した。"""
 
 
+def source_has_crs(src_path: str) -> bool:
+    """``src_path`` のラスタファイルに CRS が埋め込まれているか。
+
+    QGIS 上で手動設定したレイヤ CRS はファイルには存在しないため、
+    ``layer.crs().isValid()`` ではなく GDAL が実際に読む CRS で判定する。
+    開けないファイルは True を返して判定を保留し、エラー報告は同じパスを
+    開く ``convert_to_cog`` に任せる。
+    """
+    gdal.UseExceptions()
+    try:
+        ds = gdal.Open(src_path)
+    except Exception:
+        return True
+    if ds is None:
+        return True
+    try:
+        return ds.GetSpatialRef() is not None
+    finally:
+        ds.Close()
+
+
 def _cog_supports_band_interleave() -> bool:
     """COG ドライバが INTERLEAVE 作成オプション（=BAND 格納）に対応するか。
 

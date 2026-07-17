@@ -26,12 +26,45 @@ from ...kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
 )
-from .cog import CogConversionCanceled, convert_to_cog
+from .cog import CogConversionCanceled, convert_to_cog, source_has_crs
 from .materialize import RasterMaterializeCanceled, materialize_to_geotiff
 
 
 class _UserCanceled(Exception):
     """Internal exception used to short-circuit on user cancellation"""
+
+
+def _resolve_assign_crs_wkt(layer: QgsRasterLayer, assign_crs) -> Optional[str]:
+    """割り当てる CRS の WKT を返す。None は「ソースの CRS をそのまま保持」。
+
+    判定は「COG 変換対象のファイルに CRS があるか」で行う。QGIS 上で手動設定
+    した CRS は ``layer.crs()`` には現れるがファイルには焼き込まれていないため、
+    レイヤ CRS だけを見ると CRS 無しの COG を黙って作ってしまう。
+
+    ファイルに CRS が無いときの優先順:
+    「Assign CRS」パラメータ → レイヤの CRS（手動設定を含む）→ 無ければエラー。
+    """
+    if layer.providerType() == "gdal":
+        # 元ファイルをそのまま COG 変換へ渡す経路。ファイル自体の CRS で判定。
+        file_has_crs = source_has_crs(layer.source())
+    else:
+        # 実体化経路は layer.crs() を一時 GeoTIFF に書き込むので、レイヤ CRS の
+        # 有無がそのまま変換対象ファイルの CRS の有無になる。
+        file_has_crs = layer.crs().isValid()
+
+    if file_has_crs:
+        return None
+
+    if assign_crs is not None and assign_crs.isValid():
+        return assign_crs.toWkt()
+    if layer.crs().isValid():
+        return layer.crs().toWkt()
+    raise QgsProcessingException(
+        i18n.tr(
+            "The input layer has no coordinate reference system. "
+            "Please set one in the 'Assign CRS' field before uploading."
+        )
+    )
 
 
 def _progress_range(
@@ -83,8 +116,8 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             "Web-based layers such as WMS, WCS, or XYZ tiles cannot be uploaded "
             "because they don't contain the original pixel data.\n\n"
             "No reprojection is applied: the original CRS and pixel values are "
-            "preserved. If the layer has no CRS, set one in the 'Assign CRS' "
-            "field.\n\n"
+            "preserved. If the source file has no CRS, the CRS set on the layer "
+            "in QGIS or the 'Assign CRS' field is assigned.\n\n"
             "The input dropdown lists raster layers in your current project. "
             "If no project is open, it will be empty."
         )
@@ -154,11 +187,12 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # 元ラスタに CRS が無いときだけ使う。未設定なら元の CRS を保持する。
+        # 元ファイルに CRS が無いときだけ使う。未設定ならレイヤの CRS
+        # （QGIS 上での手動設定を含む）にフォールバックする。
         self.addParameter(
             QgsProcessingParameterCrs(
                 self.ASSIGN_CRS,
-                i18n.tr("Assign CRS (only used when the layer has no CRS)"),
+                i18n.tr("Assign CRS (only used when the source file has no CRS)"),
                 optional=True,
             )
         )
@@ -210,29 +244,6 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 ).format(plan_limits.maxRasters)
             )
 
-    def _resolve_assign_crs(
-        self,
-        parameters: Dict[str, Any],
-        context: QgsProcessingContext,
-        layer: QgsRasterLayer,
-    ) -> Optional[str]:
-        """Return CRS WKT to assign, or None to keep the layer's existing CRS.
-
-        Raises when the layer has no CRS and the user did not provide one.
-        """
-        if layer.crs().isValid():
-            return None
-
-        assign_crs = self.parameterAsCrs(parameters, self.ASSIGN_CRS, context)
-        if assign_crs is None or not assign_crs.isValid():
-            raise QgsProcessingException(
-                i18n.tr(
-                    "The input layer has no coordinate reference system. "
-                    "Please set one in the 'Assign CRS' field before uploading."
-                )
-            )
-        return assign_crs.toWkt()
-
     def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
         if feedback.isCanceled():
             raise _UserCanceled()
@@ -258,7 +269,9 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             project_id, raster_name = self._resolve_project_and_name(
                 parameters, context, layer
             )
-            assign_crs_wkt = self._resolve_assign_crs(parameters, context, layer)
+            assign_crs_wkt = _resolve_assign_crs_wkt(
+                layer, self.parameterAsCrs(parameters, self.ASSIGN_CRS, context)
+            )
             self._validate_role_and_quota(project_id)
 
             self._raise_if_canceled(feedback)

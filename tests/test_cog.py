@@ -161,6 +161,28 @@ class TestConvertToCog:
         assert all(0 <= p <= 100 for p in seen)
 
 
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestSourceHasCrs:
+    def _fn(self):
+        from plugin_dir.processing.upload_raster.cog import source_has_crs
+
+        return source_has_crs
+
+    def test_true_when_crs_embedded(self, tmp_path):
+        src = str(tmp_path / "src.tif")
+        _make_geotiff(src, with_crs=True)
+        assert self._fn()(src) is True
+
+    def test_false_when_crs_missing(self, tmp_path):
+        src = str(tmp_path / "src.tif")
+        _make_geotiff(src, with_crs=False)
+        assert self._fn()(src) is False
+
+    def test_defers_error_for_unopenable_path(self, tmp_path):
+        """開けないパスは True（=割り当てなし）でエラー報告を convert_to_cog に委ねる。"""
+        assert self._fn()(str(tmp_path / "missing.tif")) is True
+
+
 @only_without_gdal_311
 @pytest.mark.usefixtures("qgis_plugin_path")
 def test_multiband_errors_without_gdal_311(tmp_path):
