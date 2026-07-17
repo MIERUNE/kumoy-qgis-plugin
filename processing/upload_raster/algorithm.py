@@ -9,6 +9,7 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingParameterCrs,
     QgsProcessingParameterEnum,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterString,
@@ -33,15 +34,15 @@ class _UserCanceled(Exception):
     """Internal exception used to short-circuit on user cancellation"""
 
 
-def _resolve_assign_crs_wkt(layer: QgsRasterLayer) -> Optional[str]:
+def _resolve_assign_crs_wkt(layer: QgsRasterLayer, assign_crs) -> Optional[str]:
     """割り当てる CRS の WKT を返す。None は「ソースの CRS をそのまま保持」。
 
     判定は「COG 変換対象のファイルに CRS があるか」で行う。QGIS 上で手動設定
     した CRS は ``layer.crs()`` には現れるがファイルには焼き込まれていないため、
     レイヤ CRS だけを見ると CRS 無しの COG を黙って作ってしまう。
 
-    ファイルに CRS が無ければレイヤの CRS（手動設定を含む）を割り当てる。
-    それも無ければ「QGIS 上でレイヤに CRS を設定せよ」とエラーにする。
+    ファイルに CRS が無いときの優先順:
+    「Assign CRS」パラメータ → レイヤの CRS（手動設定を含む）→ 無ければエラー。
     """
     if layer.providerType() == "gdal":
         # 元ファイルをそのまま COG 変換へ渡す経路。ファイル自体の CRS で判定。
@@ -54,13 +55,14 @@ def _resolve_assign_crs_wkt(layer: QgsRasterLayer) -> Optional[str]:
     if file_has_crs:
         return None
 
+    if assign_crs is not None and assign_crs.isValid():
+        return assign_crs.toWkt()
     if layer.crs().isValid():
         return layer.crs().toWkt()
     raise QgsProcessingException(
         i18n.tr(
             "The input layer has no coordinate reference system. "
-            "Set the layer's CRS in QGIS (Layer Properties > Source) "
-            "before uploading."
+            "Please set one in the 'Assign CRS' field before uploading."
         )
     )
 
@@ -78,6 +80,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
     INPUT_LAYER: str = "INPUT"
     KUMOY_PROJECT: str = "PROJECT"
     RASTER_NAME: str = "RASTER_NAME"
+    ASSIGN_CRS: str = "ASSIGN_CRS"
 
     project_ids: List[str]
 
@@ -114,7 +117,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             "because they don't contain the original pixel data.\n\n"
             "No reprojection is applied: the original CRS and pixel values are "
             "preserved. If the source file has no CRS, the CRS set on the layer "
-            "in QGIS is assigned; a layer without any CRS cannot be uploaded.\n\n"
+            "in QGIS or the 'Assign CRS' field is assigned.\n\n"
             "The input dropdown lists raster layers in your current project. "
             "If no project is open, it will be empty."
         )
@@ -180,6 +183,16 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 self.RASTER_NAME,
                 i18n.tr("Raster layer name"),
                 defaultValue="",
+                optional=True,
+            )
+        )
+
+        # 元ファイルに CRS が無いときだけ使う。未設定ならレイヤの CRS
+        # （QGIS 上での手動設定を含む）にフォールバックする。
+        self.addParameter(
+            QgsProcessingParameterCrs(
+                self.ASSIGN_CRS,
+                i18n.tr("Assign CRS (only used when the source file has no CRS)"),
                 optional=True,
             )
         )
@@ -256,7 +269,9 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             project_id, raster_name = self._resolve_project_and_name(
                 parameters, context, layer
             )
-            assign_crs_wkt = _resolve_assign_crs_wkt(layer)
+            assign_crs_wkt = _resolve_assign_crs_wkt(
+                layer, self.parameterAsCrs(parameters, self.ASSIGN_CRS, context)
+            )
             self._validate_role_and_quota(project_id)
 
             self._raise_if_canceled(feedback)
