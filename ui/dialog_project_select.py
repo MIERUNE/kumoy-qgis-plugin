@@ -47,7 +47,7 @@ from ..pyqt_version import (
 )
 from .dialog_project_edit import ProjectEditDialog
 from .error_handler import handle_api_error
-from .icons import MAP_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
+from .icons import MAP_ICON, RASTER_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
 from .remote_image_label import RemoteImageLabel
 from .utils import show_plain_text_message
 
@@ -83,6 +83,7 @@ def _empty_plan_limits() -> "api.plan.PlanLimits":
     return api.plan.PlanLimits(
         maxProjects=0,
         maxVectors=0,
+        maxRasters=0,
         maxStyledMaps=0,
         maxOrganizationMembers=0,
         maxVectorFeatures=0,
@@ -222,6 +223,7 @@ class ProjectSelectDialog(QDialog):
             ("projects", "Projects"),
             ("maps", "Maps"),
             ("vectors", "Vectors"),
+            ("rasters", "Rasters"),
             ("members", "Members"),
             ("storage", "Storage"),
         ]
@@ -444,7 +446,7 @@ class ProjectSelectDialog(QDialog):
 
     def _clear_org_details(self):
         """Reset usage widgets and disable organization-scoped actions"""
-        keys = ["projects", "maps", "vectors", "members", "storage"]
+        keys = ["projects", "maps", "vectors", "rasters", "members", "storage"]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
             widgets["label"].setText("")
@@ -627,6 +629,7 @@ class ProjectSelectDialog(QDialog):
             ("projects", org_detail.usage.projects, plan_limits.maxProjects),
             ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps),
             ("vectors", org_detail.usage.vectors, plan_limits.maxVectors),
+            ("rasters", org_detail.usage.rasters, plan_limits.maxRasters),
             (
                 "members",
                 org_detail.usage.organizationMembers,
@@ -943,15 +946,6 @@ class ProjectItemWidget(QWidget):
         icons_layout = QHBoxLayout()
         icons_layout.setSpacing(4)
 
-        # Vector icon with count (using emoji for simplicity)
-        vector_hlayout = QHBoxLayout()
-        vector_icon_label = QLabel()
-        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
-        vector_hlayout.addWidget(vector_icon_label)
-        vector_label = QLabel(str(self.project.vectorCount))
-        vector_hlayout.addWidget(vector_label)
-        icons_layout.addLayout(vector_hlayout)
-
         # Maps icon with count
         maps_hlayout = QHBoxLayout()
         maps_icon_label = QLabel()
@@ -960,6 +954,24 @@ class ProjectItemWidget(QWidget):
         maps_label = QLabel(str(self.project.mapCount))
         maps_hlayout.addWidget(maps_label)
         icons_layout.addLayout(maps_hlayout)
+
+        # Vector icon with count
+        vector_hlayout = QHBoxLayout()
+        vector_icon_label = QLabel()
+        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
+        vector_hlayout.addWidget(vector_icon_label)
+        vector_label = QLabel(str(self.project.vectorCount))
+        vector_hlayout.addWidget(vector_label)
+        icons_layout.addLayout(vector_hlayout)
+
+        # Raster icon with count
+        raster_hlayout = QHBoxLayout()
+        raster_icon_label = QLabel()
+        raster_icon_label.setPixmap(RASTER_ICON.pixmap(16, 16))
+        raster_hlayout.addWidget(raster_icon_label)
+        raster_label = QLabel(str(self.project.rasterCount))
+        raster_hlayout.addWidget(raster_label)
+        icons_layout.addLayout(raster_hlayout)
 
         right_layout.addLayout(icons_layout)
         main_layout.addLayout(right_layout)

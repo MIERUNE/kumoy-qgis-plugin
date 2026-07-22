@@ -54,6 +54,7 @@ def get_organizations() -> List[OrganizationWithRole]:
 class OrganizationUsage:
     projects: int
     vectors: int
+    rasters: int
     styledMaps: int
     organizationMembers: int
     organizationInvites: int
@@ -91,6 +92,7 @@ def get_organization(organization_id: str) -> OrganizationDetail:
         usage=OrganizationUsage(
             projects=response.get("usage", {}).get("projects", 0),
             vectors=response.get("usage", {}).get("vectors", 0),
+            rasters=response.get("usage", {}).get("rasters", 0),
             styledMaps=response.get("usage", {}).get("styledMaps", 0),
             organizationMembers=response.get("usage", {}).get("organizationMembers", 0),
             organizationInvites=response.get("usage", {}).get("organizationInvites", 0),

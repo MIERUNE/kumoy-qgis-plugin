@@ -15,6 +15,7 @@ MAIN_ICON = (
 MAP_ICON = QIcon(os.path.join(_IMGS_PATH, "map.svg"))
 RELOAD_ICON = QIcon(os.path.join(_IMGS_PATH, "reload.svg"))
 VECTOR_ICON = QIcon(os.path.join(_IMGS_PATH, "vector.svg"))
+RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "raster.svg"))
 PIN_ICON = QIcon(os.path.join(_IMGS_PATH, "pin.svg"))
 SEARCH_ICON = QIcon(os.path.join(_IMGS_PATH, "search.svg"))
 WARNING_ICON = QIcon(os.path.join(_IMGS_PATH, "mIconWarning.svg"))
@@ -31,3 +32,4 @@ BROWSER_GEOMETRY_POLYGON_ICON = QIcon(
     os.path.join(_IMGS_PATH, "browser_geometry_polygon.svg")
 )
 BROWSER_MAP_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_map.svg"))
+BROWSER_RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_raster.svg"))

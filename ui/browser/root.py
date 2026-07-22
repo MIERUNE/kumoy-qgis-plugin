@@ -16,6 +16,7 @@ from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from ...ui.icons import MAIN_ICON
+from .raster import RasterRoot
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
 from .vector import VectorRoot
@@ -258,5 +259,17 @@ class RootCollection(QgsDataCollectionItem):
         )
         styled_map_root.setSortKey(0)
         children.append(styled_map_root)
+
+        # Create raster root
+        raster_path = f"{self.path()}/rasters"
+        raster_root = RasterRoot(
+            self,
+            i18n.tr("Rasters"),
+            raster_path,
+            self.organization_data,
+            self.project_data,
+        )
+        raster_root.setSortKey(2)
+        children.append(raster_root)
 
         return children

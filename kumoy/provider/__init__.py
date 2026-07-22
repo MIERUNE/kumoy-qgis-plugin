@@ -1,1 +1,2 @@
 from .dataprovider import KumoyDataProvider
+from .raster_dataprovider import KumoyRasterDataProvider

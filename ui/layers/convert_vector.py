@@ -21,16 +21,9 @@ from qgis.utils import iface
 import processing
 
 from ... import i18n
-from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import (
-    QDIALOG_CODE,
-    QT_APPLICATION_MODAL,
-    exec_dialog,
-)
-from ..dialog_layer_select import LayerSelectDialog
-from ..utils import get_local_vector_layers
+from ...pyqt_version import QT_APPLICATION_MODAL
 
 
 def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
@@ -70,67 +63,6 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
                 layer_name, error
             ),
         )
-
-
-def convert_local_layers(
-    project_id: str,
-) -> tuple[bool, list[tuple[str, str]]]:
-    """Prompt user to select and convert local layers.
-
-    Args:
-        project_id: Project ID to convert layers to
-
-    Returns:
-        tuple: (cancelled, conversion_errors)
-            cancelled: True if user cancelled (map save should be aborted)
-            conversion_errors: list of (layer_name, error_message) for failed conversions
-    """
-
-    # Get local layers in layer panel order
-    local_layers = get_local_vector_layers()
-
-    if not local_layers:
-        return (False, [])
-
-    # Get quota info to determine max selectable layers
-    try:
-        project = api.project.get_project(project_id)
-        org_id = project.team.organization.id
-        org_detail = api.organization.get_organization(org_id)
-        plan_limits = api.plan.get_plan_limits(
-            org_detail.subscriptionPlan, org_detail.storageUnits
-        )
-    except Exception as e:
-        handle_api_error(
-            e, parent=None, log_prefix=i18n.tr("Failed to check layer limits")
-        )
-        return (True, [])
-
-    current_vector_count = org_detail.usage.vectors
-
-    # Show layer selection dialog
-    dialog = LayerSelectDialog(
-        local_layers,
-        plan_limits.maxVectors,
-        current_vector_count,
-    )
-    if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
-        return (True, [])
-
-    selected_layers = dialog.selected_layers
-    if not selected_layers:
-        return (False, [])
-
-    # Convert selected layers
-    conversion_errors = []
-    for layer in selected_layers:
-        success, error = convert_to_kumoy(layer, project_id)
-        if not success:
-            conversion_errors.append((layer.name(), error))
-
-    iface.mapCanvas().refresh()
-
-    return (False, conversion_errors)
 
 
 def convert_to_kumoy(
@@ -268,11 +200,13 @@ def convert_to_kumoy(
 
             if original_layer_node:
                 # Replace local layer by new Kumoy layer at the same index position
+                was_checked = original_layer_node.itemVisibilityChecked()
                 parent_node = original_layer_node.parent()
                 index = parent_node.children().index(original_layer_node)
 
                 QgsProject.instance().addMapLayer(kumoy_layer, False)
-                parent_node.insertLayer(index, kumoy_layer)
+                new_layer_node = parent_node.insertLayer(index, kumoy_layer)
+                new_layer_node.setItemVisibilityChecked(was_checked)
                 parent_node.removeChildNode(original_layer_node)
                 QgsProject.instance().removeMapLayer(layer.id())
 

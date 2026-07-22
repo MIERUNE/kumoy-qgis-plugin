@@ -6,6 +6,7 @@ from . import (
     project,
     public,
     qgis_vector,
+    raster,
     styledmap,
     team,
     user,

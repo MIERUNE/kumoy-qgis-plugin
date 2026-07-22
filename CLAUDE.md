@@ -12,7 +12,7 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
   docker run --rm \
     -v "$(pwd)":/plugin \
     -w /plugin \
-    qgis/qgis:3.40 \
+    qgis/qgis:3.44 \
     sh -c "
       pip3 install --break-system-packages pytest pytest-qgis &&
       xvfb-run -s '+extension GLX -screen 0 1024x768x24' \

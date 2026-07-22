@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - "**/*.md"
 
+permissions:
+  contents: read
+
 env:
   DOCKER_IMAGE: qgis/qgis
 
@@ -16,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        docker_tags: ["3.40", "4.0-trixie"]
+        docker_tags: ["3.44", "4.0-trixie"]
 
     steps:
       - name: Checkout

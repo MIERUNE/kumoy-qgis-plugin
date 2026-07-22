@@ -1,6 +1,6 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, Qt
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, QIODevice, Qt
 from qgis.PyQt.QtGui import QImage, QPainter, QRegion, QTextCursor
 from qgis.PyQt.QtNetwork import QHttpMultiPart, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
@@ -129,6 +129,12 @@ Q_BUFFER_OPEN_MODE = QBuffer if QT_VERSION_INT <= 5 else QBuffer.OpenModeFlag
 """QBuffer open mode
 Qt5: QBuffer.ReadOnly, QBuffer.WriteOnly, etc.
 Qt6: QBuffer.OpenModeFlag.ReadOnly, etc.
+"""
+
+Q_IODEVICE_OPEN_MODE = QIODevice if QT_VERSION_INT <= 5 else QIODevice.OpenModeFlag
+"""QIODevice open mode (QFile/QBuffer 共通)
+Qt5: QIODevice.ReadOnly, etc.
+Qt6: QIODevice.OpenModeFlag.ReadOnly, etc.
 """
 
 Q_PAINTER_RENDER_HINT = QPainter if QT_VERSION_INT <= 5 else QPainter.RenderHint
