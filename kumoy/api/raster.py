@@ -122,7 +122,7 @@ class UpdateRasterOptions:
 
 @dataclass
 class RasterUpdateResult:
-    """``PATCH /raster/{rasterId}`` のレスポンス。更新後のメタデータを持つ。"""
+    """``PUT /raster/{rasterId}`` のレスポンス。更新後のメタデータを持つ。"""
 
     id: str
     name: str
@@ -140,7 +140,7 @@ def update_raster(
     if update_raster_options.attribution is not None:
         payload["attribution"] = update_raster_options.attribution
 
-    response = ApiClient.patch(f"/raster/{raster_id}", payload)
+    response = ApiClient.put(f"/raster/{raster_id}", payload)
 
     return RasterUpdateResult(
         id=response.get("id", ""),

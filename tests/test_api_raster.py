@@ -174,7 +174,7 @@ class TestUpdateRaster:
 
         captured = {}
 
-        def fake_patch(endpoint, data):
+        def fake_put(endpoint, data):
             captured["endpoint"] = endpoint
             captured["data"] = data
             return {
@@ -184,7 +184,7 @@ class TestUpdateRaster:
                 "updatedAt": "2026-01-03",
             }
 
-        monkeypatch.setattr(raster.ApiClient, "patch", staticmethod(fake_patch))
+        monkeypatch.setattr(raster.ApiClient, "put", staticmethod(fake_put))
 
         result = raster.update_raster(
             "r-1", raster.UpdateRasterOptions(name="renamed", attribution="© you")
@@ -202,11 +202,11 @@ class TestUpdateRaster:
 
         captured = {}
 
-        def fake_patch(endpoint, data):
+        def fake_put(endpoint, data):
             captured["data"] = data
             return {"id": "r-1", "name": "dem", "attribution": "", "updatedAt": ""}
 
-        monkeypatch.setattr(raster.ApiClient, "patch", staticmethod(fake_patch))
+        monkeypatch.setattr(raster.ApiClient, "put", staticmethod(fake_put))
 
         raster.update_raster("r-1", raster.UpdateRasterOptions(name="dem"))
 
