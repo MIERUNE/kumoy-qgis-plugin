@@ -112,3 +112,39 @@ def create_raster(
 def delete_raster(raster_id: str) -> None:
     """Raster を削除する（アップロード失敗時のクリーンアップに使う）。"""
     ApiClient.delete(f"/raster/{raster_id}")
+
+
+@dataclass
+class UpdateRasterOptions:
+    name: Optional[str] = None
+    attribution: Optional[str] = None
+
+
+@dataclass
+class RasterUpdateResult:
+    """``PATCH /raster/{rasterId}`` のレスポンス。更新後のメタデータを持つ。"""
+
+    id: str
+    name: str
+    attribution: str
+    updatedAt: str
+
+
+def update_raster(
+    raster_id: str, update_raster_options: UpdateRasterOptions
+) -> RasterUpdateResult:
+    """Raster のメタデータ（名前・出典）を更新する。"""
+    payload: Dict[str, object] = {}
+    if update_raster_options.name is not None:
+        payload["name"] = update_raster_options.name
+    if update_raster_options.attribution is not None:
+        payload["attribution"] = update_raster_options.attribution
+
+    response = ApiClient.patch(f"/raster/{raster_id}", payload)
+
+    return RasterUpdateResult(
+        id=response.get("id", ""),
+        name=response.get("name", ""),
+        attribution=response.get("attribution", ""),
+        updatedAt=response.get("updatedAt", ""),
+    )

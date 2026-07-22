@@ -168,6 +168,52 @@ class TestGetDownloadUrl:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestUpdateRaster:
+    def test_sends_payload_and_parses_result(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        captured = {}
+
+        def fake_patch(endpoint, data):
+            captured["endpoint"] = endpoint
+            captured["data"] = data
+            return {
+                "id": "r-1",
+                "name": "renamed",
+                "attribution": "© you",
+                "updatedAt": "2026-01-03",
+            }
+
+        monkeypatch.setattr(raster.ApiClient, "patch", staticmethod(fake_patch))
+
+        result = raster.update_raster(
+            "r-1", raster.UpdateRasterOptions(name="renamed", attribution="© you")
+        )
+
+        assert captured["endpoint"] == "/raster/r-1"
+        assert captured["data"] == {"name": "renamed", "attribution": "© you"}
+        assert result.id == "r-1"
+        assert result.name == "renamed"
+        assert result.attribution == "© you"
+        assert result.updatedAt == "2026-01-03"
+
+    def test_omits_none_fields(self, monkeypatch):
+        from plugin_dir.kumoy.api import raster
+
+        captured = {}
+
+        def fake_patch(endpoint, data):
+            captured["data"] = data
+            return {"id": "r-1", "name": "dem", "attribution": "", "updatedAt": ""}
+
+        monkeypatch.setattr(raster.ApiClient, "patch", staticmethod(fake_patch))
+
+        raster.update_raster("r-1", raster.UpdateRasterOptions(name="dem"))
+
+        assert captured["data"] == {"name": "dem"}
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestDeleteRaster:
     def test_calls_delete_endpoint(self, monkeypatch):
         from plugin_dir.kumoy.api import raster

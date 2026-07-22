@@ -9,14 +9,28 @@ from qgis.core import (
     QgsProject,
     QgsRasterLayer,
 )
-from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLineEdit,
+    QMenu,
+    QMessageBox,
+    QVBoxLayout,
+)
 from qgis.utils import iface
 
 from ... import i18n
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.settings_manager import get_settings
-from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON
+from ...pyqt_version import (
+    Q_MESSAGEBOX_STD_BUTTON,
+    QT_DIALOG_BUTTON_CANCEL,
+    QT_DIALOG_BUTTON_OK,
+    exec_dialog,
+)
 from ..error_handler import handle_api_error
 from ..icons import BROWSER_FOLDER_ICON, BROWSER_RASTER_ICON
 from .utils import ErrorItem
@@ -78,11 +92,86 @@ class RasterItem(QgsDataItem):
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
+            edit_action = QAction(i18n.tr("Edit Raster"), parent)
+            edit_action.triggered.connect(self.edit_raster)
+            actions.append(edit_action)
+
             delete_action = QAction(i18n.tr("Delete Raster"), parent)
             delete_action.triggered.connect(self.delete_raster)
             actions.append(delete_action)
 
         return actions
+
+    def edit_raster(self) -> None:
+        """Edit raster details"""
+        # Create dialog
+        dialog = QDialog()
+        dialog.setWindowTitle(i18n.tr("Edit Raster"))
+        dialog.resize(400, 250)
+
+        # Create layout
+        layout = QVBoxLayout()
+        form_layout = QFormLayout()
+
+        # Create fields
+        name_field = QLineEdit(self.raster.name)
+        name_field.setMaxLength(constants.MAX_CHARACTERS_RASTER_NAME)
+        attribution_field = QLineEdit(self.raster.attribution)
+        attribution_field.setMaxLength(constants.MAX_CHARACTERS_RASTER_ATTRIBUTION)
+
+        # Add fields to form
+        form_layout.addRow(
+            i18n.tr("Name:") + ' <span style="color: red;">*</span>', name_field
+        )
+        form_layout.addRow(i18n.tr("Attribution:"), attribution_field)
+
+        # Create buttons
+        button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        # Disable OK if name is empty
+        ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
+        ok_button.setEnabled(bool(name_field.text().strip()))
+        name_field.textChanged.connect(
+            lambda text: ok_button.setEnabled(bool(text.strip()))
+        )
+
+        # Add layouts to dialog
+        layout.addLayout(form_layout)
+        layout.addWidget(button_box)
+        dialog.setLayout(layout)
+
+        # Show dialog
+        result = exec_dialog(dialog)
+        if not result:
+            return
+
+        # Get values
+        new_name = name_field.text()
+        new_attribution = attribution_field.text()
+
+        # Update raster
+        try:
+            updated_raster = api.raster.update_raster(
+                self.raster.id,
+                api.raster.UpdateRasterOptions(
+                    name=new_name, attribution=new_attribution
+                ),
+            )
+        except Exception as e:
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=i18n.tr("Error updating raster"),
+            )
+            return
+
+        self.raster.name = updated_raster.name
+        self.raster.attribution = updated_raster.attribution
+        self.raster.updatedAt = updated_raster.updatedAt
+        self.setName(updated_raster.name)
+        self.refresh()
 
     def import_raster(self) -> None:
         """Kumoy ラスタプロバイダ経由でレイヤーをマップに追加する。

@@ -1,11 +1,16 @@
 import json
 from typing import Any, Dict, Optional
 
-from qgis.core import QgsBlockingNetworkRequest
-from qgis.PyQt.QtCore import QByteArray, QUrl
+from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
+from qgis.PyQt.QtCore import QByteArray, QEventLoop, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
-from ...pyqt_version import Q_NETWORK_REQUEST_ATTRIBUTE, Q_NETWORK_REQUEST_HEADER
+from ...pyqt_version import (
+    Q_NETWORK_REPLY_ERROR,
+    Q_NETWORK_REQUEST_ATTRIBUTE,
+    Q_NETWORK_REQUEST_HEADER,
+    exec_event_loop,
+)
 from ..get_token import get_token
 from . import config as api_config
 from . import error as api_error
@@ -105,6 +110,53 @@ class ApiClient:
         blocking_request = QgsBlockingNetworkRequest()
         err = blocking_request.put(req, byte_array)
         return _process_response(blocking_request, err)
+
+    @staticmethod
+    def patch(endpoint: str, data: Any) -> Any:
+        """PATCH リクエストを送る。
+
+        ``QgsBlockingNetworkRequest`` は PATCH に対応していないため、
+        ``QgsNetworkAccessManager.sendCustomRequest`` をローカルイベントループで
+        同期的に待つ。シグナル駆動なのでメインスレッドから呼ぶこと。
+        """
+        _api_config = api_config.get_api_config()
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
+
+        req = _build_request(url)
+        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
+
+        json_data = json.dumps(data, ensure_ascii=False)
+        byte_array = QByteArray(json_data.encode("utf-8"))
+
+        reply = QgsNetworkAccessManager.instance().sendCustomRequest(
+            req, b"PATCH", byte_array
+        )
+        loop = QEventLoop()
+        reply.finished.connect(loop.quit)
+        if not reply.isFinished():
+            exec_event_loop(loop)
+
+        status_code = reply.attribute(
+            Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute
+        )
+        content = handle_blocking_reply(reply.readAll())
+        network_error = reply.error()
+        error_message = reply.errorString()
+        reply.deleteLater()
+
+        if status_code in (401, 403):
+            detail = ""
+            if isinstance(content, dict):
+                detail = content.get("error", "") or content.get("message", "")
+            raise api_error.UnauthorizedError("Unauthorized", detail)
+
+        if network_error != Q_NETWORK_REPLY_ERROR.NoError:
+            if not content:
+                api_error.raise_error({"message": error_message, "error": ""})
+            else:
+                api_error.raise_error(content)
+
+        return content
 
     @staticmethod
     def delete(endpoint: str) -> Any:
