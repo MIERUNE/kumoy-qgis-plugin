@@ -138,6 +138,21 @@ class TestConvertToCog:
         assert out_srs.GetAuthorityCode(None) == "3857"
         ds.Close()
 
+    def test_overrides_embedded_crs(self, tmp_path):
+        """埋め込み CRS があっても assign_crs_wkt が勝つ（QGIS 上の手動上書き用）。"""
+        src = str(tmp_path / "src.tif")
+        dst = str(tmp_path / "out.tif")
+        _make_geotiff(src, with_crs=True)  # EPSG:4326 埋め込み
+
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(3857)
+        self._fn()(src, dst, assign_crs_wkt=srs.ExportToWkt())
+
+        ds = gdal.Open(dst)
+        out_srs = osr.SpatialReference(wkt=ds.GetProjection())
+        assert out_srs.GetAuthorityCode(None) == "3857"
+        ds.Close()
+
     def test_cancellation_raises(self, tmp_path):
         from plugin_dir.processing.upload_raster.cog import CogConversionCanceled
 
@@ -162,25 +177,29 @@ class TestConvertToCog:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
-class TestSourceHasCrs:
+class TestReadSourceCrsWkt:
     def _fn(self):
-        from plugin_dir.processing.upload_raster.cog import source_has_crs
+        from plugin_dir.processing.upload_raster.cog import read_source_crs_wkt
 
-        return source_has_crs
+        return read_source_crs_wkt
 
-    def test_true_when_crs_embedded(self, tmp_path):
+    def test_returns_wkt_when_crs_embedded(self, tmp_path):
         src = str(tmp_path / "src.tif")
         _make_geotiff(src, with_crs=True)
-        assert self._fn()(src) is True
+        wkt = self._fn()(src)
+        assert isinstance(wkt, str)
+        assert osr.SpatialReference(wkt=wkt).GetAuthorityCode(None) == "4326"
 
-    def test_false_when_crs_missing(self, tmp_path):
+    def test_returns_none_when_crs_missing(self, tmp_path):
         src = str(tmp_path / "src.tif")
         _make_geotiff(src, with_crs=False)
-        assert self._fn()(src) is False
+        assert self._fn()(src) is None
 
     def test_defers_error_for_unopenable_path(self, tmp_path):
-        """開けないパスは True（=割り当てなし）でエラー報告を convert_to_cog に委ねる。"""
-        assert self._fn()(str(tmp_path / "missing.tif")) is True
+        """開けないパスは SOURCE_UNREADABLE でエラー報告を convert_to_cog に委ねる。"""
+        from plugin_dir.processing.upload_raster.cog import SOURCE_UNREADABLE
+
+        assert self._fn()(str(tmp_path / "missing.tif")) is SOURCE_UNREADABLE
 
 
 @only_without_gdal_311

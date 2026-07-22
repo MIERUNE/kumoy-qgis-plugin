@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     Qgis,
+    QgsCoordinateReferenceSystem,
     QgsMessageLog,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
@@ -26,7 +27,12 @@ from ...kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
 )
-from .cog import CogConversionCanceled, convert_to_cog, source_has_crs
+from .cog import (
+    SOURCE_UNREADABLE,
+    CogConversionCanceled,
+    convert_to_cog,
+    read_source_crs_wkt,
+)
 from .materialize import RasterMaterializeCanceled, materialize_to_geotiff
 
 
@@ -37,24 +43,35 @@ class _UserCanceled(Exception):
 def _resolve_assign_crs_wkt(layer: QgsRasterLayer, assign_crs) -> Optional[str]:
     """割り当てる CRS の WKT を返す。None は「ソースの CRS をそのまま保持」。
 
-    判定は「COG 変換対象のファイルに CRS があるか」で行う。QGIS 上で手動設定
-    した CRS は ``layer.crs()`` には現れるがファイルには焼き込まれていないため、
-    レイヤ CRS だけを見ると CRS 無しの COG を黙って作ってしまう。
+    原則は「ユーザーが QGIS 上で見ている CRS がそのままアップロードされる」。
+    QGIS 上で手動設定した CRS は ``layer.crs()`` には現れるがファイルには
+    焼き込まれていないため、ファイルに埋め込まれた CRS と突き合わせて判定する。
 
-    ファイルに CRS が無いときの優先順:
-    「Assign CRS」パラメータ → レイヤの CRS（手動設定を含む）→ 無ければエラー。
+    - ファイルの CRS とレイヤ CRS が一致 → 再割り当てせずそのまま保持
+    - レイヤ CRS がファイルの CRS と異なる（QGIS 上の手動上書き）→ レイヤ CRS
+      を割り当てる（再投影はしない）
+    - ファイルに CRS が無い → 「Assign CRS」パラメータ → レイヤの CRS
+      （手動設定を含む）→ 無ければエラー
     """
     if layer.providerType() == "gdal":
         # 元ファイルをそのまま COG 変換へ渡す経路。ファイル自体の CRS で判定。
-        file_has_crs = source_has_crs(layer.source())
+        file_crs_wkt = read_source_crs_wkt(layer.source())
+        if file_crs_wkt is SOURCE_UNREADABLE:
+            # 判定不能。エラー報告は同じパスを開く convert_to_cog に任せる。
+            return None
+        if file_crs_wkt is not None:
+            layer_crs = layer.crs()
+            file_crs = QgsCoordinateReferenceSystem.fromWkt(file_crs_wkt)
+            if layer_crs.isValid() and layer_crs != file_crs:
+                return layer_crs.toWkt()
+            return None
     else:
-        # 実体化経路は layer.crs() を一時 GeoTIFF に書き込むので、レイヤ CRS の
-        # 有無がそのまま変換対象ファイルの CRS の有無になる。
-        file_has_crs = layer.crs().isValid()
+        # 実体化経路は layer.crs() を一時 GeoTIFF に書き込むので、手動上書きを
+        # 含むレイヤ CRS がそのまま変換対象ファイルの CRS になる。
+        if layer.crs().isValid():
+            return None
 
-    if file_has_crs:
-        return None
-
+    # ここまで来たら変換対象ファイルに CRS が無い。
     if assign_crs is not None and assign_crs.isValid():
         return assign_crs.toWkt()
     if layer.crs().isValid():
@@ -115,9 +132,12 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             "calculator)\n\n"
             "Web-based layers such as WMS, WCS, or XYZ tiles cannot be uploaded "
             "because they don't contain the original pixel data.\n\n"
-            "No reprojection is applied: the original CRS and pixel values are "
-            "preserved. If the source file has no CRS, the CRS set on the layer "
-            "in QGIS or the 'Assign CRS' field is assigned.\n\n"
+            "No reprojection is applied: the original pixel values are "
+            "preserved. The CRS set on the layer in QGIS is used: if it differs "
+            "from the CRS embedded in the source file (a manual override), the "
+            "layer's CRS is assigned without reprojecting. If the source file "
+            "has no CRS, the 'Assign CRS' field or the layer's CRS is "
+            "assigned.\n\n"
             "The input dropdown lists raster layers in your current project. "
             "If no project is open, it will be empty."
         )

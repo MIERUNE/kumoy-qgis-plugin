@@ -1,12 +1,13 @@
 """任意ラスタを COG (Cloud Optimized GeoTIFF) に変換する。
 
-再投影はしない。元データの破壊を避けるため、元の CRS とピクセル値・データ型を
-そのまま保持する。CRS が未設定のラスタにだけ、呼び出し側が指定した CRS を
-ヘッダへ割り当てる（``-a_srs`` 相当。ピクセルは触らない）。GeoTransform が
-未設定のラスタには identity を割り当て、地理参照を欠いた COG が出力されるのを防ぐ。
+再投影はしない。元データの破壊を避けるため、ピクセル値・データ型はそのまま
+保持する。呼び出し側が CRS を指定した場合はそれをヘッダへ割り当てる
+（``-a_srs`` 相当。既存の CRS も上書きされるが、ピクセルは触らない）。
+GeoTransform が未設定のラスタには identity を割り当て、地理参照を欠いた
+COG が出力されるのを防ぐ。
 """
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from osgeo import gdal
 
@@ -17,23 +18,28 @@ class CogConversionCanceled(Exception):
     """進捗コールバックが変換の中断を要求した。"""
 
 
-def source_has_crs(src_path: str) -> bool:
-    """``src_path`` のラスタファイルに CRS が埋め込まれているか。
+SOURCE_UNREADABLE: object = object()
+"""``read_source_crs_wkt`` の返り値: ソースが開けず CRS を判定できなかった。"""
 
-    QGIS 上で手動設定したレイヤ CRS はファイルには存在しないため、
-    ``layer.crs().isValid()`` ではなく GDAL が実際に読む CRS で判定する。
-    開けないファイルは True を返して判定を保留し、エラー報告は同じパスを
-    開く ``convert_to_cog`` に任せる。
+
+def read_source_crs_wkt(src_path: str) -> Union[Optional[str], object]:
+    """``src_path`` のラスタファイルに埋め込まれた CRS を WKT で返す。
+
+    CRS が無ければ None。QGIS 上で手動設定したレイヤ CRS はファイルには
+    存在しないため、``layer.crs()`` ではなく GDAL が実際に読む CRS を見る。
+    開けないファイルは ``SOURCE_UNREADABLE`` を返して判定を保留し、
+    エラー報告は同じパスを開く ``convert_to_cog`` に任せる。
     """
     gdal.UseExceptions()
     try:
         ds = gdal.Open(src_path)
     except Exception:
-        return True
+        return SOURCE_UNREADABLE
     if ds is None:
-        return True
+        return SOURCE_UNREADABLE
     try:
-        return ds.GetSpatialRef() is not None
+        srs = ds.GetSpatialRef()
+        return srs.ExportToWkt() if srs is not None else None
     finally:
         ds.Close()
 
@@ -60,8 +66,9 @@ def convert_to_cog(
     """``src_path`` のラスタを COG として ``dst_path`` に書き出す。
 
     Args:
-        assign_crs_wkt: 元ラスタの CRS が未設定のときに割り当てる CRS（WKT）。
-            None の場合は元の CRS をそのまま保持する。
+        assign_crs_wkt: 出力へ割り当てる CRS（WKT）。元ラスタに CRS があっても
+            上書きする（``-a_srs`` 相当、再投影はしない）。None の場合は元の
+            CRS をそのまま保持する。
         progress_callback: 進捗(0-100)を受け取る。
         is_canceled: True を返すと変換を中断し ``CogConversionCanceled`` を送出。
 

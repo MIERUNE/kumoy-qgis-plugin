@@ -1,8 +1,9 @@
 """_resolve_assign_crs_wkt のユニットテスト（QGIS + GDAL が必要）。
 
-「割り当て CRS の判定はレイヤ CRS ではなくファイルに焼き込まれた CRS で行う」
-という契約を検証する。特に、CRS 無しファイルに QGIS 上で手動 CRS を設定した
-ケースでその CRS が COG へ伝播すること（過去に黙って失われていた）を担保する。
+「ユーザーが QGIS 上で見ている CRS がそのままアップロードされる」という契約を
+検証する。特に、CRS 無しファイルに QGIS 上で手動 CRS を設定したケースでその
+CRS が COG へ伝播すること（過去に黙って失われていた）と、ファイルの CRS を
+QGIS 上で別の CRS に上書きしたケースで上書きが勝つことを担保する。
 """
 
 import pytest
@@ -43,12 +44,23 @@ class TestResolveAssignCrsWkt:
         return _resolve_assign_crs_wkt
 
     def test_keeps_embedded_crs(self, tmp_path):
-        """ファイルに CRS があれば何も割り当てない（再割り当てで壊さない）。"""
+        """ファイルの CRS とレイヤ CRS が一致していれば何も割り当てない。"""
         src = str(tmp_path / "src.tif")
         _make_geotiff(src, with_crs=True)
         layer = _load_layer(src)
 
         assert self._fn()(layer, QgsCoordinateReferenceSystem()) is None
+
+    def test_layer_override_wins_over_embedded_crs(self, tmp_path):
+        """ファイルに CRS があっても、QGIS 上の手動上書きが勝つ。"""
+        src = str(tmp_path / "src.tif")
+        _make_geotiff(src, with_crs=True)  # EPSG:4326 埋め込み
+        layer = _load_layer(src)
+        layer.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
+
+        wkt = self._fn()(layer, QgsCoordinateReferenceSystem())
+        assert wkt is not None
+        assert QgsCoordinateReferenceSystem.fromWkt(wkt).authid() == "EPSG:3857"
 
     def test_uses_manually_set_layer_crs(self, tmp_path):
         """CRS 無しファイル + QGIS 上の手動設定 → その CRS を割り当てる。"""
