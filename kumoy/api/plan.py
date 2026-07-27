@@ -10,6 +10,7 @@ class PlanLimits:
     maxVectors: int
     maxRasters: int
     maxStyledMaps: int
+    maxCatalogs: int
     maxOrganizationMembers: int
     maxVectorFeatures: int
     maxVectorAttributes: int
@@ -43,6 +44,7 @@ def get_plan_limits(
         maxVectors=response.get("maxVectors", 0),
         maxRasters=response.get("maxRasters", 0),
         maxStyledMaps=response.get("maxStyledMaps", 0),
+        maxCatalogs=response.get("maxCatalogs", 0),
         maxOrganizationMembers=response.get("maxOrganizationMembers", 0),
         maxVectorFeatures=response.get("maxVectorFeatures", 0),
         maxVectorAttributes=response.get("maxVectorAttributes", 0),

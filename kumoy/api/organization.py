@@ -56,6 +56,7 @@ class OrganizationUsage:
     vectors: int
     rasters: int
     styledMaps: int
+    catalogs: int
     organizationMembers: int
     organizationInvites: int
     usedStorageUnits: float
@@ -94,6 +95,7 @@ def get_organization(organization_id: str) -> OrganizationDetail:
             vectors=response.get("usage", {}).get("vectors", 0),
             rasters=response.get("usage", {}).get("rasters", 0),
             styledMaps=response.get("usage", {}).get("styledMaps", 0),
+            catalogs=response.get("usage", {}).get("catalogs", 0),
             organizationMembers=response.get("usage", {}).get("organizationMembers", 0),
             organizationInvites=response.get("usage", {}).get("organizationInvites", 0),
             usedStorageUnits=response.get("usage", {}).get("usedStorageUnits", 0),
