@@ -11,16 +11,15 @@ from ... import i18n
 from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
-from ...kumoy.settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings, store_setting
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
+from ...ui.dialog_organization_select import OrganizationSelectDialog
 from ...ui.dialog_project_select import ProjectSelectDialog
 from ...ui.icons import MAIN_ICON
 from .catalog import CatalogRoot
-from .raster import RasterRoot
-from .styledmap import StyledMapRoot
+from .project import ProjectRoot
 from .utils import ErrorItem
-from .vector import VectorRoot
 
 
 class DataItemProvider(QgsDataItemProvider):
@@ -55,6 +54,7 @@ class RootCollection(QgsDataCollectionItem):
         self.organization_data = None
         self.project_data = None
 
+        self.organization_select_dialog = None
         self.project_select_dialog = None
         self.account_setting_dialog = None
 
@@ -87,9 +87,8 @@ class RootCollection(QgsDataCollectionItem):
         )
         self.project_data = api.project.get_project(settings.selected_project_id)
 
-        self.setName(
-            f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
-        )
+        # 選択中のProjectは配下のProjectノードとして表示するため、ルートは組織名まで
+        self.setName(f"{constants.PLUGIN_NAME}: {self.organization_data.name}")
 
     def handleDoubleClick(self):
         # 非ログイン時ならログイン画面を開く
@@ -106,19 +105,31 @@ class RootCollection(QgsDataCollectionItem):
             login_action.triggered.connect(self.login)
             return [login_action]
 
-        # Select Project action
-        select_project_action = QAction(i18n.tr("Select Project"), parent)
-        select_project_action.triggered.connect(self.select_project)
+        actions = []
+
+        # ルートは選択中Organizationを表す。組織の切り替えはここから。
+        select_organization_action = QAction(i18n.tr("Select Organization"), parent)
+        select_organization_action.triggered.connect(self.select_organization)
+        actions.append(select_organization_action)
+
+        # プロジェクトの切り替えは通常Projectノード側から行うが、未選択で
+        # Projectノードが無いときは入口としてルートにも出す。
+        if self.project_data is None:
+            select_project_action = QAction(i18n.tr("Select Project"), parent)
+            select_project_action.triggered.connect(self.select_project)
+            actions.append(select_project_action)
 
         # Refresh action
         refresh_action = QAction(i18n.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
+        actions.append(refresh_action)
 
         # Account action
         account_action = QAction(i18n.tr("Account"), parent)
         account_action.triggered.connect(self.account_settings)
+        actions.append(account_action)
 
-        return [select_project_action, refresh_action, account_action]
+        return actions
 
     def refresh(self):
         """Refresh the children of the root collection
@@ -143,12 +154,14 @@ class RootCollection(QgsDataCollectionItem):
         result = exec_dialog(dialog)
 
         if result:
-            self.select_project()
+            # ログイン直後はまず組織を選び、続けてプロジェクトを選ぶ
+            self.select_organization()
 
-    def select_project(self):
-        """Select a project to display"""
-        # Warn if current project has unsaved changes
-        if QgsProject.instance().isDirty() and (
+    def _confirm_discard_if_dirty(self) -> bool:
+        """未保存の変更があれば破棄確認する。続行してよければ True。"""
+        if not QgsProject.instance().isDirty():
+            return True
+        return (
             QMessageBox.question(
                 None,
                 i18n.tr("Change Project"),
@@ -158,8 +171,54 @@ class RootCollection(QgsDataCollectionItem):
                 Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
                 Q_MESSAGEBOX_STD_BUTTON.No,
             )
-            != Q_MESSAGEBOX_STD_BUTTON.Yes
-        ):
+            == Q_MESSAGEBOX_STD_BUTTON.Yes
+        )
+
+    def select_organization(self):
+        """Select an organization. On change, clear the project and pick a new one."""
+        if not self._confirm_discard_if_dirty():
+            return
+
+        prev_org_id = get_settings().selected_organization_id
+
+        # ダイアログは初回のみ生成し、以降は再読み込みして再利用する
+        try:
+            if self.organization_select_dialog is None:
+                self.organization_select_dialog = OrganizationSelectDialog()
+            else:
+                self.organization_select_dialog.reload_dialog()
+        except Exception as e:
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=i18n.tr("Error loading organization selection dialog"),
+            )
+            return
+
+        if not exec_dialog(self.organization_select_dialog):
+            return
+
+        new_org_id = get_settings().selected_organization_id
+        if new_org_id == prev_org_id:
+            # 組織が変わらなければProjectはそのまま。念のためリフレッシュのみ。
+            self.refresh()
+            return
+
+        # 組織が変わるとProjectは無効になるのでクリアし、QGIS Projectも初期化する
+        store_setting("selected_project_id", "")
+        QgsProject.instance().clear()
+        self.refresh()
+        # 続けて新しい組織のProjectを選んでもらう
+        self.select_project()
+
+    def select_project(self):
+        """Select a project within the current organization."""
+        if not get_settings().selected_organization_id:
+            # 組織が未選択ならまず組織選択へ誘導する
+            self.select_organization()
+            return
+
+        if not self._confirm_discard_if_dirty():
             return
 
         prev_project_id = get_settings().selected_project_id
@@ -169,9 +228,7 @@ class RootCollection(QgsDataCollectionItem):
             if self.project_select_dialog is None:
                 self.project_select_dialog = ProjectSelectDialog()
             else:
-                self.project_select_dialog.load_user_info()
-                self.project_select_dialog.load_organizations()
-                self.project_select_dialog.load_saved_selection()
+                self.project_select_dialog.reload()
         except Exception as e:
             handle_api_error(
                 e,
@@ -227,9 +284,6 @@ class RootCollection(QgsDataCollectionItem):
 
     def createChildren(self):
         """Create child items for the root collection"""
-        # Create vector root directly
-        children = []
-
         if self.organization_data is None or self.project_data is None:
             return [
                 ErrorItem(
@@ -238,50 +292,22 @@ class RootCollection(QgsDataCollectionItem):
                 )
             ]
 
-        vector_path = f"{self.path()}/vectors"
-        vector_root = VectorRoot(
+        # 選択中のProjectと組織のCatalogを並列に表示する
+        # （サービスの階層 Organization → {Project, Catalog} に対応）
+        project_root = ProjectRoot(
             self,
-            i18n.tr("Vectors"),
-            vector_path,
+            f"{self.path()}/project",
             self.organization_data,
             self.project_data,
         )
-        vector_root.setSortKey(1)
-        children.append(vector_root)
+        project_root.setSortKey(0)
 
-        # Create styled map root
-        styled_map_path = f"{self.path()}/styledmaps"
-        styled_map_root = StyledMapRoot(
-            self,
-            i18n.tr("Maps"),
-            styled_map_path,
-            self.organization_data,
-            self.project_data,
-        )
-        styled_map_root.setSortKey(0)
-        children.append(styled_map_root)
-
-        # Create raster root
-        raster_path = f"{self.path()}/rasters"
-        raster_root = RasterRoot(
-            self,
-            i18n.tr("Rasters"),
-            raster_path,
-            self.organization_data,
-            self.project_data,
-        )
-        raster_root.setSortKey(2)
-        children.append(raster_root)
-
-        # Create catalog root（選択中Projectではなく選択中Organizationに属する）
-        catalog_path = f"{self.path()}/catalogs"
         catalog_root = CatalogRoot(
             self,
             i18n.tr("Catalogs"),
-            catalog_path,
+            f"{self.path()}/catalogs",
             self.organization_data,
         )
-        catalog_root.setSortKey(3)
-        children.append(catalog_root)
+        catalog_root.setSortKey(1)
 
-        return children
+        return [project_root, catalog_root]

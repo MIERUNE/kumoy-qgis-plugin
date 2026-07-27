@@ -102,12 +102,15 @@ class ProjectSelectDialog(QDialog):
         self.setMinimumWidth(500)
         self.selected_project = None
         self.current_org_id = None
+        # 組織はルートの「Select Organization」で選ぶため、このダイアログは
+        # settingsの選択中組織に固定される。
+        self.current_org: Optional[api.organization.OrganizationWithRole] = None
         self.details_visible = False
         self.myteams: List[TeamDetail] = []
         self.admin_team_ids: Set[str] = set()
         self.setup_ui()
         self.load_user_info()
-        self.load_organizations()
+        self.load_current_organization()
         self.load_saved_selection()
 
     def setup_ui(self):
@@ -160,20 +163,10 @@ class ProjectSelectDialog(QDialog):
         details_toggle.setAlignment(QT_ALIGN.AlignRight)
         details_toggle.linkActivated.connect(self.toggle_details)
         account_org_layout.addWidget(details_toggle, 0, 3)
-        # Organization selector
-        org_combo = QComboBox()
-        org_combo.setMinimumHeight(32)
-        org_combo.setStyleSheet(
-            """
-            QComboBox {
-                border: 1px solid #ced4da;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 12px;
-            }
-        """
-        )
-        org_combo.currentIndexChanged.connect(self.on_organization_changed)
+        # 組織はルートで選択するため、ここでは選択中組織を表示するのみ。
+        org_name_label = QLabel(i18n.tr("Loading..."))
+        org_name_label.setStyleSheet("font-weight: bold;")
+        org_name_label.setTextFormat(QT_TEXT_FORMAT_PLAIN)
 
         refresh_button = QPushButton(RELOAD_ICON, "")
         refresh_button.setToolTip(i18n.tr("Refresh"))
@@ -182,7 +175,7 @@ class ProjectSelectDialog(QDialog):
 
         org_row_layout = QHBoxLayout()
         org_row_layout.setSpacing(4)
-        org_row_layout.addWidget(org_combo)
+        org_row_layout.addWidget(org_name_label, 1)
         org_row_layout.addWidget(refresh_button)
         account_org_layout.addLayout(org_row_layout, 1, 2, 1, 2)
 
@@ -190,7 +183,7 @@ class ProjectSelectDialog(QDialog):
             "layout": account_org_layout,
             "avatar_label": avatar_label,
             "user_name_label": user_name_label,
-            "org_combo": org_combo,
+            "org_name_label": org_name_label,
             "details_toggle": details_toggle,
             "refresh_btn": refresh_button,
         }
@@ -399,22 +392,45 @@ class ProjectSelectDialog(QDialog):
             "new_project_btn": new_project_button,
         }
 
-    def load_organizations(self):
-        """Load organizations into the combo box"""
-        self.account_org_panel["org_combo"].clear()
-        organizations = api.organization.get_organizations()
+    def load_current_organization(self):
+        """settingsで選択中のOrganizationを読み込み、その配下を表示する。
 
-        if not organizations:
+        組織の選択はルートの「Select Organization」で行うため、ここでは
+        選択済み組織に固定して、その中のProject一覧のみを扱う。
+        """
+        org_id = get_settings().selected_organization_id
+        if not org_id:
             self._handle_no_organization()
             return
-        for org in organizations:
-            self.account_org_panel["org_combo"].addItem(org.name, org)
+
+        organizations = api.organization.get_organizations()
+        org = next((o for o in organizations if o.id == org_id), None)
+        if org is None:
+            self._handle_no_organization()
+            return
+
+        self.current_org = org
+        self.account_org_panel["org_name_label"].setText(org.name)
+
+        if org.scheduledDeletionAt:
+            # Deactivated on the web app: its detail/project APIs return not
+            # found, so show a notice instead of the project list
+            self._show_scheduled_deletion_notice(org)
+            return
+
+        self.load_myteams(org)
+        self.load_organization_detail(org)
+        self.load_projects(org)
 
     def _handle_no_organization(self):
         """Handle case when no organization is available"""
         # Clear project list
         self.project_section["project_list"].clear()
 
+        self.current_org = None
+        self.account_org_panel["org_name_label"].setText(
+            i18n.tr("No organization selected")
+        )
         # Add message + button inviting to create an organization instead project list
         no_org_widget = QWidget()
         no_org_layout = QVBoxLayout(no_org_widget)
@@ -489,22 +505,6 @@ class ProjectSelectDialog(QDialog):
             i18n.tr("<div><span>Scheduled for deletion</span></div>")
         )
         self._clear_org_details()
-
-    def on_organization_changed(self, index):
-        """Reset project selection when organization changes"""
-        self.project_section["project_list"].setCurrentItem(None)
-        self.project_section["search_input"].clear()
-        org_data = self.account_org_panel["org_combo"].itemData(index)
-        if not org_data:
-            return
-        if org_data.scheduledDeletionAt:
-            # Deactivated on the web app: its detail/project APIs return not
-            # found, so show a notice instead of the project list
-            self._show_scheduled_deletion_notice(org_data)
-            return
-        self.load_myteams(org_data)
-        self.load_organization_detail(org_data)
-        self.load_projects(org_data)
 
     def load_myteams(self, org: api.organization.Organization):
         """Load teams the current user belongs to in the organization"""
@@ -757,55 +757,33 @@ class ProjectSelectDialog(QDialog):
             project_list.setCurrentItem(None)
 
     def get_selected_organization(self) -> Optional[api.organization.Organization]:
-        """Get the selected organization"""
-        return (
-            self.account_org_panel["org_combo"].currentData()
-            if self.account_org_panel["org_combo"].currentIndex() >= 0
-            else None
-        )
+        """Get the current (settings-fixed) organization"""
+        return self.current_org
 
     def accept(self):
         """Handle dialog acceptance"""
-        org = self.get_selected_organization()
-        if org and self.selected_project:
-            store_setting("selected_organization_id", org.id)
+        if self.current_org and self.selected_project:
             store_setting("selected_project_id", self.selected_project.id)
         super().accept()
 
     def load_saved_selection(self):
-        """Load previously saved selection"""
-        org_id = get_settings().selected_organization_id
+        """Select the previously saved project (organization is fixed)"""
         project_id = get_settings().selected_project_id
-        if not org_id or not project_id:
-            return
-        self._select_organization_by_id(org_id)
-        self._select_project_by_id(project_id)
+        if project_id:
+            self._select_project_by_id(project_id)
 
     def reload_dialog(self):
-        """Reload the dialog content"""
-        settings = get_settings()
-        org_id = settings.selected_organization_id
-        project_id = settings.selected_project_id
-        org_combo: QComboBox = self.account_org_panel["org_combo"]
-
-        org_combo.blockSignals(True)
+        """Reload the dialog content for the current organization"""
+        project_id = get_settings().selected_project_id
         try:
             self.load_user_info()
-            self.load_organizations()
-            if org_id:
-                self._select_organization_by_id(org_id)
+            self.load_current_organization()
         except Exception as e:
             handle_api_error(
                 e, parent=self, log_prefix=i18n.tr("Failed to reload dialog")
             )
             return
-        finally:
-            org_combo.blockSignals(False)
 
-        # Reselect project after reloading organizations
-        current_index = org_combo.currentIndex()
-        if current_index >= 0:
-            self.on_organization_changed(current_index)
         if project_id:
             self._select_project_by_id(project_id)
 
@@ -856,14 +834,11 @@ class ProjectSelectDialog(QDialog):
                 e, parent=self, log_prefix=i18n.tr("Failed to create project")
             )
 
-    def _select_organization_by_id(self, org_id: str):
-        """Select organization by ID in combo box"""
-        for i in range(self.account_org_panel["org_combo"].count()):
-            if (
-                org := self.account_org_panel["org_combo"].itemData(i)
-            ) and org.id == org_id:
-                self.account_org_panel["org_combo"].setCurrentIndex(i)
-                break
+    def reload(self):
+        """Reload for reuse: refresh user/org/projects and reselect saved project."""
+        self.load_user_info()
+        self.load_current_organization()
+        self.load_saved_selection()
 
     def _select_project_by_id(self, project_id: str):
         """Select project by ID in list"""
