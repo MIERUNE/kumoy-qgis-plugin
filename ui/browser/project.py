@@ -32,7 +32,7 @@ class ProjectRoot(QgsDataItem):
             self,
             QgsDataItem.Collection,
             parent=parent,
-            name=project.name,
+            name=i18n.tr("Project: {}").format(project.name),
             path=path,
         )
 

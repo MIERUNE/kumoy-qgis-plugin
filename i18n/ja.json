@@ -249,6 +249,7 @@
   "Project file size is too large. Limit is {} bytes. your: {} bytes": "プロジェクトファイルのサイズが大きすぎます。上限: {} バイト、現在: {} バイト",
   "Project name cannot be empty.": "プロジェクト名を入力してください。",
   "Project not found in organization list": "組織内にプロジェクトが見つかりませんでした",
+  "Project: {}": "プロジェクト: {}",
   "Public:": "公開:",
   "QGIS failed to render the raster to a file (error {}).": "QGIS がラスターのファイル書き出しに失敗しました（エラー {}）。",
   "Raster '{}' deleted successfully.": "ラスター '{}' を削除しました。",
