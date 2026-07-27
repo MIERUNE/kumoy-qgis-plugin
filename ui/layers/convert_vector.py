@@ -23,6 +23,7 @@ import processing
 from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
+from ...kumoy.upload.destinations import list_upload_destinations
 from ...pyqt_version import QT_APPLICATION_MODAL
 
 
@@ -119,21 +120,12 @@ def convert_to_kumoy(
         # Handle cancel
         progress_dialog.canceled.connect(feedback.cancel)
 
-        # Get the project index for the processing algorithm using project id
-        organizations = api.organization.get_organizations()
-        all_projects = []
-        for org in organizations:
-            # Must match the filtering in UploadVectorAlgorithm.initAlgorithm:
-            # both sides index into the same flattened project list
-            if org.scheduledDeletionAt:
-                continue
-            org_projects = api.project.get_projects_by_organization(org.id)
-            all_projects.extend(org_projects)
-
-        # Find the index of current project
+        # Get the destination index for the processing algorithm using project id.
+        # The algorithm builds its enum from the same list, so indexes line up.
+        destinations = list_upload_destinations()
         project_index = None
-        for idx, proj in enumerate(all_projects):
-            if proj.id == project_id:
+        for idx, destination in enumerate(destinations):
+            if destination.kind == "PROJECT" and destination.id == project_id:
                 project_index = idx
                 break
 

@@ -69,7 +69,13 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
-        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
+        # 所有元（Project/Catalogの排他）に応じてURIの先頭キーを切り替える
+        owner = (
+            f"catalog_id={vector.catalogId}"
+            if vector.catalogId
+            else f"project_id={vector.projectId}"
+        )
+        self.vector_uri = f"{owner};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
         self.role = role
 
         # Set icon based on geometry type
@@ -210,6 +216,19 @@ class VectorItem(QgsDataItem):
 
     def edit_vector(self) -> None:
         """Edit vector details"""
+        # ブラウザが保持する値は一覧取得時のスナップショットなので、最新の
+        # メタデータを初期値にする（Catalog一覧のレスポンスはattributionを
+        # 含まないため、ここでの取得が必須）。
+        try:
+            detail = api.vector.get_vector(self.vector.id)
+        except Exception as e:
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=i18n.tr("Error loading vector"),
+            )
+            return
+
         # Create dialog
         dialog = QDialog()
         dialog.setWindowTitle(i18n.tr("Edit Vector"))
@@ -220,9 +239,9 @@ class VectorItem(QgsDataItem):
         form_layout = QFormLayout()
 
         # Create fields
-        name_field = QLineEdit(self.vector.name)
+        name_field = QLineEdit(detail.name)
         name_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_NAME)
-        attribution_field = QLineEdit(self.vector.attribution)
+        attribution_field = QLineEdit(detail.attribution)
         attribution_field.setMaxLength(constants.MAX_CHARACTERS_VECTOR_ATTRIBUTION)
 
         # Add fields to form

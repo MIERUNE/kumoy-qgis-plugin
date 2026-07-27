@@ -72,22 +72,26 @@ class SyncWorker(QThread):
 
 def parse_uri(
     uri: str,
-) -> tuple[str, str, str, str]:
+) -> tuple[str, str, str, str, str]:
     kumoyProviderMetadata = QgsProviderRegistry.instance().providerMetadata(
         constants.DATA_PROVIDER_KEY
     )
     parsed_uri = kumoyProviderMetadata.decodeUri(uri)
 
     project_id = parsed_uri.get("project_id", "")
+    catalog_id = parsed_uri.get("catalog_id", "")
     vector_id = parsed_uri.get("vector_id", "")
     vector_name = parsed_uri.get("vector_name", "")
     subset = parsed_uri.get("subset", "")
 
-    # check parsing results
-    if vector_id == "" or project_id == "":
-        raise ValueError("Invalid URI. 'project_id' and 'vector_id' are required.")
+    # VectorはProject所有かCatalog所有のどちらか（排他）なので、URIも所有元を
+    # project_id / catalog_id のいずれか一方で表す。
+    if vector_id == "" or (project_id == "" and catalog_id == ""):
+        raise ValueError(
+            "Invalid URI. 'vector_id' and either 'project_id' or 'catalog_id' are required."
+        )
 
-    return (project_id, vector_id, vector_name, subset)
+    return (project_id, catalog_id, vector_id, vector_name, subset)
 
 
 class KumoyDataProvider(QgsVectorDataProvider):
@@ -109,7 +113,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._flags = flags
 
         # Parse the URI
-        self.project_id, self.vector_id, self.vector_name, subset = parse_uri(uri)
+        (
+            self.project_id,
+            self.catalog_id,
+            self.vector_id,
+            self.vector_name,
+            subset,
+        ) = parse_uri(uri)
 
         # local cache
         self.kumoy_vector: Optional[api.vector.KumoyVectorDetail] = None

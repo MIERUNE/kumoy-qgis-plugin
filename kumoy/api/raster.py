@@ -6,11 +6,16 @@ from .client import ApiClient
 
 @dataclass
 class KumoyRaster:
-    """プロジェクト内のラスタ一覧の1件。"""
+    """プロジェクト内のラスタ一覧の1件。
+
+    RasterはProjectかCatalogのどちらか一方に排他的に所有される。
+    Catalog所有時は ``projectId`` が None になり ``catalogId`` が入る。
+    """
 
     id: str
     name: str
-    projectId: str
+    projectId: Optional[str]
+    catalogId: Optional[str]
     attribution: str
     bytes: int
     createdAt: str
@@ -31,7 +36,8 @@ def get_rasters(project_id: str) -> List[KumoyRaster]:
         KumoyRaster(
             id=item.get("id", ""),
             name=item.get("name", ""),
-            projectId=item.get("projectId", ""),
+            projectId=item.get("projectId"),
+            catalogId=item.get("catalogId"),
             attribution=item.get("attribution", ""),
             bytes=item.get("bytes", 0),
             createdAt=item.get("createdAt", ""),
@@ -47,7 +53,8 @@ def get_raster(raster_id: str) -> KumoyRasterDetail:
     return KumoyRasterDetail(
         id=response.get("id", ""),
         name=response.get("name", ""),
-        projectId=response.get("projectId", ""),
+        projectId=response.get("projectId"),
+        catalogId=response.get("catalogId"),
         attribution=response.get("attribution", ""),
         bytes=response.get("bytes", 0),
         createdAt=response.get("createdAt", ""),
@@ -97,11 +104,31 @@ def create_raster(
     Raises:
         QuotaExceededError: プランの上限超過時（429）。
     """
+    return _create_raster(f"/project/{project_id}/raster", name, bytes, attribution)
+
+
+def create_raster_in_catalog(
+    catalog_id: str,
+    name: str,
+    bytes: int,
+    attribution: Optional[str] = None,
+) -> RasterUpload:
+    """Catalogへ直接Rasterを作成する（組織ADMIN/OWNERのみ）。
+
+    レスポンスはProject宛の ``create_raster`` と同じで、COG は返された
+    presigned PUT URL へアップロードする。
+    """
+    return _create_raster(f"/catalog/{catalog_id}/raster", name, bytes, attribution)
+
+
+def _create_raster(
+    endpoint: str, name: str, bytes: int, attribution: Optional[str]
+) -> RasterUpload:
     payload: Dict[str, object] = {"name": name, "bytes": bytes}
     if attribution is not None:
         payload["attribution"] = attribution
 
-    response = ApiClient.post(f"/project/{project_id}/raster", payload)
+    response = ApiClient.post(endpoint, payload)
 
     return RasterUpload(
         raster_id=response.get("rasterId", ""),

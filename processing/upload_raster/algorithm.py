@@ -23,6 +23,11 @@ from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
 from ...kumoy.settings_manager import get_settings
+from ...kumoy.upload.destinations import (
+    UploadDestination,
+    list_upload_destinations,
+    resolve_role_and_organization,
+)
 from ...kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
@@ -99,11 +104,11 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
     RASTER_NAME: str = "RASTER_NAME"
     ASSIGN_CRS: str = "ASSIGN_CRS"
 
-    project_ids: List[str]
+    destinations: List[UploadDestination]
 
     def __init__(self) -> None:
         super().__init__()
-        self.project_ids = []
+        self.destinations = []
 
     def createInstance(self) -> "UploadRasterAlgorithm":
         return UploadRasterAlgorithm()
@@ -143,8 +148,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
-        project_options: List[str] = []
-        self.project_ids = []
+        self.destinations = []
 
         self.addParameter(
             QgsProcessingParameterRasterLayer(
@@ -158,16 +162,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 # 未ログイン
                 return
 
-            organizations = api.organization.get_organizations()
-            for org in organizations:
-                # Organizations scheduled for deletion are unusable; their
-                # project APIs return not found
-                if org.scheduledDeletionAt:
-                    continue
-                projects = api.project.get_projects_by_organization(org.id)
-                for project in projects:
-                    project_options.append(f"{org.name} / {project.name}")
-                    self.project_ids.append(project.id)
+            self.destinations = list_upload_destinations()
 
         except Exception as e:
             msg = i18n.tr("Error Initializing Processing: {}").format(
@@ -179,22 +174,25 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             )
             return
 
-        default_project_index = 0
+        default_destination_index = 0
         selected_project_id = get_settings().selected_project_id
-        if selected_project_id and self.project_ids:
-            for idx, pid in enumerate(self.project_ids):
-                if pid == selected_project_id:
-                    default_project_index = idx
+        if selected_project_id:
+            for idx, destination in enumerate(self.destinations):
+                if (
+                    destination.kind == "PROJECT"
+                    and destination.id == selected_project_id
+                ):
+                    default_destination_index = idx
                     break
 
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.KUMOY_PROJECT,
-                i18n.tr("Destination project"),
-                options=project_options,
+                i18n.tr("Destination project or catalog"),
+                options=[destination.label for destination in self.destinations],
                 allowMultiple=False,
                 optional=False,
-                defaultValue=default_project_index,
+                defaultValue=default_destination_index,
             )
         )
 
@@ -217,37 +215,38 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-    def _resolve_project_and_name(
+    def _resolve_destination_and_name(
         self,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         layer: QgsRasterLayer,
     ):
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(
-                i18n.tr("Invalid destination project selection.")
-            )
-        project_id = self.project_ids[project_index]
+        destination_index = self.parameterAsEnum(
+            parameters, self.KUMOY_PROJECT, context
+        )
+        if destination_index < 0 or destination_index >= len(self.destinations):
+            raise QgsProcessingException(i18n.tr("Invalid destination selection."))
+        destination = self.destinations[destination_index]
 
         raster_name = self.parameterAsString(parameters, self.RASTER_NAME, context)
         if not raster_name:
             raster_name = layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
 
-        return project_id, raster_name
+        return destination, raster_name
 
-    def _validate_role_and_quota(self, project_id: str) -> None:
+    def _validate_role_and_quota(self, destination: UploadDestination) -> None:
         """Fail fast before the expensive COG conversion.
 
         The server enforces both anyway (403/429 on create_raster), but that
         happens after conversion; checking here saves the user the wait.
         """
-        project = api.project.get_project(project_id)
-        organization = api.organization.get_organization(project.team.organizationId)
+        role, organization = resolve_role_and_organization(destination)
 
-        if project.role not in ["ADMIN", "OWNER"]:
+        if role not in ["ADMIN", "OWNER"]:
             raise QgsProcessingException(
-                i18n.tr("You do not have permission to upload rasters to this project.")
+                i18n.tr(
+                    "You do not have permission to upload rasters to this destination."
+                )
             )
 
         plan_limits = api.plan.get_plan_limits(
@@ -286,13 +285,13 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             if layer is None:
                 raise QgsProcessingException(i18n.tr("Invalid input layer"))
 
-            project_id, raster_name = self._resolve_project_and_name(
+            destination, raster_name = self._resolve_destination_and_name(
                 parameters, context, layer
             )
             assign_crs_wkt = _resolve_assign_crs_wkt(
                 layer, self.parameterAsCrs(parameters, self.ASSIGN_CRS, context)
             )
-            self._validate_role_and_quota(project_id)
+            self._validate_role_and_quota(destination)
 
             self._raise_if_canceled(feedback)
             feedback.setProgress(5)
@@ -341,9 +340,14 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 )
 
             # メタデータ登録 + presigned PUT URL 取得。
-            upload = api.raster.create_raster(
-                project_id=project_id, name=raster_name, bytes=cog_bytes
-            )
+            if destination.kind == "CATALOG":
+                upload = api.raster.create_raster_in_catalog(
+                    destination.id, name=raster_name, bytes=cog_bytes
+                )
+            else:
+                upload = api.raster.create_raster(
+                    project_id=destination.id, name=raster_name, bytes=cog_bytes
+                )
             raster_id = upload.raster_id
             feedback.pushInfo(
                 i18n.tr("Created raster '{}' with ID: {}").format(
@@ -436,7 +440,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 )
                 raise QgsProcessingException(
                     i18n.tr(
-                        "You do not have permission to upload rasters to this project."
+                        "You do not have permission to upload rasters to this destination."
                     )
                 ) from None
 

@@ -41,16 +41,31 @@ class TestParseUri:
         return parse_uri
 
     def test_parses_all_parts(self):
-        project_id, raster_id, raster_name = self._fn()(
+        project_id, catalog_id, raster_id, raster_name = self._fn()(
             "project_id=p-1;raster_id=r-2;raster_name=dem;"
         )
         assert project_id == "p-1"
+        assert catalog_id == ""
+        assert raster_id == "r-2"
+        assert raster_name == "dem"
+
+    def test_parses_catalog_owned(self):
+        project_id, catalog_id, raster_id, raster_name = self._fn()(
+            "catalog_id=c-1;raster_id=r-2;raster_name=dem;"
+        )
+        assert project_id == ""
+        assert catalog_id == "c-1"
         assert raster_id == "r-2"
         assert raster_name == "dem"
 
     def test_raises_without_required(self):
         with pytest.raises(ValueError):
             self._fn()("raster_name=dem;")
+
+    def test_raises_without_owner(self):
+        # raster_id があっても所有元（project_id/catalog_id）が無ければ不正
+        with pytest.raises(ValueError):
+            self._fn()("raster_id=r-2;raster_name=dem;")
 
 
 @pytest.mark.usefixtures("qgis_plugin_path", "registered_metadata")
@@ -87,6 +102,23 @@ class TestRasterDataProvider:
         block = provider.block(1, layer.extent(), layer.width(), layer.height())
         assert block is not None and block.isValid()
         assert block.value(0, 0) == 40.0
+
+    def test_catalog_owned_layer_is_valid(self, tif):
+        """Catalog所有のURI（catalog_id=）でもレイヤーが開けること。"""
+        from qgis.core import QgsRasterLayer
+
+        from plugin_dir.kumoy import constants
+
+        uri = "catalog_id=c-1;raster_id=r-2;raster_name=dem;"
+        layer = QgsRasterLayer(uri, "dem", constants.RASTER_DATA_PROVIDER_KEY)
+
+        assert layer.isValid()
+        assert layer.bandCount() == 3
+
+        provider = layer.dataProvider()
+        assert provider.raster_id == "r-2"
+        assert provider.catalog_id == "c-1"
+        assert provider.project_id == ""
 
     def test_renders_through_map_job(self, tif):
         """描画パイプラインは QgsRasterPipe をコピーしプロバイダを clone する。

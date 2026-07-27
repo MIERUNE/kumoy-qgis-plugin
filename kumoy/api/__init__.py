@@ -1,4 +1,5 @@
 from . import (
+    catalog,
     config,
     error,
     organization,

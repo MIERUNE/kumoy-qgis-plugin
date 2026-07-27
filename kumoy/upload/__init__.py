@@ -1,3 +1,3 @@
-from . import presigned
+from . import destinations, presigned
 
-__all__ = ["presigned"]
+__all__ = ["destinations", "presigned"]

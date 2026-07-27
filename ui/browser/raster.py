@@ -59,10 +59,14 @@ class RasterItem(QgsDataItem):
         )
 
         self.raster = raster
+        # 所有元（Project/Catalogの排他）に応じてURIの先頭キーを切り替える
+        owner = (
+            f"catalog_id={raster.catalogId}"
+            if raster.catalogId
+            else f"project_id={raster.projectId}"
+        )
         self.raster_uri = (
-            f"project_id={self.raster.projectId};"
-            f"raster_id={self.raster.id};"
-            f"raster_name={self.raster.name};"
+            f"{owner};raster_id={self.raster.id};raster_name={self.raster.name};"
         )
         self.role = role
         self.setIcon(BROWSER_RASTER_ICON)
@@ -104,6 +108,19 @@ class RasterItem(QgsDataItem):
 
     def edit_raster(self) -> None:
         """Edit raster details"""
+        # ブラウザが保持する値は一覧取得時のスナップショットなので、最新の
+        # メタデータを初期値にする（Catalog一覧のレスポンスはattributionを
+        # 含まないため、ここでの取得が必須）。
+        try:
+            detail = api.raster.get_raster(self.raster.id)
+        except Exception as e:
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=i18n.tr("Error loading raster"),
+            )
+            return
+
         # Create dialog
         dialog = QDialog()
         dialog.setWindowTitle(i18n.tr("Edit Raster"))
@@ -114,9 +131,9 @@ class RasterItem(QgsDataItem):
         form_layout = QFormLayout()
 
         # Create fields
-        name_field = QLineEdit(self.raster.name)
+        name_field = QLineEdit(detail.name)
         name_field.setMaxLength(constants.MAX_CHARACTERS_RASTER_NAME)
-        attribution_field = QLineEdit(self.raster.attribution)
+        attribution_field = QLineEdit(detail.attribution)
         attribution_field.setMaxLength(constants.MAX_CHARACTERS_RASTER_ATTRIBUTION)
 
         # Add fields to form

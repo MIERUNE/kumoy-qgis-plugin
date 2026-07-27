@@ -22,6 +22,7 @@ from qgis.utils import iface
 from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
+from ...kumoy.upload.destinations import list_upload_destinations
 from ...pyqt_version import (
     QT_APPLICATION_MODAL,
     exec_event_loop,
@@ -210,19 +211,12 @@ def _run_upload(
 def _resolve_project_index(project_id: str) -> Optional[int]:
     """uploadraster の PROJECT enum インデックスを求める。
 
-    アルゴリズムは組織→プロジェクトの列挙順で選択肢を作るので、ここでも同じ
-    順序で走査してインデックスを合わせる。
+    アルゴリズムは list_upload_destinations と同じ列挙で選択肢を作るので、
+    同じリストを走査してインデックスを合わせる。
     """
-    idx = 0
-    for org in api.organization.get_organizations():
-        # UploadRasterAlgorithm.initAlgorithm と同じフィルタでないと
-        # インデックスがずれる（削除予約中の組織はプロジェクトAPIが404を返す）
-        if org.scheduledDeletionAt:
-            continue
-        for proj in api.project.get_projects_by_organization(org.id):
-            if proj.id == project_id:
-                return idx
-            idx += 1
+    for idx, destination in enumerate(list_upload_destinations()):
+        if destination.kind == "PROJECT" and destination.id == project_id:
+            return idx
     return None
 
 

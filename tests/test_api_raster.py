@@ -59,6 +59,26 @@ class TestCreateRaster:
 
         assert "attribution" not in captured["data"]
 
+    def test_create_in_catalog_uses_catalog_endpoint(self, monkeypatch):
+        raster = self._mod()
+        captured = {}
+
+        def fake_post(endpoint, data):
+            captured["endpoint"] = endpoint
+            captured["data"] = data
+            return {
+                "rasterId": "r-123",
+                "uploadUrl": "https://s3.example.com/key?sig=x",
+            }
+
+        monkeypatch.setattr(raster.ApiClient, "post", staticmethod(fake_post))
+
+        result = raster.create_raster_in_catalog("c-1", "dem", 52428800)
+
+        assert captured["endpoint"] == "/catalog/c-1/raster"
+        assert captured["data"] == {"name": "dem", "bytes": 52428800}
+        assert result.raster_id == "r-123"
+
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestGetRasters:

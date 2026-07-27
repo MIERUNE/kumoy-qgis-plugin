@@ -27,6 +27,11 @@ from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...kumoy.get_token import get_token
 from ...kumoy.settings_manager import get_settings
+from ...kumoy.upload.destinations import (
+    UploadDestination,
+    list_upload_destinations,
+    resolve_role_and_organization,
+)
 from .normalize_field_name import normalize_field_name
 
 
@@ -123,11 +128,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
 
-    project_ids: List[str]
+    destinations: List[UploadDestination]
 
     def __init__(self) -> None:
         super().__init__()
-        self.project_ids = []
+        self.destinations = []
 
     def createInstance(self) -> "UploadVectorAlgorithm":
         """Create new instance of algorithm"""
@@ -161,8 +166,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         """Initialize algorithm parameters"""
-        project_options = []
-        self.project_ids = []
+        self.destinations = []
 
         # Input vector layer
         self.addParameter(
@@ -178,20 +182,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 # 未ログイン
                 return
 
-            # Get all organizations first
-            organizations = api.organization.get_organizations()
-            project_options = []
-
-            # Get projects for each organization
-            for org in organizations:
-                # Organizations scheduled for deletion are unusable; their
-                # project APIs return not found
-                if org.scheduledDeletionAt:
-                    continue
-                projects = api.project.get_projects_by_organization(org.id)
-                for project in projects:
-                    project_options.append(f"{org.name} / {project.name}")
-                    self.project_ids.append(project.id)
+            self.destinations = list_upload_destinations()
 
         except Exception as e:
             msg = i18n.tr("Error Initializing Processing: {}").format(
@@ -203,24 +194,27 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             )
             return
 
-        default_project_index = 0
+        default_destination_index = 0
         selected_project_id = get_settings().selected_project_id
-        if selected_project_id and self.project_ids:
+        if selected_project_id:
             # Find the index for the selected project ID
-            for idx, pid in enumerate(self.project_ids):
-                if pid == selected_project_id:
-                    default_project_index = idx
+            for idx, destination in enumerate(self.destinations):
+                if (
+                    destination.kind == "PROJECT"
+                    and destination.id == selected_project_id
+                ):
+                    default_destination_index = idx
                     break
 
-        # Project selection
+        # Destination selection (project or catalog)
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.KUMOY_PROJECT,
-                i18n.tr("Destination project"),
-                options=project_options,
+                i18n.tr("Destination project or catalog"),
+                options=[destination.label for destination in self.destinations],
                 allowMultiple=False,
                 optional=False,
-                defaultValue=default_project_index,
+                defaultValue=default_destination_index,
             )
         )
 
@@ -259,38 +253,37 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
         self.addParameter(param)
 
-    def _get_project_info_and_validate(
+    def _get_destination_info_and_validate(
         self,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         layer: QgsVectorLayer,
     ):
-        """Get project information and validate limits"""
-        # Get project ID
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(
-                i18n.tr("Invalid destination project selection.")
-            )
-        project_id = self.project_ids[project_index]
+        """Get destination information and validate limits"""
+        # Get destination (project or catalog)
+        destination_index = self.parameterAsEnum(
+            parameters, self.KUMOY_PROJECT, context
+        )
+        if destination_index < 0 or destination_index >= len(self.destinations):
+            raise QgsProcessingException(i18n.tr("Invalid destination selection."))
+        destination = self.destinations[destination_index]
 
         # Get vector name
         vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
         if not vector_name:
             vector_name = layer.name()[:32]  # 最大32文字
 
-        # Get project and plan limits
-        project = api.project.get_project(project_id)
-        organization = api.organization.get_organization(project.team.organizationId)
+        # Get role and plan limits
+        role, organization = resolve_role_and_organization(destination)
         plan_limits = api.plan.get_plan_limits(
             organization.subscriptionPlan, organization.storageUnits
         )
 
         # Check role
-        if project.role not in ["ADMIN", "OWNER"]:
+        if role not in ["ADMIN", "OWNER"]:
             raise QgsProcessingException(
                 i18n.tr(
-                    "You do not have permission to upload vectors to this project. "
+                    "You do not have permission to upload vectors to this destination."
                 )
             )
 
@@ -306,7 +299,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 ).format(plan_limits.maxVectors)
             )
 
-        return project_id, vector_name, plan_limits
+        return destination, vector_name, plan_limits
 
     def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
         """Raise internal cancel marker to unwind quickly without reporting error."""
@@ -338,9 +331,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
             self._raise_if_canceled(feedback)
 
-            # Get project information and validate
-            project_id, vector_name, plan_limits = self._get_project_info_and_validate(
-                parameters, context, layer
+            # Get destination information and validate
+            destination, vector_name, plan_limits = (
+                self._get_destination_info_and_validate(parameters, context, layer)
             )
 
             # クリーニング前のレイヤーで地物数チェック
@@ -433,7 +426,10 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 name=vector_name,
                 type=geometry_type,
             )
-            vector = api.vector.add_vector(project_id, options)
+            if destination.kind == "CATALOG":
+                vector = api.vector.add_vector_to_catalog(destination.id, options)
+            else:
+                vector = api.vector.add_vector(destination.id, options)
             feedback.pushInfo(
                 i18n.tr("Created vector layer '{}' with ID: {}").format(
                     vector_name, vector.id

@@ -16,6 +16,7 @@ from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from ...ui.icons import MAIN_ICON
+from .catalog import CatalogRoot
 from .raster import RasterRoot
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
@@ -271,5 +272,16 @@ class RootCollection(QgsDataCollectionItem):
         )
         raster_root.setSortKey(2)
         children.append(raster_root)
+
+        # Create catalog root（選択中Projectではなく選択中Organizationに属する）
+        catalog_path = f"{self.path()}/catalogs"
+        catalog_root = CatalogRoot(
+            self,
+            i18n.tr("Catalogs"),
+            catalog_path,
+            self.organization_data,
+        )
+        catalog_root.setSortKey(3)
+        children.append(catalog_root)
 
         return children

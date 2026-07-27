@@ -30,18 +30,25 @@ from .. import constants, download, local_cache
 from ..api.error import NotFoundError, format_api_error
 
 
-def parse_uri(uri: str) -> tuple[str, str, str]:
-    """Kumoy ラスタ URI を (project_id, raster_id, raster_name) に分解する。"""
+def parse_uri(uri: str) -> tuple[str, str, str, str]:
+    """Kumoy ラスタ URI を (project_id, catalog_id, raster_id, raster_name) に分解する。
+
+    RasterはProject所有かCatalog所有のどちらか（排他）なので、URIも所有元を
+    project_id / catalog_id のいずれか一方で表す。
+    """
     metadata = QgsProviderRegistry.instance().providerMetadata(
         constants.RASTER_DATA_PROVIDER_KEY
     )
     parts = metadata.decodeUri(uri)
     project_id = parts.get("project_id", "")
+    catalog_id = parts.get("catalog_id", "")
     raster_id = parts.get("raster_id", "")
     raster_name = parts.get("raster_name", "")
-    if raster_id == "" or project_id == "":
-        raise ValueError("Invalid URI. 'project_id' and 'raster_id' are required.")
-    return project_id, raster_id, raster_name
+    if raster_id == "" or (project_id == "" and catalog_id == ""):
+        raise ValueError(
+            "Invalid URI. 'raster_id' and either 'project_id' or 'catalog_id' are required."
+        )
+    return project_id, catalog_id, raster_id, raster_name
 
 
 class KumoyRasterDataProvider(QgsRasterDataProvider):
@@ -58,7 +65,9 @@ class KumoyRasterDataProvider(QgsRasterDataProvider):
         self._gdal: Optional[QgsRasterDataProvider] = None
         self._is_valid = False
 
-        self.project_id, self.raster_id, self.raster_name = parse_uri(uri)
+        self.project_id, self.catalog_id, self.raster_id, self.raster_name = parse_uri(
+            uri
+        )
 
         cache_path = self._ensure_cached()
         if cache_path is None:
