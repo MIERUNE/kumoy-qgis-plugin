@@ -15,18 +15,16 @@ from qgis.core import (
     QgsSingleBandPseudoColorRenderer,
 )
 from qgis.PyQt.QtCore import QEventLoop
-from qgis.PyQt.QtWidgets import QMessageBox, QProgressDialog
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.utils import iface
 
 from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from ...pyqt_version import (
-    QT_APPLICATION_MODAL,
-    exec_event_loop,
-)
+from ...pyqt_version import exec_event_loop
 from ..error_handler import refresh_kumoy_browser
+from .upload_progress import UploadProgressDialog
 
 
 def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -> None:
@@ -71,9 +69,15 @@ def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -
 
 
 def convert_raster_to_kumoy(
-    layer: QgsRasterLayer, project_id: str
+    layer: QgsRasterLayer,
+    project_id: str,
+    progress: Optional[UploadProgressDialog] = None,
 ) -> tuple[bool, Optional[str]]:
     """Convert a raster layer to a Kumoy raster (COG upload).
+
+    Args:
+        progress: 一括アップロードで共有する進捗ダイアログ。省略時はこのレイヤー
+            専用のダイアログを開いて最後に閉じる。
 
     Returns:
         tuple: (success, error_message)。ユーザーが中断した場合は (False, None)
@@ -90,7 +94,7 @@ def convert_raster_to_kumoy(
 
         raster_name = layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
 
-        result = _run_upload(layer, project_index, raster_name)
+        result = _run_upload(layer, project_index, raster_name, progress)
         if result is None:
             return (False, None)  # ユーザーキャンセル
 
@@ -130,7 +134,10 @@ class _RecordingFeedback(QgsProcessingFeedback):
 
 
 def _run_upload(
-    layer: QgsRasterLayer, project_index: int, raster_name: str
+    layer: QgsRasterLayer,
+    project_index: int,
+    raster_name: str,
+    progress: Optional[UploadProgressDialog] = None,
 ) -> Optional[dict]:
     """``kumoy:uploadraster`` をバックグラウンドスレッドで実行し、完了まで待つ。
 
@@ -157,21 +164,19 @@ def _run_upload(
         "RASTER_NAME": raster_name,
     }
 
-    progress = QProgressDialog(
-        i18n.tr("Uploading layer '{}'...").format(raster_name),
-        i18n.tr("Cancel"),
-        0,
-        100,
-        iface.mainWindow(),
-    )
-    progress.setWindowTitle(i18n.tr("Kumoy Upload"))
-    progress.setWindowModality(QT_APPLICATION_MODAL)
-    progress.setMinimumDuration(0)
-    progress.setValue(0)
+    # 共有ダイアログを渡されていない場合だけ自前で開く（＝閉じる責務も持つ）
+    owns_progress = progress is None
+    if progress is None:
+        progress = UploadProgressDialog(1, iface.mainWindow())
+        progress.show()
+        progress.begin_layer(raster_name, 0)
 
     # 進捗はワーカースレッドから queued signal で届く。
-    feedback.progressChanged.connect(lambda p: progress.setValue(int(p)))
+    feedback.progressChanged.connect(progress.set_layer_progress)
     progress.canceled.connect(feedback.cancel)
+    if progress.is_canceled():
+        # 前のレイヤーの処理中に押されたキャンセルを取りこぼさない
+        feedback.cancel()
 
     outcome: dict = {}
     loop = QEventLoop()
@@ -192,11 +197,9 @@ def _run_upload(
     # 呼ばせると、成功した実行を後追いでキャンセル扱いにしてしまうため、閉じる前に
     # 接続を切る（実行中のユーザーキャンセルは既に feedback に反映済み）。
     progress.canceled.disconnect(feedback.cancel)
-    # accept() で終了させる。macOS の ApplicationModal はネイティブのモーダル
-    # セッションを張るため、close()/hide() ではセッションが残ってダイアログが
-    # 閉じないことがある（raster_dataprovider の後始末と同じ）。
-    progress.accept()
-    progress.deleteLater()
+    feedback.progressChanged.disconnect(progress.set_layer_progress)
+    if owns_progress:
+        progress.finish()
 
     if feedback.isCanceled():
         return None

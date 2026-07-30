@@ -5,6 +5,7 @@
 """
 
 import os
+from typing import Optional
 
 from qgis.core import QgsProject
 from qgis.PyQt.QtWidgets import QMessageBox
@@ -23,8 +24,21 @@ from .layers.convert_local import convert_local_layers
 def show_map_save_result(
     map_name: str,
     conversion_errors: list[tuple[str, str]],
+    skipped_layers: Optional[list[str]] = None,
 ) -> None:
-    """Show success or warning message after map save operation."""
+    """Show success or warning message after map save operation.
+
+    ``skipped_layers`` はアップロードを中断して未変換のまま保存されたレイヤー。
+    """
+    warnings = []
+
+    if skipped_layers:
+        warnings.append(
+            i18n.tr(
+                "Upload was cancelled: {} layers were not converted and remain local."
+            ).format(len(skipped_layers))
+        )
+
     if conversion_errors:
         error_details = "\n".join(
             [f"• {layer_name}\n{error}\n" for layer_name, error in conversion_errors]
@@ -33,10 +47,16 @@ def show_map_save_result(
         if len(error_details) > msg_max_length:
             error_details = error_details[:msg_max_length] + "..."
 
-        report_msg = i18n.tr(
-            "Map '{}' has been saved successfully.\n\n"
-            "Warning: {} layers could not be converted:\n\n{}"
-        ).format(map_name, len(conversion_errors), error_details)
+        warnings.append(
+            i18n.tr("Warning: {} layers could not be converted:\n\n{}").format(
+                len(conversion_errors), error_details
+            )
+        )
+
+    if warnings:
+        report_msg = i18n.tr("Map '{}' has been saved successfully.").format(
+            map_name
+        ) + "\n\n{}".format("\n\n".join(warnings))
 
         QMessageBox.warning(None, i18n.tr("Map Saved with Warnings"), report_msg)
     else:
@@ -131,10 +151,8 @@ def handle_project_saved() -> None:
     if warn_if_project_too_large(cache_map.serialize_project()):
         return
 
-    cancelled, conversion_errors, converted = convert_local_layers(
-        styled_map_detail.projectId
-    )
-    if cancelled:
+    conversion = convert_local_layers(styled_map_detail.projectId)
+    if conversion.cancelled:
         return
 
     qgsproject_str = cache_map.serialize_project()
@@ -167,9 +185,9 @@ def handle_project_saved() -> None:
     QgsProject.instance().setTitle(updated_styled_map.name)
     QgsProject.instance().setDirty(False)
 
-    show_map_save_result(updated_styled_map.name, conversion_errors)
+    show_map_save_result(updated_styled_map.name, conversion.errors, conversion.skipped)
 
     # 変換で新しいKumoyレイヤーができた場合のみブラウザを更新する。
     # ツリー再構築でアイテムが破棄されるので、フローの最後に置くこと。
-    if converted:
+    if conversion.converted:
         refresh_kumoy_browser()

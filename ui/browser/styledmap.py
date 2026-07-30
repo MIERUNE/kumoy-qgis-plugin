@@ -266,10 +266,8 @@ class StyledMapItem(QgsDataItem):
             return
 
         # Convert local layers to Kumoy layers if any
-        cancelled, conversion_errors, converted = convert_local_layers(
-            self.styled_map.projectId,
-        )
-        if cancelled:
+        conversion = convert_local_layers(self.styled_map.projectId)
+        if conversion.cancelled:
             return
 
         new_qgisproject = serialize_project()
@@ -311,13 +309,14 @@ class StyledMapItem(QgsDataItem):
         # Show result message with conversion errors summary if any
         show_map_save_result(
             updated_styled_map.name,
-            conversion_errors,
+            conversion.errors,
+            conversion.skipped,
         )
 
         # 変換で新しいKumoyレイヤーができた場合はツリー全体を更新する。
         # 再構築で self ごとアイテムが破棄されるため、self を参照し終えた
         # フローの最後に置くこと。
-        if converted:
+        if conversion.converted:
             refresh_kumoy_browser()
 
     def process_delete_map(self) -> None:
@@ -535,12 +534,10 @@ class StyledMapRoot(QgsDataItem):
             return
 
         # Convert local layers to Kumoy layers
-        # (converted は不要: このフローは最後に self.parent().refresh() で
+        # (conversion.converted は不要: このフローは最後に self.parent().refresh() で
         # ルートごとツリーを再構築するため、新規レイヤーもそこで現れる)
-        cancelled, conversion_errors, _ = convert_local_layers(
-            self.project.id,
-        )
-        if cancelled:
+        conversion = convert_local_layers(self.project.id)
+        if conversion.cancelled:
             return
 
         qgisproject = serialize_project()
@@ -601,7 +598,8 @@ class StyledMapRoot(QgsDataItem):
             # Show result message with conversion errors summary if any
             show_map_save_result(
                 name,
-                conversion_errors,
+                conversion.errors,
+                conversion.skipped,
             )
             QgsProject.instance().setDirty(False)
         except Exception as e:

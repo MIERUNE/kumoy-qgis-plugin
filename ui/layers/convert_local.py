@@ -5,6 +5,8 @@
 モジュール（convert_vector / convert_raster）に委譲する。
 """
 
+from dataclasses import dataclass, field
+
 from qgis.core import QgsVectorLayer
 from qgis.utils import iface
 
@@ -16,30 +18,47 @@ from ..error_handler import handle_api_error
 from ..utils import get_local_layers
 from .convert_raster import convert_raster_to_kumoy
 from .convert_vector import convert_to_kumoy
+from .upload_progress import UploadProgressDialog
 
 
-def convert_local_layers(
-    project_id: str,
-) -> tuple[bool, list[tuple[str, str]], bool]:
+@dataclass
+class ConversionResult:
+    """ローカルレイヤー変換フローの結果。"""
+
+    cancelled: bool = False
+    """選択ダイアログでキャンセルされた（＝Map保存自体を中止すべき）"""
+
+    errors: list[tuple[str, str]] = field(default_factory=list)
+    """(レイヤー名, エラー内容) の失敗一覧"""
+
+    converted: bool = False
+    """1つ以上のレイヤーが変換された"""
+
+    skipped: list[str] = field(default_factory=list)
+    """アップロード中断でKumoyに送らなかったレイヤー名。
+
+    途中でキャンセルしても、そこまでに変換済みのレイヤーは既にプロジェクトへ
+    反映されているので保存自体は続行する。残りは未変換のまま保存される。
+    """
+
+
+def convert_local_layers(project_id: str) -> ConversionResult:
     """Prompt the user to select and convert local layers (vector and raster).
 
     A single dialog lists both layer types in layer panel order. Each type
     has a plan-based count quota capping how many can be selected.
 
+    選択後のアップロードは1つの進捗ダイアログ（`UploadProgressDialog`）を全レイヤーで
+    共有し、キャンセル1回で残り全部を中断できる（Issue #538）。
+
     ここではブラウザパネルをリフレッシュしない。呼び出し元（保存フロー）が
     ブラウザアイテム(self等)を保持したまま実行されるため、途中でツリーを
     再構築するとそのアイテムが破棄されてしまう。converted が True なら
     呼び出し元がフローの最後にリフレッシュすること。
-
-    Returns:
-        tuple: (cancelled, conversion_errors, converted)
-            cancelled: True if the user cancelled (map save should be aborted)
-            conversion_errors: (layer_name, error) for failed conversions
-            converted: True if at least one layer was converted
     """
     local_layers = get_local_layers()
     if not local_layers:
-        return (False, [], False)
+        return ConversionResult()
 
     try:
         project = api.project.get_project(project_id)
@@ -51,7 +70,7 @@ def convert_local_layers(
         handle_api_error(
             e, parent=None, log_prefix=i18n.tr("Failed to check layer limits")
         )
-        return (True, [], False)
+        return ConversionResult(cancelled=True)
 
     dialog = LayerSelectDialog(
         local_layers,
@@ -65,27 +84,42 @@ def convert_local_layers(
         ),
     )
     if exec_dialog(dialog) != QDIALOG_CODE.Accepted:
-        return (True, [], False)
+        return ConversionResult(cancelled=True)
 
     selected_layers = dialog.selected_layers
     if not selected_layers:
-        return (False, [], False)
+        return ConversionResult()
 
-    conversion_errors = []
-    converted = False
-    for layer in selected_layers:
-        if isinstance(layer, QgsVectorLayer):
-            success, error = convert_to_kumoy(layer, project_id)
-            if not success:
-                conversion_errors.append((layer.name(), error))
-        else:
-            success, error = convert_raster_to_kumoy(layer, project_id)
-            # error is None on user cancel of an individual upload —
-            # skip, not a failure.
-            if not success and error is not None:
-                conversion_errors.append((layer.name(), error))
-        converted = converted or success
+    result = ConversionResult()
+    progress = UploadProgressDialog(len(selected_layers), iface.mainWindow())
+    progress.show()
+
+    try:
+        for index, layer in enumerate(selected_layers):
+            if progress.is_canceled():
+                # 残りは丸ごとスキップ。ここまでの変換結果は保存フローに残す。
+                result.skipped.extend(
+                    remaining.name() for remaining in selected_layers[index:]
+                )
+                break
+
+            progress.begin_layer(layer.name(), index)
+
+            if isinstance(layer, QgsVectorLayer):
+                success, error = convert_to_kumoy(layer, project_id, progress)
+            else:
+                success, error = convert_raster_to_kumoy(layer, project_id, progress)
+
+            if success:
+                result.converted = True
+            elif error is not None:
+                result.errors.append((layer.name(), error))
+            else:
+                # error is None は個別アップロードのユーザー中断。失敗ではなくスキップ。
+                result.skipped.append(layer.name())
+    finally:
+        progress.finish()
 
     iface.mapCanvas().refresh()
 
-    return (False, conversion_errors, converted)
+    return result
