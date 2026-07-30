@@ -2,10 +2,16 @@ import os
 import tempfile
 from typing import Optional
 
-from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsApplication,
+    QgsMessageLog,
+    QgsProject,
+    QgsVectorLayer,
+)
 
 from ... import i18n
-from ..constants import LOG_CATEGORY
+from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
 # Flag to prevent double updates when handling the project saved event.
@@ -92,6 +98,38 @@ def clear_all() -> bool:
     return success
 
 
+def refresh_kumoy_layer_extents(project: QgsProject) -> None:
+    """Re-read the extent of every Kumoy vector layer from its provider.
+
+    QgsVectorLayer asks the provider for its extent only once and caches the
+    result for the layer's lifetime; QgsProject.write() then serializes that
+    cached value, and omits the <extent> element entirely when it is null.
+    A Kumoy layer reports a null extent whenever the server has none yet (a
+    vector with no features, a freshly uploaded one) or the metadata fetch
+    failed - so a layer whose extent happened to be computed at such a moment
+    is saved without an extent forever after, even once the server knows it.
+
+    updateExtents() invalidates that cache so extent() queries the provider
+    again. Note it only takes effect while the provider reports a non-zero
+    featureCount() - see KumoyDataProvider.featureCount().
+
+    Only Kumoy vector layers are refreshed:
+    - other providers are unaffected by this bug, and recomputing their extents
+      can mean a full scan of the source data.
+    - raster layers have no updateExtents(), and a Kumoy raster's extent is null
+      only while its download failed or was cancelled - in which case the
+      provider still has no data to report at save time either.
+    """
+    for layer in project.mapLayers().values():
+        if not isinstance(layer, QgsVectorLayer):
+            continue
+        provider = layer.dataProvider()
+        if provider is None or provider.name() != DATA_PROVIDER_KEY:
+            continue
+        layer.updateExtents()
+        layer.extent()  # force the recompute now, not lazily during write()
+
+
 def serialize_project() -> str:
     """Serialize the current project to an XML string via a throwaway temp file.
 
@@ -109,6 +147,7 @@ def serialize_project() -> str:
     global is_updating
     project = QgsProject.instance()
     pin_fixed_aspect_ratios(project)
+    refresh_kumoy_layer_extents(project)
 
     prev_name = project.fileName()
     prev_dirty = project.isDirty()
