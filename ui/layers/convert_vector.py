@@ -20,7 +20,7 @@ import processing
 from ... import i18n
 from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
-from .upload_progress import UploadProgressDialog
+from .upload_progress import UploadProgressDialog, upload_progress
 
 
 def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
@@ -43,7 +43,9 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
         )
         return
 
-    success, error = convert_to_kumoy(layer, project_id)
+    with upload_progress(1) as progress:
+        progress.begin_layer(layer_name, 0)
+        success, error = convert_to_kumoy(layer, project_id, progress)
 
     if success:
         iface.messageBar().pushMessage(
@@ -66,13 +68,14 @@ def on_convert_to_kumoy_clicked(layer: QgsVectorLayer, project_id: str) -> None:
 def convert_to_kumoy(
     layer: QgsVectorLayer,
     project_id: str,
-    progress: Optional[UploadProgressDialog] = None,
+    progress: UploadProgressDialog,
 ) -> tuple[bool, Optional[str]]:
     """Convert a vector layer to Kumoy
 
     Args:
-        progress: 一括アップロードで共有する進捗ダイアログ。省略時はこのレイヤー
-            専用のダイアログを開いて最後に閉じる。
+        progress: 呼び出し側が ``upload_progress()`` で用意した進捗ダイアログ。
+            ここでは報告とキャンセル監視だけを行い、開閉はしない。
+            対象レイヤーの ``begin_layer()`` は呼び出し側が済ませておくこと。
 
     Returns:
         tuple: (success: bool, error_message: str or None)。ユーザーが中断した場合は
@@ -83,19 +86,10 @@ def convert_to_kumoy(
     if not layer or not layer.isValid():
         return (False, i18n.tr("The layer is no longer valid or has been removed."))
 
-    # 共有ダイアログを渡されていない場合だけ自前で開く（＝閉じる責務も持つ）
-    owns_progress = progress is None
-    if progress is None:
-        progress = UploadProgressDialog(1, iface.mainWindow())
-        progress.show()
-
     vector_name = layer.name()
     # trim name if too long
     if len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
         vector_name = vector_name[: constants.MAX_CHARACTERS_VECTOR_NAME]
-
-    if owns_progress:
-        progress.begin_layer(vector_name, 0)
 
     feedback = QgsProcessingFeedback()
 
@@ -237,10 +231,8 @@ def convert_to_kumoy(
         return (False, error_msg)
 
     finally:
-        # 共有ダイアログは次のレイヤーでも使うので、この feedback との接続だけ切る
+        # ダイアログは次のレイヤーでも使うので、この feedback との接続だけ切る
         progress.canceled.disconnect(feedback.cancel)
-        if owns_progress:
-            progress.finish()
 
 
 def _copy_layer_style(

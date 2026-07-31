@@ -24,7 +24,7 @@ from ...kumoy import api, constants
 from ...kumoy.api.error import format_api_error
 from ...pyqt_version import exec_event_loop
 from ..error_handler import refresh_kumoy_browser
-from .upload_progress import UploadProgressDialog
+from .upload_progress import UploadProgressDialog, upload_progress
 
 
 def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -> None:
@@ -45,7 +45,9 @@ def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -
         return
 
     layer_name = layer.name()
-    success, error = convert_raster_to_kumoy(layer, project_id)
+    with upload_progress(1) as progress:
+        progress.begin_layer(layer_name, 0)
+        success, error = convert_raster_to_kumoy(layer, project_id, progress)
 
     if success:
         # ブラウザ更新はこの（レイヤーパネル起点の）経路でのみ行う。
@@ -71,13 +73,14 @@ def on_convert_raster_to_kumoy_clicked(layer: QgsRasterLayer, project_id: str) -
 def convert_raster_to_kumoy(
     layer: QgsRasterLayer,
     project_id: str,
-    progress: Optional[UploadProgressDialog] = None,
+    progress: UploadProgressDialog,
 ) -> tuple[bool, Optional[str]]:
     """Convert a raster layer to a Kumoy raster (COG upload).
 
     Args:
-        progress: 一括アップロードで共有する進捗ダイアログ。省略時はこのレイヤー
-            専用のダイアログを開いて最後に閉じる。
+        progress: 呼び出し側が ``upload_progress()`` で用意した進捗ダイアログ。
+            ここでは報告とキャンセル監視だけを行い、開閉はしない。
+            対象レイヤーの ``begin_layer()`` は呼び出し側が済ませておくこと。
 
     Returns:
         tuple: (success, error_message)。ユーザーが中断した場合は (False, None)
@@ -137,7 +140,7 @@ def _run_upload(
     layer: QgsRasterLayer,
     project_index: int,
     raster_name: str,
-    progress: Optional[UploadProgressDialog] = None,
+    progress: UploadProgressDialog,
 ) -> Optional[dict]:
     """``kumoy:uploadraster`` をバックグラウンドスレッドで実行し、完了まで待つ。
 
@@ -164,13 +167,6 @@ def _run_upload(
         "RASTER_NAME": raster_name,
     }
 
-    # 共有ダイアログを渡されていない場合だけ自前で開く（＝閉じる責務も持つ）
-    owns_progress = progress is None
-    if progress is None:
-        progress = UploadProgressDialog(1, iface.mainWindow())
-        progress.show()
-        progress.begin_layer(raster_name, 0)
-
     # 進捗はワーカースレッドから queued signal で届く。
     feedback.progressChanged.connect(progress.set_layer_progress)
     progress.canceled.connect(feedback.cancel)
@@ -190,7 +186,6 @@ def _run_upload(
     task.executed.connect(on_executed)
     QgsApplication.taskManager().addTask(task)
 
-    progress.show()
     exec_event_loop(loop)
 
     # ダイアログを閉じると canceled() が発火しうる。ここで feedback.cancel を
@@ -198,8 +193,6 @@ def _run_upload(
     # 接続を切る（実行中のユーザーキャンセルは既に feedback に反映済み）。
     progress.canceled.disconnect(feedback.cancel)
     feedback.progressChanged.disconnect(progress.set_layer_progress)
-    if owns_progress:
-        progress.finish()
 
     if feedback.isCanceled():
         return None

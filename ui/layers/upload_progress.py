@@ -7,7 +7,13 @@ Map保存フローは選択されたレイヤーを1つずつアップロード�
 ここでは全体進捗（何個目 / 全体）と現在のレイヤーの進捗を1つのダイアログにまとめ、
 キャンセル1回で残り全部を止められるようにする。単体アップロード（レイヤーパネルの
 コンテキストメニュー）でも同じダイアログを total=1 で使う。
+
+ダイアログの生成・破棄は ``upload_progress()`` を使うフロー側の責務。変換関数
+（convert_to_kumoy / convert_raster_to_kumoy）は渡されたダイアログに報告するだけで、
+開いたり閉じたりしない。
 """
+
+from contextlib import contextmanager
 
 from qgis.PyQt.QtCore import QCoreApplication, pyqtSignal
 from qgis.PyQt.QtWidgets import (
@@ -18,12 +24,28 @@ from qgis.PyQt.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
+from qgis.utils import iface
 
 from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL
 
 # 全体進捗バーはレイヤーごとに 100 刻みで進める（レイヤー内の進捗も反映するため）
 _STEPS_PER_LAYER = 100
+
+
+@contextmanager
+def upload_progress(total: int):
+    """``total`` レイヤー分の進捗ダイアログを開き、抜けるときに必ず閉じる。
+
+    アップロードを始めるフロー（Map保存の一括変換、レイヤーパネルからの単体変換）が
+    これで囲み、中の変換関数には出来上がったダイアログを渡す。
+    """
+    dialog = UploadProgressDialog(total, iface.mainWindow())
+    dialog.show()
+    try:
+        yield dialog
+    finally:
+        dialog.finish()
 
 
 class UploadProgressDialog(QDialog):

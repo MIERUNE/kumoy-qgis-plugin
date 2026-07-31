@@ -18,7 +18,7 @@ from ..error_handler import handle_api_error
 from ..utils import get_local_layers
 from .convert_raster import convert_raster_to_kumoy
 from .convert_vector import convert_to_kumoy
-from .upload_progress import UploadProgressDialog
+from .upload_progress import upload_progress
 
 
 @dataclass
@@ -91,10 +91,8 @@ def convert_local_layers(project_id: str) -> ConversionResult:
         return ConversionResult()
 
     result = ConversionResult()
-    progress = UploadProgressDialog(len(selected_layers), iface.mainWindow())
-    progress.show()
 
-    try:
+    with upload_progress(len(selected_layers)) as progress:
         for index, layer in enumerate(selected_layers):
             if progress.is_canceled():
                 # 残りは丸ごとスキップ。ここまでの変換結果は保存フローに残す。
@@ -117,8 +115,6 @@ def convert_local_layers(project_id: str) -> ConversionResult:
             else:
                 # error is None は個別アップロードのユーザー中断。失敗ではなくスキップ。
                 result.skipped.append(layer.name())
-    finally:
-        progress.finish()
 
     iface.mapCanvas().refresh()
 

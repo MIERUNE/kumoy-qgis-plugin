@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from plugin_dir.ui.layers import convert_local
-from plugin_dir.ui.layers.upload_progress import UploadProgressDialog
+from plugin_dir.ui.layers.upload_progress import UploadProgressDialog, upload_progress
 
 
 @pytest.fixture
@@ -79,6 +79,21 @@ def test_cancel_is_reported_once_and_does_not_close(qgis_app):
     assert emitted == [True]
 
     dialog.deleteLater()
+
+
+def test_context_manager_closes_the_dialog_even_on_error(qgis_app):
+    with upload_progress(2) as dialog:
+        assert dialog.isVisible()
+        opened = dialog
+
+    assert not opened.isVisible()
+
+    # 変換が例外で抜けてもモーダルダイアログを残さない
+    with pytest.raises(RuntimeError):
+        with upload_progress(2) as dialog:
+            raise RuntimeError("boom")
+
+    assert not dialog.isVisible()
 
 
 def _stub_layer_limits(monkeypatch):
