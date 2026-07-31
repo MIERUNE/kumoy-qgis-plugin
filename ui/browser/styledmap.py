@@ -253,10 +253,6 @@ class StyledMapItem(QgsDataItem):
                 )
                 return
 
-        # HACK: to ensure extents of all layers are calculated - Issue #311
-        for layer in QgsProject.instance().mapLayers().values():
-            layer.extent()
-
         # Pre-flight size check before any upload: serialize to a throwaway temp
         # file and validate, without touching the cache. The .qgs size barely
         # changes after conversion (only datasource strings are swapped), so
@@ -455,10 +451,6 @@ class StyledMapRoot(QgsDataItem):
         """Add a new map to kumoy server
         Options:
         clear - whether to clear current QGIS project"""
-
-        # HACK: to ensure extents of all layers are calculated - Issue #311
-        for layer in QgsProject.instance().mapLayers().values():
-            layer.extent()
 
         try:
             # Check plan limits before creating styled map
