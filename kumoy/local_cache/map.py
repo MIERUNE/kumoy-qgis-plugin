@@ -110,8 +110,10 @@ def refresh_kumoy_layer_extents(project: QgsProject) -> None:
     is saved without an extent forever after, even once the server knows it.
 
     updateExtents() invalidates that cache so extent() queries the provider
-    again. Note it only takes effect while the provider reports a non-zero
-    featureCount() - see KumoyDataProvider.featureCount().
+    again, which also folds in any uncommitted edits. It has no effect while
+    featureCount() is 0 though - QgsVectorLayer.extent() skips the provider
+    entirely then - so for a layer that cannot produce features (no local
+    cache) we write the server-side extent onto the layer directly.
 
     Only Kumoy vector layers are refreshed:
     - other providers are unaffected by this bug, and recomputing their extents
@@ -127,7 +129,11 @@ def refresh_kumoy_layer_extents(project: QgsProject) -> None:
         if provider is None or provider.name() != DATA_PROVIDER_KEY:
             continue
         layer.updateExtents()
-        layer.extent()  # force the recompute now, not lazily during write()
+        if not layer.extent().isNull():  # also forces the recompute now
+            continue
+        provider_extent = provider.extent()
+        if not provider_extent.isNull():
+            layer.setExtent(provider_extent)
 
 
 def serialize_project() -> str:

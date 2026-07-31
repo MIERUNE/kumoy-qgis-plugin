@@ -25,10 +25,12 @@ def _extent_block(qgs_str: str, layer_name: str):
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
-class TestFeatureCountFallback:
-    """ローカルキャッシュが無いときはサーバ側のcountを返す。
+class TestFeatureCount:
+    """ローカルキャッシュが無いときは 0。
 
-    0 を返すと QgsVectorLayer.extent() が再計算をスキップして null のままになる。
+    KumoyFeatureIterator は cached_layer が None なら0件しか返さないので、
+    サーバ側の count を返すと getFeatures() と矛盾する。extent の面倒は
+    refresh_kumoy_layer_extents() が featureCount() に依存せず見る。
     """
 
     def _provider(self, kumoy_vector, cached_layer):
@@ -45,21 +47,24 @@ class TestFeatureCountFallback:
 
         return _Provider()
 
-    def test_falls_back_to_server_count_without_cache(self, qgis_app):
+    def test_zero_without_cache_even_if_server_has_count(self, qgis_app):
         provider = self._provider(types.SimpleNamespace(count=7), None)
-        assert provider.featureCount() == 7
-
-    def test_zero_without_cache_and_metadata(self, qgis_app):
-        provider = self._provider(None, None)
         assert provider.featureCount() == 0
 
-    def test_cached_layer_takes_precedence(self, qgis_app):
-        """キャッシュがあればそれが真。空なら 7 ではなく 0 を返す。"""
-        from qgis.core import QgsVectorLayer
+    def test_uses_cached_layer_when_available(self, qgis_app):
+        """キャッシュがあればサーバ側の count ではなくキャッシュの件数が真。"""
+        from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
 
         cached = QgsVectorLayer("Point?crs=EPSG:4326", "cache", "memory")
+        feats = []
+        for x in (139.0, 139.5):
+            f = QgsFeature(cached.fields())
+            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, 35.0)))
+            feats.append(f)
+        assert cached.dataProvider().addFeatures(feats)[0]
+
         provider = self._provider(types.SimpleNamespace(count=7), cached)
-        assert provider.featureCount() == 0
+        assert provider.featureCount() == 2
 
 
 @pytest.fixture(scope="session")
@@ -265,6 +270,32 @@ class TestSerializeProjectExtent:
         assert block is not None
         assert "<xmin>139</xmin>" in block
         assert _extent_block(qgs_str, "dem") is not None
+
+    def test_extent_written_without_local_cache(self, kumoy_layer, fake_kumoy_provider):
+        """地物を返せないレイヤーでもサーバの extent は書き込まれること。
+
+        ローカルキャッシュ同期が失敗した／キャッシュを消した直後の状態。
+        featureCount() が 0 なので updateExtents() は効かず、
+        setExtent() 経由で書き込む必要がある。
+        """
+        from qgis.core import QgsRectangle
+
+        from plugin_dir.kumoy.local_cache.map import serialize_project
+
+        assert kumoy_layer.extent().isNull()  # null がキャッシュされる
+
+        fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
+        fake_kumoy_provider.feature_count = 0
+
+        block = _extent_block(serialize_project(), "points")
+        assert block is not None
+        assert "<xmin>139</xmin>" in block
+
+    def test_null_provider_extent_left_alone(self, kumoy_layer, fake_kumoy_provider):
+        """サーバもextentを知らないなら、書ける値が無いので何もしない。"""
+        from plugin_dir.kumoy.local_cache.map import serialize_project
+
+        assert _extent_block(serialize_project(), "points") is None
 
     def test_stale_extent_updated(self, kumoy_layer, fake_kumoy_provider):
         from qgis.core import QgsRectangle
