@@ -1,9 +1,8 @@
 """Map保存時に <extent> が書き込まれることのテスト
 
-QgsVectorLayer はプロバイダの extent を一度だけ問い合わせてキャッシュし、
-QgsProject.write() はそのキャッシュ値を書き出す（null なら <extent> 要素そのものが
-欠落する）。Kumoyレイヤーは「サーバ側にまだextentが無い」瞬間に null を返しうるので、
-シリアライズ直前に再計算させる必要がある。
+QgsVectorLayer はプロバイダの extent を一度だけ問い合わせてキャッシュし、write() は
+その値を書き出す（null なら <extent> 要素が丸ごと欠落する）。Kumoyレイヤーは
+サーバ側にまだextentが無い瞬間に null を返しうるので、保存直前に再計算が必要。
 """
 
 import re
@@ -28,9 +27,8 @@ def _extent_block(qgs_str: str, layer_name: str):
 class TestFeatureCount:
     """ローカルキャッシュが無いときは 0。
 
-    KumoyFeatureIterator は cached_layer が None なら0件しか返さないので、
-    サーバ側の count を返すと getFeatures() と矛盾する。extent の面倒は
-    refresh_kumoy_layer_extents() が featureCount() に依存せず見る。
+    KumoyFeatureIterator が0件しか返さないので、サーバ側の count を返すと
+    getFeatures() と矛盾する。
     """
 
     def _provider(self, kumoy_vector, cached_layer):
@@ -71,10 +69,8 @@ class TestFeatureCount:
 def _registered_fake_provider(qgis_app):
     """Register a stub provider under the Kumoy vector provider key.
 
-    Mimics KumoyDataProvider: the extent comes from server metadata (null while
-    the server has none) and the feature count from the local cache. Provider
-    metadata can only be registered once per QGIS session, so the stub reads its
-    mutable state from the returned object.
+    Provider metadata can only be registered once per QGIS session, so the stub
+    reads its extent / feature count from the returned mutable object.
     """
     from qgis.core import (
         QgsCoordinateReferenceSystem,
@@ -235,11 +231,7 @@ class TestSerializeProjectExtent:
     def test_extent_recovered_after_null_was_cached(
         self, kumoy_layer, fake_kumoy_provider
     ):
-        """空のVectorに地物を追加したあと保存するケース。
-
-        レイヤー追加直後の描画で null がキャッシュされても、保存時には
-        サーバ側の extent が書き込まれること。
-        """
+        """レイヤー追加直後の描画で null がキャッシュされても復旧すること。"""
         from qgis.core import QgsRectangle
 
         from plugin_dir.kumoy.local_cache.map import serialize_project
@@ -272,12 +264,7 @@ class TestSerializeProjectExtent:
         assert _extent_block(qgs_str, "dem") is not None
 
     def test_extent_written_without_local_cache(self, kumoy_layer, fake_kumoy_provider):
-        """地物を返せないレイヤーでもサーバの extent は書き込まれること。
-
-        ローカルキャッシュ同期が失敗した／キャッシュを消した直後の状態。
-        featureCount() が 0 なので updateExtents() は効かず、
-        setExtent() 経由で書き込む必要がある。
-        """
+        """キャッシュ同期失敗時。featureCount() が 0 だと updateExtents() は効かない。"""
         from qgis.core import QgsRectangle
 
         from plugin_dir.kumoy.local_cache.map import serialize_project

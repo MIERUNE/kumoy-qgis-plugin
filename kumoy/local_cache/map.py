@@ -101,26 +101,15 @@ def clear_all() -> bool:
 def refresh_kumoy_layer_extents(project: QgsProject) -> None:
     """Re-read the extent of every Kumoy vector layer from its provider.
 
-    QgsVectorLayer asks the provider for its extent only once and caches the
-    result for the layer's lifetime; QgsProject.write() then serializes that
-    cached value, and omits the <extent> element entirely when it is null.
-    A Kumoy layer reports a null extent whenever the server has none yet (a
-    vector with no features, a freshly uploaded one) or the metadata fetch
-    failed - so a layer whose extent happened to be computed at such a moment
-    is saved without an extent forever after, even once the server knows it.
+    QgsVectorLayer caches the provider extent for the layer's lifetime, and
+    write() omits <extent> entirely when it is null. A Kumoy layer returns null
+    while the server has no extent yet (empty/just-uploaded vector, failed
+    metadata fetch), so a layer unlucky in when it was first asked would be
+    saved without an extent forever after.
 
-    updateExtents() invalidates that cache so extent() queries the provider
-    again, which also folds in any uncommitted edits. It has no effect while
-    featureCount() is 0 though - QgsVectorLayer.extent() skips the provider
-    entirely then - so for a layer that cannot produce features (no local
-    cache) we write the server-side extent onto the layer directly.
-
-    Only Kumoy vector layers are refreshed:
-    - other providers are unaffected by this bug, and recomputing their extents
-      can mean a full scan of the source data.
-    - raster layers have no updateExtents(), and a Kumoy raster's extent is null
-      only while its download failed or was cancelled - in which case the
-      provider still has no data to report at save time either.
+    Vector layers only: other providers don't have this bug and rescanning them
+    can be expensive; QgsRasterLayer has no updateExtents(), and a Kumoy raster
+    is null only when its download failed, which no retry here can fix.
     """
     for layer in project.mapLayers().values():
         if not isinstance(layer, QgsVectorLayer):
@@ -128,9 +117,12 @@ def refresh_kumoy_layer_extents(project: QgsProject) -> None:
         provider = layer.dataProvider()
         if provider is None or provider.name() != DATA_PROVIDER_KEY:
             continue
+        # Preferred: recomputes from the provider and folds in uncommitted edits.
         layer.updateExtents()
         if not layer.extent().isNull():  # also forces the recompute now
             continue
+        # updateExtents() is a no-op while featureCount() is 0, so write the
+        # server extent directly for layers that cannot produce features.
         provider_extent = provider.extent()
         if not provider_extent.isNull():
             layer.setExtent(provider_extent)

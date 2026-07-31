@@ -322,11 +322,9 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def featureCount(self) -> int:
         """Return the feature count, respecting subset string if set.
 
-        0 without a local cache is deliberate, not a missing fallback to the
-        server-side count: KumoyFeatureIterator yields nothing when
-        cached_layer is None, so any other number would contradict
-        getFeatures(). local_cache.map.refresh_kumoy_layer_extents() handles
-        the extent of such a layer without relying on this count.
+        0 without a local cache is deliberate, not a missing fallback to
+        kumoy_vector.count: KumoyFeatureIterator yields nothing in that state,
+        so any other number would contradict getFeatures().
         """
         if not self.cached_layer:
             return 0
