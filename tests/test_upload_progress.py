@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import pytest
+from qgis.PyQt.QtGui import QFontMetrics
 
 from plugin_dir.ui.layers import convert
 from plugin_dir.ui.layers.upload_progress import UploadProgressDialog, upload_progress
@@ -60,6 +61,31 @@ def test_single_layer_hides_overall_progress(qgis_app):
     assert dialog._overall_label.isHidden()
 
     dialog.deleteLater()
+
+
+def test_long_layer_name_is_elided_to_one_line(qgis_app):
+    """長いレイヤー名で折り返してダイアログの高さが足りなくなるのを防ぐ。"""
+    dialog = UploadProgressDialog(2)
+    dialog.show()
+
+    dialog.begin_layer("short", 0)
+    one_line_height = dialog._layer_label.height()
+
+    long_name = "very long layer name " * 20
+    dialog.begin_layer(long_name, 1)
+
+    label = dialog._layer_label
+    # 折り返さず1行のまま。高さが増えていない
+    assert not label.wordWrap()
+    assert label.height() == one_line_height
+    # 表示は省略され、ラベル幅に収まる
+    assert label.text() != long_name
+    assert "…" in label.text()
+    assert QFontMetrics(label.font()).horizontalAdvance(label.text()) <= label.width()
+    # 全文はツールチップで読める
+    assert long_name in label.toolTip()
+
+    dialog.finish()
 
 
 def test_cancel_is_reported_once_and_does_not_close(qgis_app):

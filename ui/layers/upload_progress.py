@@ -16,6 +16,7 @@ Map保存フローは選択されたレイヤーを1つずつアップロード�
 from contextlib import contextmanager
 
 from qgis.PyQt.QtCore import QCoreApplication, pyqtSignal
+from qgis.PyQt.QtGui import QFontMetrics
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -27,7 +28,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ... import i18n
-from ...pyqt_version import QT_APPLICATION_MODAL
+from ...pyqt_version import QT_APPLICATION_MODAL, QT_TEXT_ELIDE_MODE
 
 # 全体進捗バーはレイヤーごとに 100 刻みで進める（レイヤー内の進捗も反映するため）
 _STEPS_PER_LAYER = 100
@@ -63,6 +64,9 @@ class UploadProgressDialog(QDialog):
         self._total = max(total, 1)
         self._current_index = 0
         self._canceled = False
+        # ウィジェットを組む前に resizeEvent が飛んでも落ちないよう先に用意する
+        self._layer_message = ""
+        self._layer_label = None
 
         self.setWindowTitle(i18n.tr("Kumoy Upload"))
         self.setWindowModality(QT_APPLICATION_MODAL)
@@ -84,9 +88,12 @@ class UploadProgressDialog(QDialog):
             self._overall_label.hide()
             self._overall_bar.hide()
 
-        # 現在アップロード中のレイヤー
+        # 現在アップロード中のレイヤー。
+        # レイヤー名の長さは読めないので、折り返さずに省略表示する。折り返すと
+        # ダイアログの高さが足りずに文字が切れるうえ、レイヤーごとに高さが
+        # 変わってちらつく。全文はツールチップで見られるようにする。
         self._layer_label = QLabel()
-        self._layer_label.setWordWrap(True)
+        self._layer_label.setWordWrap(False)
         layout.addWidget(self._layer_label)
 
         self._layer_bar = QProgressBar()
@@ -128,7 +135,7 @@ class UploadProgressDialog(QDialog):
     def begin_layer(self, name: str, index: int) -> None:
         """``index`` 番目（0起点）のレイヤー ``name`` のアップロード開始を表示する。"""
         self._current_index = index
-        self._layer_label.setText(i18n.tr("Uploading layer '{}'...").format(name))
+        self._set_layer_message(i18n.tr("Uploading layer '{}'...").format(name))
         self._layer_bar.setValue(0)
         self._overall_bar.setValue(index * _STEPS_PER_LAYER)
         self._update_overall_label()
@@ -153,6 +160,29 @@ class UploadProgressDialog(QDialog):
         """
         self.accept()
         self.deleteLater()
+
+    def resizeEvent(self, event) -> None:
+        # 幅が変わると省略位置も変わるので貼り直す
+        super().resizeEvent(event)
+        self._render_layer_message()
+
+    def _set_layer_message(self, text: str) -> None:
+        self._layer_message = text
+        self._layer_label.setToolTip(text)
+        self._render_layer_message()
+
+    def _render_layer_message(self) -> None:
+        """ラベルの幅に収まるよう、中央を省略して表示する。"""
+        if self._layer_label is None:
+            return
+        metrics = QFontMetrics(self._layer_label.font())
+        self._layer_label.setText(
+            metrics.elidedText(
+                self._layer_message,
+                QT_TEXT_ELIDE_MODE.ElideMiddle,
+                self._layer_label.width(),
+            )
+        )
 
     def _update_overall_label(self) -> None:
         if self._canceled:

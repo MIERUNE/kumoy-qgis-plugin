@@ -113,6 +113,12 @@ Qt5: Qt.ApplicationModal
 Qt6: Qt.WindowModality.ApplicationModal
 """
 
+QT_TEXT_ELIDE_MODE = Qt if QT_VERSION_INT <= 5 else Qt.TextElideMode
+"""Qt text elide mode
+Qt5: Qt.ElideLeft, Qt.ElideMiddle, Qt.ElideRight, Qt.ElideNone
+Qt6: Qt.TextElideMode.ElideMiddle, etc.
+"""
+
 QT_ASPECT_RATIO_MODE = Qt if QT_VERSION_INT <= 5 else Qt.AspectRatioMode
 """Qt aspect ratio mode
 Qt5: Qt.KeepAspectRatio, Qt.KeepAspectRatioByExpanding, etc.
