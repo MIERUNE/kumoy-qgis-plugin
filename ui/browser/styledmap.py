@@ -43,7 +43,7 @@ from ...qgis_version import (
     restore_project_crs_if_invalid,
     restore_xyz_layer_datasources,
 )
-from ...ui.layers.convert_local import convert_local_layers
+from ...ui.layers.convert import convert_local_layers
 from ..error_handler import handle_api_error, refresh_kumoy_browser
 from ..icons import BROWSER_MAP_ICON
 from ..project_save_handler import show_map_save_result, warn_if_project_too_large

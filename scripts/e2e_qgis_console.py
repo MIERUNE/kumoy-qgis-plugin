@@ -124,7 +124,7 @@ settings_manager = _imp("kumoy.settings_manager")
 auth_module = _imp("kumoy.auth_manager")
 cache_map_module = _imp("kumoy.local_cache.map")
 pyqt_version_module = _imp("pyqt_version")
-convert_local_module = _imp("ui.layers.convert_local")
+convert_local_module = _imp("ui.layers.convert")
 dialog_layer_select_module = _imp("ui.dialog_layer_select")
 
 LayerSelectDialog = dialog_layer_select_module.LayerSelectDialog

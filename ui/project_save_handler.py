@@ -18,7 +18,7 @@ from ..kumoy.sprite import generate_sprite
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .error_handler import handle_api_error, refresh_kumoy_browser
-from .layers.convert_local import convert_local_layers
+from .layers.convert import convert_local_layers
 
 
 def show_map_save_result(
