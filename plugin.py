@@ -39,8 +39,7 @@ from .kumoy.settings_manager import (
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
-from .ui.layers.convert_raster import on_convert_raster_to_kumoy_clicked
-from .ui.layers.convert_vector import on_convert_to_kumoy_clicked
+from .ui.layers.convert import on_convert_layer_clicked
 from .ui.layers.indicators import update_kumoy_indicator
 
 
@@ -200,12 +199,10 @@ class KumoyPlugin:
             return
 
         # Create and add convert action
+        # Only the label and enabled state depend on the layer type
         if isinstance(layer, QgsVectorLayer):
             convert_action = QAction(
                 MAIN_ICON, i18n.tr("Convert to Kumoy Vector"), menu
-            )
-            convert_action.triggered.connect(
-                lambda: on_convert_to_kumoy_clicked(layer, root.project_data.id)
             )
             # 編集中(未保存)のベクタは変換不可
             if layer.isModified():
@@ -214,9 +211,9 @@ class KumoyPlugin:
             convert_action = QAction(
                 MAIN_ICON, i18n.tr("Convert to Kumoy Raster"), menu
             )
-            convert_action.triggered.connect(
-                lambda: on_convert_raster_to_kumoy_clicked(layer, root.project_data.id)
-            )
+        convert_action.triggered.connect(
+            lambda: on_convert_layer_clicked(layer, root.project_data.id)
+        )
         convert_action.setIconVisibleInMenu(True)
         self._insert_action_after_last_separator(menu, convert_action)
 
