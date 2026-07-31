@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from plugin_dir.ui.layers import convert_local
+from plugin_dir.ui.layers import convert
 from plugin_dir.ui.layers.upload_progress import UploadProgressDialog, upload_progress
 
 
@@ -106,16 +106,14 @@ def _stub_layer_limits(monkeypatch):
         usage=SimpleNamespace(vectors=0, rasters=0),
     )
     limits = SimpleNamespace(maxVectors=10, maxRasters=10)
+    monkeypatch.setattr(convert.api.project, "get_project", lambda project_id: project)
     monkeypatch.setattr(
-        convert_local.api.project, "get_project", lambda project_id: project
-    )
-    monkeypatch.setattr(
-        convert_local.api.organization,
+        convert.api.organization,
         "get_organization",
         lambda organization_id: organization,
     )
     monkeypatch.setattr(
-        convert_local.api.plan,
+        convert.api.plan,
         "get_plan_limits",
         lambda subscription_plan, storage_units: limits,
     )
@@ -123,15 +121,15 @@ def _stub_layer_limits(monkeypatch):
 
 def _accept_all_layers(monkeypatch):
     monkeypatch.setattr(
-        convert_local,
+        convert,
         "LayerSelectDialog",
         lambda layers, **kwargs: SimpleNamespace(selected_layers=layers),
     )
     monkeypatch.setattr(
-        convert_local, "exec_dialog", lambda dialog: convert_local.QDIALOG_CODE.Accepted
+        convert, "exec_dialog", lambda dialog: convert.QDIALOG_CODE.Accepted
     )
     monkeypatch.setattr(
-        convert_local,
+        convert,
         "iface",
         SimpleNamespace(
             mainWindow=lambda: None,
@@ -144,13 +142,13 @@ def test_cancelling_mid_batch_skips_remaining_layers(
     qgis_app, memory_layers, monkeypatch
 ):
     layers = memory_layers(["a", "b", "c", "d"])
-    monkeypatch.setattr(convert_local, "get_local_layers", lambda: layers)
+    monkeypatch.setattr(convert, "get_local_layers", lambda: layers)
     _stub_layer_limits(monkeypatch)
     _accept_all_layers(monkeypatch)
 
     uploaded = []
 
-    def convert(layer, project_id, progress):
+    def fake_convert(layer, project_id, progress):
         uploaded.append(layer.name())
         if layer.name() == "b":
             # 2つ目のアップロード中にユーザーがキャンセルを押した状況
@@ -158,9 +156,9 @@ def test_cancelling_mid_batch_skips_remaining_layers(
             return (False, None)
         return (True, None)
 
-    monkeypatch.setattr(convert_local, "convert_to_kumoy", convert)
+    monkeypatch.setattr(convert, "convert_layer_to_kumoy", fake_convert)
 
-    result = convert_local.convert_local_layers("project")
+    result = convert.convert_local_layers("project")
 
     # キャンセルはMap保存自体の中止ではない: 変換済みのレイヤーは反映して保存を続ける
     assert not result.cancelled
@@ -175,18 +173,18 @@ def test_failures_are_collected_without_stopping_the_batch(
     qgis_app, memory_layers, monkeypatch
 ):
     layers = memory_layers(["a", "b", "c"])
-    monkeypatch.setattr(convert_local, "get_local_layers", lambda: layers)
+    monkeypatch.setattr(convert, "get_local_layers", lambda: layers)
     _stub_layer_limits(monkeypatch)
     _accept_all_layers(monkeypatch)
 
-    def convert(layer, project_id, progress):
+    def fake_convert(layer, project_id, progress):
         if layer.name() == "b":
             return (False, "boom")
         return (True, None)
 
-    monkeypatch.setattr(convert_local, "convert_to_kumoy", convert)
+    monkeypatch.setattr(convert, "convert_layer_to_kumoy", fake_convert)
 
-    result = convert_local.convert_local_layers("project")
+    result = convert.convert_local_layers("project")
 
     assert not result.cancelled
     assert result.converted
