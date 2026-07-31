@@ -533,9 +533,8 @@ class StyledMapRoot(QgsDataItem):
         if warn_if_project_too_large(serialize_project()):
             return
 
-        # Convert local layers to Kumoy layers
-        # (conversion.converted は不要: このフローは最後に self.parent().refresh() で
-        # ルートごとツリーを再構築するため、新規レイヤーもそこで現れる)
+        # conversion.converted is unused here: this flow ends with
+        # self.parent().refresh(), which rebuilds the tree and shows new layers anyway
         conversion = convert_local_layers(self.project.id)
         if conversion.cancelled:
             return

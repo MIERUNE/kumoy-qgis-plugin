@@ -1,11 +1,7 @@
-"""ラスターレイヤー1枚をKumoyへアップロードし、Kumoyレイヤーを作るところまで。
+"""Raster-specific half of the local-to-Kumoy conversion driven by ``convert.py``.
 
-ガード・スタイルコピー・レイヤーツリーの差し替えといった種別に依存しない部分は
-``convert.py`` が持つ。ここにはラスター固有のものだけを置く:
-
-- ``kumoy:uploadraster`` をワーカースレッドで実行する（理由は ``_run_upload``）
-- Kumoyラスタの URI 組み立て
-- スタイルXML往復で壊れる疑似カラー min/max の復元 (``repair_nan_classification``)
+Runs ``kumoy:uploadraster`` on a worker thread (see ``_run_upload``) and repairs
+pseudocolor min/max lost in the style round-trip.
 """
 
 import math
@@ -33,16 +29,10 @@ def upload(
     raster_name: str,
     progress: UploadProgressDialog,
 ) -> Optional[QgsRasterLayer]:
-    """``layer`` をCOG化してKumoyへアップロードし、Kumoyラスタレイヤーを返す。
-
-    Returns:
-        新しいKumoyレイヤー。ユーザーが中断した場合は None。
-    Raises:
-        アップロードやレイヤー生成に失敗した場合は例外。
-    """
+    """Upload ``layer`` as a COG and return the Kumoy layer, or None on cancel."""
     result = _run_upload(layer, project_index, raster_name, progress)
     if result is None:
-        return None  # ユーザーキャンセル
+        return None  # user cancel
 
     if "RASTER_ID" not in result:
         raise Exception(i18n.tr("Upload failed - unable to get raster id"))
@@ -133,11 +123,11 @@ def _run_upload(
         "RASTER_NAME": raster_name,
     }
 
-    # 進捗はワーカースレッドから queued signal で届く。
+    # Progress arrives from the worker thread as a queued signal, so no pumping here
     feedback.progressChanged.connect(progress.set_layer_progress)
     progress.canceled.connect(feedback.cancel)
     if progress.is_canceled():
-        # 前のレイヤーの処理中に押されたキャンセルを取りこぼさない
+        # Cancel pressed while a previous layer was running must not be lost
         feedback.cancel()
 
     outcome: dict = {}
@@ -155,8 +145,7 @@ def _run_upload(
     try:
         exec_event_loop(loop)
     finally:
-        # ダイアログは次のレイヤーでも使うので、この feedback との接続だけ切る。
-        # 実行中のユーザーキャンセルは既に feedback に反映済み。
+        # Drop only this feedback's connections: the dialog outlives it
         progress.canceled.disconnect(feedback.cancel)
         feedback.progressChanged.disconnect(progress.set_layer_progress)
 

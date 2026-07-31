@@ -1,16 +1,9 @@
-"""レイヤーアップロードの進捗表示ダイアログ。
+"""Progress dialog shared by a whole batch of layer uploads.
 
-Map保存フローは選択されたレイヤーを1つずつアップロードする。以前はレイヤーごとに
-``QProgressDialog`` を開いていたため、100レイヤーあると「今何個目か」が分からず、
-中断したいときに100回キャンセルを押す必要があった（Issue #538）。
-
-ここでは全体進捗（何個目 / 全体）と現在のレイヤーの進捗を1つのダイアログにまとめ、
-キャンセル1回で残り全部を止められるようにする。単体アップロード（レイヤーパネルの
-コンテキストメニュー）でも同じダイアログを total=1 で使う。
-
-ダイアログの生成・破棄は ``upload_progress()`` を使うフロー側の責務。変換関数
-（convert_to_kumoy / convert_raster_to_kumoy）は渡されたダイアログに報告するだけで、
-開いたり閉じたりしない。
+One dialog per batch instead of one per layer (Issue #538): a 100-layer save
+now shows "3 of 100" and takes a single Cancel press to abort the rest.
+Lifetime belongs to the flow that opens ``upload_progress()``; upload code only
+reports into the dialog it is handed.
 """
 
 from contextlib import contextmanager
@@ -30,17 +23,13 @@ from qgis.utils import iface
 from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL, QT_TEXT_ELIDE_MODE
 
-# 全体進捗バーはレイヤーごとに 100 刻みで進める（レイヤー内の進捗も反映するため）
+# Overall bar counts 100 steps per layer so within-layer progress shows there too
 _STEPS_PER_LAYER = 100
 
 
 @contextmanager
 def upload_progress(total: int):
-    """``total`` レイヤー分の進捗ダイアログを開き、抜けるときに必ず閉じる。
-
-    アップロードを始めるフロー（Map保存の一括変換、レイヤーパネルからの単体変換）が
-    これで囲み、中の変換関数には出来上がったダイアログを渡す。
-    """
+    """Open a dialog for ``total`` layers and always close it on exit."""
     dialog = UploadProgressDialog(total, iface.mainWindow())
     dialog.show()
     try:
@@ -50,11 +39,10 @@ def upload_progress(total: int):
 
 
 class UploadProgressDialog(QDialog):
-    """連続アップロードの全体進捗を見せ、1回のキャンセルで全体を止めるダイアログ。
+    """Batch upload progress with a single cancel for the whole batch.
 
-    キャンセルは即座にウィンドウを閉じるのではなく ``canceled`` シグナルを出して
-    ``is_canceled()`` を True にするだけ。実行中のアップロードの中断（feedback.cancel）
-    と、残りレイヤーのスキップは呼び出し側が判断する。
+    Cancel only flags ``is_canceled()`` and emits ``canceled``; aborting the
+    running upload and skipping the rest is the caller's decision.
     """
 
     canceled = pyqtSignal()
@@ -64,7 +52,7 @@ class UploadProgressDialog(QDialog):
         self._total = max(total, 1)
         self._current_index = 0
         self._canceled = False
-        # ウィジェットを組む前に resizeEvent が飛んでも落ちないよう先に用意する
+        # resizeEvent can arrive before the widgets below exist
         self._layer_message = ""
         self._layer_label = None
 
@@ -75,7 +63,7 @@ class UploadProgressDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
 
-        # 全体進捗（複数レイヤーのときだけ意味があるので単体では隠す）
+        # Overall progress is meaningless for a single layer, so it is hidden below
         self._overall_label = QLabel()
         layout.addWidget(self._overall_label)
 
@@ -88,10 +76,8 @@ class UploadProgressDialog(QDialog):
             self._overall_label.hide()
             self._overall_bar.hide()
 
-        # 現在アップロード中のレイヤー。
-        # レイヤー名の長さは読めないので、折り返さずに省略表示する。折り返すと
-        # ダイアログの高さが足りずに文字が切れるうえ、レイヤーごとに高さが
-        # 変わってちらつく。全文はツールチップで見られるようにする。
+        # Elide rather than wrap: wrapped long layer names outgrow the dialog
+        # height and make it jitter per layer. Full text goes in the tooltip.
         self._layer_label = QLabel()
         self._layer_label.setWordWrap(False)
         layout.addWidget(self._layer_label)
@@ -114,7 +100,7 @@ class UploadProgressDialog(QDialog):
         return self._canceled
 
     def request_cancel(self) -> None:
-        """キャンセルを受け付ける。2回目以降は無視する。"""
+        # Ignore repeats so the user is not asked once per remaining layer
         if self._canceled:
             return
         self._canceled = True
@@ -125,44 +111,36 @@ class UploadProgressDialog(QDialog):
         self._pump()
 
     def reject(self) -> None:
-        """Esc・タイトルバーの×をキャンセル要求として扱い、ダイアログは閉じない。
-
-        アップロード中に閉じてしまうと進捗の行き先が無くなるので、実際に閉じるのは
-        呼び出し側が ``finish()`` を呼んだときだけ。
-        """
+        # Esc and the window close button mean cancel, not close: closing
+        # mid-upload leaves progress with nowhere to go. Only finish() closes.
         self.request_cancel()
 
     def begin_layer(self, name: str, index: int) -> None:
-        """``index`` 番目（0起点）のレイヤー ``name`` のアップロード開始を表示する。"""
         self._current_index = index
         self._set_layer_message(i18n.tr("Uploading layer '{}'...").format(name))
         self._layer_bar.setValue(0)
         self._overall_bar.setValue(index * _STEPS_PER_LAYER)
         self._update_overall_label()
 
-        # Issue #356: Windowsでダイアログが描画されないことがあるため明示的に描かせる
+        # Issue #356: the dialog is sometimes left unpainted on Windows
         self.repaint()
         self._pump()
         self.repaint()
         self._pump()
 
     def set_layer_progress(self, percent: float) -> None:
-        """現在のレイヤーの進捗（0-100）を反映し、全体進捗も合わせて進める。"""
         value = min(max(int(percent), 0), _STEPS_PER_LAYER)
         self._layer_bar.setValue(value)
         self._overall_bar.setValue(self._current_index * _STEPS_PER_LAYER + value)
 
     def finish(self) -> None:
-        """ダイアログを閉じて破棄する。
-
-        macOS の ApplicationModal はネイティブのモーダルセッションを張るため、
-        close()/hide() だとセッションが残って閉じないことがある。accept() で終わらせる。
-        """
+        # accept() rather than close()/hide(): an ApplicationModal dialog holds a
+        # native modal session on macOS that otherwise outlives the widget.
         self.accept()
         self.deleteLater()
 
     def resizeEvent(self, event) -> None:
-        # 幅が変わると省略位置も変わるので貼り直す
+        # A new width moves the elision point
         super().resizeEvent(event)
         self._render_layer_message()
 
@@ -172,7 +150,6 @@ class UploadProgressDialog(QDialog):
         self._render_layer_message()
 
     def _render_layer_message(self) -> None:
-        """ラベルの幅に収まるよう、中央を省略して表示する。"""
         if self._layer_label is None:
             return
         metrics = QFontMetrics(self._layer_label.font())

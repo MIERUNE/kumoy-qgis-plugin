@@ -1,4 +1,4 @@
-"""Issue #538: 複数レイヤーのアップロードを1つの進捗ダイアログで扱う挙動のテスト。"""
+"""Issue #538: one progress dialog shared by a batch of layer uploads."""
 
 from types import SimpleNamespace
 
@@ -11,7 +11,7 @@ from plugin_dir.ui.layers.upload_progress import UploadProgressDialog, upload_pr
 
 @pytest.fixture
 def memory_layers(qgis_app):
-    """メモリレイヤーを作り、QgsApplication の破棄前に片付ける。"""
+    """Make memory layers and delete them before QgsApplication tears down."""
     from qgis.core import QgsVectorLayer
     from qgis.PyQt import sip
 
@@ -43,10 +43,9 @@ def test_overall_progress_spans_all_layers(qgis_app):
 
     dialog.set_layer_progress(50)
     assert dialog._layer_bar.value() == 50
-    # 3レイヤー目の途中 = 全体の 250/400
     assert dialog._overall_bar.value() == 250
 
-    # レイヤー側の値は 0-100 に丸める
+    # Out-of-range layer progress is clamped
     dialog.set_layer_progress(180)
     assert dialog._layer_bar.value() == 100
     assert dialog._overall_bar.value() == 300
@@ -64,7 +63,6 @@ def test_single_layer_hides_overall_progress(qgis_app):
 
 
 def test_long_layer_name_is_elided_to_one_line(qgis_app):
-    """長いレイヤー名で折り返してダイアログの高さが足りなくなるのを防ぐ。"""
     dialog = UploadProgressDialog(2)
     dialog.show()
 
@@ -75,14 +73,11 @@ def test_long_layer_name_is_elided_to_one_line(qgis_app):
     dialog.begin_layer(long_name, 1)
 
     label = dialog._layer_label
-    # 折り返さず1行のまま。高さが増えていない
     assert not label.wordWrap()
     assert label.height() == one_line_height
-    # 表示は省略され、ラベル幅に収まる
     assert label.text() != long_name
     assert "…" in label.text()
     assert QFontMetrics(label.font()).horizontalAdvance(label.text()) <= label.width()
-    # 全文はツールチップで読める
     assert long_name in label.toolTip()
 
     dialog.finish()
@@ -93,14 +88,13 @@ def test_cancel_is_reported_once_and_does_not_close(qgis_app):
     emitted = []
     dialog.canceled.connect(lambda: emitted.append(True))
 
-    # Esc・×ボタン相当。キャンセル要求として扱い、ダイアログは閉じない。
+    # Esc / window close button
     dialog.reject()
 
     assert dialog.is_canceled()
     assert emitted == [True]
-    assert dialog.result() == 0  # accept() されていない
+    assert dialog.result() == 0  # not accept()ed
 
-    # 2回目のキャンセルは無視する（残りレイヤー分だけ押させない）
     dialog.request_cancel()
     assert emitted == [True]
 
@@ -114,7 +108,7 @@ def test_context_manager_closes_the_dialog_even_on_error(qgis_app):
 
     assert not opened.isVisible()
 
-    # 変換が例外で抜けてもモーダルダイアログを残さない
+    # An exception must not leave a modal dialog behind
     with pytest.raises(RuntimeError):
         with upload_progress(2) as dialog:
             raise RuntimeError("boom")
@@ -177,7 +171,7 @@ def test_cancelling_mid_batch_skips_remaining_layers(
     def fake_convert(layer, project_id, progress):
         uploaded.append(layer.name())
         if layer.name() == "b":
-            # 2つ目のアップロード中にユーザーがキャンセルを押した状況
+            # User presses cancel during the second upload
             progress.request_cancel()
             return (False, None)
         return (True, None)
@@ -186,11 +180,10 @@ def test_cancelling_mid_batch_skips_remaining_layers(
 
     result = convert.convert_local_layers("project")
 
-    # キャンセルはMap保存自体の中止ではない: 変換済みのレイヤーは反映して保存を続ける
+    # Cancel is not an abort of the save: already-converted layers still count
     assert not result.cancelled
     assert result.converted
     assert result.errors == []
-    # 3つ目以降は一度もアップロードを試みない
     assert uploaded == ["a", "b"]
     assert result.skipped == ["b", "c", "d"]
 

@@ -1,14 +1,8 @@
-"""ローカルレイヤーをKumoyレイヤーに変換する入口とオーケストレーション。
+"""Entry points for converting local layers into Kumoy layers.
 
-2つの起点がある:
-
-- ``convert_local_layers`` — Map保存フロー。選択ダイアログを出し、選ばれたレイヤーを
-  1つの進捗ダイアログで順にアップロードする
-- ``on_convert_layer_clicked`` — レイヤーパネルのコンテキストメニュー。1枚だけ変換する
-
-ベクター/ラスターで違うのは「アップロードしてKumoyレイヤーを作る」ところだけなので、
-そこだけを ``_upload_vector`` / ``_upload_raster`` に委譲し、ガード・スタイルコピー・
-レイヤーツリーの差し替え・エラー処理はここで一度だけ書く。
+Vector and raster differ only in the upload step, so only that is delegated to
+``_upload_vector`` / ``_upload_raster``; guards, style copy, layer-tree
+replacement and error handling are written once here.
 """
 
 from dataclasses import dataclass, field
@@ -40,22 +34,20 @@ from .upload_progress import UploadProgressDialog, upload_progress
 
 @dataclass
 class ConversionResult:
-    """ローカルレイヤー変換フローの結果。"""
-
     cancelled: bool = False
-    """選択ダイアログでキャンセルされた（＝Map保存自体を中止すべき）"""
+    """Cancelled at the selection dialog, so the map save should be aborted too."""
 
     errors: list[tuple[str, str]] = field(default_factory=list)
-    """(レイヤー名, エラー内容) の失敗一覧"""
+    """Failures as (layer name, error)."""
 
     converted: bool = False
-    """1つ以上のレイヤーが変換された"""
+    """At least one layer was converted."""
 
     skipped: list[str] = field(default_factory=list)
-    """アップロード中断でKumoyに送らなかったレイヤー名。
+    """Layers left local because the upload was cancelled.
 
-    途中でキャンセルしても、そこまでに変換済みのレイヤーは既にプロジェクトへ
-    反映されているので保存自体は続行する。残りは未変換のまま保存される。
+    Unlike ``cancelled``, the save goes on: layers converted before the cancel
+    are already in the project, and the rest are saved as they are.
     """
 
 
@@ -65,13 +57,9 @@ def convert_local_layers(project_id: str) -> ConversionResult:
     A single dialog lists both layer types in layer panel order. Each type
     has a plan-based count quota capping how many can be selected.
 
-    選択後のアップロードは1つの進捗ダイアログ（`UploadProgressDialog`）を全レイヤーで
-    共有し、キャンセル1回で残り全部を中断できる（Issue #538）。
-
-    ここではブラウザパネルをリフレッシュしない。呼び出し元（保存フロー）が
-    ブラウザアイテム(self等)を保持したまま実行されるため、途中でツリーを
-    再構築するとそのアイテムが破棄されてしまう。converted が True なら
-    呼び出し元がフローの最後にリフレッシュすること。
+    Does not refresh the browser panel: callers run this while holding a browser
+    item, which rebuilding the tree would destroy. Refresh at the end of the
+    calling flow instead when ``converted`` is True.
     """
     local_layers = get_local_layers()
     if not local_layers:
@@ -112,7 +100,6 @@ def convert_local_layers(project_id: str) -> ConversionResult:
     with upload_progress(len(selected_layers)) as progress:
         for index, layer in enumerate(selected_layers):
             if progress.is_canceled():
-                # 残りは丸ごとスキップ。ここまでの変換結果は保存フローに残す。
                 result.skipped.extend(
                     remaining.name() for remaining in selected_layers[index:]
                 )
@@ -126,7 +113,7 @@ def convert_local_layers(project_id: str) -> ConversionResult:
             elif error is not None:
                 result.errors.append((layer.name(), error))
             else:
-                # error is None は個別アップロードのユーザー中断。失敗ではなくスキップ。
+                # error is None means the user cancelled this upload: skip, not a failure
                 result.skipped.append(layer.name())
 
     iface.mapCanvas().refresh()
@@ -135,7 +122,7 @@ def convert_local_layers(project_id: str) -> ConversionResult:
 
 
 def on_convert_layer_clicked(layer: QgsMapLayer, project_id: str) -> None:
-    """レイヤーパネルのコンテキストメニューから1枚だけ変換する。"""
+    """Convert a single layer, from the layer panel context menu."""
     if not layer or not layer.isValid():
         QMessageBox.warning(
             None,
@@ -158,9 +145,7 @@ def on_convert_layer_clicked(layer: QgsMapLayer, project_id: str) -> None:
         success, error = convert_layer_to_kumoy(layer, project_id, progress)
 
     if success:
-        # ブラウザ更新はこの（レイヤーパネル起点の）経路でのみ行う。
-        # Map保存フローは呼び出し元がブラウザアイテムを保持したまま変換を走らせる
-        # ため、変換内でツリーを再構築すると保持中のアイテムが破棄されてしまう。
+        # Safe to refresh only on this path: no caller is holding a browser item
         refresh_kumoy_browser()
         iface.messageBar().pushMessage(
             constants.PLUGIN_NAME,
@@ -169,7 +154,7 @@ def on_convert_layer_clicked(layer: QgsMapLayer, project_id: str) -> None:
             duration=5,
         )
     elif error is not None:
-        # error is None ならユーザーが自分でキャンセルしたのでエラー表示しない
+        # error is None means the user cancelled, so stay quiet
         QMessageBox.warning(
             None,
             i18n.tr("Conversion Failed"),
@@ -184,15 +169,15 @@ def convert_layer_to_kumoy(
     project_id: str,
     progress: UploadProgressDialog,
 ) -> tuple[bool, Optional[str]]:
-    """ローカルレイヤー1枚をKumoyへアップロードし、Kumoyレイヤーに置き換える。
+    """Upload one local layer and replace it with the resulting Kumoy layer.
 
     Args:
-        progress: 呼び出し側が ``upload_progress()`` で用意した進捗ダイアログ。
-            対象レイヤーの ``begin_layer()`` は呼び出し側が済ませておくこと。
+        progress: dialog from ``upload_progress()``; the caller must have called
+            ``begin_layer()`` for this layer already.
 
     Returns:
-        tuple: (success, error_message)。ユーザーが中断した場合は (False, None)
-        （呼び出し側はエラー表示しない）。
+        tuple: (success, error_message). (False, None) on user cancel, which the
+        caller reports as a skip rather than an error.
     """
     if not layer or not layer.isValid():
         return (False, i18n.tr("The layer is no longer valid or has been removed."))
@@ -211,7 +196,7 @@ def convert_layer_to_kumoy(
             kumoy_layer = _upload_raster.upload(layer, project_index, name, progress)
 
         if kumoy_layer is None:
-            return (False, None)  # ユーザーキャンセル
+            return (False, None)  # user cancel
 
         _copy_layer_style(layer, kumoy_layer)
         _replace_layer_in_tree(layer, kumoy_layer)
@@ -228,16 +213,15 @@ def convert_layer_to_kumoy(
 
 
 def _resolve_project_index(project_id: str) -> Optional[int]:
-    """アップロードアルゴリズムの PROJECT enum インデックスを求める。
+    """Find the PROJECT enum index for the upload algorithms.
 
-    アルゴリズムは組織→プロジェクトの列挙順で選択肢を作るので、ここでも同じ
-    順序で走査してインデックスを合わせる。
+    Must walk organizations and projects in the same order and with the same
+    filter as UploadVectorAlgorithm/UploadRasterAlgorithm.initAlgorithm, or the
+    index points at the wrong project.
     """
     idx = 0
     for org in api.organization.get_organizations():
-        # UploadVectorAlgorithm/UploadRasterAlgorithm の initAlgorithm と同じ
-        # フィルタでないとインデックスがずれる
-        # （削除予約中の組織はプロジェクトAPIが404を返す）
+        # Organizations pending deletion get a 404 from the project API
         if org.scheduledDeletionAt:
             continue
         for proj in api.project.get_projects_by_organization(org.id):
@@ -262,7 +246,7 @@ def _copy_layer_style(source_layer: QgsMapLayer, target_layer: QgsMapLayer) -> N
 
 
 def _replace_layer_in_tree(local_layer: QgsMapLayer, kumoy_layer: QgsMapLayer) -> None:
-    """元レイヤーを凡例の同じ位置・同じ表示状態でKumoyレイヤーに差し替える。"""
+    """Swap in the Kumoy layer at the original legend position and visibility."""
     root = QgsProject.instance().layerTreeRoot()
     original_layer_node = root.findLayer(local_layer.id())
 

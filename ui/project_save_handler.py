@@ -28,7 +28,7 @@ def show_map_save_result(
 ) -> None:
     """Show success or warning message after map save operation.
 
-    ``skipped_layers`` はアップロードを中断して未変換のまま保存されたレイヤー。
+    ``skipped_layers`` are layers saved as local because the upload was cancelled.
     """
     warnings = []
 

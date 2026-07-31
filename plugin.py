@@ -199,7 +199,7 @@ class KumoyPlugin:
             return
 
         # Create and add convert action
-        # ラベルと有効/無効だけがレイヤー種別で変わる。変換処理自体は共通。
+        # Only the label and enabled state depend on the layer type
         if isinstance(layer, QgsVectorLayer):
             convert_action = QAction(
                 MAIN_ICON, i18n.tr("Convert to Kumoy Vector"), menu

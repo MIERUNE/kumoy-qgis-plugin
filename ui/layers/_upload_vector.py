@@ -1,11 +1,7 @@
-"""ベクターレイヤー1枚をKumoyへアップロードし、Kumoyレイヤーを作るところまで。
+"""Vector-specific half of the local-to-Kumoy conversion driven by ``convert.py``.
 
-ガード・スタイルコピー・レイヤーツリーの差し替えといった種別に依存しない部分は
-``convert.py`` が持つ。ここにはベクター固有のものだけを置く:
-
-- ``kumoy:uploadvector`` をメインスレッドで同期実行する（ラスタはワーカースレッド
-  実行。実行モデルが違う理由は ``_upload_raster._run_upload`` の docstring 参照）
-- Kumoyベクターの URI 組み立てと ``kumoy_id`` の読み取り専用設定
+Runs ``kumoy:uploadvector`` synchronously on the main thread; the raster side
+needs a worker thread instead (see ``_upload_raster._run_upload``).
 """
 
 from typing import Optional
@@ -32,17 +28,11 @@ def upload(
     vector_name: str,
     progress: UploadProgressDialog,
 ) -> Optional[QgsVectorLayer]:
-    """``layer`` をKumoyへアップロードし、対応するKumoyベクターレイヤーを返す。
-
-    Returns:
-        新しいKumoyレイヤー。ユーザーが中断した場合は None。
-    Raises:
-        アップロードやレイヤー生成に失敗した場合は例外。
-    """
+    """Upload ``layer`` and return the matching Kumoy layer, or None on cancel."""
     feedback = QgsProcessingFeedback()
 
-    # processing.run はメインスレッドを塞ぐので、進捗更新のたびにイベントを
-    # 回してダイアログの再描画とキャンセルボタンの押下を通す。
+    # processing.run blocks the main thread, so pump events on every update to let
+    # the dialog repaint and the cancel button be clicked
     def update_progress(value: float) -> None:
         progress.set_layer_progress(value)
         QCoreApplication.processEvents()
@@ -50,7 +40,7 @@ def upload(
     feedback.progressChanged.connect(update_progress)
     progress.canceled.connect(feedback.cancel)
     if progress.is_canceled():
-        # 前のレイヤーの処理中に押されたキャンセルを取りこぼさない
+        # Cancel pressed while a previous layer was running must not be lost
         feedback.cancel()
 
     try:
@@ -78,7 +68,7 @@ def upload(
         if not result or "VECTOR_ID" not in result:
             raise Exception(i18n.tr("Upload failed - unable to get vector id"))
     finally:
-        # ダイアログは次のレイヤーでも使うので、この feedback との接続だけ切る
+        # Drop only this feedback's connection: the dialog outlives it
         progress.canceled.disconnect(feedback.cancel)
 
     return _build_kumoy_layer(result["VECTOR_ID"])
@@ -100,7 +90,7 @@ def _build_kumoy_layer(vector_id: str) -> QgsVectorLayer:
         )
         raise Exception(i18n.tr("Failed to create Kumoy layer: {}").format(error_msg))
 
-    # kumoy_id はサーバ採番なので編集させない
+    # kumoy_id is assigned by the server, so keep it out of edit forms
     field_idx = kumoy_layer.fields().indexOf("kumoy_id")
     if field_idx >= 0:
         config = kumoy_layer.editFormConfig()
