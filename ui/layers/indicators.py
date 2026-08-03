@@ -2,10 +2,13 @@ from qgis.core import QgsProject
 from qgis.gui import QgsLayerTreeViewIndicator
 from qgis.utils import iface
 
+from ... import i18n
 from ...kumoy.constants import DATA_PROVIDER_KEY, RASTER_DATA_PROVIDER_KEY
 from ..icons import MAIN_ICON
 
-_KUMOY_TOOLTIP = "Kumoy layer"
+# Marker property, not the tooltip: the tooltip is translated and must not be
+# relied on to identify our own indicators.
+_KUMOY_INDICATOR_PROPERTY = "kumoyIndicator"
 
 
 def update_kumoy_indicator():
@@ -24,7 +27,8 @@ def update_kumoy_indicator():
             if existing:
                 continue
             indicator = QgsLayerTreeViewIndicator(view)
-            indicator.setToolTip(_KUMOY_TOOLTIP)
+            indicator.setProperty(_KUMOY_INDICATOR_PROPERTY, True)
+            indicator.setToolTip(i18n.tr("Kumoy layer"))
             indicator.setIcon(MAIN_ICON)
             view.addIndicator(node, indicator)
         else:
@@ -39,4 +43,4 @@ def update_kumoy_indicator():
 def _kumoy_indicators(node):
     """Return Kumoy indicators set on the given node."""
     view = iface.layerTreeView()
-    return [i for i in view.indicators(node) if i.toolTip() == _KUMOY_TOOLTIP]
+    return [i for i in view.indicators(node) if i.property(_KUMOY_INDICATOR_PROPERTY)]
