@@ -1,4 +1,5 @@
 from . import (
+    attachment,
     config,
     error,
     organization,

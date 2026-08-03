@@ -4,7 +4,6 @@ from qgis import processing
 from qgis.core import (
     Qgis,
     QgsDataItem,
-    QgsFields,
     QgsMessageLog,
     QgsMimeDataUtils,
     QgsProject,
@@ -22,6 +21,7 @@ from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMenu,
@@ -31,6 +31,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ..error_handler import handle_api_error
+from ..layers.configure import configure_kumoy_layer
 from ...kumoy import api, constants, local_cache
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...pyqt_version import (
@@ -109,6 +110,14 @@ class VectorItem(QgsDataItem):
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
+            # QGIS のフィールド追加 UI では型に attachment を選べないため、
+            # 添付カラムの作成だけは専用アクションで用意する
+            add_attachment_field_action = QAction(
+                i18n.tr("Add Attachment Field..."), parent
+            )
+            add_attachment_field_action.triggered.connect(self.add_attachment_field)
+            actions.append(add_attachment_field_action)
+
             # Edit vector action
             edit_action = QAction(i18n.tr("Edit Vector"), parent)
             edit_action.triggered.connect(self.edit_vector)
@@ -122,7 +131,7 @@ class VectorItem(QgsDataItem):
         return actions
 
     def import_vector(self) -> None:
-        api.vector.get_vector(self.vector.id)
+        vector = api.vector.get_vector(self.vector.id)
 
         layer = QgsVectorLayer(
             self.vector_uri, self.vector.name, constants.DATA_PROVIDER_KEY
@@ -130,12 +139,7 @@ class VectorItem(QgsDataItem):
         self._set_pixel_based_style(layer)
 
         if layer.isValid():
-            # Set kumoy_id to read-only
-            field_idx = layer.fields().indexOf("kumoy_id")
-            if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
-                config = layer.editFormConfig()
-                config.setReadOnly(field_idx, True)
-                layer.setEditFormConfig(config)
+            configure_kumoy_layer(layer, vector)
             QgsProject.instance().addMapLayer(layer)
         else:
             raise RuntimeError(i18n.tr("Layer is invalid: {}").format(self.vector_uri))
@@ -331,7 +335,58 @@ class VectorItem(QgsDataItem):
                 return True
         return False
 
+    def add_attachment_field(self) -> None:
+        """attachment 型のカラムを追加する。
+
+        QGIS のフィールド追加 UI は型に "文字列/整数/..." しか出せず attachment を
+        選べないため、カラム作成だけは専用のダイアログで受け付ける。作成後は
+        レイヤー追加時に External Resource ウィジェットが自動で設定される。
+        """
+        name, ok = QInputDialog.getText(
+            None,
+            i18n.tr("Add Attachment Field"),
+            i18n.tr("Field name:"),
+        )
+        if not ok:
+            return
+
+        name = name.strip()
+        if not name:
+            return
+        if name.startswith(constants.RESERVED_FIELD_NAME_PREFIX):
+            QMessageBox.warning(
+                None,
+                i18n.tr("Add Attachment Field"),
+                i18n.tr('Field names starting with "{}" are reserved.').format(
+                    constants.RESERVED_FIELD_NAME_PREFIX
+                ),
+            )
+            return
+
+        try:
+            api.qgis_vector.add_attributes(
+                vector_id=self.vector.id,
+                attributes=[{"name": name, "type": "attachment"}],
+            )
+        except Exception as e:
+            handle_api_error(
+                e,
+                parent=None,
+                log_prefix=i18n.tr("Error adding attachment field"),
+            )
+            return
+
+        # 追加したカラムはキャッシュのスキーマと食い違うため、次回同期で作り直させる
+        local_cache.vector.clear(self.vector.id)
+
+        iface.messageBar().pushSuccess(
+            i18n.tr("Success"),
+            i18n.tr("Attachment field '{}' added.").format(name),
+        )
+
     def process_vector_cache_clear(self) -> bool:
+        # 添付は Vector 単位でキャッシュしているので、Vector のキャッシュ破棄に揃える
+        local_cache.attachment.clear(self.vector.id)
         cleared = local_cache.vector.clear(self.vector.id)
         return cleared
 
@@ -606,6 +661,8 @@ class VectorRoot(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
+            # 添付は Vector に紐づくキャッシュなので一緒に破棄する
+            local_cache.attachment.clear_all()
             cache_cleared = local_cache.vector.clear_all()
 
             if cache_cleared:

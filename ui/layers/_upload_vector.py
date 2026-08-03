@@ -19,6 +19,7 @@ import processing
 
 from ... import i18n
 from ...kumoy import api, constants
+from .configure import configure_kumoy_layer
 from .upload_progress import UploadProgressDialog
 
 
@@ -90,11 +91,6 @@ def _build_kumoy_layer(vector_id: str) -> QgsVectorLayer:
         )
         raise Exception(i18n.tr("Failed to create Kumoy layer: {}").format(error_msg))
 
-    # kumoy_id is assigned by the server, so keep it out of edit forms
-    field_idx = kumoy_layer.fields().indexOf("kumoy_id")
-    if field_idx >= 0:
-        config = kumoy_layer.editFormConfig()
-        config.setReadOnly(field_idx, True)
-        kumoy_layer.setEditFormConfig(config)
+    configure_kumoy_layer(kumoy_layer, vector)
 
     return kumoy_layer

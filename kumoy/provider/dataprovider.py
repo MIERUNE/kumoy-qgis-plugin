@@ -335,7 +335,10 @@ class KumoyDataProvider(QgsVectorDataProvider):
             v = column["type"]
 
             len = 0
-            if v == "string":
+            # attachment は gisdb 上ではファイル名（`{attachmentId}.{ext}`）を持つ
+            # 文字列カラム。型としては string と同じに見せ、フォームの見せ方だけを
+            # External Resource ウィジェットで切り替える（ui/layers/configure.py）
+            if v in ("string", "attachment"):
                 data_type = QVariant.String
                 len = constants.MAX_CHARACTERS_STRING_FIELD
             elif v == "integer":

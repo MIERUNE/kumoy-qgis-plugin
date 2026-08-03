@@ -16,7 +16,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 
 from . import i18n
 from .ui.error_handler import handle_api_error
-from .kumoy import api
+from .kumoy import api, external_storage
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
@@ -57,6 +57,10 @@ class KumoyPlugin:
         registry.registerProvider(metadata)  # needs reopen QGIS to unregister
         # ラスタは別プロバイダキーで登録する（ベクタと責務を分離）
         registry.registerProvider(KumoyRasterProviderMetadata())
+
+        # attachment カラムの External Resource ウィジェットが値の解決とアップロードを
+        # 委ねる先。レイヤー追加より先に登録されている必要があるのでここで行う。
+        external_storage.register()
 
         # Initialize processing provider
         self.processing_provider = None
@@ -431,6 +435,8 @@ class KumoyPlugin:
             self.kumoy_menu = None
 
         QgsApplication.instance().dataItemProviderRegistry().removeProvider(self.dip)
+
+        external_storage.unregister()
 
         if self.data_item_gui_provider:
             QgsGui.dataItemGuiProviderRegistry().removeProvider(
