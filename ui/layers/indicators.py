@@ -9,7 +9,7 @@ _KUMOY_TOOLTIP = "Kumoy layer"
 
 
 def update_kumoy_indicator():
-    """Set Kumoy icon as indicator on Kumoy provided layer"""
+    """Ensure the Kumoy indicator is present on Kumoy layers and removed from other nodes."""
     root = QgsProject.instance().layerTreeRoot()
     view = iface.layerTreeView()
 
