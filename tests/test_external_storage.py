@@ -1,9 +1,4 @@
-"""kumoy/external_storage.py のテスト
-
-QGIS 標準の Attachment ウィジェットとの接点なので、URL の組み立て／分解と
-``doStore`` / ``doFetch`` の分岐を検証する。ウィジェット本体との結線は
-実 GUI がないと再現できないため、ここでは URL 契約の側を固定する。
-"""
+"""Tests for kumoy/external_storage.py"""
 
 import types
 
@@ -22,7 +17,6 @@ class TestStorageUrl:
 
         expr = external_storage.build_storage_url_expression(VECTOR_ID, COLUMN_ID)
 
-        # kumoy_id は地物ごとにウィジェット側で評価されるので式のまま残す
         assert expr == f"'kumoy://{VECTOR_ID}/{COLUMN_ID}/' || \"kumoy_id\""
 
     def test_parses_evaluated_url(self):
@@ -35,7 +29,7 @@ class TestStorageUrl:
         "url",
         [
             "",
-            # 新規地物では kumoy_id が未採番なので式が解決されずここに来る
+            # Unsaved feature: the expression never resolved
             f"'kumoy://{VECTOR_ID}/{COLUMN_ID}/' || \"kumoy_id\"",
             f"kumoy://{VECTOR_ID}/{COLUMN_ID}/",
             f"kumoy://{VECTOR_ID}/{COLUMN_ID}/NULL",
@@ -110,13 +104,11 @@ class TestStoredContent:
             "vector_column_id": COLUMN_ID,
             "file_path": "/tmp/photo.jpg",
         }
-        # ウィジェットは url() を属性値として書き込むので、そのまま値でなければならない
         assert content.url() == VALUE
 
     def test_fails_when_feature_is_not_saved_yet(self):
         from plugin_dir.kumoy import external_storage
 
-        # kumoy_id が未採番だと式が解決されず、生の式文字列が渡ってくる
         content = external_storage._StoredContent(
             "/tmp/photo.jpg", f"'kumoy://{VECTOR_ID}/{COLUMN_ID}/' || \"kumoy_id\""
         )

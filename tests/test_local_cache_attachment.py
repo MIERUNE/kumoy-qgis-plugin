@@ -1,9 +1,4 @@
-"""kumoy/local_cache/attachment.py のテスト
-
-添付は immutable なので「在れば即返す / 無ければダウンロード」だけを検証する。
-属性値の形式検証は、想定外の文字列でキャッシュパスを組ませない（パストラバーサル
-防止）ために重要なので厚めに見る。
-"""
+"""Tests for kumoy/local_cache/attachment.py"""
 
 import os
 import types
@@ -35,7 +30,7 @@ class TestParseValue:
         [
             "",
             "not-a-uuid.jpg",
-            ATTACHMENT_ID,  # 拡張子なし
+            ATTACHMENT_ID,  # no extension
             f"../../{ATTACHMENT_ID}.jpg",
             f"{ATTACHMENT_ID}.jpg/../../etc/passwd",
             f"/abs/{ATTACHMENT_ID}.jpg",
@@ -115,11 +110,9 @@ class TestSyncLocalCache:
         s = setup
         path = s.mod.sync_local_cache(VECTOR_ID, VALUE)
 
-        # 拡張子を保つのが重要（QGIS 側が形式を判定できるようにする）
         assert path == os.path.join(s.cache_dir, VALUE)
         assert os.path.exists(path)
         assert s.calls == {"get_url": 1, "download": 1}
-        # 完成ファイルだけが残り、.part は消えている
         assert not os.path.exists(path + ".part")
 
     def test_returns_cached_without_network(self, setup):
@@ -141,6 +134,6 @@ class TestSyncLocalCache:
         path = s.mod.store(VECTOR_ID, VALUE, str(src))
 
         assert open(path, "rb").read() == b"SRC"
-        # ユーザーが選んだ元ファイルは消さない
+        # The file the user picked must survive
         assert src.exists()
         assert not os.path.exists(path + ".part")

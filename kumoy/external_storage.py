@@ -1,20 +1,8 @@
-"""QGIS の External Storage として Kumoy の添付を扱う。
+"""QgsExternalStorage for Kumoy attachments.
 
-QGIS 標準の Attachment（External Resource）ウィジェットは「属性値 = 外部ストレージ
-上の URL」を前提にしており、その解決を ``QgsExternalStorage`` に委ねる。ここに
-"kumoy" ストレージを実装して登録することで、ウィジェット標準の UI のまま
-
-- ファイル選択 → ``doStore`` で API 経由アップロード → 戻り値が属性値になる
-- 属性値の表示 → ``doFetch`` でローカルキャッシュへ解決 → 標準の画像プレビュー
-
-が動く。「変な再発明」を避けつつ S3 を QGIS へ直接公開しないための要（かなめ）。
-
-``doStore`` に渡される URL は、ウィジェット設定の ``StorageUrl`` 式が地物ごとに
-評価された結果。``kumoy://{vectorId}/{vectorColumnId}/{kumoyId}`` の形にしておく
-ことで、どの地物のどのカラムへの添付かをここで復元できる。
-
-UI は持たない（``kumoy/`` 配下のドメイン層）。失敗は ``reportError`` でウィジェット
-側へ伝え、ウィジェットがユーザーへ表示する。
+Lets the standard Attachment (External Resource) widget work unchanged: doStore
+uploads and its url() becomes the attribute value, doFetch resolves a value to a
+local file for the image preview. S3 is never exposed to QGIS directly.
 """
 
 import re
@@ -37,16 +25,15 @@ _STORAGE_URL_PATTERN = re.compile(rf"^kumoy://({_UUID})/({_UUID})/(\d+)$")
 
 
 def build_storage_url_expression(vector_id: str, vector_column_id: str) -> str:
-    """ウィジェット設定の ``StorageUrl`` に入れる QGIS 式を組み立てる。
+    """Expression for the widget's StorageUrl.
 
-    ``StorageUrl`` は地物のコンテキストで評価される式なので、kumoy_id は式のまま
-    残して評価時に埋めさせる。これで ``doStore`` が対象地物を特定できる。
+    kumoy_id stays unevaluated so the widget fills it in per feature; that is how
+    doStore learns which feature the file belongs to.
     """
     return f"'kumoy://{vector_id}/{vector_column_id}/' || \"kumoy_id\""
 
 
 def parse_storage_url(url: str) -> Optional[Tuple[str, str, int]]:
-    """``kumoy://{vectorId}/{vectorColumnId}/{kumoyId}`` を分解する。"""
     match = _STORAGE_URL_PATTERN.match(url or "")
     if match is None:
         return None
@@ -54,11 +41,10 @@ def parse_storage_url(url: str) -> Optional[Tuple[str, str, int]]:
 
 
 def parse_fetch_url(url: str) -> Optional[Tuple[str, str]]:
-    """``doFetch`` に渡される URL を ``(vector_id, 属性値)`` に分解する。
+    """Split `{vectorId}/{value}`.
 
-    属性値だけでは vector_id が分からないため、ウィジェット設定で
-    ``DefaultRoot = vector_id`` かつ ``RelativeStorage = RelativeDefaultPath`` に
-    しておき、``{vectorId}/{属性値}`` の形で渡ってくることを前提にする。
+    The attribute value alone has no vector_id, so the widget is configured with
+    DefaultRoot = vector_id and RelativeStorage = RelativeDefaultPath.
     """
     parts = (url or "").split("/")
     if len(parts) != 2 or not parts[0] or not parts[1]:
@@ -67,8 +53,6 @@ def parse_fetch_url(url: str) -> Optional[Tuple[str, str]]:
 
 
 class _StoredContent(QgsExternalStorageStoredContent):
-    """1 ファイル分のアップロード。``store()`` で実行し ``url()`` に属性値を返す。"""
-
     def __init__(self, file_path: str, storage_url: str):
         super().__init__()
         self._file_path = file_path
@@ -79,14 +63,11 @@ class _StoredContent(QgsExternalStorageStoredContent):
     def store(self) -> None:
         target = parse_storage_url(self._storage_url)
         if target is None:
-            # 新規地物では kumoy_id が未採番なので式が解決できない。
-            # 添付は「地物を作ってから付ける」フローに限定されている（サーバ側も同様）。
-            self.reportError(
+            # Unsaved feature: kumoy_id is not assigned, so the expression did not resolve
+            self._fail(
                 "Cannot attach a file before the feature is saved. "
                 "Save the feature first, then attach."
             )
-            self.setStatus(Qgis.ContentStatus.Failed)
-            self.errorOccurred.emit(self.errorString())
             return
 
         vector_id, vector_column_id, kumoy_id = target
@@ -131,8 +112,6 @@ class _StoredContent(QgsExternalStorageStoredContent):
 
 
 class _FetchedContent(QgsExternalStorageFetchedContent):
-    """1 ファイル分の解決。``fetch()`` でキャッシュへ落とし ``filePath()`` を返す。"""
-
     def __init__(self, url: str):
         super().__init__()
         self._url = url
@@ -146,8 +125,7 @@ class _FetchedContent(QgsExternalStorageFetchedContent):
             return
         vector_id, value = parsed
 
-        # キャッシュ済みならネットワークに触らず即完了させる（フォーム表示のたびに
-        # 呼ばれるため、ここが安いことが重要）。
+        # Stay off the network when cached: this runs on every form display
         if local_cache.attachment.is_cached(vector_id, value):
             self._path = local_cache.attachment.get_cache_path(vector_id, value)
             self.setStatus(Qgis.ContentStatus.Finished)
@@ -199,13 +177,11 @@ class KumoyExternalStorage(QgsExternalStorage):
         return _FetchedContent(url)
 
 
-# QGIS 側（C++）はレジストリに登録したストレージの所有権を取るが、Python 側で
-# 参照を失うと GC 対象になり得るのでモジュールに保持する。
+# Held so Python does not GC the instance the C++ registry now points at
 _storage: Optional[KumoyExternalStorage] = None
 
 
 def register() -> None:
-    """ "kumoy" ストレージを登録する（多重登録はしない）。"""
     from qgis.core import QgsApplication
 
     global _storage
@@ -217,7 +193,6 @@ def register() -> None:
 
 
 def unregister() -> None:
-    """ "kumoy" ストレージの登録を解除する。"""
     from qgis.core import QgsApplication
 
     global _storage

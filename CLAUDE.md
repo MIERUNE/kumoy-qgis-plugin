@@ -34,14 +34,12 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
   - `kumoy/provider/` — QGISデータプロバイダ実装（QgsVectorDataProvider）
   - `kumoy/local_cache/` — ローカルキャッシュ機構（純粋なファイル操作のみ）
   - `kumoy/attachment.py` — 添付ファイルのアップロード（サムネイル生成 + presigned PUT）
-  - `kumoy/external_storage.py` — `QgsExternalStorage` 実装。添付の値解決とアップロードを
-    QGIS標準のAttachment（External Resource）ウィジェットへ橋渡しする
+  - `kumoy/external_storage.py` — `QgsExternalStorage` 実装。QGIS標準のAttachmentウィジェットに添付を橋渡しする
   - `kumoy/auth_manager.py` — OAuth2認証（PKCE、ローカルHTTPサーバ port 9248）
   - `kumoy/settings_manager.py` — QSettingsラッパー（session_token等のドメイン状態を保持）
 - `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI、保存ハンドラ、共通エラーハンドラ等）
   - `ui/error_handler.py` — 共通APIエラーハンドラ（QMessageBox表示・Browserリフレッシュを含むのでUI責務）
-  - `ui/layers/configure.py` — Kumoyレイヤーの編集フォーム設定（kumoy_idのread-only化、
-    添付カラムへのExternal Resourceウィジェット自動設定）
+  - `ui/layers/configure.py` — Kumoyレイヤーの編集フォーム設定（kumoy_idのread-only化、添付カラムのウィジェット設定）
 - `processing/` — QGIS Processing アルゴリズム（ベクターアップロード等）
 - `tests/` — pytest ベースのテスト（pytest-qgis使用）
 - `i18n/` — 国際化（英語デフォルト、日本語対応済み）

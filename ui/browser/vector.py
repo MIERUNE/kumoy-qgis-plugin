@@ -110,8 +110,7 @@ class VectorItem(QgsDataItem):
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
-            # QGIS のフィールド追加 UI では型に attachment を選べないため、
-            # 添付カラムの作成だけは専用アクションで用意する
+            # QGIS's add-field UI cannot offer the attachment type
             add_attachment_field_action = QAction(
                 i18n.tr("Add Attachment Field..."), parent
             )
@@ -336,12 +335,7 @@ class VectorItem(QgsDataItem):
         return False
 
     def add_attachment_field(self) -> None:
-        """attachment 型のカラムを追加する。
-
-        QGIS のフィールド追加 UI は型に "文字列/整数/..." しか出せず attachment を
-        選べないため、カラム作成だけは専用のダイアログで受け付ける。作成後は
-        レイヤー追加時に External Resource ウィジェットが自動で設定される。
-        """
+        """Add an attachment column."""
         name, ok = QInputDialog.getText(
             None,
             i18n.tr("Add Attachment Field"),
@@ -376,7 +370,7 @@ class VectorItem(QgsDataItem):
             )
             return
 
-        # 追加したカラムはキャッシュのスキーマと食い違うため、次回同期で作り直させる
+        # The cached GPKG schema is now stale
         local_cache.vector.clear(self.vector.id)
 
         iface.messageBar().pushSuccess(
@@ -385,7 +379,6 @@ class VectorItem(QgsDataItem):
         )
 
     def process_vector_cache_clear(self) -> bool:
-        # 添付は Vector 単位でキャッシュしているので、Vector のキャッシュ破棄に揃える
         local_cache.attachment.clear(self.vector.id)
         cleared = local_cache.vector.clear(self.vector.id)
         return cleared
@@ -661,7 +654,6 @@ class VectorRoot(QgsDataItem):
         )
 
         if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            # 添付は Vector に紐づくキャッシュなので一緒に破棄する
             local_cache.attachment.clear_all()
             cache_cleared = local_cache.vector.clear_all()
 

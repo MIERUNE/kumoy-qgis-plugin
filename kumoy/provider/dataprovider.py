@@ -38,15 +38,7 @@ ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
 DELETE_MAX_FEATURE_COUNT = 1000
 
-# Kumoyのカラム型 -> QGISのフィールド型。
-#
-# 未知の型を bool へ落とすと、文字列値が NULL 化されてデータが消えたように見える
-# （attachment 型の追加時に実際に起きた）。サーバの型が増えたときも安全側に倒れる
-# よう、未知の型は「値をそのまま持てる」String にフォールバックする。
-#
-# attachment は gisdb 上ではファイル名（`{attachmentId}.{ext}`）を持つ文字列カラム。
-# 型は string と同じに見せ、フォームの見せ方だけを External Resource ウィジェットで
-# 切り替える（ui/layers/configure.py）。
+# attachment holds a file name, so it is a string field; only the form widget differs
 _COLUMN_TYPE_TO_QVARIANT = {
     "string": QVariant.String,
     "attachment": QVariant.String,
@@ -54,8 +46,6 @@ _COLUMN_TYPE_TO_QVARIANT = {
     "float": QVariant.Double,
     "boolean": QVariant.Bool,
 }
-
-# 文字列として扱う型は長さ制限を付ける
 _STRING_QVARIANT_TYPES = (QVariant.String,)
 
 

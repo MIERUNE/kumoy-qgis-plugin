@@ -1,19 +1,13 @@
-"""KumoyDataProvider.fields() のカラム型マッピングのテスト
+"""Column type mapping in KumoyDataProvider.fields()
 
-サーバのカラム型が増えたとき、未知の型を bool に落とすと文字列値が NULL 化されて
-「データが消えた」ように見える（attachment 型の追加時に実際に起きた）。
-型ごとの対応と、未知の型が安全側（string）に倒れることを固定する。
+Falling back to bool nulls out string values, which looks like data loss.
 """
 
 import pytest
 
 
 def _fields_for(columns):
-    """カラム定義から fields() の結果を得る（プロバイダ本体は組み立てない）。
-
-    fields() はネットワークにも gisdb にも触らず self.kumoy_vector.columns だけを見る
-    ため、その一点だけを差し込んだ最小のオブジェクトで呼べる。
-    """
+    """fields() only reads self.kumoy_vector.columns, so a stub is enough."""
     import types
 
     from plugin_dir.kumoy.provider.dataprovider import KumoyDataProvider
@@ -31,7 +25,6 @@ class TestFieldTypeMapping:
             ("integer", "LongLong"),
             ("float", "Double"),
             ("boolean", "Bool"),
-            # 添付はファイル名の文字列。bool にすると値が消える
             ("attachment", "String"),
         ],
     )
@@ -47,7 +40,6 @@ class TestFieldTypeMapping:
     def test_unknown_type_falls_back_to_string_not_bool(self):
         from qgis.PyQt.QtCore import QVariant
 
-        # 将来サーバに型が増えても、値をそのまま持てる string に倒れること
         fields = _fields_for([{"name": "c", "type": "something_new"}])
 
         assert fields.at(fields.indexOf("c")).type() == QVariant.String

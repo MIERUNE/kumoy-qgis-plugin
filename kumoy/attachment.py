@@ -1,15 +1,4 @@
-"""添付ファイルのアップロード。
-
-サムネイル生成はクライアント側の責務（サーバに画像処理基盤を持たない）。QImage で
-長辺 512px の WebP に再エンコードする。再エンコードにより EXIF も実質的に除去される
-（原本には残る点に注意）。
-
-「Attachment 行の作成 → S3 への PUT → 属性値の書き込み」のうち、ここが担うのは
-前二つ。属性値の書き込みは呼び出し側（External Resource ウィジェット、または
-プラグインのアクション）が行い、そこでサーバ側の遷移ルール検証を通る。
-
-UI は持たない。進捗・中断は呼び出し側のコールバックで受け取る。
-"""
+"""Attachment upload. Thumbnails are generated client-side (no server-side imaging)."""
 
 import os
 import tempfile
@@ -27,39 +16,31 @@ from ..pyqt_version import (
 from . import api, local_cache
 from .upload import presigned
 
-# 許可する拡張子と MIME。サーバ側の allowlist と一致させる。
+# Must match the server allowlist
 EXT_TO_MIME = {
     "jpg": "image/jpeg",
     "jpeg": "image/jpeg",
     "png": "image/png",
     "webp": "image/webp",
 }
-
-# サーバに渡す ext は正規化する（jpeg は jpg に寄せる）。
 _EXT_ALIAS = {"jpeg": "jpg"}
 
 THUMBNAIL_MIME = "image/webp"
 _THUMBNAIL_MAX_EDGE = 512
 _THUMBNAIL_QUALITY = 75
 
-# 1ファイルの上限。サーバ側の制限と一致させる（超過は PUT 前にここで弾く）。
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 
 class UnsupportedAttachmentError(Exception):
-    """拡張子が許可されていない。"""
+    pass
 
 
 class AttachmentTooLargeError(Exception):
-    """ファイルサイズが上限を超えている。"""
+    pass
 
 
 def normalized_ext(file_path: str) -> str:
-    """ファイルパスから、サーバに渡す拡張子を求める。
-
-    Raises:
-        UnsupportedAttachmentError: 許可されていない拡張子の場合。
-    """
     ext = os.path.splitext(file_path)[1].lstrip(".").lower()
     if ext not in EXT_TO_MIME:
         raise UnsupportedAttachmentError(ext)
@@ -67,18 +48,12 @@ def normalized_ext(file_path: str) -> str:
 
 
 def create_thumbnail_bytes(file_path: str) -> bytes:
-    """長辺 512px の WebP サムネイルを生成する。
-
-    Raises:
-        Exception: 画像として読めない場合。
-    """
+    """Re-encode to WebP, longest edge 512px. This also strips EXIF."""
     image = QImage(file_path)
     if image.isNull():
         raise Exception(f"Cannot read image: {file_path}")
 
-    # 長辺のみ指定して縦横比を保つ。元が 512px 以下なら拡大しない
-    longest = max(image.width(), image.height())
-    if longest > _THUMBNAIL_MAX_EDGE:
+    if max(image.width(), image.height()) > _THUMBNAIL_MAX_EDGE:
         image = image.scaled(
             _THUMBNAIL_MAX_EDGE,
             _THUMBNAIL_MAX_EDGE,
@@ -104,17 +79,10 @@ def upload(
     progress_callback: Optional[presigned.ProgressCallback] = None,
     is_canceled: Optional[presigned.IsCanceledCallback] = None,
 ) -> str:
-    """添付をアップロードし、属性カラムに格納すべき値を返す。
+    """Upload an attachment and return the value to store in the column.
 
-    戻り値を属性値として書き込んで初めて「地物に付いた」状態になる。PUT 後に
-    属性値の書き込みまで到達しなくても、S3 のゴミと Attachment 行が残るだけで
-    表示上の不整合は起きない。
-
-    Raises:
-        UnsupportedAttachmentError: 許可されていない拡張子。
-        AttachmentTooLargeError: 上限超過。
-        presigned.UploadCanceled: 中断要求があった場合。
-        Exception: サムネイル生成・API・アップロード失敗時。
+    The caller must write that value to the attribute; until then the feature has
+    no attachment (an interrupted upload only leaves an unreferenced row).
     """
     ext = normalized_ext(file_path)
     size = os.path.getsize(file_path)
@@ -139,28 +107,22 @@ def upload(
         progress_callback,
         is_canceled,
     )
-
-    # サムネイルはメモリ上の小さなバイト列だが、原本と同じ presigned PUT で送る
-    # （POST ポリシーではないので multipart にする必要がない）。
     _put_bytes(upload_info.thumbnail_upload_url, thumbnail)
 
-    # 直後は「S3 上の実体と同一のファイル」が手元にあるので、キャッシュへ取り込んで
-    # おけば以降のフォーム表示でダウンロードが走らない。
     try:
         local_cache.attachment.store(vector_id, upload_info.value, file_path)
     except Exception:
-        # キャッシュ取り込みの失敗はアップロードの成否に影響しない（次回 fetch で回収）
+        # A failed cache warm-up is recovered by the next fetch
         pass
 
     return upload_info.value
 
 
 def _put_bytes(url: str, data: bytes) -> None:
-    """メモリ上のバイト列を presigned PUT で送る（一時ファイル経由）。
+    """PUT an in-memory blob via a temp file.
 
-    ``upload_file_to_presigned_put`` はストリーミング送信のため QIODevice を要求
-    する。サムネイルは数十 KB なので一時ファイル経由でも安く、送信経路を原本と
-    一本化できる（Qt バージョン差による chunked 送信問題も避けられる）。
+    upload_file_to_presigned_put streams from a QIODevice; going through a temp
+    file keeps thumbnails on the same upload path as originals.
     """
     fd, temp_path = tempfile.mkstemp(
         suffix=".webp", dir=QgsApplication.qgisSettingsDirPath()
