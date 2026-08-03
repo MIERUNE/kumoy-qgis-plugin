@@ -38,6 +38,26 @@ ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
 DELETE_MAX_FEATURE_COUNT = 1000
 
+# Kumoyのカラム型 -> QGISのフィールド型。
+#
+# 未知の型を bool へ落とすと、文字列値が NULL 化されてデータが消えたように見える
+# （attachment 型の追加時に実際に起きた）。サーバの型が増えたときも安全側に倒れる
+# よう、未知の型は「値をそのまま持てる」String にフォールバックする。
+#
+# attachment は gisdb 上ではファイル名（`{attachmentId}.{ext}`）を持つ文字列カラム。
+# 型は string と同じに見せ、フォームの見せ方だけを External Resource ウィジェットで
+# 切り替える（ui/layers/configure.py）。
+_COLUMN_TYPE_TO_QVARIANT = {
+    "string": QVariant.String,
+    "attachment": QVariant.String,
+    "integer": QVariant.LongLong,
+    "float": QVariant.Double,
+    "boolean": QVariant.Bool,
+}
+
+# 文字列として扱う型は長さ制限を付ける
+_STRING_QVARIANT_TYPES = (QVariant.String,)
+
 
 class SyncWorker(QThread):
     """Worker thread for sync_local_cache operation"""
@@ -331,27 +351,23 @@ class KumoyDataProvider(QgsVectorDataProvider):
         if self.kumoy_vector is None:
             return fs
         for column in self.kumoy_vector.columns:
-            k = column["name"]
-            v = column["type"]
+            name = column["name"]
+            column_type = column["type"]
 
-            len = 0
-            # attachment は gisdb 上ではファイル名（`{attachmentId}.{ext}`）を持つ
-            # 文字列カラム。型としては string と同じに見せ、フォームの見せ方だけを
-            # External Resource ウィジェットで切り替える（ui/layers/configure.py）
-            if v in ("string", "attachment"):
+            data_type = _COLUMN_TYPE_TO_QVARIANT.get(column_type)
+            if data_type is None:
+                QgsMessageLog.logMessage(
+                    f"Unknown column type '{column_type}' for field '{name}'; "
+                    "treating it as string",
+                    constants.LOG_CATEGORY,
+                    Qgis.Warning,
+                )
                 data_type = QVariant.String
-                len = constants.MAX_CHARACTERS_STRING_FIELD
-            elif v == "integer":
-                data_type = QVariant.LongLong
-            elif v == "float":
-                data_type = QVariant.Double
-            else:
-                data_type = QVariant.Bool
 
-            f = QgsField(k, data_type)
-            if len > 0:
-                f.setLength(len)
-            fs.append(f)
+            field = QgsField(name, data_type)
+            if data_type in _STRING_QVARIANT_TYPES:
+                field.setLength(constants.MAX_CHARACTERS_STRING_FIELD)
+            fs.append(field)
 
         return fs
 
