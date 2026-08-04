@@ -1,4 +1,4 @@
-"""S3 presigned POST/PUT へのアップロード。
+"""アップロード転送層。S3 presigned POST/PUT と、Kumoy API への multipart POST。
 
 - PUT (raw binary): ラスタ COG 用。ファイルを ``QIODevice`` から逐次送信する
   ため、数 GB 級でもメモリに全量を載せない。これにより OOM と、Qt5 の
@@ -24,7 +24,7 @@ abort するため、そのままでは応答待ちフェーズが 60 秒を超�
 タイマーは reply ごとに無効化する（``_neutralize_qgis_network_timeout``）。
 """
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple
 
 from qgis.core import QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QBuffer, QByteArray, QEventLoop, QFile, QTimer, QUrl
@@ -118,6 +118,59 @@ def upload_bytes_to_presigned_post(
     _await_upload(reply, None, None)
 
 
+def post_multipart_form(
+    url: str,
+    fields: Dict[str, str],
+    file_path: str,
+    content_type: str,
+    headers: Optional[Dict[str, str]] = None,
+    progress_callback: Optional[ProgressCallback] = None,
+    is_canceled: Optional[IsCanceledCallback] = None,
+) -> Tuple[int, bytes]:
+    """POST multipart/form-data to a server (Kumoy API, not presigned S3).
+
+    The file is read into memory and sent via ``setBody``: attachments are
+    small (<= 20MB) and ``setBodyDevice`` may switch to chunked encoding
+    depending on the Qt version, while an in-memory body always gets a
+    definite Content-Length.
+
+    Returns ``(status_code, body)`` without raising on HTTP errors, because
+    mapping error responses to typed exceptions is the API layer's job.
+    Network-level failures and cancellation still raise
+    (``Exception`` / ``UploadCanceled``).
+    """
+    multipart = QHttpMultiPart(Q_HTTP_MULTIPART_CONTENT_TYPE.FormDataType)
+    for field_name, field_value in fields.items():
+        part = QHttpPart()
+        part.setHeader(
+            Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
+            f'form-data; name="{field_name}"',
+        )
+        part.setBody(QByteArray(str(field_value).encode("utf-8")))
+        multipart.append(part)
+
+    with open(file_path, "rb") as f:
+        data = f.read()
+    file_part = QHttpPart()
+    file_part.setHeader(
+        Q_NETWORK_REQUEST_HEADER.ContentDispositionHeader,
+        'form-data; name="file"; filename="upload"',
+    )
+    file_part.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, content_type)
+    file_part.setBody(QByteArray(data))
+    multipart.append(file_part)
+
+    request = QNetworkRequest(QUrl(url))
+    for header_name, header_value in (headers or {}).items():
+        request.setRawHeader(header_name.encode("utf-8"), header_value.encode("utf-8"))
+
+    reply = QgsNetworkAccessManager.instance().post(request, multipart)
+    multipart.setParent(reply)  # prevent GC
+    return _await_upload(
+        reply, progress_callback, is_canceled, raise_on_http_error=False
+    )
+
+
 def upload_file_to_presigned_put(
     url: str,
     file_path: str,
@@ -171,10 +224,13 @@ def _await_upload(
     reply: QNetworkReply,
     progress_callback: Optional[ProgressCallback],
     is_canceled: Optional[IsCanceledCallback],
-) -> None:
+    raise_on_http_error: bool = True,
+) -> Tuple[int, bytes]:
     """送信済みの reply をブロッキングで待ち、進捗・中断・結果検証を行う。
 
     POST/PUT どちらの送信方法でも結果待ちのロジックは同じなので共有する。
+    戻り値は ``(status_code, body)``。presigned アップロードはボディを使わないが、
+    API への multipart POST はレスポンス JSON を必要とするため返す。
     """
     _neutralize_qgis_network_timeout(reply)
 
@@ -240,9 +296,13 @@ def _await_upload(
         raise Exception(
             f"Upload failed (network error {int(network_error)}): {error_string}"
         )
-    if status_code not in (200, 201, 204):
-        error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")
+    body = bytes(reply.readAll().data())
+    if raise_on_http_error and status_code not in (200, 201, 204):
         reply.deleteLater()
-        raise Exception(f"Upload failed (HTTP {status_code}): {error_body}")
+        raise Exception(
+            f"Upload failed (HTTP {status_code}): "
+            f"{body.decode('utf-8', errors='replace')}"
+        )
 
     reply.deleteLater()
+    return int(status_code), body

@@ -1,11 +1,21 @@
 """QgsExternalStorage for Kumoy attachments.
 
 Lets the standard Attachment (External Resource) widget work unchanged: doStore
-uploads and its url() becomes the attribute value, doFetch resolves a value to a
-local file for the image preview. S3 is never exposed to QGIS directly.
+stages the picked file and its url() becomes the attribute value, doFetch
+resolves that value to a local file for the image preview. S3 is never exposed
+to QGIS directly.
+
+doStore decides the attachment id, so the value the widget writes is already the
+final one. The upload cannot change it, which is why no placeholder value is
+needed for a picked-but-not-uploaded file.
+
+Nothing is uploaded here. The widget stores on pick, but a picked file only
+becomes an attachment when the layer edits are committed, so the provider does
+the upload — that way a rolled-back edit never leaves a file on the server.
 """
 
 import re
+import uuid
 from typing import Optional, Tuple
 
 from qgis.core import (
@@ -21,29 +31,31 @@ from . import local_cache
 STORAGE_TYPE = "kumoy"
 
 _UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-_STORAGE_URL_PATTERN = re.compile(rf"^kumoy://({_UUID})/({_UUID})/(\d+)$")
+# The trailing segment is a kumoy_id that in-development projects may still carry
+# in their saved widget config; staging never needed it, so it is ignored.
+_STORAGE_URL_PATTERN = re.compile(rf"^kumoy://({_UUID})/({_UUID})(?:/\d+)?$")
 
 
 def build_storage_url_expression(vector_id: str, vector_column_id: str) -> str:
     """Expression for the widget's StorageUrl.
 
-    kumoy_id stays unevaluated so the widget fills it in per feature; that is how
-    doStore learns which feature the file belongs to.
+    A constant: staging needs no per-feature value, so this resolves even for a
+    feature that has not been saved yet.
     """
-    return f"'kumoy://{vector_id}/{vector_column_id}/' || \"kumoy_id\""
+    return f"'kumoy://{vector_id}/{vector_column_id}'"
 
 
-def parse_storage_url(url: str) -> Optional[Tuple[str, str, int]]:
+def parse_storage_url(url: str) -> Optional[Tuple[str, str]]:
     match = _STORAGE_URL_PATTERN.match(url or "")
     if match is None:
         return None
-    return match.group(1), match.group(2), int(match.group(3))
+    return match.group(1), match.group(2)
 
 
 def parse_fetch_url(url: str) -> Optional[Tuple[str, str]]:
     """Split `{vectorId}/{value}`.
 
-    The attribute value alone has no vector_id, so the widget is configured with
+    The attribute value carries no vector_id, so the widget is configured with
     DefaultRoot = vector_id and RelativeStorage = RelativeDefaultPath.
     """
     parts = (url or "").split("/")
@@ -63,24 +75,17 @@ class _StoredContent(QgsExternalStorageStoredContent):
     def store(self) -> None:
         target = parse_storage_url(self._storage_url)
         if target is None:
-            # Unsaved feature: kumoy_id is not assigned, so the expression did not resolve
-            self._fail(
-                "Cannot attach a file before the feature is saved. "
-                "Save the feature first, then attach."
-            )
+            self._fail(f"Invalid attachment storage url: {self._storage_url}")
             return
 
-        vector_id, vector_column_id, kumoy_id = target
-        self.setStatus(Qgis.ContentStatus.Running)
+        vector_id, _vector_column_id = target
         try:
-            self._value = attachment_domain.upload(
-                vector_id=vector_id,
-                kumoy_id=kumoy_id,
-                vector_column_id=vector_column_id,
-                file_path=self._file_path,
-                progress_callback=lambda percent: self.progressChanged.emit(percent),
-                is_canceled=lambda: self._canceled,
-            )
+            # Reject the file now rather than at commit time, when the user has
+            # moved on and the message is harder to tie back to the file
+            attachment_domain.validate(self._file_path)
+            attachment_id = str(uuid.uuid4())
+            local_cache.attachment.stage(vector_id, attachment_id, self._file_path)
+            self._value = attachment_id
         except attachment_domain.UnsupportedAttachmentError as e:
             self._fail(f"Unsupported file type: .{e}")
             return
@@ -94,6 +99,7 @@ class _StoredContent(QgsExternalStorageStoredContent):
             self._fail(str(e))
             return
 
+        self.progressChanged.emit(100)
         self.setStatus(Qgis.ContentStatus.Finished)
         self.stored.emit()
 
@@ -123,11 +129,20 @@ class _FetchedContent(QgsExternalStorageFetchedContent):
         if parsed is None:
             self._fail(f"Invalid attachment reference: {self._url}")
             return
-        vector_id, value = parsed
+        vector_id, attachment_id = parsed
+
+        # Not uploaded yet, so the staged copy is all there is
+        if local_cache.attachment.is_staged(vector_id, attachment_id):
+            self._path = local_cache.attachment.get_staged_path(
+                vector_id, attachment_id
+            )
+            self.setStatus(Qgis.ContentStatus.Finished)
+            self.fetched.emit()
+            return
 
         # Stay off the network when cached: this runs on every form display
-        if local_cache.attachment.is_cached(vector_id, value):
-            self._path = local_cache.attachment.get_cache_path(vector_id, value)
+        if local_cache.attachment.is_cached(vector_id, attachment_id):
+            self._path = local_cache.attachment.get_cache_path(vector_id, attachment_id)
             self.setStatus(Qgis.ContentStatus.Finished)
             self.fetched.emit()
             return
@@ -136,7 +151,7 @@ class _FetchedContent(QgsExternalStorageFetchedContent):
         try:
             self._path = local_cache.attachment.sync_local_cache(
                 vector_id,
-                value,
+                attachment_id,
                 progress_callback=lambda percent: self.progressChanged.emit(percent),
                 is_canceled=lambda: self._canceled,
             )

@@ -29,7 +29,7 @@ from qgis.utils import iface
 
 from ... import i18n
 from ...pyqt_version import QT_APPLICATION_MODAL, exec_event_loop
-from .. import api, constants, local_cache
+from .. import api, attachment, constants, local_cache
 from ..api.error import NotFoundError, format_api_error
 from .feature_iterator import KumoyFeatureIterator
 from .feature_source import KumoyFeatureSource
@@ -38,7 +38,7 @@ ADD_MAX_FEATURE_COUNT = 1000
 UPDATE_MAX_FEATURE_COUNT = 1000
 DELETE_MAX_FEATURE_COUNT = 1000
 
-# attachment holds a file name, so it is a string field; only the form widget differs
+# attachment holds an attachment id, so it is a string field; only the widget differs
 _COLUMN_TYPE_TO_QVARIANT = {
     "string": QVariant.String,
     "attachment": QVariant.String,
@@ -471,6 +471,50 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self._reload_vector()
         return True
 
+    def _attachment_column_ids(self) -> Dict[str, str]:
+        return {
+            column["name"]: column["id"]
+            for column in self.kumoy_vector.columns
+            if column.get("type") == "attachment"
+        }
+
+    def _upload_staged_attachments(
+        self, values: Dict[str, object], column_ids: Dict[str, str]
+    ) -> None:
+        """Upload the files the widget staged for these values.
+
+        The value is already the attachment id the widget chose, so nothing is
+        rewritten here: this only moves the bytes to the server.
+        """
+        for field_name, column_id in column_ids.items():
+            attachment_id = values.get(field_name)
+            if not local_cache.attachment.is_staged(
+                self.kumoy_vector.id, attachment_id
+            ):
+                continue
+            attachment.upload_staged(
+                vector_id=self.kumoy_vector.id,
+                vector_column_id=column_id,
+                attachment_id=attachment_id,
+            )
+
+    def _attachment_values(
+        self, feature: QgsFeature, column_ids: Dict[str, str]
+    ) -> Dict[str, object]:
+        values = {}
+        for field_name in column_ids:
+            idx = feature.fields().indexOf(field_name)
+            if idx >= 0:
+                values[field_name] = feature.attribute(idx)
+        return values
+
+    def _report_attachment_error(self, error: Exception) -> None:
+        message = i18n.tr("Failed to upload attachment: {}").format(
+            format_api_error(error)
+        )
+        QgsMessageLog.logMessage(message, "Kumoy", Qgis.MessageLevel.Critical)
+        self.pushError(message)
+
     def addFeatures(self, features: List[QgsFeature], flags=None):
         candidates: list[QgsFeature] = list(
             filter(
@@ -485,8 +529,23 @@ class KumoyDataProvider(QgsVectorDataProvider):
             # 何もせず終了
             return True, []
 
+        # The values are already final, so the files just have to be on the server
+        # before the insert references them
+        attachment_column_ids = self._attachment_column_ids()
+        if attachment_column_ids:
+            try:
+                for feature in candidates:
+                    self._upload_staged_attachments(
+                        self._attachment_values(feature, attachment_column_ids),
+                        attachment_column_ids,
+                    )
+            except Exception as e:
+                # Nothing has been sent yet, so the edits stay in the buffer
+                self._report_attachment_error(e)
+                return False, []
+
         # 地物追加APIには地物数制限があるので、それを上回らないよう分割リクエストする
-        for i in range(0, len(features), ADD_MAX_FEATURE_COUNT):
+        for i in range(0, len(candidates), ADD_MAX_FEATURE_COUNT):
             sliced = candidates[i : i + ADD_MAX_FEATURE_COUNT]
             try:
                 api.qgis_vector.add_features(self.kumoy_vector.id, sliced)
@@ -499,6 +558,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
     def changeAttributeValues(self, attr_map: Dict[str, dict]) -> bool:
         attribute_items = []
+        attachment_column_ids = self._attachment_column_ids()
 
         for feature_id, raw_attr in attr_map.items():
             # raw_attr = {0: value, 1: value, ...}
@@ -515,6 +575,15 @@ class KumoyDataProvider(QgsVectorDataProvider):
                     properties[field_name] = None
                 else:
                     properties[field_name] = value
+
+            if attachment_column_ids:
+                # Nothing has been sent yet, so a failed upload can still fail the
+                # whole commit and leave the edits in the buffer
+                try:
+                    self._upload_staged_attachments(properties, attachment_column_ids)
+                except Exception as e:
+                    self._report_attachment_error(e)
+                    return False
 
             attribute_items.append(
                 {"kumoy_id": int(feature_id), "properties": properties}

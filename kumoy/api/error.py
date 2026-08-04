@@ -119,4 +119,6 @@ def format_api_error(exception: Exception) -> str:
     if parts:
         return " - ".join(parts)
 
-    return str(exception)
+    # Some exceptions carry their information in the type alone, and an empty
+    # message reads as if nothing went wrong
+    return str(exception) or type(exception).__name__

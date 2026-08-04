@@ -1,5 +1,7 @@
 """Edit form setup for Kumoy layers, shared by the Browser and upload paths."""
 
+from typing import List
+
 from qgis.core import (
     QgsEditorWidgetSetup,
     QgsProperty,
@@ -8,7 +10,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsExternalResourceWidget, QgsFileWidget, QgsWidgetWrapper
 
-from ...kumoy import api, external_storage
+from ...kumoy import api, external_storage, local_cache
 
 
 def _attachment_widget_setup(
@@ -31,7 +33,7 @@ def _attachment_widget_setup(
             "StorageType": external_storage.STORAGE_TYPE,
             "StorageMode": QgsFileWidget.StorageMode.GetFile,
             # DefaultRoot + RelativeDefaultPath makes doFetch receive
-            # `{vectorId}/{value}`; the value alone has no vector_id.
+            # `{vectorId}/{value}`; the stored value alone has no vector_id.
             "DefaultRoot": vector_id,
             "RelativeStorage": QgsFileWidget.RelativeStorage.RelativeDefaultPath,
             "DocumentViewer": QgsExternalResourceWidget.DocumentViewerContent.Image,
@@ -46,6 +48,44 @@ def _attachment_widget_setup(
     )
 
 
+def _apply_attachment_widgets(
+    layer: QgsVectorLayer, vector: api.vector.KumoyVectorDetail
+) -> None:
+    for column in vector.columns:
+        if column.get("type") != "attachment":
+            continue
+        idx = layer.fields().indexOf(column["name"])
+        if idx < 0:
+            continue
+        layer.setEditorWidgetSetup(
+            idx, _attachment_widget_setup(vector.id, column["id"])
+        )
+
+
+def _staged_attachment_ids(
+    layer: QgsVectorLayer, vector: api.vector.KumoyVectorDetail
+) -> List[str]:
+    """Collect the attachments whose file was staged but never uploaded."""
+    buffer = layer.editBuffer()
+    if buffer is None:
+        return []
+
+    indexes = [
+        layer.fields().indexOf(column["name"])
+        for column in vector.columns
+        if column.get("type") == "attachment"
+    ]
+    values = []
+    for feature in buffer.addedFeatures().values():
+        values.extend(feature.attribute(idx) for idx in indexes if idx >= 0)
+    for changed in buffer.changedAttributeValues().values():
+        values.extend(changed.get(idx) for idx in indexes if idx >= 0)
+
+    return [
+        value for value in values if local_cache.attachment.is_staged(vector.id, value)
+    ]
+
+
 def configure_kumoy_layer(
     layer: QgsVectorLayer, vector: api.vector.KumoyVectorDetail
 ) -> None:
@@ -58,12 +98,13 @@ def configure_kumoy_layer(
 
     layer.setEditFormConfig(config)
 
-    for column in vector.columns:
-        if column.get("type") != "attachment":
-            continue
-        idx = layer.fields().indexOf(column["name"])
-        if idx < 0:
-            continue
-        layer.setEditorWidgetSetup(
-            idx, _attachment_widget_setup(vector.id, column["id"])
-        )
+    _apply_attachment_widgets(layer, vector)
+
+    def on_before_rollback() -> None:
+        # Discarded edits are the only owner of their staged files, so nothing
+        # will ever upload them
+        current = getattr(layer.dataProvider(), "kumoy_vector", None) or vector
+        for attachment_id in _staged_attachment_ids(layer, current):
+            local_cache.attachment.discard_staged(current.id, attachment_id)
+
+    layer.beforeRollBack.connect(on_before_rollback)

@@ -38,9 +38,11 @@ class WkbTooLargeError(Exception):
 def add_features(
     vector_id: str,
     features: List[QgsFeature],
-) -> None:
+) -> List[int]:
     """
     Add features to a vector layer
+
+    Returns the kumoy_ids the server assigned, in the order of the input.
     """
     _features = []
     for f in features:
@@ -90,7 +92,10 @@ def add_features(
                     "HH:mm:ss.zzz"
                 )
 
-    ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
+    kumoy_ids = ApiClient.post(
+        f"/_qgis/vector/{vector_id}/add-features", {"features": _features}
+    )
+    return [int(kumoy_id) for kumoy_id in kumoy_ids] if kumoy_ids else []
 
 
 def delete_features(

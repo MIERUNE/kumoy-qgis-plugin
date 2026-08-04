@@ -33,7 +33,7 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
   - `kumoy/api/` — APIクライアント。QgsBlockingNetworkRequestベースのHTTP通信、Bearer認証
   - `kumoy/provider/` — QGISデータプロバイダ実装（QgsVectorDataProvider）
   - `kumoy/local_cache/` — ローカルキャッシュ機構（純粋なファイル操作のみ）
-  - `kumoy/attachment.py` — 添付ファイルのアップロード（サムネイル生成 + presigned PUT）
+  - `kumoy/attachment.py` — 添付ファイルのアップロード（multipart POST。画像検証・サムネイル生成はサーバー側）
   - `kumoy/external_storage.py` — `QgsExternalStorage` 実装。QGIS標準のAttachmentウィジェットに添付を橋渡しする
   - `kumoy/auth_manager.py` — OAuth2認証（PKCE、ローカルHTTPサーバ port 9248）
   - `kumoy/settings_manager.py` — QSettingsラッパー（session_token等のドメイン状態を保持）

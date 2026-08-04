@@ -1,33 +1,18 @@
-"""Attachment upload. Thumbnails are generated client-side (no server-side imaging)."""
+"""Attachment upload. Image validation and thumbnailing happen server-side."""
 
 import os
-import tempfile
 from typing import Optional
 
-from qgis.core import QgsApplication
-from qgis.PyQt.QtCore import QBuffer, QByteArray
-from qgis.PyQt.QtGui import QImage
-
-from ..pyqt_version import (
-    Q_IODEVICE_OPEN_MODE,
-    QT_ASPECT_RATIO_MODE,
-    QT_TRANSFORMATION_MODE,
-)
 from . import api, local_cache
 from .upload import presigned
 
-# Must match the server allowlist
+# Client-side pre-checks only; the server re-validates from the actual bytes
 EXT_TO_MIME = {
     "jpg": "image/jpeg",
     "jpeg": "image/jpeg",
     "png": "image/png",
     "webp": "image/webp",
 }
-_EXT_ALIAS = {"jpeg": "jpg"}
-
-THUMBNAIL_MIME = "image/webp"
-_THUMBNAIL_MAX_EDGE = 512
-_THUMBNAIL_QUALITY = 75
 
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
@@ -40,99 +25,107 @@ class AttachmentTooLargeError(Exception):
     pass
 
 
-def normalized_ext(file_path: str) -> str:
+# Staged files are named after their attachment id and carry no extension, so the
+# content type has to come from the bytes at upload time
+_MAGIC_TO_MIME = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+)
+
+
+def validate(file_path: str) -> str:
+    """Pre-check a picked file and return its content type.
+
+    Called when the file is picked, not only on upload, so the user hears about
+    a rejected file right away instead of at commit time.
+    """
     ext = os.path.splitext(file_path)[1].lstrip(".").lower()
     if ext not in EXT_TO_MIME:
-        raise UnsupportedAttachmentError(ext)
-    return _EXT_ALIAS.get(ext, ext)
+        raise UnsupportedAttachmentError(ext or "(no extension)")
+
+    check_size(file_path)
+
+    return EXT_TO_MIME[ext]
 
 
-def create_thumbnail_bytes(file_path: str) -> bytes:
-    """Re-encode to WebP, longest edge 512px. This also strips EXIF."""
-    image = QImage(file_path)
-    if image.isNull():
-        raise Exception(f"Cannot read image: {file_path}")
-
-    if max(image.width(), image.height()) > _THUMBNAIL_MAX_EDGE:
-        image = image.scaled(
-            _THUMBNAIL_MAX_EDGE,
-            _THUMBNAIL_MAX_EDGE,
-            QT_ASPECT_RATIO_MODE.KeepAspectRatio,
-            QT_TRANSFORMATION_MODE.SmoothTransformation,
-        )
-
-    byte_array = QByteArray()
-    buffer = QBuffer(byte_array)
-    buffer.open(Q_IODEVICE_OPEN_MODE.WriteOnly)
-    if not image.save(buffer, "WEBP", _THUMBNAIL_QUALITY):
-        raise Exception("Failed to encode thumbnail as WebP")
-    buffer.close()
-
-    return bytes(byte_array)
-
-
-def upload(
-    vector_id: str,
-    kumoy_id: int,
-    vector_column_id: str,
-    file_path: str,
-    progress_callback: Optional[presigned.ProgressCallback] = None,
-    is_canceled: Optional[presigned.IsCanceledCallback] = None,
-) -> str:
-    """Upload an attachment and return the value to store in the column.
-
-    The caller must write that value to the attribute; until then the feature has
-    no attachment (an interrupted upload only leaves an unreferenced row).
-    """
-    ext = normalized_ext(file_path)
+def check_size(file_path: str) -> None:
     size = os.path.getsize(file_path)
     if size <= 0 or size > MAX_ATTACHMENT_BYTES:
         raise AttachmentTooLargeError(str(size))
 
-    thumbnail = create_thumbnail_bytes(file_path)
+
+def sniff_content_type(file_path: str) -> str:
+    """Content type from the leading bytes.
+
+    Advisory only: the server derives the real format from the bytes too and
+    ignores what is declared here. It exists because the name of a staged file
+    says nothing about its type.
+    """
+    with open(file_path, "rb") as f:
+        head = f.read(12)
+
+    for magic, mime in _MAGIC_TO_MIME:
+        if head.startswith(magic):
+            return mime
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+
+    raise UnsupportedAttachmentError("unrecognized image data")
+
+
+def upload(
+    vector_id: str,
+    vector_column_id: str,
+    file_path: str,
+    attachment_id: Optional[str] = None,
+    progress_callback: Optional[presigned.ProgressCallback] = None,
+    is_canceled: Optional[presigned.IsCanceledCallback] = None,
+) -> str:
+    """Upload an attachment and return the attachment id to store in the column.
+
+    The caller must write that id to the attribute; until then the feature has
+    no attachment.
+    """
+    check_size(file_path)
+    content_type = sniff_content_type(file_path)
 
     upload_info = api.attachment.create_attachment(
         vector_id=vector_id,
-        kumoy_id=kumoy_id,
         vector_column_id=vector_column_id,
-        ext=ext,
-        bytes=size,
-        thumbnail_bytes=len(thumbnail),
+        file_path=file_path,
+        content_type=content_type,
+        attachment_id=attachment_id,
+        progress_callback=progress_callback,
+        is_canceled=is_canceled,
     )
-
-    presigned.upload_file_to_presigned_put(
-        upload_info.upload_url,
-        file_path,
-        EXT_TO_MIME[ext],
-        progress_callback,
-        is_canceled,
-    )
-    _put_bytes(upload_info.thumbnail_upload_url, thumbnail)
 
     try:
-        local_cache.attachment.store(vector_id, upload_info.value, file_path)
+        local_cache.attachment.store(vector_id, upload_info.attachment_id, file_path)
     except Exception:
         # A failed cache warm-up is recovered by the next fetch
         pass
 
-    return upload_info.value
+    return upload_info.attachment_id
 
 
-def _put_bytes(url: str, data: bytes) -> None:
-    """PUT an in-memory blob via a temp file.
+def upload_staged(
+    vector_id: str,
+    vector_column_id: str,
+    attachment_id: str,
+    progress_callback: Optional[presigned.ProgressCallback] = None,
+    is_canceled: Optional[presigned.IsCanceledCallback] = None,
+) -> None:
+    """Upload a file staged by the widget, keeping the id already in the column.
 
-    upload_file_to_presigned_put streams from a QIODevice; going through a temp
-    file keeps thumbnails on the same upload path as originals.
+    The staged copy moves into the cache proper, so the preview keeps working
+    without downloading what this client just sent.
     """
-    fd, temp_path = tempfile.mkstemp(
-        suffix=".webp", dir=QgsApplication.qgisSettingsDirPath()
+    upload(
+        vector_id=vector_id,
+        vector_column_id=vector_column_id,
+        file_path=local_cache.attachment.get_staged_path(vector_id, attachment_id),
+        attachment_id=attachment_id,
+        progress_callback=progress_callback,
+        is_canceled=is_canceled,
     )
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-        presigned.upload_file_to_presigned_put(url, temp_path, THUMBNAIL_MIME)
-    finally:
-        try:
-            os.unlink(temp_path)
-        except OSError:
-            pass
+    local_cache.attachment.promote_staged(vector_id, attachment_id)
