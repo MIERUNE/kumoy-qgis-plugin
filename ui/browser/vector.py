@@ -21,7 +21,6 @@ from qgis.PyQt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QMenu,
@@ -110,13 +109,6 @@ class VectorItem(QgsDataItem):
         actions.append(clear_cache_action)
 
         if self.role in ["ADMIN", "OWNER"]:
-            # QGIS's add-field UI cannot offer the attachment type
-            add_attachment_field_action = QAction(
-                i18n.tr("Add Attachment Field..."), parent
-            )
-            add_attachment_field_action.triggered.connect(self.add_attachment_field)
-            actions.append(add_attachment_field_action)
-
             # Edit vector action
             edit_action = QAction(i18n.tr("Edit Vector"), parent)
             edit_action.triggered.connect(self.edit_vector)
@@ -333,50 +325,6 @@ class VectorItem(QgsDataItem):
             ):
                 return True
         return False
-
-    def add_attachment_field(self) -> None:
-        """Add an attachment column."""
-        name, ok = QInputDialog.getText(
-            None,
-            i18n.tr("Add Attachment Field"),
-            i18n.tr("Field name:"),
-        )
-        if not ok:
-            return
-
-        name = name.strip()
-        if not name:
-            return
-        if name.startswith(constants.RESERVED_FIELD_NAME_PREFIX):
-            QMessageBox.warning(
-                None,
-                i18n.tr("Add Attachment Field"),
-                i18n.tr('Field names starting with "{}" are reserved.').format(
-                    constants.RESERVED_FIELD_NAME_PREFIX
-                ),
-            )
-            return
-
-        try:
-            api.qgis_vector.add_attributes(
-                vector_id=self.vector.id,
-                attributes=[{"name": name, "type": "attachment"}],
-            )
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=None,
-                log_prefix=i18n.tr("Error adding attachment field"),
-            )
-            return
-
-        # The cached GPKG schema is now stale
-        local_cache.vector.clear(self.vector.id)
-
-        iface.messageBar().pushSuccess(
-            i18n.tr("Success"),
-            i18n.tr("Attachment field '{}' added.").format(name),
-        )
 
     def process_vector_cache_clear(self) -> bool:
         local_cache.attachment.clear(self.vector.id)
