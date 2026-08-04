@@ -48,6 +48,79 @@ _COLUMN_TYPE_TO_QVARIANT = {
 }
 _STRING_QVARIANT_TYPES = (QVariant.String,)
 
+# typeName is what distinguishes attachment from a plain string: QVariant alone cannot,
+# so QGIS's add-field dialog and addAttributes() round-trip the server type through it.
+_COLUMN_TYPE_TO_TYPE_NAME = {
+    "string": "VARCHAR",
+    "attachment": "ATTACHMENT",
+    "integer": "INTEGER",
+    "float": "DOUBLE PRECISION",
+    "boolean": "BOOLEAN",
+}
+_TYPE_NAME_TO_COLUMN_TYPE = {v: k for k, v in _COLUMN_TYPE_TO_TYPE_NAME.items()}
+
+
+def _native_types() -> List["QgsVectorDataProvider.NativeType"]:
+    """Field types offered by QGIS's add-field UI, following PostgreSQL constraints."""
+    return [
+        # INTEGER: 4-byte signed integer (-2147483648 to +2147483647)
+        QgsVectorDataProvider.NativeType(
+            type=QVariant.LongLong,
+            typeDesc="Integer",
+            subType=QVariant.LongLong,
+            typeName="INTEGER",
+            minLen=0,  # Not applicable for integers
+            maxLen=0,  # Not applicable for integers
+            minPrec=0,  # Not applicable for integers
+            maxPrec=0,  # Not applicable for integers
+        ),
+        # DOUBLE PRECISION: 8-byte floating-point number, variable precision
+        QgsVectorDataProvider.NativeType(
+            type=QVariant.Double,
+            typeDesc="Double Precision",
+            subType=QVariant.Double,
+            typeName="DOUBLE PRECISION",
+            minLen=0,  # Not applicable for floats
+            maxLen=0,  # Not applicable for floats
+            minPrec=0,  # Variable precision
+            maxPrec=15,  # PostgreSQL double precision has about 15 decimal digits precision
+        ),
+        # BOOLEAN: true/false
+        QgsVectorDataProvider.NativeType(
+            type=QVariant.Bool,
+            typeDesc="Boolean",
+            subType=QVariant.Bool,
+            typeName="BOOLEAN",
+            minLen=0,  # Not applicable for boolean
+            maxLen=0,  # Not applicable for boolean
+            minPrec=0,  # Not applicable for boolean
+            maxPrec=0,  # Not applicable for boolean
+        ),
+        # VARCHAR: variable length character string with limit
+        QgsVectorDataProvider.NativeType(
+            type=QVariant.String,
+            typeDesc="Varchar",
+            subType=QVariant.String,
+            typeName="VARCHAR",
+            minLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Minimum length for our system
+            maxLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Maximum length for our system
+            minPrec=0,  # Not applicable for varchar
+            maxPrec=0,  # Not applicable for varchar
+        ),
+        # ATTACHMENT: stored as a string, exposed as its own type so it can be picked
+        # in QGIS's add-field dialog
+        QgsVectorDataProvider.NativeType(
+            type=QVariant.String,
+            typeDesc="Attachment",
+            subType=QVariant.String,
+            typeName="ATTACHMENT",
+            minLen=0,  # Length is not user-configurable
+            maxLen=constants.MAX_CHARACTERS_STRING_FIELD,
+            minPrec=0,  # Not applicable for attachment
+            maxPrec=0,  # Not applicable for attachment
+        ),
+    ]
+
 
 class SyncWorker(QThread):
     """Worker thread for sync_local_cache operation"""
@@ -137,55 +210,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
 
         self._is_valid = True
 
-        # Set native types based on PostgreSQL data type constraints
-        self.setNativeTypes(
-            [
-                # INTEGER: 4-byte signed integer (-2147483648 to +2147483647)
-                QgsVectorDataProvider.NativeType(
-                    type=QVariant.LongLong,
-                    typeDesc="Integer",
-                    subType=QVariant.LongLong,
-                    typeName="INTEGER",
-                    minLen=0,  # Not applicable for integers
-                    maxLen=0,  # Not applicable for integers
-                    minPrec=0,  # Not applicable for integers
-                    maxPrec=0,  # Not applicable for integers
-                ),
-                # DOUBLE PRECISION: 8-byte floating-point number, variable precision
-                QgsVectorDataProvider.NativeType(
-                    type=QVariant.Double,
-                    typeDesc="Double Precision",
-                    subType=QVariant.Double,
-                    typeName="DOUBLE PRECISION",
-                    minLen=0,  # Not applicable for floats
-                    maxLen=0,  # Not applicable for floats
-                    minPrec=0,  # Variable precision
-                    maxPrec=15,  # PostgreSQL double precision has about 15 decimal digits precision
-                ),
-                # BOOLEAN: true/false
-                QgsVectorDataProvider.NativeType(
-                    type=QVariant.Bool,
-                    typeDesc="Boolean",
-                    subType=QVariant.Bool,
-                    typeName="BOOLEAN",
-                    minLen=0,  # Not applicable for boolean
-                    maxLen=0,  # Not applicable for boolean
-                    minPrec=0,  # Not applicable for boolean
-                    maxPrec=0,  # Not applicable for boolean
-                ),
-                # VARCHAR: variable length character string with limit
-                QgsVectorDataProvider.NativeType(
-                    type=QVariant.String,
-                    typeDesc="Varchar",
-                    subType=QVariant.String,
-                    typeName="VARCHAR",
-                    minLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Minimum length for our system
-                    maxLen=constants.MAX_CHARACTERS_STRING_FIELD,  # Maximum length for our system
-                    minPrec=0,  # Not applicable for varchar
-                    maxPrec=0,  # Not applicable for varchar
-                ),
-            ]
-        )
+        self.setNativeTypes(_native_types())
 
     def _reload_vector(self):
         """Refresh local cache"""
@@ -355,6 +380,7 @@ class KumoyDataProvider(QgsVectorDataProvider):
                 data_type = QVariant.String
 
             field = QgsField(name, data_type)
+            field.setTypeName(_COLUMN_TYPE_TO_TYPE_NAME.get(column_type, "VARCHAR"))
             if data_type in _STRING_QVARIANT_TYPES:
                 field.setLength(constants.MAX_CHARACTERS_STRING_FIELD)
             fs.append(field)
@@ -629,14 +655,17 @@ class KumoyDataProvider(QgsVectorDataProvider):
         # Convert QgsField list to list of {name, type}
         attr_list = []
         for field in attributes:
-            # Map QGIS field types to our supported types
-            field_type = "string"  # Default to string
-            if field.type() == QVariant.LongLong:
-                field_type = "integer"
-            elif field.type() == QVariant.Double:
-                field_type = "float"
-            elif field.type() == QVariant.Bool:
-                field_type = "boolean"
+            # typeName comes from the chosen native type, so it is the only way to tell
+            # attachment from string; fall back to QVariant for fields built elsewhere
+            field_type = _TYPE_NAME_TO_COLUMN_TYPE.get(field.typeName().upper())
+            if field_type is None:
+                field_type = "string"  # Default to string
+                if field.type() == QVariant.LongLong:
+                    field_type = "integer"
+                elif field.type() == QVariant.Double:
+                    field_type = "float"
+                elif field.type() == QVariant.Bool:
+                    field_type = "boolean"
 
             attr_list.append({"name": field.name(), "type": field_type})
 

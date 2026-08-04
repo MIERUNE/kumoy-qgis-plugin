@@ -100,6 +100,15 @@ def configure_kumoy_layer(
 
     _apply_attachment_widgets(layer, vector)
 
+    def on_updated_fields() -> None:
+        # An attachment field added from QGIS's own add-field UI needs the same widget
+        # setup; the provider already holds the refreshed column list at this point.
+        current = getattr(layer.dataProvider(), "kumoy_vector", None)
+        if current is not None:
+            _apply_attachment_widgets(layer, current)
+
+    layer.updatedFields.connect(on_updated_fields)
+
     def on_before_rollback() -> None:
         # Discarded edits are the only owner of their staged files, so nothing
         # will ever upload them

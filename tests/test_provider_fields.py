@@ -58,6 +58,23 @@ class TestFieldTypeMapping:
             field = fields.at(fields.indexOf(name))
             assert field.length() == constants.MAX_CHARACTERS_STRING_FIELD
 
+    @pytest.mark.parametrize(
+        ("column_type", "expected_type_name"),
+        [
+            ("string", "VARCHAR"),
+            ("integer", "INTEGER"),
+            ("float", "DOUBLE PRECISION"),
+            ("boolean", "BOOLEAN"),
+            ("attachment", "ATTACHMENT"),
+        ],
+    )
+    def test_type_name_round_trips_the_server_type(
+        self, column_type, expected_type_name
+    ):
+        fields = _fields_for([{"name": "c", "type": column_type}])
+
+        assert fields.at(fields.indexOf("c")).typeName() == expected_type_name
+
     def test_kumoy_id_is_always_first(self):
         from qgis.PyQt.QtCore import QVariant
 
