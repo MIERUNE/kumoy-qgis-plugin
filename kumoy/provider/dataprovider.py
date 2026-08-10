@@ -56,15 +56,15 @@ class SyncWorker(QThread):
     def run(self):
         try:
 
-            def on_progress_update(processed_count):
-                percent = int((processed_count / self.total_features) * 100)
-                self.progress.emit(min(percent, 100))
+            def on_progress_update(percent):
+                self.progress.emit(min(int(percent), 100))
 
             local_cache.vector.sync_local_cache(
                 self.vector.id,
                 self.fields,
                 self.wkb_type,
                 progress_callback=on_progress_update,
+                expected_feature_count=self.total_features,
             )
         except Exception as e:
             self.error.emit(format_api_error(e))

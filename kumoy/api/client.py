@@ -143,9 +143,9 @@ class ApiClient:
         received = len(raw_content)
         content_length = reply.rawHeader(b"Content-Length")
         try:
-            total = int(bytes(content_length)) if content_length else received
+            total = int(bytes(content_length)) if content_length else 0
         except ValueError:
-            total = received
+            total = 0
 
         fd, path = tempfile.mkstemp(suffix=suffix)
         try:

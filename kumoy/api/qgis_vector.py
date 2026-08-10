@@ -1,5 +1,5 @@
 import base64
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from qgis.core import QgsFeature
 
@@ -27,6 +27,19 @@ def get_features(
         feature["kumoy_wkb"] = base64.b64decode(feature["kumoy_wkb"])
 
     return response
+
+
+def get_features_v3(
+    vector_id: str,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+) -> str:
+    """Download all vector features as one FlatGeobuf temporary file."""
+    return ApiClient.post_binary_to_file(
+        f"/_qgis/vector/{vector_id}/get-features-v3",
+        {},
+        progress_callback=progress_callback,
+        suffix=".fgb",
+    )
 
 
 class WkbTooLargeError(Exception):

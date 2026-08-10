@@ -18,6 +18,7 @@ from qgis.core import (
 
 from .. import api
 from ..constants import LOG_CATEGORY
+from .flatgeobuf import import_flatgeobuf_to_geopackage
 from .settings import delete_last_updated, get_last_updated, store_last_updated
 
 
@@ -30,19 +31,15 @@ def _get_cache_dir() -> str:
     return cache_dir
 
 
-def _create_new_cache(
+def _create_new_cache_v2(
     cache_file: str,
     vector_id: str,
     fields: QgsFields,
     geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]] = None,
-) -> str:
-    """
-    新規にキャッシュファイルを作成する
-
-    Returns:
-        updated_at: 最終更新日時
-    """
+    progress_callback: Optional[Callable[[float], None]] = None,
+    expected_feature_count: Optional[int] = None,
+) -> None:
+    """Build a GPKG through the deprecated paginated JSON endpoint."""
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.layerOptions = ["FID=kumoy_id"]
     options.driverName = "GPKG"
@@ -66,12 +63,6 @@ def _create_new_cache(
         raise Exception(
             f"Error creating cache file {cache_file}: {writer.errorMessage()}"
         )
-
-    # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
-    # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
-    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
 
     after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
     processed_features = 0
@@ -104,7 +95,12 @@ def _create_new_cache(
 
             if progress_callback is not None:
                 processed_features += 1
-                progress_callback(processed_features)
+                if expected_feature_count:
+                    progress_callback(
+                        min(processed_features / expected_feature_count * 100, 100)
+                    )
+                else:
+                    progress_callback(processed_features)
 
         BATCH_SIZE = 5000  # 1回のバッチで取得する最大レコード数。API仕様として固定値
         if len(features) < BATCH_SIZE:
@@ -114,6 +110,64 @@ def _create_new_cache(
         # Update after_id for the next batch
         after_id = features[-1]["kumoy_id"]
     del writer
+
+
+def _create_new_cache(
+    cache_file: str,
+    vector_id: str,
+    fields: QgsFields,
+    geometry_type: QgsWkbTypes.GeometryType,
+    progress_callback: Optional[Callable[[float], None]] = None,
+    expected_feature_count: Optional[int] = None,
+) -> str:
+    """Build a new GPKG cache from the v3 FlatGeobuf transfer."""
+    # Capture this before transfer so subsequent get-diff calls cover edits made
+    # while the initial cache is being built.
+    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    def on_download_progress(received: int, total: int) -> None:
+        if progress_callback is not None and total > 0:
+            progress_callback(min(received / total * 80, 80))
+
+    flatgeobuf_path = None
+    try:
+        try:
+            flatgeobuf_path = api.qgis_vector.get_features_v3(
+                vector_id, progress_callback=on_download_progress
+            )
+        except api.error.NotFoundError:
+            # TODO: Remove the v2 fallback after the minimum supported server
+            # version includes get-features-v3.
+            _create_new_cache_v2(
+                cache_file,
+                vector_id,
+                fields,
+                geometry_type,
+                progress_callback,
+                expected_feature_count,
+            )
+            return updated_at
+
+        def on_import_progress(processed: int) -> None:
+            if progress_callback is None:
+                return
+            if expected_feature_count:
+                progress_callback(
+                    min(80 + processed / expected_feature_count * 20, 100)
+                )
+
+        import_flatgeobuf_to_geopackage(
+            flatgeobuf_path,
+            cache_file,
+            progress_callback=on_import_progress,
+        )
+        if progress_callback is not None:
+            progress_callback(100)
+    finally:
+        if flatgeobuf_path is not None and os.path.exists(flatgeobuf_path):
+            os.unlink(flatgeobuf_path)
 
     return updated_at
 
@@ -141,8 +195,9 @@ def _recreate_cache(
     vector_id: str,
     fields: QgsFields,
     geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]],
+    progress_callback: Optional[Callable[[float], None]],
     reason: str,
+    expected_feature_count: Optional[int] = None,
 ) -> str:
     """既存キャッシュを破棄して新規作成する"""
     QgsMessageLog.logMessage(
@@ -163,6 +218,7 @@ def _recreate_cache(
         fields,
         geometry_type,
         progress_callback=progress_callback,
+        expected_feature_count=expected_feature_count,
     )
 
 
@@ -229,7 +285,8 @@ def sync_local_cache(
     vector_id: str,
     fields: QgsFields,
     geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]] = None,
+    progress_callback: Optional[Callable[[float], None]] = None,
+    expected_feature_count: Optional[int] = None,
 ):
     """
     サーバー上のデータとローカルのキャッシュを同期する
@@ -267,6 +324,7 @@ def sync_local_cache(
                 geometry_type,
                 progress_callback,
                 reason="cache column order differs from server",
+                expected_feature_count=expected_feature_count,
             )
         else:
             try:
@@ -283,6 +341,7 @@ def sync_local_cache(
                         geometry_type,
                         progress_callback,
                         reason="MAX_DIFF_COUNT_EXCEEDED",
+                        expected_feature_count=expected_feature_count,
                     )
                 else:
                     raise
@@ -294,6 +353,7 @@ def sync_local_cache(
             fields,
             geometry_type,
             progress_callback=progress_callback,
+            expected_feature_count=expected_feature_count,
         )
 
     store_last_updated(vector_id, updated_at)

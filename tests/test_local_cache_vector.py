@@ -121,12 +121,16 @@ class TestSyncLocalCache:
         def default_get_diff(vector_id, last_updated):
             return {"updatedRows": [], "deletedRows": []}
 
+        def unavailable_get_features_v3(vector_id, progress_callback=None):
+            raise real_api.error.NotFoundError("Not Found", "legacy test server")
+
         state = {
             "get_features": default_get_features,
             "get_diff": default_get_diff,
         }
 
         fake_qgis_vector = types.SimpleNamespace(
+            get_features_v3=unavailable_get_features_v3,
             get_features=lambda **kwargs: (
                 calls.__setitem__("get_features", calls["get_features"] + 1)
                 or state["get_features"](**kwargs)
