@@ -2,11 +2,11 @@ import base64
 from typing import Dict, List, Optional
 
 from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QDate, QDateTime, QTime, QVariant
 
 from .. import constants
 from ... import i18n
 from .client import ApiClient
+from .flatgeobuf import _normalized_properties
 
 
 def get_features(
@@ -54,41 +54,9 @@ def add_features(
         _features.append(
             {
                 "kumoy_wkb": kumoy_wkb,
-                "properties": dict(zip(f.fields().names(), f.attributes())),
+                "properties": _normalized_properties(f),
             }
         )
-
-    # rm kumoy_id from properties
-    for feature in _features:
-        if "kumoy_id" in feature["properties"]:
-            del feature["properties"]["kumoy_id"]
-
-    for feature in _features:
-        for k in feature["properties"]:
-            # HACK: replace QVariant of properties with None
-            # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
-            if (
-                isinstance(feature["properties"][k], QVariant)
-                and feature["properties"][k].isNull()
-            ):
-                feature["properties"][k] = None
-
-            # HACK: Replace Qt datetime objects to string
-            # attribute of f.attributes() become QDateTime/QDate/QTime when the field type is written in date time format
-            # input: PyQt.QtCore.QDateTime(2026, 2, 4, 10, 29, 41, 859)
-            # output: '2026-02-04T10:29:41.859'
-            elif isinstance(feature["properties"][k], QDateTime):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "yyyy-MM-ddTHH:mm:ss.zzz"
-                )
-            elif isinstance(feature["properties"][k], QDate):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "yyyy-MM-dd"
-                )
-            elif isinstance(feature["properties"][k], QTime):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "HH:mm:ss.zzz"
-                )
 
     ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
 
