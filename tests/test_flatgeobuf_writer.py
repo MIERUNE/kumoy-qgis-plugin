@@ -164,7 +164,7 @@ class TestFlatGeobufWriter:
             staticmethod(lambda endpoint, body: calls.append((endpoint, body))),
         )
 
-        qgis_vector.add_features("vector-id", [feature])
+        qgis_vector._add_features_v1("vector-id", [feature])
 
         properties = calls[0][1]["features"][0]["properties"]
         assert "kumoy_id" not in properties

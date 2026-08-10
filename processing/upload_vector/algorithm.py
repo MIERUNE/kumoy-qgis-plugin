@@ -880,11 +880,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     def _add_features_batch(self, vector_id: str, features: list) -> None:
         try:
             api.qgis_vector.add_features(vector_id, features)
-        except api.qgis_vector.WkbTooLargeError as e:
+        except api.qgis_vector.FlatGeobufTooLargeError as e:
             raise QgsProcessingException(
                 i18n.tr(
-                    "Cannot upload feature: geometry is too large. "
-                    "Please simplify the geometry or split it into smaller parts. "
+                    "Cannot upload features: the FlatGeobuf batch is too large. "
+                    "Please split it into smaller batches. "
                     "Details: {}"
                 ).format(str(e))
             )

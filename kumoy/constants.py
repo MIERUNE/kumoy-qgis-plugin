@@ -35,7 +35,8 @@ MAX_CHARACTERS_STYLEDMAP_DESCRIPTION = 255
 
 # Kumoyのシステム上の制限
 MAX_CHARACTERS_STRING_FIELD = 255
-MAX_WKB_LENGTH = 10_000_000  # WKBのbase64エンコード後の最大文字列長
+# 旧JSON経路の10,000,000文字のbase64 bodyが表現できるraw bytesと同値。
+MAX_FLATGEOBUF_BYTES = 7_500_000
 
 # ラスタ(COG)アップロードの上限。BIGTIFF を使わず classic GeoTIFF に収める方針
 # のため、その4GiB上限を下回る4GB(10進)にキャップする（S3の単一PUT 5GiBにも収まる）。

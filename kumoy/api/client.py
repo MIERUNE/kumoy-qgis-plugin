@@ -167,6 +167,23 @@ class ApiClient:
             raise
 
     @staticmethod
+    def post_bytes(
+        endpoint: str,
+        data: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> Any:
+        """POST a binary request body and decode the JSON response."""
+        _api_config = api_config.get_api_config()
+        url = f"{_api_config.SERVER_URL}/api{endpoint}"
+
+        req = _build_request(url)
+        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, content_type)
+
+        blocking_request = QgsBlockingNetworkRequest()
+        err = blocking_request.post(req, QByteArray(data))
+        return _process_response(blocking_request, err)
+
+    @staticmethod
     def put(endpoint: str, data: Any) -> Any:
         _api_config = api_config.get_api_config()
         url = f"{_api_config.SERVER_URL}/api{endpoint}"

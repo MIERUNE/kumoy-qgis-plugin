@@ -1,12 +1,14 @@
 import base64
 from typing import Callable, Dict, List, Optional
 
-from qgis.core import QgsFeature
+from qgis.core import QgsFeature, QgsField, QgsFields, QgsGeometry
+from qgis.PyQt.QtCore import QVariant
 
 from .. import constants
 from ... import i18n
+from . import error as api_error
 from .client import ApiClient
-from .flatgeobuf import _normalized_properties
+from .flatgeobuf import _normalized_properties, features_to_flatgeobuf
 
 
 def get_features(
@@ -42,28 +44,25 @@ def get_features_v3(
     )
 
 
-class WkbTooLargeError(Exception):
-    """Raised when a feature's WKB exceeds the maximum allowed length."""
+class FlatGeobufTooLargeError(Exception):
+    """Raised when an encoded feature batch exceeds the upload limit."""
 
     pass
 
 
-def add_features(
-    vector_id: str,
-    features: List[QgsFeature],
-) -> None:
-    """
-    Add features to a vector layer
-    """
+def _validate_flatgeobuf_size(payload: bytes) -> None:
+    if len(payload) > constants.MAX_FLATGEOBUF_BYTES:
+        raise FlatGeobufTooLargeError(
+            i18n.tr(
+                "Feature batch exceeds maximum FlatGeobuf size ({} > {} bytes)"
+            ).format(f"{len(payload):,}", f"{constants.MAX_FLATGEOBUF_BYTES:,}")
+        )
+
+
+def _add_features_v1(vector_id: str, features: List[QgsFeature]) -> None:
     _features = []
     for f in features:
         kumoy_wkb = base64.b64encode(f.geometry().asWkb()).decode("utf-8")
-        if len(kumoy_wkb) > constants.MAX_WKB_LENGTH:
-            raise WkbTooLargeError(
-                i18n.tr("Feature geometry exceeds maximum WKB length ({} > {})").format(
-                    f"{len(kumoy_wkb):,}", f"{constants.MAX_WKB_LENGTH:,}"
-                )
-            )
         _features.append(
             {
                 "kumoy_wkb": kumoy_wkb,
@@ -72,6 +71,21 @@ def add_features(
         )
 
     ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
+
+
+def add_features(
+    vector_id: str,
+    features: List[QgsFeature],
+) -> None:
+    """Add a feature batch through the FlatGeobuf v2 endpoint."""
+    payload = features_to_flatgeobuf(features)
+    _validate_flatgeobuf_size(payload)
+    try:
+        ApiClient.post_bytes(f"/_qgis/vector/{vector_id}/add-features-v2", payload)
+    except api_error.NotFoundError:
+        # TODO: Remove the v1 fallback after the minimum supported server version
+        # includes FlatGeobuf upload endpoints.
+        _add_features_v1(vector_id, features)
 
 
 def delete_features(
@@ -99,13 +113,7 @@ def change_attribute_values(
     )
 
 
-def change_geometry_values(
-    vector_id: str,
-    geometry_items: List[Dict],
-) -> None:
-    """
-    Change geometry values of a feature in a vector layer
-    """
+def _change_geometry_values_v1(vector_id: str, geometry_items: List[Dict]) -> None:
     geometry_items_encoded = [
         {
             "kumoy_id": item["kumoy_id"],
@@ -118,6 +126,35 @@ def change_geometry_values(
         f"/_qgis/vector/{vector_id}/change-geometry-values",
         {"geometry_items": geometry_items_encoded},
     )
+
+
+def change_geometry_values(
+    vector_id: str,
+    geometry_items: List[Dict],
+) -> None:
+    """Update geometries through the FlatGeobuf v2 endpoint."""
+    fields = QgsFields()
+    fields.append(QgsField("kumoy_id", QVariant.LongLong))
+    features = []
+    for item in geometry_items:
+        geometry = QgsGeometry()
+        geometry.fromWkb(item["geom"])
+        feature = QgsFeature(fields)
+        feature.setAttribute("kumoy_id", int(item["kumoy_id"]))
+        feature.setGeometry(geometry)
+        feature.setValid(True)
+        features.append(feature)
+
+    payload = features_to_flatgeobuf(features, geometry_only=True)
+    _validate_flatgeobuf_size(payload)
+    try:
+        ApiClient.post_bytes(
+            f"/_qgis/vector/{vector_id}/change-geometry-values-v2", payload
+        )
+    except api_error.NotFoundError:
+        # TODO: Remove the v1 fallback after the minimum supported server version
+        # includes FlatGeobuf upload endpoints.
+        _change_geometry_values_v1(vector_id, geometry_items)
 
 
 def update_columns(
