@@ -282,9 +282,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Get project and plan limits
         project = api.project.get_project(project_id)
         organization = api.organization.get_organization(project.team.organizationId)
-        plan_limits = api.plan.get_plan_limits(
-            organization.subscriptionPlan, organization.storageUnits
-        )
+        plan_limits = organization.planSettings
 
         # Check role
         if project.role not in ["ADMIN", "OWNER"]:

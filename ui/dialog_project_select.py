@@ -25,7 +25,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
-from ..kumoy.api.error import UnauthorizedError, format_api_error
+from ..kumoy.api.error import format_api_error
 from ..kumoy.api.team import TeamDetail
 from ..kumoy.constants import (
     DOCUMENTATION_URL,
@@ -76,20 +76,6 @@ def _scheduled_deletion_message(iso_string: str) -> str:
     return i18n.tr(
         "This organization is scheduled for deletion on {year}-{month:02d}-{day:02d}."
     ).format(year=dt.year, month=dt.month, day=dt.day)
-
-
-def _empty_plan_limits() -> "api.plan.PlanLimits":
-    """API失敗時のフォールバック値。表示は0/0で続行する。"""
-    return api.plan.PlanLimits(
-        maxProjects=0,
-        maxVectors=0,
-        maxRasters=0,
-        maxStyledMaps=0,
-        maxOrganizationMembers=0,
-        maxVectorFeatures=0,
-        maxVectorAttributes=0,
-        defaultStorageUnits=0,
-    )
 
 
 class ProjectSelectDialog(QDialog):
@@ -609,20 +595,7 @@ class ProjectSelectDialog(QDialog):
             )
         )
 
-        # Get plan limits from API
-        try:
-            plan_type = org_detail.subscriptionPlan
-            plan_limits = api.plan.get_plan_limits(plan_type, org_detail.storageUnits)
-        except UnauthorizedError as e:
-            handle_api_error(e, parent=self)
-            plan_limits = _empty_plan_limits()
-        except Exception as e:
-            msg = i18n.tr("Failed to retrieve plan limits: {}").format(
-                format_api_error(e)
-            )
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.warning(self, i18n.tr("Warning"), msg)
-            plan_limits = _empty_plan_limits()
+        plan_limits = org_detail.planSettings
 
         # Define resource mappings
         resource_mappings = [

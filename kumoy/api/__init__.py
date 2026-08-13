@@ -2,7 +2,6 @@ from . import (
     config,
     error,
     organization,
-    plan,
     project,
     public,
     qgis_vector,

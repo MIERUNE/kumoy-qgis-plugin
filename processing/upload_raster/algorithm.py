@@ -250,9 +250,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 i18n.tr("You do not have permission to upload rasters to this project.")
             )
 
-        plan_limits = api.plan.get_plan_limits(
-            organization.subscriptionPlan, organization.storageUnits
-        )
+        plan_limits = organization.planSettings
         # maxRasters is the org-wide cap; usage.rasters is the total across
         # all projects.
         if organization.usage.rasters >= plan_limits.maxRasters:

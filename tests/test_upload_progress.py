@@ -124,18 +124,13 @@ def _stub_layer_limits(monkeypatch):
         subscriptionPlan="plan",
         storageUnits=0,
         usage=SimpleNamespace(vectors=0, rasters=0),
+        planSettings=SimpleNamespace(maxVectors=10, maxRasters=10),
     )
-    limits = SimpleNamespace(maxVectors=10, maxRasters=10)
     monkeypatch.setattr(convert.api.project, "get_project", lambda project_id: project)
     monkeypatch.setattr(
         convert.api.organization,
         "get_organization",
         lambda organization_id: organization,
-    )
-    monkeypatch.setattr(
-        convert.api.plan,
-        "get_plan_limits",
-        lambda subscription_plan, storage_units: limits,
     )
 
 
