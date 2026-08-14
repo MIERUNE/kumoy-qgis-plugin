@@ -73,7 +73,7 @@ class TestMakeClearCacheAction:
         assert action.isEnabled() is True
         assert action.text().startswith("Clear (")
 
-    def test_enabled_with_plain_label_on_oserror(self, menu):
+    def test_enabled_with_size_unknown_label_on_oserror(self, menu):
         def unreadable():
             raise PermissionError("cache dir unreadable")
 
@@ -82,7 +82,7 @@ class TestMakeClearCacheAction:
         # Clearing must remain possible even when the size cannot be read;
         # propagating the exception would swallow the whole context menu
         assert action.isEnabled() is True
-        assert action.text() == "Clear"
+        assert action.text() == "Clear (size unknown)"
 
     def test_trigger_invokes_callback(self, menu):
         calls = []

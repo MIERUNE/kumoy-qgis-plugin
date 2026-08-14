@@ -40,19 +40,21 @@ def make_clear_cache_action(
     - None: disabled with the plain label, so cache absence is visible.
     - int (0 included): enabled with the size suffix. An empty (0-byte) cache
       must stay clearable, hence existence — not size — decides enablement.
-    - OSError from get_size: enabled with the plain label. The cache dir may
-      be unreadable, but the user must still be able to attempt clearing,
-      and a raised exception here would swallow the whole context menu.
+    - OSError from get_size: enabled with a "size unknown" suffix. The cache
+      dir may be unreadable, but the user must still be able to attempt
+      clearing, and a raised exception here would swallow the whole context
+      menu.
     """
     try:
         size = get_size()
         enabled = size is not None
+        suffix = None if size is None else format_data_size(size)
     except OSError as e:
         QgsMessageLog.logMessage(
             f"Failed to read cache size: {e}", LOG_CATEGORY, Qgis.Warning
         )
-        size, enabled = None, True
-    text = label if size is None else f"{label} ({format_data_size(size)})"
+        suffix, enabled = i18n.tr("size unknown"), True
+    text = label if suffix is None else f"{label} ({suffix})"
     action = QAction(text, parent)
     action.setEnabled(enabled)
     action.triggered.connect(on_triggered)
