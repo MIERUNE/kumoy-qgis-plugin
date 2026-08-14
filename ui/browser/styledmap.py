@@ -452,11 +452,11 @@ class StyledMapRoot(QgsDataItem):
         clear - whether to clear current QGIS project"""
 
         try:
-            # Check plan limits before creating styled map
-            plan_limit = self.organization.planSettings
-            current_styled_maps = api.styledmap.get_styled_maps(self.project.id)
-            current_styled_map_count = len(current_styled_maps) + 1
-            if current_styled_map_count > plan_limit.maxStyledMaps:
+            # maxStyledMaps is the org-wide cap, so count usage.styledMaps (total
+            # across all projects). Re-fetch because the cached item data can be stale.
+            organization = api.organization.get_organization(self.organization.id)
+            plan_limit = organization.planSettings
+            if organization.usage.styledMaps >= plan_limit.maxStyledMaps:
                 QMessageBox.critical(
                     None,
                     i18n.tr("Error"),
