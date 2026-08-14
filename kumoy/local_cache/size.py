@@ -19,11 +19,11 @@ def files_total_size(paths: Iterable[str]) -> Optional[int]:
     for path in paths:
         if not os.path.exists(path):
             continue
-        total = total or 0
         try:
-            total += os.path.getsize(path)
+            size = os.path.getsize(path)
         except OSError:
-            pass
+            size = 0
+        total = (total or 0) + size
     return total
 
 
