@@ -633,27 +633,45 @@ class ProjectSelectDialog(QDialog):
             )
         )
 
-        plan_limits = org_detail.planSettings
-
         # Define resource mappings: (key, used, limit, pending)
         resource_mappings = [
-            ("projects", org_detail.usage.projects, plan_limits.maxProjects, 0),
-            ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps, 0),
-            ("vectors", org_detail.usage.vectors, plan_limits.maxVectors, 0),
-            ("rasters", org_detail.usage.rasters, plan_limits.maxRasters, 0),
+            (
+                "projects",
+                org_detail.usage.projects,
+                org_detail.planSettings.maxProjects,
+                0,
+            ),
+            (
+                "maps",
+                org_detail.usage.styledMaps,
+                org_detail.planSettings.maxStyledMaps,
+                0,
+            ),
+            (
+                "vectors",
+                org_detail.usage.vectors,
+                org_detail.planSettings.maxVectors,
+                0,
+            ),
+            (
+                "rasters",
+                org_detail.usage.rasters,
+                org_detail.planSettings.maxRasters,
+                0,
+            ),
             # Pending invites occupy a seat, so count them too. organizationEditors
             # already includes its own invites, unlike organizationMembers.
             (
                 "members",
                 org_detail.usage.organizationMembers
                 + org_detail.usage.organizationInvites,
-                plan_limits.maxOrganizationMembers,
+                org_detail.planSettings.maxOrganizationMembers,
                 org_detail.usage.organizationInvites,
             ),
             (
                 "editors",
                 org_detail.usage.organizationEditors,
-                plan_limits.maxEditors,
+                org_detail.planSettings.maxEditors,
                 org_detail.usage.organizationEditorInvites,
             ),
         ]

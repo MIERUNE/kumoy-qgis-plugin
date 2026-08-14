@@ -455,15 +455,14 @@ class StyledMapRoot(QgsDataItem):
             # maxStyledMaps is the org-wide cap, so count usage.styledMaps (total
             # across all projects). Re-fetch because the cached item data can be stale.
             organization = api.organization.get_organization(self.organization.id)
-            plan_limit = organization.planSettings
-            if organization.usage.styledMaps >= plan_limit.maxStyledMaps:
+            if organization.usage.styledMaps >= organization.planSettings.maxStyledMaps:
                 QMessageBox.critical(
                     None,
                     i18n.tr("Error"),
                     i18n.tr(
                         "Cannot create new map. Your plan allows up to {} maps, "
                         "but you have reached the limit."
-                    ).format(plan_limit.maxStyledMaps),
+                    ).format(organization.planSettings.maxStyledMaps),
                 )
                 return
 

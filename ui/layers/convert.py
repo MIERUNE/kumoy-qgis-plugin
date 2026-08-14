@@ -74,15 +74,14 @@ def convert_local_layers(project_id: str) -> ConversionResult:
         )
         return ConversionResult(cancelled=True)
 
-    plan_limits = org_detail.planSettings
     dialog = LayerSelectDialog(
         local_layers,
         vector_quota=LayerQuota(
-            max_layers=plan_limits.maxVectors,
+            max_layers=org_detail.planSettings.maxVectors,
             current=org_detail.usage.vectors,
         ),
         raster_quota=LayerQuota(
-            max_layers=plan_limits.maxRasters,
+            max_layers=org_detail.planSettings.maxRasters,
             current=org_detail.usage.rasters,
         ),
     )

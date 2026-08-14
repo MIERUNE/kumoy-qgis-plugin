@@ -428,15 +428,14 @@ class VectorRoot(QgsDataItem):
             # maxVectors is the org-wide cap, so count usage.vectors (total across
             # all projects). Re-fetch because the cached item data can be stale.
             organization = api.organization.get_organization(self.organization.id)
-            plan_limit = organization.planSettings
-            if organization.usage.vectors >= plan_limit.maxVectors:
+            if organization.usage.vectors >= organization.planSettings.maxVectors:
                 QMessageBox.critical(
                     None,
                     i18n.tr("Error"),
                     i18n.tr(
                         "You have reached your plan's limit of {} vector layers. "
                         "Please delete one or upgrade your plan to continue."
-                    ).format(plan_limit.maxVectors),
+                    ).format(organization.planSettings.maxVectors),
                 )
                 return
 

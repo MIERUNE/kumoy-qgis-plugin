@@ -250,16 +250,15 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 i18n.tr("You do not have permission to upload rasters to this project.")
             )
 
-        plan_limits = organization.planSettings
         # maxRasters is the org-wide cap; usage.rasters is the total across
         # all projects.
-        if organization.usage.rasters >= plan_limits.maxRasters:
+        if organization.usage.rasters >= organization.planSettings.maxRasters:
             raise QgsProcessingException(
                 i18n.tr(
                     "Cannot upload raster: your organization has reached your "
                     "plan's limit of {} rasters. Delete an existing raster or "
                     "upgrade your plan to add more."
-                ).format(plan_limits.maxRasters)
+                ).format(organization.planSettings.maxRasters)
             )
 
     def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
