@@ -89,6 +89,9 @@ class PlanSettings:
 class OrganizationDetail(OrganizationWithRole):
     usage: OrganizationUsage
     availableStorageUnits: int
+    # Editor seats actually usable: plan quota plus additionally purchased seats,
+    # so it can exceed planSettings.maxEditors.
+    availableEditors: int
     planSettings: PlanSettings
 
 
@@ -128,6 +131,7 @@ def get_organization(organization_id: str) -> OrganizationDetail:
             usedStorageUnits=response.get("usage", {}).get("usedStorageUnits", 0),
         ),
         availableStorageUnits=response.get("availableStorageUnits", 0),
+        availableEditors=response.get("availableEditors", 0),
         planSettings=_parse_plan_settings(response.get("planSettings", {})),
     )
 

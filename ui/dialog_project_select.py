@@ -671,7 +671,7 @@ class ProjectSelectDialog(QDialog):
             (
                 "editors",
                 org_detail.usage.organizationEditors,
-                org_detail.planSettings.maxEditors,
+                org_detail.availableEditors,
                 org_detail.usage.organizationEditorInvites,
             ),
         ]
