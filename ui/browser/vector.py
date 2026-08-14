@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from qgis import processing
 from qgis.core import (
@@ -47,6 +47,7 @@ from ..icons import (
     BROWSER_GEOMETRY_POLYGON_ICON,
 )
 from ... import i18n
+from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
 from .utils import ErrorItem
 
 
@@ -104,9 +105,14 @@ class VectorItem(QgsDataItem):
         actions.append(add_action)
 
         # Clear cache action
-        clear_cache_action = QAction(i18n.tr("Clear Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_cache)
-        actions.append(clear_cache_action)
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Cache Data"),
+                self.cache_size,
+                self.clear_cache,
+            )
+        )
 
         if self.role in ["ADMIN", "OWNER"]:
             # Edit vector action
@@ -331,6 +337,9 @@ class VectorItem(QgsDataItem):
                 return True
         return False
 
+    def cache_size(self) -> Optional[int]:
+        return local_cache.vector.get_cache_size(self.vector.id)
+
     def process_vector_cache_clear(self) -> bool:
         cleared = local_cache.vector.clear(self.vector.id)
         return cleared
@@ -351,10 +360,10 @@ class VectorItem(QgsDataItem):
             None,
             i18n.tr("Clear Cache Data"),
             i18n.tr(
-                "This will clear the local cache for vector '{}'.\n"
+                "This will clear the local cache for vector '{}' ({}).\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
-            ).format(self.vector.name),
+            ).format(self.vector.name, cache_size_text(self.cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -416,9 +425,14 @@ class VectorRoot(QgsDataItem):
             actions.append(upload_vector_action)
 
         # Clear cache action
-        clear_cache_action = QAction(i18n.tr("Clear Vector Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_cache)
-        actions.append(clear_cache_action)
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Vector Cache Data"),
+                local_cache.vector.get_total_cache_size,
+                self.clear_cache,
+            )
+        )
 
         return actions
 
@@ -597,10 +611,10 @@ class VectorRoot(QgsDataItem):
             None,
             i18n.tr("Clear Vector Cache"),
             i18n.tr(
-                "This will clear all locally cached vector files. "
+                "This will clear all locally cached vector files ({}). "
                 "Data will be re-downloaded next time you access vectors.\n\n"
                 "Continue?"
-            ),
+            ).format(cache_size_text(local_cache.vector.get_total_cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -669,10 +683,10 @@ def clear_cache_multiple_vectors(items: list[VectorItem]) -> None:
         None,
         i18n.tr("Clear Cache Data"),
         i18n.tr(
-            "This will clear the local cache for {} vectors.\n"
+            "This will clear the local cache for {} vectors ({}).\n"
             "The cached data will be re-downloaded when you access it next time.\n"
             "Do you want to continue?"
-        ).format(len(items)),
+        ).format(len(items), cache_size_text(lambda: combined_cache_size(items))),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
         Q_MESSAGEBOX_STD_BUTTON.No,
     )

@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from qgis import processing
 from qgis.core import (
@@ -33,6 +33,7 @@ from ...pyqt_version import (
 )
 from ..error_handler import handle_api_error
 from ..icons import BROWSER_FOLDER_ICON, BROWSER_RASTER_ICON
+from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
 from .utils import ErrorItem
 
 
@@ -87,9 +88,15 @@ class RasterItem(QgsDataItem):
         add_action.triggered.connect(self.add_to_map)
         actions.append(add_action)
 
-        clear_cache_action = QAction(i18n.tr("Clear Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_cache)
-        actions.append(clear_cache_action)
+        # Clear cache action
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Cache Data"),
+                self.cache_size,
+                self.clear_cache,
+            )
+        )
 
         if self.role in ["ADMIN", "OWNER"]:
             edit_action = QAction(i18n.tr("Edit Raster"), parent)
@@ -212,6 +219,9 @@ class RasterItem(QgsDataItem):
                 return True
         return False
 
+    def cache_size(self) -> Optional[int]:
+        return local_cache.raster.get_cache_size(self.raster.id)
+
     def process_raster_cache_clear(self) -> bool:
         return local_cache.raster.clear(self.raster.id)
 
@@ -231,10 +241,10 @@ class RasterItem(QgsDataItem):
             None,
             i18n.tr("Clear Cache Data"),
             i18n.tr(
-                "This will clear the local cache for raster '{}'.\n"
+                "This will clear the local cache for raster '{}' ({}).\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
-            ).format(self.raster.name),
+            ).format(self.raster.name, cache_size_text(self.cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -333,9 +343,14 @@ class RasterRoot(QgsDataItem):
             actions.append(upload_raster_action)
 
         # Clear cache action
-        clear_cache_action = QAction(i18n.tr("Clear Raster Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_cache)
-        actions.append(clear_cache_action)
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Raster Cache Data"),
+                local_cache.raster.get_total_cache_size,
+                self.clear_cache,
+            )
+        )
 
         return actions
 
@@ -357,10 +372,10 @@ class RasterRoot(QgsDataItem):
             None,
             i18n.tr("Clear Raster Cache"),
             i18n.tr(
-                "This will clear all locally cached raster files. "
+                "This will clear all locally cached raster files ({}). "
                 "Data will be re-downloaded next time you access rasters.\n\n"
                 "Continue?"
-            ),
+            ).format(cache_size_text(local_cache.raster.get_total_cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -467,10 +482,10 @@ def clear_cache_multiple_rasters(items: list[RasterItem]) -> None:
         None,
         i18n.tr("Clear Cache Data"),
         i18n.tr(
-            "This will clear the local cache for {} rasters.\n"
+            "This will clear the local cache for {} rasters ({}).\n"
             "The cached data will be re-downloaded when you access it next time.\n"
             "Do you want to continue?"
-        ).format(len(items)),
+        ).format(len(items), cache_size_text(lambda: combined_cache_size(items))),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
         Q_MESSAGEBOX_STD_BUTTON.No,
     )
