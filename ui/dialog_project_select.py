@@ -62,6 +62,35 @@ def _get_usage_color(percentage: float) -> str:
     return "#8bc34a"  # Green
 
 
+def _lighten(hex_color: str, ratio: float = 0.2) -> str:
+    """Blend a #rrggbb color toward white"""
+    channels = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    blended = (round(c + (255 - c) * ratio) for c in channels)
+    return "#" + "".join(f"{c:02x}" for c in blended)
+
+
+def _chunk_fill(color: str, used: float, limit: int, pending: int) -> str:
+    """Fill for the progress chunk, with pending seats as a lighter tail.
+
+    Invites already consume a seat but are not active members yet, so the web
+    app paints that part of the gauge in a lighter shade. Qt has no two-segment
+    progress bar, so split the chunk itself with a hard gradient stop.
+    """
+    shown = min(used, limit)
+    if pending <= 0 or shown <= 0:
+        return color
+
+    # The gradient spans the chunk, not the whole bar, so the boundary is
+    # relative to what is actually drawn (clamped when usage exceeds the limit).
+    boundary = max(0.0, min(1.0, (shown - pending) / shown))
+    light = _lighten(color)
+    return (
+        "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        f"stop:0 {color}, stop:{boundary:.4f} {color}, "
+        f"stop:{min(1.0, boundary + 0.0001):.4f} {light}, stop:1 {light})"
+    )
+
+
 def _scheduled_deletion_message(iso_string: str) -> str:
     """Build the deletion notice from an ISO 8601 timestamp.
 
@@ -211,6 +240,7 @@ class ProjectSelectDialog(QDialog):
             ("vectors", "Vectors"),
             ("rasters", "Rasters"),
             ("members", "Members"),
+            ("editors", "Editors"),
             ("storage", "Storage"),
         ]
 
@@ -432,7 +462,15 @@ class ProjectSelectDialog(QDialog):
 
     def _clear_org_details(self):
         """Reset usage widgets and disable organization-scoped actions"""
-        keys = ["projects", "maps", "vectors", "rasters", "members", "storage"]
+        keys = [
+            "projects",
+            "maps",
+            "vectors",
+            "rasters",
+            "members",
+            "editors",
+            "storage",
+        ]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
             widgets["label"].setText("")
@@ -597,22 +635,32 @@ class ProjectSelectDialog(QDialog):
 
         plan_limits = org_detail.planSettings
 
-        # Define resource mappings
+        # Define resource mappings: (key, used, limit, pending)
         resource_mappings = [
-            ("projects", org_detail.usage.projects, plan_limits.maxProjects),
-            ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps),
-            ("vectors", org_detail.usage.vectors, plan_limits.maxVectors),
-            ("rasters", org_detail.usage.rasters, plan_limits.maxRasters),
+            ("projects", org_detail.usage.projects, plan_limits.maxProjects, 0),
+            ("maps", org_detail.usage.styledMaps, plan_limits.maxStyledMaps, 0),
+            ("vectors", org_detail.usage.vectors, plan_limits.maxVectors, 0),
+            ("rasters", org_detail.usage.rasters, plan_limits.maxRasters, 0),
+            # Pending invites occupy a seat, so count them too. organizationEditors
+            # already includes its own invites, unlike organizationMembers.
             (
                 "members",
-                org_detail.usage.organizationMembers,
+                org_detail.usage.organizationMembers
+                + org_detail.usage.organizationInvites,
                 plan_limits.maxOrganizationMembers,
+                org_detail.usage.organizationInvites,
+            ),
+            (
+                "editors",
+                org_detail.usage.organizationEditors,
+                plan_limits.maxEditors,
+                org_detail.usage.organizationEditorInvites,
             ),
         ]
 
         # Update each resource
-        for key, used, limit in resource_mappings:
-            self._update_usage_widget(key, used, limit)
+        for key, used, limit, pending in resource_mappings:
+            self._update_usage_widget(key, used, limit, pending)
 
         # Update Storage
         if "storage" in self.org_details_panel["usage_widgets"]:
@@ -637,7 +685,7 @@ class ProjectSelectDialog(QDialog):
 
         # Role is now shown in the header, so no need to update separate labels
 
-    def _update_usage_widget(self, key: str, used: int, limit: int):
+    def _update_usage_widget(self, key: str, used: int, limit: int, pending: int = 0):
         """Update a single usage widget with values and colors"""
         if key not in self.org_details_panel["usage_widgets"]:
             return
@@ -646,9 +694,11 @@ class ProjectSelectDialog(QDialog):
         widgets["label"].setText(f"{used} / {limit}")
         widgets["progress"].setMaximum(limit)
         widgets["progress"].setValue(min(limit, used))
-        self._set_progress_color(widgets["progress"], used, limit)
+        self._set_progress_color(widgets["progress"], used, limit, pending)
 
-    def _set_progress_color(self, progress_bar: QProgressBar, used: float, limit: int):
+    def _set_progress_color(
+        self, progress_bar: QProgressBar, used: float, limit: int, pending: int = 0
+    ):
         """Set progress bar color based on usage percentage"""
         percentage = (used / limit * 100) if limit > 0 else 0
 
@@ -663,7 +713,7 @@ class ProjectSelectDialog(QDialog):
                 background-color: #e0e0e0;
             }}
             QProgressBar::chunk {{
-                background-color: {color};
+                background-color: {_chunk_fill(color, used, limit, pending)};
                 border-radius: 3px;
             }}
         """

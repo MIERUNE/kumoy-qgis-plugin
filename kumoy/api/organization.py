@@ -56,8 +56,13 @@ class OrganizationUsage:
     vectors: int
     rasters: int
     styledMaps: int
+    # Seats are counted against the plan including pending invites: add
+    # organizationInvites to organizationMembers, while organizationEditors
+    # already includes organizationEditorInvites.
     organizationMembers: int
     organizationInvites: int
+    organizationEditors: int
+    organizationEditorInvites: int
     usedStorageUnits: float
 
 
@@ -116,6 +121,10 @@ def get_organization(organization_id: str) -> OrganizationDetail:
             styledMaps=response.get("usage", {}).get("styledMaps", 0),
             organizationMembers=response.get("usage", {}).get("organizationMembers", 0),
             organizationInvites=response.get("usage", {}).get("organizationInvites", 0),
+            organizationEditors=response.get("usage", {}).get("organizationEditors", 0),
+            organizationEditorInvites=response.get("usage", {}).get(
+                "organizationEditorInvites", 0
+            ),
             usedStorageUnits=response.get("usage", {}).get("usedStorageUnits", 0),
         ),
         availableStorageUnits=response.get("availableStorageUnits", 0),
