@@ -15,6 +15,7 @@ from typing import Optional
 from qgis.core import QgsApplication
 
 from .. import api, download
+from .size import dir_total_size, files_total_size
 
 
 def _get_cache_dir() -> str:
@@ -79,6 +80,20 @@ def store(raster_id: str, src_path: str) -> str:
     shutil.move(src_path, part_path)
     os.replace(part_path, cache_path)
     return cache_path
+
+
+def get_cache_size(raster_id: str) -> Optional[int]:
+    """Return the raster's cache size in bytes (None when not cached).
+
+    Covers the same file set as clear(): the .tif plus its in-progress .part.
+    """
+    cache_path = get_cache_path(raster_id)
+    return files_total_size((cache_path, f"{cache_path}.part"))
+
+
+def get_total_cache_size() -> Optional[int]:
+    """Return the total size in bytes of all cached raster files (None when none)."""
+    return dir_total_size(_get_cache_dir())
 
 
 def clear(raster_id: str) -> bool:

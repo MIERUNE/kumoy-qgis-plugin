@@ -13,6 +13,7 @@ from qgis.core import (
 from ... import i18n
 from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
+from .size import dir_total_size, files_total_size
 
 # Flag to prevent double updates when handling the project saved event.
 # When serialize_project() writes the QGIS project to disk, this guards against
@@ -36,6 +37,22 @@ def get_filepath(map_id: str) -> str:
     cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
     return cache_file
+
+
+def get_cache_size(map_id: str) -> Optional[int]:
+    """Return the map's cache size in bytes (None when not cached).
+
+    Uses the same matching rule as clear(): any file whose name contains map_id.
+    """
+    cache_dir = get_cache_dir()
+    return files_total_size(
+        os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if map_id in f
+    )
+
+
+def get_total_cache_size() -> Optional[int]:
+    """Return the total size in bytes of all cached map files (None when none)."""
+    return dir_total_size(get_cache_dir())
 
 
 def clear(map_id: str) -> bool:

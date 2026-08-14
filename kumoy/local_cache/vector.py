@@ -19,6 +19,7 @@ from qgis.core import (
 from .. import api
 from ..constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
+from .size import dir_total_size, files_total_size
 
 
 def _get_cache_dir() -> str:
@@ -346,6 +347,27 @@ def clear_all() -> bool:
             success = False  # Flag unsucceed
 
     return success
+
+
+def get_cache_size(vector_id: str) -> Optional[int]:
+    """Return the vector's cache size in bytes (None when not cached).
+
+    Covers the same file set as clear(): the GPKG plus its SQLite side files.
+    """
+    cache_file = os.path.join(_get_cache_dir(), f"{vector_id}.gpkg")
+    return files_total_size(
+        (
+            cache_file,
+            f"{cache_file}-shm",
+            f"{cache_file}-wal",
+            f"{cache_file}-journal",
+        )
+    )
+
+
+def get_total_cache_size() -> Optional[int]:
+    """Return the total size in bytes of all cached vector files (None when none)."""
+    return dir_total_size(_get_cache_dir())
 
 
 def clear(vector_id: str) -> bool:
