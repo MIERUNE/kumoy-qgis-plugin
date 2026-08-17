@@ -1004,6 +1004,9 @@ class ProjectItemWidget(QWidget):
         now = datetime.now(dt.tzinfo)
         delta = now - dt
 
+        if delta.total_seconds() < 60:
+            return i18n.tr("Just now")
+
         if delta.days == 0:
             if delta.seconds < 3600:
                 return i18n.tr("{} minutes ago").format(delta.seconds // 60)
