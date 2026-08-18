@@ -52,6 +52,23 @@ from .remote_image_label import RemoteImageLabel
 from .utils import show_plain_text_message
 
 
+# subscriptionPlan is a system identifier that differs from the plan name
+# shown to users, so it must never be displayed as-is.
+_PLAN_DISPLAY_NAMES = {
+    "FREE": "Community",
+    "PRO": "Pro",
+    "BUSINESS": "Business",
+    "TEAM": "Corporate",
+    "CUSTOM": "Enterprise",
+}
+
+
+def _plan_display_name(subscription_plan: str) -> str:
+    return _PLAN_DISPLAY_NAMES.get(
+        subscription_plan.upper(), subscription_plan.capitalize()
+    )
+
+
 def _get_usage_color(percentage: float) -> str:
     """Get color based on usage percentage"""
     # Color thresholds
@@ -629,7 +646,8 @@ class ProjectSelectDialog(QDialog):
         # Update plan label
         self.org_details_panel["plan_role_label"].setText(
             i18n.tr("<div><span>{} Plan</span><br /><span>{}</span></div>").format(
-                org_detail.subscriptionPlan.capitalize(), org_detail.role.capitalize()
+                _plan_display_name(org_detail.subscriptionPlan),
+                org_detail.role.capitalize(),
             )
         )
 
