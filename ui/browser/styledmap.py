@@ -453,7 +453,8 @@ class StyledMapRoot(QgsDataItem):
 
         try:
             # maxStyledMaps is the org-wide cap, so count usage.styledMaps (total
-            # across all projects). Re-fetch because the cached item data can be stale.
+            # Check org-wide map limit.
+            # Re-fetch usage to avoid stale cache.
             organization = api.organization.get_organization(self.organization.id)
             if organization.usage.styledMaps >= organization.planSettings.maxStyledMaps:
                 QMessageBox.critical(
