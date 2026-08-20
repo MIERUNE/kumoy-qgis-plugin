@@ -565,8 +565,9 @@ class ProjectSelectDialog(QDialog):
 
         # Set avatar image if available
         if user.avatarImage:
-            avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
-            self.account_org_panel["avatar_label"].load(avatar_url)
+            self.account_org_panel["avatar_label"].load(
+                api.user.resolve_avatar_url(user.avatarImage)
+            )
         # if no image, set avatar initial
         elif len(user.name) > 0:
             initial = user.name[0].upper()

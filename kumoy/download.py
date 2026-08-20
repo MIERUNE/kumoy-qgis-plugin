@@ -122,7 +122,7 @@ def download_to_file(
     if status_code is None:
         network_error = reply.error()
         error_string = reply.errorString()
-        _fail(f"Download failed (network error {int(network_error)}): {error_string}")
+        _fail(f"Download failed (network error {network_error}): {error_string}")
     if status_code not in (200, 206):
         _fail(f"Download failed (HTTP {status_code})")
 

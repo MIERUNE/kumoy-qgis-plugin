@@ -169,9 +169,9 @@ class DialogAccount(QDialog):
         self.email_label.setText(email)
 
         if self.user_info.avatarImage:
-            config = api.config.get_api_config()
-            avatar_url = config.SERVER_URL + self.user_info.avatarImage
-            self.avatar_label.load(avatar_url)
+            self.avatar_label.load(
+                api.user.resolve_avatar_url(self.user_info.avatarImage)
+            )
         else:
             initials = self._create_initials(name)
             self.avatar_label.setText(initials)

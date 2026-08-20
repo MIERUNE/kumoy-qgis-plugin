@@ -5,6 +5,7 @@ from qgis.PyQt.QtWidgets import QLabel
 
 from ..pyqt_version import (
     Q_BUFFER_OPEN_MODE,
+    Q_NETWORK_REPLY_ERROR,
     Q_REGION_TYPE,
     QT_ALIGN,
     QT_ASPECT_RATIO_MODE,
@@ -31,7 +32,9 @@ class RemoteImageLabel(QLabel):
         self._reply.finished.connect(self._on_finished)
 
     def _on_finished(self):
-        if self._reply.error():
+        # Qt6 exposes error codes as plain enum members, so NoError is truthy.
+        # Compare explicitly instead of relying on truthiness
+        if self._reply.error() != Q_NETWORK_REPLY_ERROR.NoError:
             self.setPixmap(placeholder_pixmap)
             self._reply.deleteLater()
             return
