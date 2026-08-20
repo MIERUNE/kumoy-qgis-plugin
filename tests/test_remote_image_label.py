@@ -1,8 +1,12 @@
 import pytest
-from qgis.PyQt.QtCore import QByteArray
+from qgis.PyQt.QtCore import QBuffer, QByteArray
 from qgis.PyQt.QtGui import QImage
 
-from plugin_dir.pyqt_version import Q_NETWORK_REPLY_ERROR
+from plugin_dir.pyqt_version import (
+    Q_BUFFER_OPEN_MODE,
+    Q_IMAGE_FORMAT,
+    Q_NETWORK_REPLY_ERROR,
+)
 
 
 class _FakeReply:
@@ -23,11 +27,7 @@ class _FakeReply:
 
 
 def _png_bytes() -> bytes:
-    from qgis.PyQt.QtCore import QBuffer
-
-    from plugin_dir.pyqt_version import Q_BUFFER_OPEN_MODE
-
-    img = QImage(4, 4, QImage.Format.Format_ARGB32)
+    img = QImage(4, 4, Q_IMAGE_FORMAT.Format_ARGB32)
     img.fill(0xFF00FF00)
     buf = QBuffer()
     buf.open(Q_BUFFER_OPEN_MODE.WriteOnly)
