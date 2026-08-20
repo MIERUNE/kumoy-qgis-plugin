@@ -58,7 +58,9 @@ class OrganizationUsage:
     styledMaps: int
     # Seats are counted against the plan including pending invites: add
     # organizationInvites to organizationMembers, while organizationEditors
-    # already includes organizationEditorInvites.
+# Seat count includes pending invites:
+# - Members: add invites manually
+# - Editors: invites already included
     organizationMembers: int
     organizationInvites: int
     organizationEditors: int
