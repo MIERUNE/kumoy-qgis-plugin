@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from . import config as api_config
 from .client import ApiClient
 
 
@@ -32,3 +33,12 @@ def get_me() -> User:
         createdAt=response.get("createdAt", ""),
         updatedAt=response.get("updatedAt", ""),
     )
+
+
+def resolve_avatar_url(avatar_image: str) -> str:
+    """Build a displayable URL from the avatarImage returned by the API"""
+    # The server returns an absolute URL for external providers (Google etc.)
+    # and a server-relative path for self-hosted storage
+    if avatar_image.startswith(("http://", "https://")):
+        return avatar_image
+    return api_config.get_api_config().SERVER_URL.rstrip("/") + avatar_image
