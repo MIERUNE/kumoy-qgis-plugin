@@ -678,8 +678,8 @@ class ProjectSelectDialog(QDialog):
                 0,
             ),
             # Pending invites occupy a seat, so count them too. organizationEditors
-# Seats include pending invites.
-# Editors already include them, members don't.
+            # Seats include pending invites.
+            # Editors already include them, members don't.
             (
                 "members",
                 org_detail.usage.organizationMembers
