@@ -355,14 +355,15 @@ def get_cache_size(vector_id: str) -> int:
     Covers the same file set as clear(): the GPKG plus its SQLite side files.
     """
     cache_file = os.path.join(_get_cache_dir(), f"{vector_id}.gpkg")
-    return files_total_size(
-        (
-            cache_file,
-            f"{cache_file}-shm",
-            f"{cache_file}-wal",
-            f"{cache_file}-journal",
-        )
+    candidates = (
+        cache_file,
+        f"{cache_file}-shm",
+        f"{cache_file}-wal",
+        f"{cache_file}-journal",
     )
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist, and the SQLite side files usually don't.
+    return files_total_size(p for p in candidates if os.path.isfile(p))
 
 
 def get_total_cache_size() -> int:

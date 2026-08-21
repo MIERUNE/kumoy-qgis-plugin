@@ -88,7 +88,10 @@ def get_cache_size(raster_id: str) -> int:
     Covers the same file set as clear(): the .tif plus its in-progress .part.
     """
     cache_path = get_cache_path(raster_id)
-    return files_total_size((cache_path, f"{cache_path}.part"))
+    candidates = (cache_path, f"{cache_path}.part")
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist, and .tif / .part rarely coexist.
+    return files_total_size(p for p in candidates if os.path.isfile(p))
 
 
 def get_total_cache_size() -> int:

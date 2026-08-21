@@ -45,9 +45,10 @@ def get_cache_size(map_id: str) -> int:
     Uses the same matching rule as clear(): any file whose name contains map_id.
     """
     cache_dir = get_cache_dir()
-    return files_total_size(
-        os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if map_id in f
-    )
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist. isfile also excludes directories that would fail getsize.
+    matched = (os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if map_id in f)
+    return files_total_size(p for p in matched if os.path.isfile(p))
 
 
 def get_total_cache_size() -> int:
