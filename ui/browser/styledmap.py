@@ -1,5 +1,5 @@
 import webbrowser
-from typing import Literal, Optional
+from typing import Literal
 
 from qgis.core import (
     Qgis,
@@ -357,7 +357,7 @@ class StyledMapItem(QgsDataItem):
                     e, parent=None, log_prefix=i18n.tr("Error deleting map")
                 )
 
-    def cache_size(self) -> Optional[int]:
+    def cache_size(self) -> int:
         return local_cache.map.get_cache_size(self.styled_map.id)
 
     def process_map_cache_clear(self) -> bool:

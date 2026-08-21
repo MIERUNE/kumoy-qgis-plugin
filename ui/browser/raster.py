@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from qgis import processing
 from qgis.core import (
@@ -219,7 +219,7 @@ class RasterItem(QgsDataItem):
                 return True
         return False
 
-    def cache_size(self) -> Optional[int]:
+    def cache_size(self) -> int:
         return local_cache.raster.get_cache_size(self.raster.id)
 
     def process_raster_cache_clear(self) -> bool:

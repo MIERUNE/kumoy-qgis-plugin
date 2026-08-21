@@ -349,8 +349,8 @@ def clear_all() -> bool:
     return success
 
 
-def get_cache_size(vector_id: str) -> Optional[int]:
-    """Return the vector's cache size in bytes (None when not cached).
+def get_cache_size(vector_id: str) -> int:
+    """Return the vector's cache size in bytes (0 when not cached).
 
     Covers the same file set as clear(): the GPKG plus its SQLite side files.
     """
@@ -365,8 +365,8 @@ def get_cache_size(vector_id: str) -> Optional[int]:
     )
 
 
-def get_total_cache_size() -> Optional[int]:
-    """Return the total size in bytes of all cached vector files (None when none)."""
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached vector files."""
     return dir_total_size(_get_cache_dir())
 
 

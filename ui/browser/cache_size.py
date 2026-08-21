@@ -4,7 +4,7 @@ Formats sizes for menu labels and confirmation dialogs, and builds
 clear-cache actions whose enablement reflects cache existence.
 """
 
-from typing import Callable, Optional, Protocol
+from typing import Callable, Protocol
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QLocale
@@ -28,7 +28,7 @@ def format_data_size(size_bytes: int) -> str:
 def make_clear_cache_action(
     parent: QWidget,
     label: str,
-    get_size: Callable[[], Optional[int]],
+    get_size: Callable[[], int],
     on_triggered: Callable[[], None],
 ) -> QAction:
     """Build a clear-cache QAction whose label shows the cache size.
@@ -36,10 +36,9 @@ def make_clear_cache_action(
     The size is appended as a locale-neutral " (12.3 MB)" suffix, following
     the tr("...") + suffix composition style used elsewhere in this plugin.
 
-    get_size returns the cache size in bytes, or None when no cache exists:
-    - None: disabled with the plain label, so cache absence is visible.
-    - int (0 included): enabled with the size suffix. An empty (0-byte) cache
-      must stay clearable, hence existence — not size — decides enablement.
+    get_size returns the cache size in bytes (0 when nothing is cached):
+    - 0: disabled with the plain label, so cache absence is visible.
+    - > 0: enabled with the size suffix.
     - OSError from get_size: enabled with a "size unknown" suffix. The cache
       dir may be unreadable, but the user must still be able to attempt
       clearing, and a raised exception here would swallow the whole context
@@ -47,8 +46,8 @@ def make_clear_cache_action(
     """
     try:
         size = get_size()
-        enabled = size is not None
-        suffix = None if size is None else format_data_size(size)
+        enabled = size > 0
+        suffix = format_data_size(size) if size > 0 else None
     except OSError as e:
         QgsMessageLog.logMessage(
             f"Failed to read cache size: {e}", LOG_CATEGORY, Qgis.Warning
@@ -61,33 +60,27 @@ def make_clear_cache_action(
     return action
 
 
-def cache_size_text(get_size: Callable[[], Optional[int]]) -> str:
+def cache_size_text(get_size: Callable[[], int]) -> str:
     """Cache size string for dialog text; never raises.
 
-    Falls back to a translated "size unknown" when the lookup fails or the
-    cache vanished between opening the menu and the dialog.
+    Falls back to a translated "size unknown" when the lookup fails.
     """
     try:
-        size = get_size()
+        return format_data_size(get_size())
     except OSError as e:
         QgsMessageLog.logMessage(
             f"Failed to read cache size: {e}", LOG_CATEGORY, Qgis.Warning
         )
-        size = None
-    if size is None:
         return i18n.tr("size unknown")
-    return format_data_size(size)
 
 
 class HasCacheSize(Protocol):
     """Structural type: RasterItem/VectorItem/StyledMapItem share no base
     class, so items usable with combined_cache_size() are typed by shape."""
 
-    def cache_size(self) -> Optional[int]: ...
+    def cache_size(self) -> int: ...
 
 
-def combined_cache_size(items: list[HasCacheSize]) -> Optional[int]:
-    """Combined cache size of selected browser items (None when none cached)."""
-    sizes = [item.cache_size() for item in items]
-    present = [s for s in sizes if s is not None]
-    return sum(present) if present else None
+def combined_cache_size(items: list[HasCacheSize]) -> int:
+    """Combined cache size in bytes of the selected browser items."""
+    return sum(item.cache_size() for item in items)

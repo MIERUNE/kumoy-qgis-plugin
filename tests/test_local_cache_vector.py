@@ -293,12 +293,10 @@ class TestCacheSize:
         monkeypatch.setattr(vector_cache, "_get_cache_dir", lambda: str(cache_dir))
         return types.SimpleNamespace(mod=vector_cache, cache_dir=cache_dir)
 
-    def test_none_when_not_cached(self, cache):
-        assert cache.mod.get_cache_size("v-1") is None
+    def test_zero_when_not_cached(self, cache):
+        assert cache.mod.get_cache_size("v-1") == 0
 
     def test_zero_when_cache_file_is_empty(self, cache):
-        # An empty file still counts as cached (0 bytes), distinct from None,
-        # so it stays clearable
         (cache.cache_dir / "v-1.gpkg").write_bytes(b"")
 
         assert cache.mod.get_cache_size("v-1") == 0
@@ -312,8 +310,8 @@ class TestCacheSize:
 
         assert cache.mod.get_cache_size("v-1") == 150
 
-    def test_total_none_when_no_files(self, cache):
-        assert cache.mod.get_total_cache_size() is None
+    def test_total_zero_when_no_files(self, cache):
+        assert cache.mod.get_total_cache_size() == 0
 
     def test_total_sums_all_files(self, cache):
         (cache.cache_dir / "v-1.gpkg").write_bytes(b"x" * 100)

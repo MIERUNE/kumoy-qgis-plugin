@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from qgis import processing
 from qgis.core import (
@@ -337,7 +337,7 @@ class VectorItem(QgsDataItem):
                 return True
         return False
 
-    def cache_size(self) -> Optional[int]:
+    def cache_size(self) -> int:
         return local_cache.vector.get_cache_size(self.vector.id)
 
     def process_vector_cache_clear(self) -> bool:

@@ -39,8 +39,8 @@ def get_filepath(map_id: str) -> str:
     return cache_file
 
 
-def get_cache_size(map_id: str) -> Optional[int]:
-    """Return the map's cache size in bytes (None when not cached).
+def get_cache_size(map_id: str) -> int:
+    """Return the map's cache size in bytes (0 when not cached).
 
     Uses the same matching rule as clear(): any file whose name contains map_id.
     """
@@ -50,8 +50,8 @@ def get_cache_size(map_id: str) -> Optional[int]:
     )
 
 
-def get_total_cache_size() -> Optional[int]:
-    """Return the total size in bytes of all cached map files (None when none)."""
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached map files."""
     return dir_total_size(get_cache_dir())
 
 

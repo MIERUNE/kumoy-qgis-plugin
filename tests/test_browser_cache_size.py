@@ -56,19 +56,13 @@ class TestMakeClearCacheAction:
         return make_clear_cache_action(menu, "Clear", get_size, on_triggered)
 
     def test_disabled_with_plain_label_when_no_cache(self, menu):
-        action = self._make(menu, lambda: None)
+        action = self._make(menu, lambda: 0)
 
         assert action.isEnabled() is False
         assert action.text() == "Clear"
 
     def test_enabled_with_size_label_when_cached(self, menu):
         action = self._make(menu, lambda: 2048)
-
-        assert action.isEnabled() is True
-        assert action.text().startswith("Clear (")
-
-    def test_zero_byte_cache_is_still_clearable(self, menu):
-        action = self._make(menu, lambda: 0)
 
         assert action.isEnabled() is True
         assert action.text().startswith("Clear (")
@@ -100,10 +94,10 @@ class TestCacheSizeText:
 
         assert cache_size_text(lambda: 2048) == format_data_size(2048)
 
-    def test_unknown_when_no_cache(self):
-        from plugin_dir.ui.browser.cache_size import cache_size_text
+    def test_formats_zero_size(self):
+        from plugin_dir.ui.browser.cache_size import cache_size_text, format_data_size
 
-        assert cache_size_text(lambda: None) == "size unknown"
+        assert cache_size_text(lambda: 0) == format_data_size(0)
 
     def test_unknown_on_oserror(self):
         from plugin_dir.ui.browser.cache_size import cache_size_text
@@ -119,14 +113,14 @@ class TestCombinedCacheSize:
     def _item(self, size):
         return types.SimpleNamespace(cache_size=lambda: size)
 
-    def test_none_when_nothing_cached(self):
+    def test_zero_when_nothing_cached(self):
         from plugin_dir.ui.browser.cache_size import combined_cache_size
 
-        assert combined_cache_size([self._item(None), self._item(None)]) is None
+        assert combined_cache_size([self._item(0), self._item(0)]) == 0
 
-    def test_sums_only_cached_items(self):
+    def test_sums_item_sizes(self):
         from plugin_dir.ui.browser.cache_size import combined_cache_size
 
-        items = [self._item(None), self._item(100), self._item(50)]
+        items = [self._item(0), self._item(100), self._item(50)]
 
         assert combined_cache_size(items) == 150

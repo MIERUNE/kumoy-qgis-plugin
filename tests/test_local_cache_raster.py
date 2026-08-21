@@ -97,10 +97,8 @@ class TestSyncLocalCache:
 
     def test_cache_size_counts_tif_and_part(self, setup):
         s = setup
-        assert s.mod.get_cache_size("r-7") is None
+        assert s.mod.get_cache_size("r-7") == 0
 
-        # An empty file still counts as cached (0 bytes), distinct from None,
-        # so it stays clearable
         open(os.path.join(s.cache_dir, "r-7.tif"), "wb").close()
         assert s.mod.get_cache_size("r-7") == 0
 
@@ -113,7 +111,7 @@ class TestSyncLocalCache:
 
     def test_total_cache_size_sums_all_files(self, setup):
         s = setup
-        assert s.mod.get_total_cache_size() is None
+        assert s.mod.get_total_cache_size() == 0
 
         with open(os.path.join(s.cache_dir, "r-8.tif"), "wb") as f:
             f.write(b"x" * 100)

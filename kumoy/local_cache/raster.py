@@ -82,8 +82,8 @@ def store(raster_id: str, src_path: str) -> str:
     return cache_path
 
 
-def get_cache_size(raster_id: str) -> Optional[int]:
-    """Return the raster's cache size in bytes (None when not cached).
+def get_cache_size(raster_id: str) -> int:
+    """Return the raster's cache size in bytes (0 when not cached).
 
     Covers the same file set as clear(): the .tif plus its in-progress .part.
     """
@@ -91,8 +91,8 @@ def get_cache_size(raster_id: str) -> Optional[int]:
     return files_total_size((cache_path, f"{cache_path}.part"))
 
 
-def get_total_cache_size() -> Optional[int]:
-    """Return the total size in bytes of all cached raster files (None when none)."""
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached raster files."""
     return dir_total_size(_get_cache_dir())
 
 
