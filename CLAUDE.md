@@ -24,6 +24,7 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
 
 - Python 3.9+。ruffでlint/format（設定は pyproject.toml）
 - 型ヒントを積極的に使う。dataclassを活用する
+- コメントはWHY/WHY NOTを簡潔に書く。英語で。
 
 ## アーキテクチャ
 

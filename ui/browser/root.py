@@ -75,9 +75,9 @@ class RootCollection(QgsDataCollectionItem):
 
         settings = get_settings()
         if (
-            settings.session_token == ""
-            or settings.selected_organization_id == ""
-            or settings.selected_project_id == ""
+            not settings.session_token
+            or not settings.selected_organization_id
+            or not settings.selected_project_id
         ):
             return
 

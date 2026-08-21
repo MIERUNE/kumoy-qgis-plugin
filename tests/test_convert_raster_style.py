@@ -82,7 +82,7 @@ def test_copy_pseudocolor_style_keeps_shader_minmax(
 
     from plugin_dir.kumoy import constants
     from plugin_dir.kumoy.provider import raster_dataprovider as rp
-    from plugin_dir.ui.layers.convert_raster import _copy_layer_style
+    from plugin_dir.ui.layers.convert import _copy_layer_style
 
     path = str(tmp_path / "r-2.tif")
     _make_gradient_tif(path)

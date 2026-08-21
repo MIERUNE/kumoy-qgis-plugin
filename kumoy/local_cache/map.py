@@ -2,10 +2,16 @@ import os
 import tempfile
 from typing import Optional
 
-from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
+from qgis.core import (
+    Qgis,
+    QgsApplication,
+    QgsMessageLog,
+    QgsProject,
+    QgsVectorLayer,
+)
 
 from ... import i18n
-from ..constants import LOG_CATEGORY
+from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
 
 # Flag to prevent double updates when handling the project saved event.
@@ -92,6 +98,36 @@ def clear_all() -> bool:
     return success
 
 
+def refresh_kumoy_layer_extents(project: QgsProject) -> None:
+    """Re-read the extent of every Kumoy vector layer from its provider.
+
+    QgsVectorLayer caches the provider extent for the layer's lifetime, and
+    write() omits <extent> entirely when it is null. A Kumoy layer returns null
+    while the server has no extent yet (empty/just-uploaded vector, failed
+    metadata fetch), so a layer unlucky in when it was first asked would be
+    saved without an extent forever after.
+
+    Vector layers only: other providers don't have this bug and rescanning them
+    can be expensive; QgsRasterLayer has no updateExtents(), and a Kumoy raster
+    is null only when its download failed, which no retry here can fix.
+    """
+    for layer in project.mapLayers().values():
+        if not isinstance(layer, QgsVectorLayer):
+            continue
+        provider = layer.dataProvider()
+        if provider is None or provider.name() != DATA_PROVIDER_KEY:
+            continue
+        # Preferred: recomputes from the provider and folds in uncommitted edits.
+        layer.updateExtents()
+        if not layer.extent().isNull():  # also forces the recompute now
+            continue
+        # updateExtents() is a no-op while featureCount() is 0, so write the
+        # server extent directly for layers that cannot produce features.
+        provider_extent = provider.extent()
+        if not provider_extent.isNull():
+            layer.setExtent(provider_extent)
+
+
 def serialize_project() -> str:
     """Serialize the current project to an XML string via a throwaway temp file.
 
@@ -109,6 +145,7 @@ def serialize_project() -> str:
     global is_updating
     project = QgsProject.instance()
     pin_fixed_aspect_ratios(project)
+    refresh_kumoy_layer_extents(project)
 
     prev_name = project.fileName()
     prev_dirty = project.isDirty()

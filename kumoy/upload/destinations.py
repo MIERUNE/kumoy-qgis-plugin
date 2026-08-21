@@ -3,7 +3,7 @@
 Vector/RasterのアップロードはProjectに加えてCatalog（組織直下のデータ束、
 組織ADMIN/OWNERのみ書き込み可）を宛先に選べる。宛先リストは
 Processingアルゴリズムのenum選択肢になり、Map保存時の変換フロー
-（ui/layers/convert_vector.py 等）はそのenumインデックスを逆引きするため、
+（ui/layers/convert.py）はそのenumインデックスを逆引きするため、
 列挙の順序・フィルタが両者で一致するようここへ集約する。
 """
 

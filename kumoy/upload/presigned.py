@@ -238,7 +238,7 @@ def _await_upload(
         error_string = reply.errorString()
         reply.deleteLater()
         raise Exception(
-            f"Upload failed (network error {int(network_error)}): {error_string}"
+            f"Upload failed (network error {network_error}): {error_string}"
         )
     if status_code not in (200, 201, 204):
         error_body = bytes(reply.readAll().data()).decode("utf-8", errors="replace")

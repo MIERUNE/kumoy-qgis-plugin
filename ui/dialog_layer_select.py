@@ -84,7 +84,7 @@ class _QuotaGroup:
         row = QHBoxLayout()
         row.setSpacing(10)
         self._count_label = QLabel()
-        self._count_label.setFixedWidth(180)
+        self._count_label.setMinimumWidth(180)
         row.addWidget(self._count_label)
 
         self._progress_bar = QProgressBar()

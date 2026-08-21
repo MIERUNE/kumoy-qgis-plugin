@@ -464,7 +464,15 @@ class ProjectSelectDialog(QDialog):
 
     def _clear_org_details(self):
         """Reset usage widgets and disable organization-scoped actions"""
-        keys = ["projects", "maps", "vectors", "rasters", "catalogs", "members", "storage"]
+        keys = [
+            "projects",
+            "maps",
+            "vectors",
+            "rasters",
+            "catalogs",
+            "members",
+            "storage",
+        ]
         for key in keys:
             widgets = self.org_details_panel["usage_widgets"][key]
             widgets["label"].setText("")
@@ -567,8 +575,9 @@ class ProjectSelectDialog(QDialog):
 
         # Set avatar image if available
         if user.avatarImage:
-            avatar_url = api.config.get_api_config().SERVER_URL + user.avatarImage
-            self.account_org_panel["avatar_label"].load(avatar_url)
+            self.account_org_panel["avatar_label"].load(
+                api.user.resolve_avatar_url(user.avatarImage)
+            )
         # if no image, set avatar initial
         elif len(user.name) > 0:
             initial = user.name[0].upper()
@@ -981,6 +990,9 @@ class ProjectItemWidget(QWidget):
         dt = datetime.fromisoformat(normalized)
         now = datetime.now(dt.tzinfo)
         delta = now - dt
+
+        if delta.total_seconds() < 60:
+            return i18n.tr("Just now")
 
         if delta.days == 0:
             if delta.seconds < 3600:
