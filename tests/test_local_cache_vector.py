@@ -319,3 +319,17 @@ class TestCacheSize:
         (cache.cache_dir / "v-2.gpkg-wal").write_bytes(b"x" * 25)
 
         assert cache.mod.get_total_cache_size() == 175
+
+    def test_clear_all_removes_files_and_subdirs(self, cache, monkeypatch):
+        deleted_ids = []
+        monkeypatch.setattr(cache.mod, "delete_last_updated", deleted_ids.append)
+        (cache.cache_dir / "v-1.gpkg").write_bytes(b"x" * 100)
+        sub = cache.cache_dir / "sub"
+        sub.mkdir()
+        (sub / "nested.gpkg").write_bytes(b"x" * 50)
+
+        assert cache.mod.clear_all() is True
+        assert list(cache.cache_dir.iterdir()) == []
+        assert cache.mod.get_total_cache_size() == 0
+        # last_updated is tracked per top-level gpkg only
+        assert deleted_ids == ["v-1"]

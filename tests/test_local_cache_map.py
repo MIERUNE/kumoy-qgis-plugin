@@ -44,3 +44,13 @@ class TestCacheSize:
         (cache.cache_dir / "m-2.qgs").write_bytes(b"x" * 60)
 
         assert cache.mod.get_total_cache_size() == 160
+
+    def test_clear_all_removes_files_and_subdirs(self, cache):
+        (cache.cache_dir / "m-1.qgs").write_bytes(b"x" * 100)
+        sub = cache.cache_dir / "sub"
+        sub.mkdir()
+        (sub / "nested.qgs").write_bytes(b"x" * 60)
+
+        assert cache.mod.clear_all() is True
+        assert list(cache.cache_dir.iterdir()) == []
+        assert cache.mod.get_total_cache_size() == 0

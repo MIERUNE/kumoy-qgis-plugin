@@ -120,6 +120,19 @@ class TestSyncLocalCache:
 
         assert s.mod.get_total_cache_size() == 160
 
+    def test_clear_all_removes_files_and_subdirs(self, setup):
+        s = setup
+        with open(os.path.join(s.cache_dir, "r-10.tif"), "wb") as f:
+            f.write(b"x" * 10)
+        sub = os.path.join(s.cache_dir, "sub")
+        os.makedirs(sub)
+        with open(os.path.join(sub, "nested.tif"), "wb") as f:
+            f.write(b"x" * 10)
+
+        assert s.mod.clear_all() is True
+        assert os.listdir(s.cache_dir) == []
+        assert s.mod.get_total_cache_size() == 0
+
     def test_store_adopts_local_file_and_skips_download(self, setup, tmp_path):
         s = setup
         src = tmp_path / "uploaded.tif"

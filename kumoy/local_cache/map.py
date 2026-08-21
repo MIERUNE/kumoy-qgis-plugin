@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from typing import Optional
 
@@ -92,11 +93,13 @@ def clear_all() -> bool:
     cache_dir = get_cache_dir()
     success = True
 
-    # Remove all files in cache directory
-    for filename in os.listdir(cache_dir):
-        file_path = os.path.join(cache_dir, filename)
+    # Subdirectories too: clear_all must cover everything dir_total_size counts.
+    for entry in list(os.scandir(cache_dir)):
         try:
-            os.unlink(file_path)
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
         except PermissionError as e:
             # Ignore Permission denied error and continue
             QgsMessageLog.logMessage(
@@ -107,7 +110,7 @@ def clear_all() -> bool:
             success = False  # Flag unsucceed deletion
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Unexpected error for {file_path}: {e}",
+                f"Unexpected error for {entry.path}: {e}",
                 LOG_CATEGORY,
                 Qgis.Critical,
             )

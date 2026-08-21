@@ -116,9 +116,13 @@ def clear_all() -> bool:
     """全ラスタキャッシュを削除する。全て消せたら True。"""
     cache_dir = _get_cache_dir()
     success = True
-    for filename in os.listdir(cache_dir):
+    # Subdirectories too: clear_all must cover everything dir_total_size counts.
+    for entry in list(os.scandir(cache_dir)):
         try:
-            os.unlink(os.path.join(cache_dir, filename))
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
         except OSError:
             success = False
     return success
