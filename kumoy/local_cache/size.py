@@ -16,5 +16,16 @@ def files_total_size(paths: Iterable[str]) -> int:
 
 
 def dir_total_size(cache_dir: str) -> int:
-    """Return the total size of all files directly under the directory."""
-    return sum(e.stat().st_size for e in os.scandir(cache_dir) if e.is_file())
+    """Return the total size of all files under the directory, recursively.
+
+    Recursive scandir instead of os.walk: os.walk swallows scandir errors by
+    default, which would break the OSError contract above.
+    """
+    total = 0
+    for entry in os.scandir(cache_dir):
+        # follow_symlinks=False so a symlink cycle cannot recurse forever.
+        if entry.is_dir(follow_symlinks=False):
+            total += dir_total_size(entry.path)
+        elif entry.is_file():
+            total += entry.stat().st_size
+    return total
