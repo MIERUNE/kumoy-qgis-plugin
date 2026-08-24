@@ -68,9 +68,6 @@ def convert_local_layers(project_id: str) -> ConversionResult:
     try:
         project = api.project.get_project(project_id)
         org_detail = api.organization.get_organization(project.team.organization.id)
-        plan_limits = api.plan.get_plan_limits(
-            org_detail.subscriptionPlan, org_detail.storageUnits
-        )
     except Exception as e:
         handle_api_error(
             e, parent=None, log_prefix=i18n.tr("Failed to check layer limits")
@@ -80,11 +77,11 @@ def convert_local_layers(project_id: str) -> ConversionResult:
     dialog = LayerSelectDialog(
         local_layers,
         vector_quota=LayerQuota(
-            max_layers=plan_limits.maxVectors,
+            max_layers=org_detail.planSettings.maxVectors,
             current=org_detail.usage.vectors,
         ),
         raster_quota=LayerQuota(
-            max_layers=plan_limits.maxRasters,
+            max_layers=org_detail.planSettings.maxRasters,
             current=org_detail.usage.rasters,
         ),
     )

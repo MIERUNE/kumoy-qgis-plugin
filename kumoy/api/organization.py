@@ -56,15 +56,45 @@ class OrganizationUsage:
     vectors: int
     rasters: int
     styledMaps: int
+    # Seats are counted against the plan including pending invites: add
+    # organizationInvites to organizationMembers, while organizationEditors
+    # Seat count includes pending invites:
+    # - Members: add invites manually
+    # - Editors: invites already included
     organizationMembers: int
     organizationInvites: int
+    organizationEditors: int
+    organizationEditorInvites: int
     usedStorageUnits: float
+
+
+@dataclass
+class PlanSettings:
+    """Quotas of the organization's plan, with CUSTOM plan overrides applied."""
+
+    maxProjects: int
+    maxVectors: int
+    maxRasters: int
+    maxStyledMaps: int
+    maxTeams: int
+    maxOrganizationMembers: int
+    maxEditors: int
+    maxVectorFeatures: int
+    maxVectorAttributes: int
+    defaultStorageUnits: int
+    activityLogViewableDays: int
+    canUseKeyphrase: bool
+    canEditFeaturesOnWeb: bool
 
 
 @dataclass
 class OrganizationDetail(OrganizationWithRole):
     usage: OrganizationUsage
     availableStorageUnits: int
+    # Editor seats actually usable: plan quota plus additionally purchased seats,
+    # so it can exceed planSettings.maxEditors.
+    availableEditors: int
+    planSettings: PlanSettings
 
 
 def get_organization(organization_id: str) -> OrganizationDetail:
@@ -96,7 +126,31 @@ def get_organization(organization_id: str) -> OrganizationDetail:
             styledMaps=response.get("usage", {}).get("styledMaps", 0),
             organizationMembers=response.get("usage", {}).get("organizationMembers", 0),
             organizationInvites=response.get("usage", {}).get("organizationInvites", 0),
+            organizationEditors=response.get("usage", {}).get("organizationEditors", 0),
+            organizationEditorInvites=response.get("usage", {}).get(
+                "organizationEditorInvites", 0
+            ),
             usedStorageUnits=response.get("usage", {}).get("usedStorageUnits", 0),
         ),
         availableStorageUnits=response.get("availableStorageUnits", 0),
+        availableEditors=response.get("availableEditors", 0),
+        planSettings=_parse_plan_settings(response.get("planSettings", {})),
+    )
+
+
+def _parse_plan_settings(settings: dict) -> PlanSettings:
+    return PlanSettings(
+        maxProjects=settings.get("maxProjects", 0),
+        maxVectors=settings.get("maxVectors", 0),
+        maxRasters=settings.get("maxRasters", 0),
+        maxStyledMaps=settings.get("maxStyledMaps", 0),
+        maxTeams=settings.get("maxTeams", 0),
+        maxOrganizationMembers=settings.get("maxOrganizationMembers", 0),
+        maxEditors=settings.get("maxEditors", 0),
+        maxVectorFeatures=settings.get("maxVectorFeatures", 0),
+        maxVectorAttributes=settings.get("maxVectorAttributes", 0),
+        defaultStorageUnits=settings.get("defaultStorageUnits", 0),
+        activityLogViewableDays=settings.get("activityLogViewableDays", 0),
+        canUseKeyphrase=settings.get("canUseKeyphrase", False),
+        canEditFeaturesOnWeb=settings.get("canEditFeaturesOnWeb", False),
     )

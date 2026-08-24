@@ -425,21 +425,18 @@ class VectorRoot(QgsDataItem):
     def new_vector(self) -> None:
         """Create a new vector layer in the project"""
         try:
-            # check plan limits before creating vector
-            plan_limit = api.plan.get_plan_limits(
-                self.organization.subscriptionPlan,
-                self.organization.storageUnits,
-            )
-            current_vectors = api.vector.get_vectors(self.project.id)
-            upload_vector_count = len(current_vectors) + 1
-            if upload_vector_count > plan_limit.maxVectors:
+            # maxVectors is the org-wide cap, so count usage.vectors (total across
+            # Check org-wide vector limit.
+            # Re-fetch usage to avoid stale cache.
+            organization = api.organization.get_organization(self.organization.id)
+            if organization.usage.vectors >= organization.planSettings.maxVectors:
                 QMessageBox.critical(
                     None,
                     i18n.tr("Error"),
                     i18n.tr(
                         "You have reached your plan's limit of {} vector layers. "
                         "Please delete one or upgrade your plan to continue."
-                    ).format(plan_limit.maxVectors),
+                    ).format(organization.planSettings.maxVectors),
                 )
                 return
 

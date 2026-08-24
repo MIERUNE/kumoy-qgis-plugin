@@ -282,9 +282,6 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         # Get project and plan limits
         project = api.project.get_project(project_id)
         organization = api.organization.get_organization(project.team.organizationId)
-        plan_limits = api.plan.get_plan_limits(
-            organization.subscriptionPlan, organization.storageUnits
-        )
 
         # Check role
         if project.role not in ["ADMIN", "OWNER"]:
@@ -296,17 +293,16 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
         # Check vector count limit (organization-wide quota, not per project).
         # maxVectors is the org-wide cap; usage.vectors is the total across all projects.
-        current_vector_count = organization.usage.vectors
-        if current_vector_count >= plan_limits.maxVectors:
+        if organization.usage.vectors >= organization.planSettings.maxVectors:
             raise QgsProcessingException(
                 i18n.tr(
                     "Cannot upload vector: your organization has reached your "
                     "plan's limit of {} vectors. Delete an existing vector or "
                     "upgrade your plan to add more."
-                ).format(plan_limits.maxVectors)
+                ).format(organization.planSettings.maxVectors)
             )
 
-        return project_id, vector_name, plan_limits
+        return project_id, vector_name, organization.planSettings
 
     def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
         """Raise internal cancel marker to unwind quickly without reporting error."""
