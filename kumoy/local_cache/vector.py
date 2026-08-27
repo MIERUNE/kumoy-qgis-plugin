@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 from typing import Callable, Optional
 
 from qgis.core import (
@@ -19,6 +20,7 @@ from qgis.core import (
 from .. import api
 from ..constants import LOG_CATEGORY
 from .settings import delete_last_updated, get_last_updated, store_last_updated
+from .size import dir_total_size, files_total_size
 
 
 def _get_cache_dir() -> str:
@@ -321,14 +323,16 @@ def clear_all() -> bool:
     cache_dir = _get_cache_dir()
     success = True
 
-    # Remove all files in cache directory
-    for filename in os.listdir(cache_dir):
-        file_path = os.path.join(cache_dir, filename)
+    # Subdirectories too: clear_all must cover everything dir_total_size counts.
+    for entry in list(os.scandir(cache_dir)):
         try:
-            os.unlink(file_path)
-            if filename.endswith(".gpkg"):
-                project_id = filename.split(".gpkg")[0]
-                delete_last_updated(project_id)
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
+                if entry.name.endswith(".gpkg"):
+                    project_id = entry.name.split(".gpkg")[0]
+                    delete_last_updated(project_id)
         except PermissionError as e:
             # Ignore Permission denied error and continue
             QgsMessageLog.logMessage(
@@ -339,13 +343,35 @@ def clear_all() -> bool:
             success = False  # Flag unsucceed deletion
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Unexpected error for {file_path}: {e}",
+                f"Unexpected error for {entry.path}: {e}",
                 LOG_CATEGORY,
                 Qgis.Critical,
             )
             success = False  # Flag unsucceed
 
     return success
+
+
+def get_cache_size(vector_id: str) -> int:
+    """Return the vector's cache size in bytes (0 when not cached).
+
+    Covers the same file set as clear(): the GPKG plus its SQLite side files.
+    """
+    cache_file = os.path.join(_get_cache_dir(), f"{vector_id}.gpkg")
+    candidates = (
+        cache_file,
+        f"{cache_file}-shm",
+        f"{cache_file}-wal",
+        f"{cache_file}-journal",
+    )
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist, and the SQLite side files usually don't.
+    return files_total_size(p for p in candidates if os.path.isfile(p))
+
+
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached vector files."""
+    return dir_total_size(_get_cache_dir())
 
 
 def clear(vector_id: str) -> bool:

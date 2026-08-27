@@ -95,6 +95,44 @@ class TestSyncLocalCache:
         s.mod.sync_local_cache("r-5")
         assert s.mod.is_cached("r-5") is True
 
+    def test_cache_size_counts_tif_and_part(self, setup):
+        s = setup
+        assert s.mod.get_cache_size("r-7") == 0
+
+        open(os.path.join(s.cache_dir, "r-7.tif"), "wb").close()
+        assert s.mod.get_cache_size("r-7") == 0
+
+        with open(os.path.join(s.cache_dir, "r-7.tif"), "wb") as f:
+            f.write(b"x" * 100)
+        with open(os.path.join(s.cache_dir, "r-7.tif.part"), "wb") as f:
+            f.write(b"x" * 40)
+
+        assert s.mod.get_cache_size("r-7") == 140
+
+    def test_total_cache_size_sums_all_files(self, setup):
+        s = setup
+        assert s.mod.get_total_cache_size() == 0
+
+        with open(os.path.join(s.cache_dir, "r-8.tif"), "wb") as f:
+            f.write(b"x" * 100)
+        with open(os.path.join(s.cache_dir, "r-9.tif"), "wb") as f:
+            f.write(b"x" * 60)
+
+        assert s.mod.get_total_cache_size() == 160
+
+    def test_clear_all_removes_files_and_subdirs(self, setup):
+        s = setup
+        with open(os.path.join(s.cache_dir, "r-10.tif"), "wb") as f:
+            f.write(b"x" * 10)
+        sub = os.path.join(s.cache_dir, "sub")
+        os.makedirs(sub)
+        with open(os.path.join(sub, "nested.tif"), "wb") as f:
+            f.write(b"x" * 10)
+
+        assert s.mod.clear_all() is True
+        assert os.listdir(s.cache_dir) == []
+        assert s.mod.get_total_cache_size() == 0
+
     def test_store_adopts_local_file_and_skips_download(self, setup, tmp_path):
         s = setup
         src = tmp_path / "uploaded.tif"

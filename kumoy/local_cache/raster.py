@@ -15,6 +15,7 @@ from typing import Optional
 from qgis.core import QgsApplication
 
 from .. import api, download
+from .size import dir_total_size, files_total_size
 
 
 def _get_cache_dir() -> str:
@@ -81,6 +82,23 @@ def store(raster_id: str, src_path: str) -> str:
     return cache_path
 
 
+def get_cache_size(raster_id: str) -> int:
+    """Return the raster's cache size in bytes (0 when not cached).
+
+    Covers the same file set as clear(): the .tif plus its in-progress .part.
+    """
+    cache_path = get_cache_path(raster_id)
+    candidates = (cache_path, f"{cache_path}.part")
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist, and .tif / .part rarely coexist.
+    return files_total_size(p for p in candidates if os.path.isfile(p))
+
+
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached raster files."""
+    return dir_total_size(_get_cache_dir())
+
+
 def clear(raster_id: str) -> bool:
     """特定ラスタのキャッシュを削除する。全て消せたら True。"""
     cache_path = get_cache_path(raster_id)
@@ -98,9 +116,13 @@ def clear_all() -> bool:
     """全ラスタキャッシュを削除する。全て消せたら True。"""
     cache_dir = _get_cache_dir()
     success = True
-    for filename in os.listdir(cache_dir):
+    # Subdirectories too: clear_all must cover everything dir_total_size counts.
+    for entry in list(os.scandir(cache_dir)):
         try:
-            os.unlink(os.path.join(cache_dir, filename))
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
         except OSError:
             success = False
     return success

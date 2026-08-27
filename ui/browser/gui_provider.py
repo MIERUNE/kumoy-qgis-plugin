@@ -10,6 +10,7 @@ from .raster import (
     delete_multiple_rasters,
 )
 from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
+from .cache_size import combined_cache_size, make_clear_cache_action
 from .vector import (
     VectorItem,
     add_multiple_vectors,
@@ -54,13 +55,13 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
                 menu.addAction(action)
         else:
             # Multi-selection
-            clear_action = QAction(
-                i18n.tr("Clear Cache for {} Maps").format(len(styledmap_items)), menu
-            )
-            clear_action.triggered.connect(
+            clear_action = make_clear_cache_action(
+                menu,
+                i18n.tr("Clear Cache for {} Maps").format(len(styledmap_items)),
+                lambda: combined_cache_size(styledmap_items),
                 lambda checked=False, items=list(styledmap_items): (
                     clear_cache_multiple_maps(items)
-                )
+                ),
             )
             menu.addAction(clear_action)
 
@@ -94,13 +95,13 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             )
             menu.addAction(add_action)
 
-            clear_action = QAction(
-                i18n.tr("Clear Cache for {} Rasters").format(len(raster_items)), menu
-            )
-            clear_action.triggered.connect(
+            clear_action = make_clear_cache_action(
+                menu,
+                i18n.tr("Clear Cache for {} Rasters").format(len(raster_items)),
+                lambda: combined_cache_size(raster_items),
                 lambda checked=False, items=list(raster_items): (
                     clear_cache_multiple_rasters(items)
-                )
+                ),
             )
             menu.addAction(clear_action)
 
@@ -134,13 +135,13 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
             )
             menu.addAction(add_action)
 
-            clear_action = QAction(
-                i18n.tr("Clear Cache for {} Vectors").format(len(vector_items)), menu
-            )
-            clear_action.triggered.connect(
+            clear_action = make_clear_cache_action(
+                menu,
+                i18n.tr("Clear Cache for {} Vectors").format(len(vector_items)),
+                lambda: combined_cache_size(vector_items),
                 lambda checked=False, items=list(vector_items): (
                     clear_cache_multiple_vectors(items)
-                )
+                ),
             )
             menu.addAction(clear_action)
 
