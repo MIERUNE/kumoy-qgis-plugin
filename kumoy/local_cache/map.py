@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from typing import Optional
 
@@ -13,6 +14,7 @@ from qgis.core import (
 from ... import i18n
 from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
 from ..sprite import pin_fixed_aspect_ratios
+from .size import dir_total_size, files_total_size
 
 # Flag to prevent double updates when handling the project saved event.
 # When serialize_project() writes the QGIS project to disk, this guards against
@@ -36,6 +38,23 @@ def get_filepath(map_id: str) -> str:
     cache_dir = get_cache_dir()
     cache_file = os.path.join(cache_dir, f"{map_id}.qgs")
     return cache_file
+
+
+def get_cache_size(map_id: str) -> int:
+    """Return the map's cache size in bytes (0 when not cached).
+
+    Uses the same matching rule as clear(): any file whose name contains map_id.
+    """
+    cache_dir = get_cache_dir()
+    # Existence is the caller's concern: files_total_size expects paths that
+    # exist. isfile also excludes directories that would fail getsize.
+    matched = (os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if map_id in f)
+    return files_total_size(p for p in matched if os.path.isfile(p))
+
+
+def get_total_cache_size() -> int:
+    """Return the total size in bytes of all cached map files."""
+    return dir_total_size(get_cache_dir())
 
 
 def clear(map_id: str) -> bool:
@@ -74,11 +93,13 @@ def clear_all() -> bool:
     cache_dir = get_cache_dir()
     success = True
 
-    # Remove all files in cache directory
-    for filename in os.listdir(cache_dir):
-        file_path = os.path.join(cache_dir, filename)
+    # Subdirectories too: clear_all must cover everything dir_total_size counts.
+    for entry in list(os.scandir(cache_dir)):
         try:
-            os.unlink(file_path)
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.unlink(entry.path)
         except PermissionError as e:
             # Ignore Permission denied error and continue
             QgsMessageLog.logMessage(
@@ -89,7 +110,7 @@ def clear_all() -> bool:
             success = False  # Flag unsucceed deletion
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Unexpected error for {file_path}: {e}",
+                f"Unexpected error for {entry.path}: {e}",
                 LOG_CATEGORY,
                 Qgis.Critical,
             )

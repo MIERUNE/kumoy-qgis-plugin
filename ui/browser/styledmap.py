@@ -47,6 +47,7 @@ from ...ui.layers.convert import convert_local_layers
 from ..error_handler import handle_api_error, refresh_kumoy_browser
 from ..icons import BROWSER_MAP_ICON
 from ..project_save_handler import show_map_save_result, warn_if_project_too_large
+from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
 from .utils import ErrorItem
 
 
@@ -90,9 +91,14 @@ class StyledMapItem(QgsDataItem):
             actions.append(open_public_action)
 
         # Clear map cache action
-        clear_cache_action = QAction(i18n.tr("Clear Cache Data"), parent)
-        clear_cache_action.triggered.connect(self.clear_map_cache)
-        actions.append(clear_cache_action)
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Cache Data"),
+                self.cache_size,
+                self.clear_map_cache,
+            )
+        )
 
         if self.role in ["ADMIN", "OWNER"]:
             # スタイルマップ上書き保存アクション
@@ -351,6 +357,9 @@ class StyledMapItem(QgsDataItem):
                     e, parent=None, log_prefix=i18n.tr("Error deleting map")
                 )
 
+    def cache_size(self) -> int:
+        return local_cache.map.get_cache_size(self.styled_map.id)
+
     def process_map_cache_clear(self) -> bool:
         cleared = local_cache.map.clear(self.styled_map.id)
         return cleared
@@ -360,10 +369,10 @@ class StyledMapItem(QgsDataItem):
             None,
             i18n.tr("Clear Map Cache Data"),
             i18n.tr(
-                "This will clear the local cache for map '{}'.\n"
+                "This will clear the local cache for map '{}' ({}).\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
-            ).format(self.styled_map.name),
+            ).format(self.styled_map.name, cache_size_text(self.cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -424,9 +433,14 @@ class StyledMapRoot(QgsDataItem):
             actions.append(new_action)
 
         # Clear map cache data
-        clear_all_cache_action = QAction(i18n.tr("Clear Map Cache Data"), parent)
-        clear_all_cache_action.triggered.connect(self.clear_all_map_cache)
-        actions.append(clear_all_cache_action)
+        actions.append(
+            make_clear_cache_action(
+                parent,
+                i18n.tr("Clear Map Cache Data"),
+                local_cache.map.get_total_cache_size,
+                self.clear_all_map_cache,
+            )
+        )
 
         return actions
 
@@ -630,10 +644,10 @@ class StyledMapRoot(QgsDataItem):
             None,
             i18n.tr("Clear Map Cache"),
             i18n.tr(
-                "This will clear all locally cached map files. "
+                "This will clear all locally cached map files ({}). "
                 "Data will be re-downloaded next time you access maps.\n\n"
                 "Continue?"
-            ),
+            ).format(cache_size_text(local_cache.map.get_total_cache_size)),
             Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
             Q_MESSAGEBOX_STD_BUTTON.No,
         )
@@ -801,10 +815,10 @@ def clear_cache_multiple_maps(items: list[StyledMapItem]) -> None:
         None,
         i18n.tr("Clear Map Cache Data"),
         i18n.tr(
-            "This will clear the local cache for {} maps.\n"
+            "This will clear the local cache for {} maps ({}).\n"
             "The cached data will be re-downloaded when you access it next time.\n"
             "Do you want to continue?"
-        ).format(len(items)),
+        ).format(len(items), cache_size_text(lambda: combined_cache_size(items))),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
         Q_MESSAGEBOX_STD_BUTTON.No,
     )

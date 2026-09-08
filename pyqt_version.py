@@ -1,6 +1,6 @@
 """Qt5/Qt6 compatibility layer"""
 
-from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, QIODevice, Qt
+from qgis.PyQt.QtCore import QT_VERSION_STR, QBuffer, QEvent, QIODevice, QLocale, Qt
 from qgis.PyQt.QtGui import QImage, QPainter, QRegion, QTextCursor
 from qgis.PyQt.QtNetwork import QHttpMultiPart, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
@@ -237,6 +237,16 @@ Q_IMAGE_FORMAT = QImage if QT_VERSION_INT <= 5 else QImage.Format
 """QImage format enum
 Qt5: QImage.Format_ARGB32, etc.
 Qt6: QImage.Format.Format_ARGB32, etc.
+"""
+
+Q_LOCALE_DATA_SIZE_TRADITIONAL = (
+    QLocale.DataSizeTraditionalFormat
+    if QT_VERSION_INT <= 5
+    else QLocale.DataSizeFormat.DataSizeTraditionalFormat
+)
+"""QLocale data size format: traditional units (kB, MB) with a 1024 divisor
+Qt5: QLocale.DataSizeTraditionalFormat
+Qt6: QLocale.DataSizeFormat.DataSizeTraditionalFormat
 """
 
 
