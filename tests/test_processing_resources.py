@@ -390,7 +390,7 @@ class TestMap:
             _run(CreateMapAlgorithm(), {"NAME": ""})
 
     @pytest.fixture
-    def uploads(self, monkeypatch, tmp_path):
+    def uploads(self, monkeypatch, tmp_path, fake_kumoy_provider):
         from plugin_dir.kumoy.local_cache import map as map_cache
         from plugin_dir.processing.map import create, update
 

@@ -39,3 +39,86 @@ def qgis_plugin_path(qgis_app):
     qgis_plugins = os.path.join(QgsApplication.pkgDataPath(), "python", "plugins")
     if os.path.isdir(qgis_plugins) and qgis_plugins not in sys.path:
         sys.path.append(qgis_plugins)
+
+
+@pytest.fixture(scope="session")
+def _registered_fake_provider(qgis_app):
+    """Register a stub provider under the Kumoy vector provider key.
+
+    Provider metadata can only be registered once per QGIS session, so the stub
+    reads its extent / feature count from the returned mutable object.
+    """
+    from qgis.core import (
+        QgsCoordinateReferenceSystem,
+        QgsDataProvider,
+        QgsFeatureRequest,
+        QgsField,
+        QgsFields,
+        QgsProviderMetadata,
+        QgsProviderRegistry,
+        QgsRectangle,
+        QgsVectorDataProvider,
+        QgsVectorLayer,
+        QgsWkbTypes,
+    )
+    from qgis.PyQt.QtCore import QVariant
+
+    from plugin_dir.kumoy.constants import DATA_PROVIDER_KEY
+
+    state = types.SimpleNamespace(extent=QgsRectangle(), feature_count=0)
+
+    class _FakeProvider(QgsVectorDataProvider):
+        @classmethod
+        def createProvider(cls, uri, options, flags=QgsDataProvider.ReadFlags()):
+            return _FakeProvider(uri)
+
+        def name(self):
+            return DATA_PROVIDER_KEY
+
+        def isValid(self):
+            return True
+
+        def crs(self):
+            return QgsCoordinateReferenceSystem("EPSG:4326")
+
+        def wkbType(self):
+            return QgsWkbTypes.Point
+
+        def geometryType(self):
+            return QgsWkbTypes.Point
+
+        def fields(self):
+            fields = QgsFields()
+            fields.append(QgsField("kumoy_id", QVariant.LongLong))
+            return fields
+
+        def extent(self):
+            return state.extent
+
+        def featureCount(self):
+            return state.feature_count
+
+        def getFeatures(self, request=QgsFeatureRequest()):
+            empty = QgsVectorLayer("Point?crs=EPSG:4326", "empty", "memory")
+            return empty.getFeatures(request)
+
+        def capabilities(self):
+            return QgsVectorDataProvider.Capabilities()
+
+    # 同一キーの二重登録は False になるだけで無害
+    QgsProviderRegistry.instance().registerProvider(
+        QgsProviderMetadata(
+            DATA_PROVIDER_KEY, "fake kumoy provider", _FakeProvider.createProvider
+        )
+    )
+    return state
+
+
+@pytest.fixture
+def fake_kumoy_provider(_registered_fake_provider):
+    """Reset the stub provider's state for each test."""
+    from qgis.core import QgsRectangle
+
+    _registered_fake_provider.extent = QgsRectangle()
+    _registered_fake_provider.feature_count = 0
+    return _registered_fake_provider

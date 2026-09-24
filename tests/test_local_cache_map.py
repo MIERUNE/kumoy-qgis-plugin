@@ -67,18 +67,24 @@ class TestReadProjectFile:
         monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
         return map_cache
 
-    def test_kumoy_layers_are_left_unresolved(self, map_cache, tmp_path):
+    def test_layer_tree_keeps_provider_key(
+        self, map_cache, tmp_path, fake_kumoy_provider
+    ):
+        import re
+
         from .project_files import write_kumoy_point_project
 
-        project = map_cache.read_project_file(str(write_kumoy_point_project(tmp_path)))
+        qgisproject = map_cache.serialize_detached_project(
+            map_cache.read_project_file(str(write_kumoy_point_project(tmp_path)))
+        )
 
-        (layer,) = project.mapLayers().values()
-        assert layer.providerType() == "kumoy"
-        assert not layer.isValid()
-        assert layer.renderer() is not None
+        # The web layer tree derives geometry types of legends from this key
+        assert re.findall(
+            r'<layer-tree-layer[^>]*providerKey="([^"]*)"', qgisproject
+        ) == ["kumoy"]
 
-    def test_pinned_aspect_ratio_is_written_for_unresolved_layers(
-        self, map_cache, tmp_path
+    def test_pinned_aspect_ratio_is_written(
+        self, map_cache, tmp_path, fake_kumoy_provider
     ):
         from .project_files import fixed_aspect_ratios, write_kumoy_point_project
 

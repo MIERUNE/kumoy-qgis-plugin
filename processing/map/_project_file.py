@@ -47,6 +47,10 @@ def project_file_help() -> str:
             "They are converted the next time the map is saved from QGIS."
         )
         + i18n.tr(
+            "\n\nKumoy layers in the project file are loaded as in QGIS, so their "
+            "data is downloaded to the local cache if it is not cached yet."
+        )
+        + i18n.tr(
             "\n\nThe project file must be {:,} characters or less when saved as .qgs."
         ).format(local_cache.map.LENGTH_LIMIT)
     )
