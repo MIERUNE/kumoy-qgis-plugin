@@ -19,6 +19,7 @@ RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "raster.svg"))
 PIN_ICON = QIcon(os.path.join(_IMGS_PATH, "pin.svg"))
 SEARCH_ICON = QIcon(os.path.join(_IMGS_PATH, "search.svg"))
 WARNING_ICON = QIcon(os.path.join(_IMGS_PATH, "mIconWarning.svg"))
+BUILDING_ICON = QIcon(os.path.join(_IMGS_PATH, "building.svg"))
 
 # browser
 BROWSER_FOLDER_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_folder.svg"))

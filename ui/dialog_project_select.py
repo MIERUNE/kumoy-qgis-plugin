@@ -1,4 +1,3 @@
-import math
 import re
 import webbrowser
 from datetime import datetime
@@ -9,7 +8,6 @@ from qgis.PyQt.QtWidgets import (
     QComboBox,
     QDialog,
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -17,7 +15,6 @@ from qgis.PyQt.QtWidgets import (
     QListWidgetItem,
     QMenu,
     QMessageBox,
-    QProgressBar,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -48,64 +45,17 @@ from ..pyqt_version import (
 from .dialog_project_edit import ProjectEditDialog
 from .error_handler import handle_api_error
 from .icons import MAP_ICON, RASTER_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
+from .icons.darkmode import is_in_darkmode
 from .remote_image_label import RemoteImageLabel
 from .utils import show_plain_text_message
 
 
-# subscriptionPlan is a system identifier that differs from the plan name
-# shown to users, so it must never be displayed as-is.
-_PLAN_DISPLAY_NAMES = {
-    "FREE": "Community",
-    "PRO": "Pro",
-    "BUSINESS": "Business",
-    "TEAM": "Corporate",
-    "CUSTOM": "Enterprise",
-}
-
-
-def _plan_display_name(subscription_plan: str) -> str:
-    return _PLAN_DISPLAY_NAMES.get(
-        subscription_plan.upper(), subscription_plan.capitalize()
-    )
-
-
-def _get_usage_color(percentage: float) -> str:
-    """Get color based on usage percentage"""
-    # Color thresholds
-    if percentage >= 80:
-        return "#f44336"  # Red
-    elif percentage >= 75:
-        return "#ffa726"  # Orange
-    return "#8bc34a"  # Green
-
-
-def _lighten(hex_color: str, ratio: float = 0.2) -> str:
-    """Blend a #rrggbb color toward white"""
-    channels = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
-    blended = (round(c + (255 - c) * ratio) for c in channels)
-    return "#" + "".join(f"{c:02x}" for c in blended)
-
-
-def _chunk_fill(color: str, used: float, limit: int, pending: int) -> str:
-    """Fill for the progress chunk, with pending seats as a lighter tail.
-
-    Invites already consume a seat but are not active members yet, so the web
-    app paints that part of the gauge in a lighter shade. Qt has no two-segment
-    progress bar, so split the chunk itself with a hard gradient stop.
-    """
-    shown = min(used, limit)
-    if pending <= 0 or shown <= 0:
-        return color
-
-    # The gradient spans the chunk, not the whole bar, so the boundary is
-    # relative to what is actually drawn (clamped when usage exceeds the limit).
-    boundary = max(0.0, min(1.0, (shown - pending) / shown))
-    light = _lighten(color)
-    return (
-        "qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-        f"stop:0 {color}, stop:{boundary:.4f} {color}, "
-        f"stop:{min(1.0, boundary + 0.0001):.4f} {light}, stop:1 {light})"
-    )
+# Design tokens (color/*, number/radius/*) from the Kumoy dashboard.
+_ACCENT = "#007ae0"
+_MUTED_TEXT = "#888888"
+# card_stroke is a light-theme token; dark QGIS needs a dimmer line or the
+# frame outshines the rows inside it.
+_CARD_STROKE = "rgba(255, 255, 255, 0.16)" if is_in_darkmode() else "#e7e7e7"
 
 
 def _scheduled_deletion_message(iso_string: str) -> str:
@@ -135,13 +85,12 @@ class ProjectSelectDialog(QDialog):
         self.selected_project = None
         self.current_org_id = None
         # 組織はルートの「Select Organization」で選ぶため、このダイアログは
-        # settingsの選択中組織に固定される。
+        # settingsの選択中組織に固定される。アカウント情報と組織の使用量は
+        # OrganizationSelectDialog の責務なので、ここでは表示しない。
         self.current_org: Optional[api.organization.OrganizationWithRole] = None
-        self.details_visible = False
         self.myteams: List[TeamDetail] = []
         self.admin_team_ids: Set[str] = set()
         self.setup_ui()
-        self.load_user_info()
         self.load_current_organization()
         self.load_saved_selection()
 
@@ -150,15 +99,6 @@ class ProjectSelectDialog(QDialog):
         layout = QVBoxLayout()
         layout.setSpacing(12)
         layout.setContentsMargins(16, 16, 16, 16)
-
-        ### account / organization
-        self.account_org_panel = self._create_account_org_panel()
-        layout.addLayout(self.account_org_panel["layout"])
-
-        # Organization詳細パネル
-        self.org_details_panel = self._create_org_details_panel()
-        layout.addWidget(self.org_details_panel["usage_frame"])
-        self.org_details_panel["usage_frame"].setVisible(self.details_visible)
 
         # Project一覧パネル
         self.project_section = self._create_project_section()
@@ -170,138 +110,6 @@ class ProjectSelectDialog(QDialog):
 
         self.setLayout(layout)
 
-    def _create_account_org_panel(self):
-        account_org_layout = QGridLayout()
-        # Account label
-        account_label = QLabel(i18n.tr("Account"))
-        account_org_layout.addWidget(account_label, 0, 0, 1, 2)
-        # Avatar and user name
-        avatar_name_layout = QHBoxLayout()
-        avatar_label = RemoteImageLabel(size=(32, 32))
-        avatar_label.set_circular_mask()
-        avatar_label.setAlignment(QT_ALIGN.AlignCenter)
-
-        avatar_name_layout.addWidget(avatar_label)
-
-        # User name label
-        user_name_label = QLabel(i18n.tr("Loading..."))
-        avatar_name_layout.addWidget(user_name_label)
-        account_org_layout.addLayout(avatar_name_layout, 1, 0, 1, 2)
-        # Organization label
-        org_label = QLabel(i18n.tr("Organization"))
-        account_org_layout.addWidget(org_label, 0, 2)
-        # "show details" link
-        details_toggle = QLabel(i18n.tr("<a href='#'>Show details &#9660;</a>"))
-        details_toggle.setAlignment(QT_ALIGN.AlignRight)
-        details_toggle.linkActivated.connect(self.toggle_details)
-        account_org_layout.addWidget(details_toggle, 0, 3)
-        # 組織はルートで選択するため、ここでは選択中組織を表示するのみ。
-        org_name_label = QLabel(i18n.tr("Loading..."))
-        org_name_label.setStyleSheet("font-weight: bold;")
-        org_name_label.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-
-        refresh_button = QPushButton(RELOAD_ICON, "")
-        refresh_button.setToolTip(i18n.tr("Refresh"))
-        refresh_button.setFixedSize(32, 32)
-        refresh_button.clicked.connect(self.reload_dialog)
-
-        org_row_layout = QHBoxLayout()
-        org_row_layout.setSpacing(4)
-        org_row_layout.addWidget(org_name_label, 1)
-        org_row_layout.addWidget(refresh_button)
-        account_org_layout.addLayout(org_row_layout, 1, 2, 1, 2)
-
-        return {
-            "layout": account_org_layout,
-            "avatar_label": avatar_label,
-            "user_name_label": user_name_label,
-            "org_name_label": org_name_label,
-            "details_toggle": details_toggle,
-            "refresh_btn": refresh_button,
-        }
-
-    def _create_org_details_panel(self):
-        """Create organization usage panel with progress bars"""
-        usage_frame = QFrame()
-        usage_layout = QVBoxLayout()
-
-        # header layout
-        header_layout = QHBoxLayout()
-        # plan/role
-        plan_role_label = QLabel(
-            "<div>\
-            <span>{plan}</span><br />\
-            <span>{role}</span>\
-        </div>"
-        )
-        header_layout.addWidget(plan_role_label)
-        # Organization Settings link
-        org_settings_button = QPushButton(i18n.tr("Organization Settings"))
-        org_settings_button.clicked.connect(self.open_organization_settings)
-        header_layout.addWidget(org_settings_button)
-
-        usage_layout.addLayout(header_layout)
-
-        # usage
-        usage_widgets = {}
-        resources = [
-            ("projects", "Projects"),
-            ("maps", "Maps"),
-            ("vectors", "Vectors"),
-            ("rasters", "Rasters"),
-            ("catalogs", "Catalogs"),
-            ("members", "Members"),
-            ("editors", "Editors"),
-            ("storage", "Storage"),
-        ]
-
-        for key, label in resources:
-            row_layout = QHBoxLayout()
-            row_layout.setSpacing(10)
-
-            # Resource label
-            resource_label = QLabel(label)
-            resource_label.setFixedWidth(80)
-            row_layout.addWidget(resource_label)
-
-            # Usage text
-            usage_text = QLabel()
-            usage_text.setFixedWidth(120)
-            usage_text.setAlignment(QT_ALIGN.AlignRight)
-            row_layout.addWidget(usage_text)
-
-            # Progress bar
-            progress_bar = QProgressBar()
-            progress_bar.setTextVisible(False)
-            progress_bar.setMinimumHeight(6)
-            progress_bar.setMaximumHeight(6)
-            progress_bar.setStyleSheet(
-                """
-                QProgressBar {
-                    border: none;
-                    border-radius: 3px;
-                    background-color: #e0e0e0;
-                }
-                QProgressBar::chunk {
-                    background-color: #8bc34a;
-                    border-radius: 3px;
-                }
-            """
-            )
-            row_layout.addWidget(progress_bar, 1)  # Stretch factor 1
-
-            usage_widgets[key] = {"label": usage_text, "progress": progress_bar}
-            usage_layout.addLayout(row_layout)
-
-        usage_frame.setLayout(usage_layout)
-
-        return {
-            "usage_frame": usage_frame,
-            "plan_role_label": plan_role_label,
-            "usage_widgets": usage_widgets,
-            "org_settings_button": org_settings_button,
-        }
-
     def _create_project_section(self):
         """Create project list section with search and team filter"""
         # Container frame
@@ -309,13 +117,13 @@ class ProjectSelectDialog(QDialog):
         project_frame.setStyleSheet(
             """
             QFrame {
-                border-radius: 6px;
+                border-radius: 4px;
             }
         """
         )
         frame_layout = QVBoxLayout()
-        frame_layout.setContentsMargins(8, 8, 8, 8)
-        frame_layout.setSpacing(6)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(12)
 
         # Search and team filter
         filter_layout = QHBoxLayout()
@@ -328,12 +136,12 @@ class ProjectSelectDialog(QDialog):
         search_input.addAction(SEARCH_ICON, QT_LINEEDIT_ACTION_POSITION.LeadingPosition)
         search_input.setMinimumHeight(32)
         search_input.setStyleSheet(
-            """
-            QLineEdit {
-                border: 1px solid #ced4da;
+            f"""
+            QLineEdit {{
+                border: 1px solid {_CARD_STROKE};
                 padding: 6px 8px;
                 border-radius: 4px;
-            }
+            }}
         """
         )
         search_input.textChanged.connect(self.filter_projects)
@@ -343,13 +151,13 @@ class ProjectSelectDialog(QDialog):
         team_combo = QComboBox()
         team_combo.setMinimumHeight(32)
         team_combo.setStyleSheet(
-            """
-            QComboBox {
-                border: 1px solid #ced4da;
+            f"""
+            QComboBox {{
+                border: 1px solid {_CARD_STROKE};
                 border-radius: 4px;
                 padding: 4px 8px;
                 font-size: 12px;
-            }
+            }}
         """
         )
         team_combo.currentIndexChanged.connect(self.filter_projects)
@@ -360,25 +168,25 @@ class ProjectSelectDialog(QDialog):
         # Project list
         project_list = QListWidget()
         project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
-        project_list.setSpacing(6)
+        project_list.setSpacing(0)
         project_list.setStyleSheet(
-            """
-            QListWidget {
-                border: 1px solid #ced4da;
+            f"""
+            QListWidget {{
+                border: 1px solid {_CARD_STROKE};
                 border-radius: 4px;
-                padding: 0px;
-            }
-            QListWidget::item {
-                border-radius: 6px;
-                margin: 3px;
-            }
-            QListWidget::item:selected {
-                background-color: rgba(255, 255, 255, 0.1);
-                border: 1px solid #1976d2;
-            }
-            QListWidget::item:hover {
-                background-color: rgba(255, 255, 255, 0.2);
-            }
+                padding: 12px;
+            }}
+            QListWidget::item {{
+                border: 1px solid transparent;
+                border-radius: 8px;
+            }}
+            QListWidget::item:selected {{
+                border: 1px solid {_ACCENT};
+                background-color: rgba(0, 122, 224, 0.08);
+            }}
+            QListWidget::item:hover {{
+                background-color: rgba(0, 122, 224, 0.05);
+            }}
         """
         )
         project_list.itemSelectionChanged.connect(self.on_project_selected)
@@ -444,7 +252,7 @@ class ProjectSelectDialog(QDialog):
             return
 
         self.current_org = org
-        self.account_org_panel["org_name_label"].setText(org.name)
+        self.current_org_id = org.id
 
         if org.scheduledDeletionAt:
             # Deactivated on the web app: its detail/project APIs return not
@@ -453,7 +261,6 @@ class ProjectSelectDialog(QDialog):
             return
 
         self.load_myteams(org)
-        self.load_organization_detail(org)
         self.load_projects(org)
 
     def _handle_no_organization(self):
@@ -462,9 +269,7 @@ class ProjectSelectDialog(QDialog):
         self.project_section["project_list"].clear()
 
         self.current_org = None
-        self.account_org_panel["org_name_label"].setText(
-            i18n.tr("No organization selected")
-        )
+        self.current_org_id = None
         # Add message + button inviting to create an organization instead project list
         no_org_widget = QWidget()
         no_org_layout = QVBoxLayout(no_org_widget)
@@ -488,33 +293,7 @@ class ProjectSelectDialog(QDialog):
         self.project_section["project_list"].addItem(no_org_item)
         self.project_section["project_list"].setItemWidget(no_org_item, no_org_widget)
 
-        # Clear organization details
-        self.org_details_panel["plan_role_label"].setText(
-            i18n.tr("<div><span>No organization available</span></div>")
-        )
-        self._clear_org_details()
-
-    def _clear_org_details(self):
-        """Reset usage widgets and disable organization-scoped actions"""
-        keys = [
-            "projects",
-            "maps",
-            "vectors",
-            "rasters",
-            "catalogs",
-            "members",
-            "editors",
-            "storage",
-        ]
-        for key in keys:
-            widgets = self.org_details_panel["usage_widgets"][key]
-            widgets["label"].setText("")
-            widgets["progress"].setMaximum(1)
-            widgets["progress"].setValue(0)
-            self._set_progress_color(widgets["progress"], 0, 1)
-
         self.button_panel["new_project_btn"].setEnabled(False)
-        self.org_details_panel["org_settings_button"].setEnabled(False)
 
     def _show_scheduled_deletion_notice(
         self, org: api.organization.OrganizationWithRole
@@ -543,11 +322,6 @@ class ProjectSelectDialog(QDialog):
         notice_item.setSizeHint(notice_widget.sizeHint())
         project_list.addItem(notice_item)
         project_list.setItemWidget(notice_item, notice_widget)
-
-        self.org_details_panel["plan_role_label"].setText(
-            i18n.tr("<div><span>Scheduled for deletion</span></div>")
-        )
-        self._clear_org_details()
 
     def load_myteams(self, org: api.organization.Organization):
         """Load teams the current user belongs to in the organization"""
@@ -580,190 +354,6 @@ class ProjectSelectDialog(QDialog):
             combo.addItem(team.name, team.id)
         combo.setCurrentIndex(0)
         combo.blockSignals(False)
-
-    def load_organization_detail(self, org: api.organization.Organization):
-        """Load and display organization detail including usage"""
-        try:
-            # Store current organization ID
-            self.current_org_id = org.id
-            # Fetch organization details
-            org_detail = api.organization.get_organization(org.id)
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=self,
-                log_prefix=i18n.tr("Failed to load organization details"),
-            )
-            return
-
-        # Update usage display
-        self.update_usage_display(org_detail)
-        self.org_details_panel["org_settings_button"].setEnabled(True)
-
-    def load_user_info(self):
-        """Load current user information"""
-        user = api.user.get_me()
-
-        self.account_org_panel["user_name_label"].setText(user.name)
-
-        # Set avatar image if available
-        if user.avatarImage:
-            self.account_org_panel["avatar_label"].load(
-                api.user.resolve_avatar_url(user.avatarImage)
-            )
-        # if no image, set avatar initial
-        elif len(user.name) > 0:
-            initial = user.name[0].upper()
-            self.account_org_panel["avatar_label"].setText(initial)
-
-    def toggle_details(self):
-        """Toggle visibility of usage details panel"""
-        self.details_visible = not self.details_visible
-        self.org_details_panel["usage_frame"].setVisible(self.details_visible)
-
-        if self.details_visible:
-            self.account_org_panel["details_toggle"].setText(
-                i18n.tr("<a href='#'>Hide details &#9650;</a>")
-            )
-        else:
-            self.account_org_panel["details_toggle"].setText(
-                i18n.tr("<a href='#'>Show details &#9660;</a>")
-            )
-
-    def open_organization_settings(self):
-        """Open organization settings in web browser"""
-        if not self.current_org_id:
-            return
-
-        settings_url = f"{api.config.get_api_config().SERVER_URL}/organization/{self.current_org_id}/setting"
-
-        try:
-            webbrowser.open(settings_url)
-        except Exception as e:
-            msg = i18n.tr("Error opening web browser: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, i18n.tr("Error"), msg)
-
-    def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
-        """Update the usage display with organization details"""
-        # Update plan label
-        self.org_details_panel["plan_role_label"].setText(
-            i18n.tr("<div><span>{} Plan</span><br /><span>{}</span></div>").format(
-                _plan_display_name(org_detail.subscriptionPlan),
-                org_detail.role.capitalize(),
-            )
-        )
-
-        # Define resource mappings: (key, used, limit, pending)
-        resource_mappings = [
-            (
-                "projects",
-                org_detail.usage.projects,
-                org_detail.planSettings.maxProjects,
-                0,
-            ),
-            (
-                "maps",
-                org_detail.usage.styledMaps,
-                org_detail.planSettings.maxStyledMaps,
-                0,
-            ),
-            (
-                "vectors",
-                org_detail.usage.vectors,
-                org_detail.planSettings.maxVectors,
-                0,
-            ),
-            (
-                "rasters",
-                org_detail.usage.rasters,
-                org_detail.planSettings.maxRasters,
-                0,
-            ),
-            (
-                "catalogs",
-                org_detail.usage.catalogs,
-                org_detail.planSettings.maxCatalogs,
-                0,
-            ),
-            # Pending invites occupy a seat, so count them too. organizationEditors
-            # Seats include pending invites.
-            # Editors already include them, members don't.
-            (
-                "members",
-                org_detail.usage.organizationMembers
-                + org_detail.usage.organizationInvites,
-                org_detail.planSettings.maxOrganizationMembers,
-                org_detail.usage.organizationInvites,
-            ),
-            (
-                "editors",
-                org_detail.usage.organizationEditors,
-                org_detail.availableEditors,
-                org_detail.usage.organizationEditorInvites,
-            ),
-        ]
-
-        # Update each resource
-        for key, used, limit, pending in resource_mappings:
-            self._update_usage_widget(key, used, limit, pending)
-
-        # Update Storage
-        if "storage" in self.org_details_panel["usage_widgets"]:
-            used = org_detail.usage.usedStorageUnits
-            total = org_detail.availableStorageUnits
-            # Format storage units with appropriate suffix
-            self.org_details_panel["usage_widgets"]["storage"]["label"].setText(
-                f"{used:.2f}SU / {total:.0f}SU"
-            )
-            if total > 0:
-                self.org_details_panel["usage_widgets"]["storage"][
-                    "progress"
-                ].setMaximum(total)
-                self.org_details_panel["usage_widgets"]["storage"]["progress"].setValue(
-                    math.ceil(used)
-                )
-                self._set_progress_color(
-                    self.org_details_panel["usage_widgets"]["storage"]["progress"],
-                    used,
-                    total,
-                )
-
-        # Role is now shown in the header, so no need to update separate labels
-
-    def _update_usage_widget(self, key: str, used: int, limit: int, pending: int = 0):
-        """Update a single usage widget with values and colors"""
-        if key not in self.org_details_panel["usage_widgets"]:
-            return
-
-        widgets = self.org_details_panel["usage_widgets"][key]
-        widgets["label"].setText(f"{used} / {limit}")
-        widgets["progress"].setMaximum(limit)
-        widgets["progress"].setValue(min(limit, used))
-        self._set_progress_color(widgets["progress"], used, limit, pending)
-
-    def _set_progress_color(
-        self, progress_bar: QProgressBar, used: float, limit: int, pending: int = 0
-    ):
-        """Set progress bar color based on usage percentage"""
-        percentage = (used / limit * 100) if limit > 0 else 0
-
-        # Determine color based on usage percentage
-        color = _get_usage_color(percentage)
-
-        progress_bar.setStyleSheet(
-            f"""
-            QProgressBar {{
-                border: none;
-                border-radius: 3px;
-                background-color: #e0e0e0;
-            }}
-            QProgressBar::chunk {{
-                background-color: {_chunk_fill(color, used, limit, pending)};
-                border-radius: 3px;
-            }}
-        """
-        )
 
     def load_projects(self, org: api.organization.Organization):
         """Load projects for the selected organization"""
@@ -845,7 +435,6 @@ class ProjectSelectDialog(QDialog):
         """Reload the dialog content for the current organization"""
         project_id = get_settings().selected_project_id
         try:
-            self.load_user_info()
             self.load_current_organization()
         except Exception as e:
             handle_api_error(
@@ -887,7 +476,6 @@ class ProjectSelectDialog(QDialog):
                 Qgis.Info,
             )
             # refresh project list and select the new project
-            self.load_organization_detail(org)
             self.load_projects(org)
             self._select_project_by_id(new_project.id)
 
@@ -904,8 +492,7 @@ class ProjectSelectDialog(QDialog):
             )
 
     def reload(self):
-        """Reload for reuse: refresh user/org/projects and reselect saved project."""
-        self.load_user_info()
+        """Reload for reuse: refresh org/projects and reselect the saved project."""
         self.load_current_organization()
         self.load_saved_selection()
 
@@ -1142,7 +729,6 @@ class ProjectItemWidget(QWidget):
                 # Refresh the project list
                 org = self.parent_dialog.get_selected_organization()
                 if org:
-                    self.parent_dialog.load_organization_detail(org)
                     self.parent_dialog.load_projects(org)
 
                 show_plain_text_message(
