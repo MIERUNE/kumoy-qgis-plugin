@@ -64,13 +64,13 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         self.add_text_parameter(
             self.NAME,
-            i18n.tr("Name"),
+            i18n.tr("Map name"),
             constants.MAX_CHARACTERS_STYLEDMAP_NAME,
             optional=False,
         )
         self.add_text_parameter(
             self.DESCRIPTION,
-            i18n.tr("Description"),
+            i18n.tr("Map description"),
             constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION,
         )
         self.add_text_parameter(
@@ -92,6 +92,17 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
             )
         )
         self.add_output(self.MAP, i18n.tr("Map"))
+
+    def _delete_partial_map(self, map_id: str, feedback: QgsProcessingFeedback) -> None:
+        try:
+            api.styledmap.delete_styled_map(map_id)
+        except Exception:
+            feedback.pushWarning(
+                i18n.tr(
+                    "Could not delete the partially created map: {}. Delete it "
+                    "with 'Delete map'."
+                ).format(map_id)
+            )
 
     def run_api(
         self,
@@ -125,13 +136,19 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
         )
         # Sprites are stored per map, so they can only be uploaded once it exists
         if loaded.sprite is not None:
-            upload_sprites(styled_map.id, loaded.sprite)
-            styled_map = api.styledmap.update_styled_map(
-                styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    assetsHash=loaded.sprite.assets_hash
-                ),
-            )
+            try:
+                upload_sprites(styled_map.id, loaded.sprite)
+                styled_map = api.styledmap.update_styled_map(
+                    styled_map.id,
+                    api.styledmap.UpdateStyledMapOptions(
+                        assetsHash=loaded.sprite.assets_hash
+                    ),
+                )
+            except Exception:
+                # A map without its sprites renders broken symbols; don't leave
+                # one behind when rerunning the tool would create another
+                self._delete_partial_map(styled_map.id, feedback)
+                raise
 
         result = without_qgisproject(to_output(styled_map))
         return {self.MAP: result, **self.report(context, feedback, result)}

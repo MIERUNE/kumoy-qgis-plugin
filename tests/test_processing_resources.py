@@ -1,6 +1,5 @@
 """Kumoy リソースを操作する Processing アルゴリズムのテスト（API 関数をモックする）"""
 
-import zipfile
 from types import SimpleNamespace
 
 import pytest
@@ -466,6 +465,32 @@ class TestMap:
         new_hash = captured["options"].assetsHash
         assert new_hash is not None
         assert uploads == [("m1", new_hash)]
+
+    def test_create_deletes_map_when_sprite_upload_fails(
+        self, api, monkeypatch, tmp_path, uploads
+    ):
+        from plugin_dir.processing.map import create
+        from .project_files import write_kumoy_point_project
+
+        monkeypatch.setattr(
+            api.styledmap, "add_styled_map", lambda *_: SimpleNamespace(id="m1")
+        )
+
+        def fail(*_):
+            raise RuntimeError("upload failed")
+
+        monkeypatch.setattr(create, "upload_sprites", fail)
+        deleted = []
+        monkeypatch.setattr(api.styledmap, "delete_styled_map", deleted.append)
+        path = write_kumoy_point_project(tmp_path)
+
+        with pytest.raises(QgsProcessingException, match="upload failed"):
+            _run(
+                create.CreateMapAlgorithm(),
+                {"NAME": "map", "PROJECT_FILE": str(path)},
+            )
+
+        assert deleted == ["m1"]
 
     @pytest.mark.parametrize("index, expected", [(1, True), (2, False)])
     def test_update_visibility(self, api, monkeypatch, index, expected):
