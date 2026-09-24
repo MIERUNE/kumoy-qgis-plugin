@@ -6,13 +6,15 @@ from typing import Optional
 from qgis.core import (
     Qgis,
     QgsApplication,
+    QgsDataProvider,
     QgsMessageLog,
     QgsProject,
+    QgsProviderRegistry,
     QgsVectorLayer,
 )
 
 from ... import i18n
-from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
+from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY, RASTER_DATA_PROVIDER_KEY
 from ..sprite import pin_fixed_aspect_ratios
 from .size import dir_total_size, files_total_size
 
@@ -170,18 +172,58 @@ def serialize_project() -> str:
 
     prev_name = project.fileName()
     prev_dirty = project.isDirty()
+    is_updating = True
+    try:
+        return _write_to_string(project)
+    finally:
+        is_updating = False
+        project.setFileName(prev_name)
+        project.setDirty(prev_dirty)
+
+
+def read_project_file(path: str) -> QgsProject:
+    """Read a .qgs / .qgz into a standalone project, leaving Kumoy layers unresolved.
+
+    Resolving a Kumoy layer starts its data provider, which syncs the local
+    cache behind a GUI progress dialog; saving the map only needs its symbols.
+    """
+    project = QgsProject()
+    if not project.read(path, Qgis.ProjectReadFlag.DontResolveLayers):
+        raise RuntimeError(
+            i18n.tr("Failed to read the QGIS project file: {}").format(project.error())
+        )
+
+    for layer in project.mapLayers().values():
+        if layer.providerType() in (DATA_PROVIDER_KEY, RASTER_DATA_PROVIDER_KEY):
+            continue
+        # An unresolved layer is written back with its datasource as read, so a
+        # relative path would still point from the original file's directory
+        decoded = QgsProviderRegistry.instance().decodeUri(
+            layer.providerType(), layer.source()
+        )
+        if not decoded.get("path"):
+            continue
+        options = QgsDataProvider.ProviderOptions()
+        options.transformContext = project.transformContext()
+        layer.setDataSource(layer.source(), layer.name(), layer.providerType(), options)
+    return project
+
+
+def serialize_detached_project(project: QgsProject) -> str:
+    """Serialize a project read by read_project_file() as serialize_project() does."""
+    pin_fixed_aspect_ratios(project)
+    return _write_to_string(project)
+
+
+def _write_to_string(project: QgsProject) -> str:
     # Force .qgs (plain XML) — .qgz would be compressed.
     fd, tmp_path = tempfile.mkstemp(suffix=".qgs", dir=get_cache_dir())
     os.close(fd)
-    is_updating = True
     try:
         project.write(tmp_path)
         with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()
     finally:
-        is_updating = False
-        project.setFileName(prev_name)
-        project.setDirty(prev_dirty)
         try:
             os.remove(tmp_path)
         except OSError as e:

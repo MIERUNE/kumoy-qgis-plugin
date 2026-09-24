@@ -11,7 +11,7 @@ from typing import Callable, Optional, Union
 
 from osgeo import gdal
 
-from ... import i18n
+from .... import i18n
 
 
 class CogConversionCanceled(Exception):

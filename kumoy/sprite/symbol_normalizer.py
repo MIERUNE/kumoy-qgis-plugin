@@ -6,11 +6,13 @@ Webでレンダリングする際、常にアスペクト比がわかってい�
 from qgis.core import (
     QgsProject,
     QgsRasterMarkerSymbolLayer,
+    QgsReadWriteContext,
     QgsRenderContext,
     QgsSvgMarkerSymbolLayer,
     QgsSymbol,
     QgsVectorLayer,
 )
+from qgis.PyQt.QtXml import QDomDocument
 
 from ..constants import DATA_PROVIDER_KEY
 
@@ -41,7 +43,8 @@ def pin_fixed_aspect_ratios(project: QgsProject) -> None:
         if not isinstance(layer, QgsVectorLayer):
             continue
 
-        if layer.dataProvider().name() != DATA_PROVIDER_KEY:
+        # providerType() also works for unresolved layers, which have no provider
+        if layer.providerType() != DATA_PROVIDER_KEY:
             continue
 
         renderer = layer.renderer()
@@ -50,3 +53,28 @@ def pin_fixed_aspect_ratios(project: QgsProject) -> None:
 
         for symbol in renderer.symbols(render_context):
             _pin_aspect_ratio_recursive(symbol)
+
+        if not layer.isValid():
+            _write_renderer_to_original_xml(layer, project)
+
+
+def _write_renderer_to_original_xml(layer: QgsVectorLayer, project: QgsProject) -> None:
+    """Carry the pinned renderer over to an unresolved layer's saved XML.
+
+    QGIS writes an invalid layer back from the XML it was read from, so changes
+    made to its renderer in memory would otherwise be dropped on write().
+    """
+    doc = QDomDocument()
+    # The return type of setContent() differs between PyQt5 and PyQt6, so an
+    # unparsable XML is detected by the missing element below instead
+    doc.setContent(layer.originalXmlProperties())
+    old_renderer = doc.documentElement().firstChildElement("renderer-v2")
+    if old_renderer.isNull():
+        return
+
+    context = QgsReadWriteContext()
+    context.setPathResolver(project.pathResolver())
+    doc.documentElement().replaceChild(
+        layer.renderer().save(doc, context), old_renderer
+    )
+    layer.setOriginalXmlProperties(doc.toString())

@@ -9,6 +9,7 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProcessingParameterDefinition,
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterField,
@@ -22,12 +23,13 @@ from qgis.utils import iface
 
 import processing
 
-from ... import i18n
-from ...kumoy import api, constants
-from ...kumoy.api.error import format_api_error
-from ...kumoy.get_token import get_token
-from ...kumoy.settings_manager import get_settings
-from .normalize_field_name import normalize_field_name
+from .... import i18n
+from ....kumoy import api, constants
+from ....kumoy.api.error import format_api_error
+from ....kumoy.get_token import get_token
+from ....kumoy.settings_manager import get_settings
+from ...base import group_name
+from .normalize_field_name import MAX_FIELD_LENGTH, normalize_field_name
 
 
 class _UserCanceled(Exception):
@@ -119,6 +121,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
 
     INPUT_LAYER: str = "INPUT"
     KUMOY_PROJECT: str = "PROJECT"
+    KUMOY_PROJECT_ID: str = "PROJECT_ID"
     VECTOR_NAME: str = "VECTOR_NAME"
     SELECTED_FIELDS: str = "SELECTED_FIELDS"
     OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
@@ -141,11 +144,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         """Algorithm display name"""
         return i18n.tr("Upload Vector Layer to Kumoy")
 
-    def group(self):
-        return None
+    def group(self) -> str:
+        return group_name("vector")
 
-    def groupId(self):
-        return None
+    def groupId(self) -> str:
+        return "vector"
 
     def helpUrl(self) -> str:
         """Help button to go to Kumoy documentation"""
@@ -157,6 +160,21 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             "Upload a vector layer to the Kumoy cloud.\n\n"
             "The Input Vector Layer dropdown shows vector layers in your current map. "
             "If no map is open, it will be empty."
+        ) + i18n.tr(
+            "\n\nLimits:\n"
+            "- If the name is left empty, the layer name is used, truncated to "
+            "{} characters.\n"
+            "- Field names longer than {} characters are truncated.\n"
+            "- Text values longer than {} characters are truncated.\n"
+            "- Fields whose names start with '{}' are skipped.\n"
+            "- The geometry of each feature must be {:,} characters or less "
+            "when encoded as Base64 WKB."
+        ).format(
+            constants.MAX_CHARACTERS_VECTOR_NAME,
+            MAX_FIELD_LENGTH,
+            constants.MAX_CHARACTERS_STRING_FIELD,
+            constants.RESERVED_FIELD_NAME_PREFIX,
+            constants.MAX_WKB_LENGTH,
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
@@ -172,6 +190,18 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
+
+        # Scripts cannot know enum indexes in advance, so accept a stable ID too.
+        # Added before the login check so it is usable even if not logged in yet.
+        project_id_param = QgsProcessingParameterString(
+            self.KUMOY_PROJECT_ID,
+            i18n.tr("Destination project ID (overrides the destination project)"),
+            optional=True,
+        )
+        project_id_param.setFlags(
+            project_id_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced
+        )
+        self.addParameter(project_id_param)
 
         try:
             if get_token() is None:
@@ -198,9 +228,11 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 format_api_error(e)
             )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            iface.messageBar().pushMessage(
-                constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
-            )
+            # iface is None when run from a standalone script
+            if iface is not None:
+                iface.messageBar().pushMessage(
+                    constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
+                )
             return
 
         default_project_index = 0
@@ -241,7 +273,9 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.VECTOR_NAME,
-                i18n.tr("Vector layer name"),
+                i18n.tr("{} (max {} characters)").format(
+                    i18n.tr("Vector layer name"), constants.MAX_CHARACTERS_VECTOR_NAME
+                ),
                 defaultValue="",
                 optional=True,
             )
@@ -259,6 +293,22 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
         self.addParameter(param)
 
+    def _resolve_project_id(
+        self, parameters: Dict[str, Any], context: QgsProcessingContext
+    ) -> str:
+        project_id = self.parameterAsString(
+            parameters, self.KUMOY_PROJECT_ID, context
+        ).strip()
+        if project_id:
+            return project_id
+
+        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
+        if project_index < 0 or project_index >= len(self.project_ids):
+            raise QgsProcessingException(
+                i18n.tr("Invalid destination project selection.")
+            )
+        return self.project_ids[project_index]
+
     def _get_project_info_and_validate(
         self,
         parameters: Dict[str, Any],
@@ -267,17 +317,19 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
     ):
         """Get project information and validate limits"""
         # Get project ID
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(
-                i18n.tr("Invalid destination project selection.")
-            )
-        project_id = self.project_ids[project_index]
+        project_id = self._resolve_project_id(parameters, context)
 
         # Get vector name
         vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
         if not vector_name:
-            vector_name = layer.name()[:32]  # 最大32文字
+            vector_name = layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
+        elif len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
+            raise QgsProcessingException(
+                i18n.tr("'{}' is too long: {} characters entered.").format(
+                    self.parameterDefinition(self.VECTOR_NAME).description(),
+                    len(vector_name),
+                )
+            )
 
         # Get project and plan limits
         project = api.project.get_project(project_id)

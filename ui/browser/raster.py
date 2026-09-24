@@ -22,7 +22,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ... import i18n
-from ...kumoy import api, constants, local_cache
+from ...kumoy import api, constants, local_cache, raster_layer
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...kumoy.settings_manager import get_settings
 from ...pyqt_version import (
@@ -60,11 +60,6 @@ class RasterItem(QgsDataItem):
         )
 
         self.raster = raster
-        self.raster_uri = (
-            f"project_id={self.raster.projectId};"
-            f"raster_id={self.raster.id};"
-            f"raster_name={self.raster.name};"
-        )
         self.role = role
         self.setIcon(BROWSER_RASTER_ICON)
         self.populate()  # 子を持たない葉アイテムにする
@@ -77,7 +72,7 @@ class RasterItem(QgsDataItem):
         u.layerType = "raster"
         u.providerKey = constants.RASTER_DATA_PROVIDER_KEY
         u.name = self.raster.name
-        u.uri = self.raster_uri
+        u.uri = raster_layer.raster_uri(self.raster)
         return [u]
 
     def build_actions(self, parent: QMenu) -> list[QAction]:
@@ -181,18 +176,7 @@ class RasterItem(QgsDataItem):
         self.refresh()
 
     def import_raster(self) -> None:
-        """Kumoy ラスタプロバイダ経由でレイヤーをマップに追加する。
-
-        プロバイダ生成時にキャッシュが無ければダウンロードが走る（進捗ダイアログは
-        プロバイダ側が出す）。中断・失敗時は無効レイヤーになるので追加しない。
-        """
-        layer = QgsRasterLayer(
-            self.raster_uri, self.raster.name, constants.RASTER_DATA_PROVIDER_KEY
-        )
-        if layer.isValid():
-            QgsProject.instance().addMapLayer(layer)
-        else:
-            raise RuntimeError(i18n.tr("Layer is invalid: {}").format(self.raster_uri))
+        QgsProject.instance().addMapLayer(raster_layer.create_raster_layer(self.raster))
 
     def add_to_map(self) -> None:
         """Add raster layer to QGIS map"""

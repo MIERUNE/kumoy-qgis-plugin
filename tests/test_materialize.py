@@ -43,7 +43,7 @@ def _virtualraster_layer(base_tif: str, formula: str) -> QgsRasterLayer:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestMaterializeToGeotiff:
     def _fn(self):
-        from plugin_dir.processing.upload_raster.materialize import (
+        from plugin_dir.processing.raster.upload.materialize import (
             materialize_to_geotiff,
         )
 
@@ -83,7 +83,7 @@ class TestMaterializeToGeotiff:
 
     def test_cancellation_raises(self, tmp_path):
         """中断済みなら例外を送出し、出力ファイルを作らない。"""
-        from plugin_dir.processing.upload_raster.materialize import (
+        from plugin_dir.processing.raster.upload.materialize import (
             RasterMaterializeCanceled,
         )
 

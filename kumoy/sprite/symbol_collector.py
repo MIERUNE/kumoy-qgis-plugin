@@ -92,7 +92,8 @@ def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
             continue
 
         # kumoy only
-        if layer.dataProvider().name() != DATA_PROVIDER_KEY:
+        # providerType() also works for unresolved layers, which have no provider
+        if layer.providerType() != DATA_PROVIDER_KEY:
             continue
 
         renderer = layer.renderer()
