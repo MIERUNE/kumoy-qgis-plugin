@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 # The plugin root is this directory. For relative imports like
-# `from ...kumoy` (in processing/upload_vector/algorithm.py) to work,
+# `from ...kumoy` (in processing/vector/upload/algorithm.py) to work,
 # the plugin root must be importable as a package — not as top-level.
 #
 # Register a virtual 'plugin_dir' package whose __path__ points to the

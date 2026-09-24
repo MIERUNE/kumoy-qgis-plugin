@@ -1,4 +1,4 @@
-"""processing/resources のアルゴリズムのテスト（API 関数をモックする）"""
+"""Kumoy リソースを操作する Processing アルゴリズムのテスト（API 関数をモックする）"""
 
 import zipfile
 from types import SimpleNamespace
@@ -37,7 +37,7 @@ def local_cache(qgis_plugin_path):
 
 
 def _select_project(monkeypatch, project_id):
-    from plugin_dir.processing.resources import base
+    from plugin_dir.processing import base
 
     monkeypatch.setattr(
         base,
@@ -59,7 +59,7 @@ def selected_project(qgis_plugin_path, api, monkeypatch):
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestProject:
     def test_list_organizations_returns_plain_dicts(self, api, monkeypatch):
-        from plugin_dir.processing.resources.project import (
+        from plugin_dir.processing.organization.list_organizations import (
             ListOrganizationsAlgorithm,
         )
 
@@ -93,7 +93,9 @@ class TestProject:
         ]
 
     def test_list_projects_passes_organization_id(self, api, monkeypatch):
-        from plugin_dir.processing.resources.project import ListProjectsAlgorithm
+        from plugin_dir.processing.organization.list_projects import (
+            ListProjectsAlgorithm,
+        )
 
         captured = {}
 
@@ -109,7 +111,9 @@ class TestProject:
         assert result["PROJECTS"] == []
 
     def test_result_is_written_to_html_for_results_viewer(self, api, monkeypatch):
-        from plugin_dir.processing.resources.project import ListProjectsAlgorithm
+        from plugin_dir.processing.organization.list_projects import (
+            ListProjectsAlgorithm,
+        )
 
         monkeypatch.setattr(
             api.project, "get_projects_by_organization", lambda _: [{"name": "<P>"}]
@@ -121,7 +125,7 @@ class TestProject:
             assert "&lt;P&gt;" in f.read()
 
     def test_get_project_targets_selected_project(self, api, monkeypatch):
-        from plugin_dir.processing.resources.project import GetProjectAlgorithm
+        from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
 
         requested = []
         monkeypatch.setattr(
@@ -156,7 +160,7 @@ class TestProject:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestVector:
     def _update_alg(self):
-        from plugin_dir.processing.resources.vector import UpdateVectorAlgorithm
+        from plugin_dir.processing.vector.update import UpdateVectorAlgorithm
 
         return UpdateVectorAlgorithm()
 
@@ -190,7 +194,7 @@ class TestVector:
         assert "255" in alg.parameterDefinition("ATTRIBUTION").description()
 
     def test_delete_clears_local_cache(self, api, local_cache, monkeypatch):
-        from plugin_dir.processing.resources.vector import DeleteVectorAlgorithm
+        from plugin_dir.processing.vector.delete import DeleteVectorAlgorithm
 
         calls = []
         monkeypatch.setattr(
@@ -207,7 +211,7 @@ class TestVector:
 
     def test_add_to_map_loads_layer_on_completion(self, api, monkeypatch):
         from plugin_dir.kumoy import vector_layer
-        from plugin_dir.processing.resources.vector import AddVectorToMapAlgorithm
+        from plugin_dir.processing.vector.add_to_map import AddVectorToMapAlgorithm
 
         monkeypatch.setattr(
             api.vector,
@@ -232,14 +236,14 @@ class TestVector:
         assert details.outputName == "OUTPUT"
 
     def test_add_to_map_runs_on_main_thread(self):
-        from plugin_dir.processing.resources.vector import AddVectorToMapAlgorithm
+        from plugin_dir.processing.vector.add_to_map import AddVectorToMapAlgorithm
 
         assert (
             AddVectorToMapAlgorithm().flags() & Qgis.ProcessingAlgorithmFlag.NoThreading
         )
 
     def test_blank_id_fails(self):
-        from plugin_dir.processing.resources.vector import GetVectorAlgorithm
+        from plugin_dir.processing.vector.get import GetVectorAlgorithm
 
         with pytest.raises(QgsProcessingException, match="required"):
             _run(GetVectorAlgorithm(), {"VECTOR_ID": "  "})
@@ -249,7 +253,7 @@ class TestVector:
 class TestRaster:
     def test_add_to_map_loads_layer_on_completion(self, api, monkeypatch, tmp_path):
         from plugin_dir.kumoy import raster_layer
-        from plugin_dir.processing.resources.raster import AddRasterToMapAlgorithm
+        from plugin_dir.processing.raster.add_to_map import AddRasterToMapAlgorithm
 
         monkeypatch.setattr(
             api.raster,
@@ -274,7 +278,7 @@ class TestRaster:
         assert details.outputName == "OUTPUT"
 
     def test_add_to_map_runs_on_main_thread(self):
-        from plugin_dir.processing.resources.raster import AddRasterToMapAlgorithm
+        from plugin_dir.processing.raster.add_to_map import AddRasterToMapAlgorithm
 
         assert (
             AddRasterToMapAlgorithm().flags() & Qgis.ProcessingAlgorithmFlag.NoThreading
@@ -290,7 +294,7 @@ class TestApiErrors:
         return fake
 
     def test_unauthorized_becomes_processing_exception(self, api, monkeypatch):
-        from plugin_dir.processing.resources.raster import GetRasterAlgorithm
+        from plugin_dir.processing.raster.get import GetRasterAlgorithm
 
         monkeypatch.setattr(
             api.raster,
@@ -302,7 +306,7 @@ class TestApiErrors:
             _run(GetRasterAlgorithm(), {"RASTER_ID": "r1"})
 
     def test_not_found_becomes_processing_exception(self, api, monkeypatch):
-        from plugin_dir.processing.resources.raster import GetRasterAlgorithm
+        from plugin_dir.processing.raster.get import GetRasterAlgorithm
 
         monkeypatch.setattr(
             api.raster,
@@ -327,12 +331,12 @@ class TestMap:
         return captured
 
     def _update_alg(self):
-        from plugin_dir.processing.resources.styled_map import UpdateMapAlgorithm
+        from plugin_dir.processing.map.update import UpdateMapAlgorithm
 
         return UpdateMapAlgorithm()
 
     def test_create_without_file_uploads_empty_project(self, api, monkeypatch):
-        from plugin_dir.processing.resources.styled_map import CreateMapAlgorithm
+        from plugin_dir.processing.map.create import CreateMapAlgorithm
 
         captured = {}
 
@@ -356,7 +360,7 @@ class TestMap:
         assert result["MAP"] == {"id": "m1"}
 
     def test_create_requires_name(self):
-        from plugin_dir.processing.resources.styled_map import CreateMapAlgorithm
+        from plugin_dir.processing.map.create import CreateMapAlgorithm
 
         with pytest.raises(QgsProcessingException, match="required"):
             _run(CreateMapAlgorithm(), {"NAME": ""})
@@ -364,17 +368,18 @@ class TestMap:
     @pytest.fixture
     def uploads(self, monkeypatch, tmp_path):
         from plugin_dir.kumoy.local_cache import map as map_cache
-        from plugin_dir.processing.resources import styled_map
+        from plugin_dir.processing.map import create, update
 
         cache_dir = tmp_path / "maps"
         cache_dir.mkdir()
         monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
         uploads = []
-        monkeypatch.setattr(
-            styled_map,
-            "upload_sprites",
-            lambda map_id, sprite: uploads.append((map_id, sprite.assets_hash)),
-        )
+        for module in (create, update):
+            monkeypatch.setattr(
+                module,
+                "upload_sprites",
+                lambda map_id, sprite: uploads.append((map_id, sprite.assets_hash)),
+            )
         return uploads
 
     def _current_map(self, api, monkeypatch, assets_hash):
@@ -447,7 +452,7 @@ class TestMap:
     def test_create_uploads_sprites_of_project_file(
         self, api, monkeypatch, tmp_path, uploads
     ):
-        from plugin_dir.processing.resources.styled_map import CreateMapAlgorithm
+        from plugin_dir.processing.map.create import CreateMapAlgorithm
         from .project_files import write_kumoy_point_project
 
         monkeypatch.setattr(
@@ -475,7 +480,7 @@ class TestMap:
             _run(self._update_alg(), {"MAP_ID": "m1"})
 
     def test_get_writes_project_file(self, api, monkeypatch, tmp_path):
-        from plugin_dir.processing.resources.styled_map import GetMapAlgorithm
+        from plugin_dir.processing.map.get import GetMapAlgorithm
 
         monkeypatch.setattr(
             api.styledmap,
@@ -510,9 +515,9 @@ class TestUploadProjectId:
     @pytest.fixture(params=["vector", "raster"])
     def alg(self, request, api, monkeypatch):
         if request.param == "vector":
-            from plugin_dir.processing.upload_vector import algorithm
+            from plugin_dir.processing.vector.upload import algorithm
         else:
-            from plugin_dir.processing.upload_raster import algorithm
+            from plugin_dir.processing.raster.upload import algorithm
 
         monkeypatch.setattr(algorithm, "get_token", lambda: "token")
         org = SimpleNamespace(id="o1", name="Org", scheduledDeletionAt=None)
@@ -550,7 +555,7 @@ class TestSelectedProject:
     """Kumoy treats a project as the data boundary, as the Browser panel does."""
 
     def test_no_selected_project_fails(self, monkeypatch):
-        from plugin_dir.processing.resources.project import GetProjectAlgorithm
+        from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
 
         _select_project(monkeypatch, "")
 
@@ -558,7 +563,7 @@ class TestSelectedProject:
             _run(GetProjectAlgorithm(), {})
 
     def test_get_vector_of_other_project_fails(self, api, monkeypatch):
-        from plugin_dir.processing.resources.vector import GetVectorAlgorithm
+        from plugin_dir.processing.vector.get import GetVectorAlgorithm
 
         monkeypatch.setattr(
             api.vector, "get_vector", lambda _: SimpleNamespace(projectId="p2")
@@ -568,9 +573,10 @@ class TestSelectedProject:
             _run(GetVectorAlgorithm(), {"VECTOR_ID": "v1"})
 
     @pytest.mark.parametrize(
-        "module, alg_name, getter, mutator, parameters",
+        "module, api_name, alg_name, getter, mutator, parameters",
         [
             (
+                "vector.update",
                 "vector",
                 "UpdateVectorAlgorithm",
                 "get_vector",
@@ -578,6 +584,7 @@ class TestSelectedProject:
                 {"VECTOR_ID": "v1", "NAME": "n"},
             ),
             (
+                "vector.delete",
                 "vector",
                 "DeleteVectorAlgorithm",
                 "get_vector",
@@ -585,6 +592,7 @@ class TestSelectedProject:
                 {"VECTOR_ID": "v1"},
             ),
             (
+                "raster.update",
                 "raster",
                 "UpdateRasterAlgorithm",
                 "get_raster",
@@ -592,6 +600,7 @@ class TestSelectedProject:
                 {"RASTER_ID": "r1", "NAME": "n"},
             ),
             (
+                "raster.delete",
                 "raster",
                 "DeleteRasterAlgorithm",
                 "get_raster",
@@ -599,14 +608,16 @@ class TestSelectedProject:
                 {"RASTER_ID": "r1"},
             ),
             (
-                "styled_map",
+                "map.update",
+                "styledmap",
                 "UpdateMapAlgorithm",
                 "get_styled_map",
                 "update_styled_map",
                 {"MAP_ID": "m1", "NAME": "n"},
             ),
             (
-                "styled_map",
+                "map.delete",
+                "styledmap",
                 "DeleteMapAlgorithm",
                 "get_styled_map",
                 "delete_styled_map",
@@ -615,14 +626,12 @@ class TestSelectedProject:
         ],
     )
     def test_other_project_is_not_modified(
-        self, api, monkeypatch, module, alg_name, getter, mutator, parameters
+        self, api, monkeypatch, module, api_name, alg_name, getter, mutator, parameters
     ):
         import importlib
 
-        alg_module = importlib.import_module(
-            f"plugin_dir.processing.resources.{module}"
-        )
-        api_module = getattr(api, "styledmap" if module == "styled_map" else module)
+        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
+        api_module = getattr(api, api_name)
         monkeypatch.setattr(
             api_module, getter, lambda _: SimpleNamespace(projectId="p2")
         )
@@ -635,7 +644,7 @@ class TestSelectedProject:
         assert called == []
 
     def test_create_map_goes_to_selected_project(self, api, monkeypatch):
-        from plugin_dir.processing.resources.styled_map import CreateMapAlgorithm
+        from plugin_dir.processing.map.create import CreateMapAlgorithm
 
         _select_project(monkeypatch, "p9")
         captured = {}

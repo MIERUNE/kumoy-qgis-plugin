@@ -1,34 +1,24 @@
-import os
-
 from qgis.core import Qgis, QgsProcessingProvider
 
 from ..kumoy.constants import PLUGIN_NAME
 from ..ui.icons import MAIN_ICON
-from .resources.project import (
-    GetProjectAlgorithm,
-    ListOrganizationsAlgorithm,
-    ListProjectsAlgorithm,
-)
-from .resources.raster import (
-    AddRasterToMapAlgorithm,
-    DeleteRasterAlgorithm,
-    GetRasterAlgorithm,
-    UpdateRasterAlgorithm,
-)
-from .resources.styled_map import (
-    CreateMapAlgorithm,
-    DeleteMapAlgorithm,
-    GetMapAlgorithm,
-    UpdateMapAlgorithm,
-)
-from .resources.vector import (
-    AddVectorToMapAlgorithm,
-    DeleteVectorAlgorithm,
-    GetVectorAlgorithm,
-    UpdateVectorAlgorithm,
-)
-from .upload_raster.algorithm import UploadRasterAlgorithm
-from .upload_vector.algorithm import UploadVectorAlgorithm
+from .map.create import CreateMapAlgorithm
+from .map.delete import DeleteMapAlgorithm
+from .map.get import GetMapAlgorithm
+from .map.update import UpdateMapAlgorithm
+from .organization.get_project import GetProjectAlgorithm
+from .organization.list_organizations import ListOrganizationsAlgorithm
+from .organization.list_projects import ListProjectsAlgorithm
+from .raster.add_to_map import AddRasterToMapAlgorithm
+from .raster.delete import DeleteRasterAlgorithm
+from .raster.get import GetRasterAlgorithm
+from .raster.update import UpdateRasterAlgorithm
+from .raster.upload.algorithm import UploadRasterAlgorithm
+from .vector.add_to_map import AddVectorToMapAlgorithm
+from .vector.delete import DeleteVectorAlgorithm
+from .vector.get import GetVectorAlgorithm
+from .vector.update import UpdateVectorAlgorithm
+from .vector.upload.algorithm import UploadVectorAlgorithm
 
 
 class KumoyProcessingProvider(QgsProcessingProvider):

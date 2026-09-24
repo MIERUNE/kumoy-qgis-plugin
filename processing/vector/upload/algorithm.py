@@ -23,12 +23,12 @@ from qgis.utils import iface
 
 import processing
 
-from ... import i18n
-from ...kumoy import api, constants
-from ...kumoy.api.error import format_api_error
-from ...kumoy.get_token import get_token
-from ...kumoy.settings_manager import get_settings
-from ..resources.base import group_name
+from .... import i18n
+from ....kumoy import api, constants
+from ....kumoy.api.error import format_api_error
+from ....kumoy.get_token import get_token
+from ....kumoy.settings_manager import get_settings
+from ...base import group_name
 from .normalize_field_name import MAX_FIELD_LENGTH, normalize_field_name
 
 

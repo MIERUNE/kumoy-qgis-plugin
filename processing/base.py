@@ -15,10 +15,10 @@ from qgis.core import (
     QgsProcessingUtils,
 )
 
-from ... import i18n
-from ...kumoy import api, constants
-from ...kumoy.api.error import format_api_error
-from ...kumoy.settings_manager import get_settings
+from .. import i18n
+from ..kumoy import api, constants
+from ..kumoy.api.error import format_api_error
+from ..kumoy.settings_manager import get_settings
 
 
 def to_output(obj: Any) -> Any:

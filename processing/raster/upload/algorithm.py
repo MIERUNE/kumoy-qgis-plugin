@@ -19,16 +19,16 @@ from qgis.core import (
 )
 from qgis.utils import iface
 
-from ... import i18n
-from ...kumoy import api, constants, local_cache
-from ...kumoy.api.error import format_api_error
-from ...kumoy.get_token import get_token
-from ...kumoy.settings_manager import get_settings
-from ...kumoy.upload.presigned import (
+from .... import i18n
+from ....kumoy import api, constants, local_cache
+from ....kumoy.api.error import format_api_error
+from ....kumoy.get_token import get_token
+from ....kumoy.settings_manager import get_settings
+from ....kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
 )
-from ..resources.base import group_name
+from ...base import group_name
 from .cog import (
     SOURCE_UNREADABLE,
     CogConversionCanceled,
