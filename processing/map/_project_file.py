@@ -40,9 +40,7 @@ def project_file_help() -> str:
     return (
         i18n.tr(
             "The map extent saved in the project file becomes the default "
-            "extent of the map. For a project built by a script, which has no "
-            "map canvas, set it with project.viewSettings().setDefaultViewExtent(); "
-            "without it, the full extent of the layers is used.\n\n"
+            "extent of the map.\n\n"
         )
         + i18n.tr(
             "Local layers in the project file are not converted to Kumoy layers. "

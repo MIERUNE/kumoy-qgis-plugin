@@ -6,16 +6,12 @@ from typing import Optional
 from qgis.core import (
     Qgis,
     QgsApplication,
-    QgsCoordinateTransform,
     QgsDataProvider,
-    QgsMapSettings,
     QgsMessageLog,
     QgsProject,
     QgsProviderRegistry,
-    QgsRectangle,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtXml import QDomDocument
 
 from ... import i18n
 from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY, RASTER_DATA_PROVIDER_KEY
@@ -26,9 +22,6 @@ from .size import dir_total_size, files_total_size
 # When serialize_project() writes the QGIS project to disk, this guards against
 # re-entrancy via the QgsProject.projectSaved signal.
 is_updating = False
-
-# Kumoy takes the initial view of a map from this <mapcanvas> element
-MAP_CANVAS_NAME = "theMapCanvas"
 
 # Maximum size (in characters) of a serialized project the server accepts.
 LENGTH_LIMIT = 3000000  # 3 million characters
@@ -195,7 +188,6 @@ def read_project_file(path: str) -> QgsProject:
     cache behind a GUI progress dialog; saving the map only needs its symbols.
     """
     project = QgsProject()
-    _stand_in_for_map_canvas(project)
     if not project.read(path, Qgis.ProjectReadFlag.DontResolveLayers):
         raise RuntimeError(
             i18n.tr("Failed to read the QGIS project file: {}").format(project.error())
@@ -215,47 +207,6 @@ def read_project_file(path: str) -> QgsProject:
         options.transformContext = project.transformContext()
         layer.setDataSource(layer.source(), layer.name(), layer.providerType(), options)
     return project
-
-
-def _stand_in_for_map_canvas(project: QgsProject) -> None:
-    """Keep <mapcanvas> in a project written without the GUI.
-
-    Only QgsMapCanvas reads and writes that element, so a standalone project
-    drops it and the map would open at 0,0. A project built by a script has
-    none to begin with; its default view extent stands in for the canvas.
-    """
-    settings = QgsMapSettings()
-
-    def read(doc: QDomDocument) -> None:
-        nodes = doc.elementsByTagName("mapcanvas")
-        for i in range(nodes.count()):
-            if nodes.item(i).toElement().attribute("name") == MAP_CANVAS_NAME:
-                settings.readXml(nodes.item(i))
-                return
-
-    def write(doc: QDomDocument) -> None:
-        if settings.extent().isEmpty():
-            settings.setDestinationCrs(project.crs())
-            settings.setExtent(_initial_extent(project))
-        node = doc.createElement("mapcanvas")
-        node.setAttribute("name", MAP_CANVAS_NAME)
-        settings.writeXml(node, doc)
-        doc.documentElement().appendChild(node)
-
-    project.readProject.connect(read)
-    project.writeProject.connect(write)
-
-
-def _initial_extent(project: QgsProject) -> QgsRectangle:
-    """Return the extent to open the project at, in the project CRS."""
-    view = project.viewSettings().defaultViewExtent()
-    if view.isEmpty():
-        view = project.viewSettings().fullExtent()
-    if view.crs() == project.crs() or not view.crs().isValid():
-        return QgsRectangle(view)
-    return QgsCoordinateTransform(
-        view.crs(), project.crs(), project
-    ).transformBoundingBox(view)
 
 
 def serialize_detached_project(project: QgsProject) -> str:
