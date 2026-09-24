@@ -4,6 +4,29 @@ from qgis.core import Qgis, QgsProcessingProvider
 
 from ..kumoy.constants import PLUGIN_NAME
 from ..ui.icons import MAIN_ICON
+from .resources.project import (
+    GetProjectAlgorithm,
+    ListOrganizationsAlgorithm,
+    ListProjectsAlgorithm,
+)
+from .resources.raster import (
+    AddRasterToMapAlgorithm,
+    DeleteRasterAlgorithm,
+    GetRasterAlgorithm,
+    UpdateRasterAlgorithm,
+)
+from .resources.styled_map import (
+    CreateMapAlgorithm,
+    DeleteMapAlgorithm,
+    GetMapAlgorithm,
+    UpdateMapAlgorithm,
+)
+from .resources.vector import (
+    AddVectorToMapAlgorithm,
+    DeleteVectorAlgorithm,
+    GetVectorAlgorithm,
+    UpdateVectorAlgorithm,
+)
 from .upload_raster.algorithm import UploadRasterAlgorithm
 from .upload_vector.algorithm import UploadVectorAlgorithm
 
@@ -38,6 +61,21 @@ class KumoyProcessingProvider(QgsProcessingProvider):
         """Load algorithms"""
         self.addAlgorithm(UploadVectorAlgorithm())
         self.addAlgorithm(UploadRasterAlgorithm())
+        self.addAlgorithm(ListOrganizationsAlgorithm())
+        self.addAlgorithm(ListProjectsAlgorithm())
+        self.addAlgorithm(GetProjectAlgorithm())
+        self.addAlgorithm(GetVectorAlgorithm())
+        self.addAlgorithm(AddVectorToMapAlgorithm())
+        self.addAlgorithm(UpdateVectorAlgorithm())
+        self.addAlgorithm(DeleteVectorAlgorithm())
+        self.addAlgorithm(GetRasterAlgorithm())
+        self.addAlgorithm(AddRasterToMapAlgorithm())
+        self.addAlgorithm(UpdateRasterAlgorithm())
+        self.addAlgorithm(DeleteRasterAlgorithm())
+        self.addAlgorithm(CreateMapAlgorithm())
+        self.addAlgorithm(GetMapAlgorithm())
+        self.addAlgorithm(UpdateMapAlgorithm())
+        self.addAlgorithm(DeleteMapAlgorithm())
 
     def longName(self):
         """Longer version of the provider name"""

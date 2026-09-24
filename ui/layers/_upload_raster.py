@@ -18,7 +18,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QEventLoop
 
 from ... import i18n
-from ...kumoy import api, constants
+from ...kumoy import api, raster_layer
 from ...pyqt_version import exec_event_loop
 from .upload_progress import UploadProgressDialog
 
@@ -159,20 +159,4 @@ def _run_upload(
 
 
 def _build_kumoy_layer(raster_id: str) -> QgsRasterLayer:
-    raster = api.raster.get_raster(raster_id)
-    raster_uri = (
-        f"project_id={raster.projectId};"
-        f"raster_id={raster.id};"
-        f"raster_name={raster.name};"
-    )
-
-    kumoy_layer = QgsRasterLayer(
-        raster_uri, raster.name, constants.RASTER_DATA_PROVIDER_KEY
-    )
-    if not kumoy_layer.isValid():
-        error_msg = (
-            kumoy_layer.error().message() if kumoy_layer.error() else "Unknown error"
-        )
-        raise Exception(i18n.tr("Failed to create Kumoy layer: {}").format(error_msg))
-
-    return kumoy_layer
+    return raster_layer.create_raster_layer(api.raster.get_raster(raster_id))

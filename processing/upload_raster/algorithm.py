@@ -11,6 +11,7 @@ from qgis.core import (
     QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingParameterCrs,
+    QgsProcessingParameterDefinition,
     QgsProcessingParameterEnum,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterString,
@@ -27,6 +28,7 @@ from ...kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
 )
+from ..resources.base import group_name
 from .cog import (
     SOURCE_UNREADABLE,
     CogConversionCanceled,
@@ -96,6 +98,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
 
     INPUT_LAYER: str = "INPUT"
     KUMOY_PROJECT: str = "PROJECT"
+    KUMOY_PROJECT_ID: str = "PROJECT_ID"
     RASTER_NAME: str = "RASTER_NAME"
     ASSIGN_CRS: str = "ASSIGN_CRS"
 
@@ -114,11 +117,11 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
     def displayName(self) -> str:
         return i18n.tr("Upload Raster Layer to Kumoy")
 
-    def group(self):
-        return None
+    def group(self) -> str:
+        return group_name("raster")
 
-    def groupId(self):
-        return None
+    def groupId(self) -> str:
+        return "raster"
 
     def helpUrl(self) -> str:
         return constants.DOCUMENTATION_URL
@@ -140,6 +143,13 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             "assigned.\n\n"
             "The input dropdown lists raster layers in your current project. "
             "If no project is open, it will be empty."
+        ) + i18n.tr(
+            "\n\nThe raster is converted to a Cloud Optimized GeoTIFF before "
+            "upload, and the converted file must be {:,} bytes or less. If the "
+            "name is left empty, the layer name is used, truncated to {} "
+            "characters."
+        ).format(
+            constants.MAX_RASTER_UPLOAD_BYTES, constants.MAX_CHARACTERS_RASTER_NAME
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
@@ -152,6 +162,18 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 i18n.tr("Input raster layer"),
             )
         )
+
+        # Scripts cannot know enum indexes in advance, so accept a stable ID too.
+        # Added before the login check so it is usable even if not logged in yet.
+        project_id_param = QgsProcessingParameterString(
+            self.KUMOY_PROJECT_ID,
+            i18n.tr("Destination project ID (overrides the destination project)"),
+            optional=True,
+        )
+        project_id_param.setFlags(
+            project_id_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced
+        )
+        self.addParameter(project_id_param)
 
         try:
             if get_token() is None:
@@ -174,9 +196,11 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
                 format_api_error(e)
             )
             QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            iface.messageBar().pushMessage(
-                constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
-            )
+            # iface is None when run from a standalone script
+            if iface is not None:
+                iface.messageBar().pushMessage(
+                    constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
+                )
             return
 
         default_project_index = 0
@@ -201,7 +225,9 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.RASTER_NAME,
-                i18n.tr("Raster layer name"),
+                i18n.tr("{} (max {} characters)").format(
+                    i18n.tr("Raster layer name"), constants.MAX_CHARACTERS_RASTER_NAME
+                ),
                 defaultValue="",
                 optional=True,
             )
@@ -217,22 +243,40 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+    def _resolve_project_id(
+        self, parameters: Dict[str, Any], context: QgsProcessingContext
+    ) -> str:
+        project_id = self.parameterAsString(
+            parameters, self.KUMOY_PROJECT_ID, context
+        ).strip()
+        if project_id:
+            return project_id
+
+        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
+        if project_index < 0 or project_index >= len(self.project_ids):
+            raise QgsProcessingException(
+                i18n.tr("Invalid destination project selection.")
+            )
+        return self.project_ids[project_index]
+
     def _resolve_project_and_name(
         self,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         layer: QgsRasterLayer,
     ):
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(
-                i18n.tr("Invalid destination project selection.")
-            )
-        project_id = self.project_ids[project_index]
+        project_id = self._resolve_project_id(parameters, context)
 
         raster_name = self.parameterAsString(parameters, self.RASTER_NAME, context)
         if not raster_name:
-            raster_name = layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
+            raster_name = layer.name()[: constants.MAX_CHARACTERS_RASTER_NAME]
+        elif len(raster_name) > constants.MAX_CHARACTERS_RASTER_NAME:
+            raise QgsProcessingException(
+                i18n.tr("'{}' is too long: {} characters entered.").format(
+                    self.parameterDefinition(self.RASTER_NAME).description(),
+                    len(raster_name),
+                )
+            )
 
         return project_id, raster_name
 

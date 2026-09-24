@@ -54,3 +54,75 @@ class TestCacheSize:
         assert cache.mod.clear_all() is True
         assert list(cache.cache_dir.iterdir()) == []
         assert cache.mod.get_total_cache_size() == 0
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestReadProjectFile:
+    @pytest.fixture
+    def map_cache(self, tmp_path, monkeypatch):
+        from plugin_dir.kumoy.local_cache import map as map_cache
+
+        cache_dir = tmp_path / "maps"
+        cache_dir.mkdir()
+        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
+        return map_cache
+
+    def test_kumoy_layers_are_left_unresolved(self, map_cache, tmp_path):
+        from .project_files import write_kumoy_point_project
+
+        project = map_cache.read_project_file(str(write_kumoy_point_project(tmp_path)))
+
+        (layer,) = project.mapLayers().values()
+        assert layer.providerType() == "kumoy"
+        assert not layer.isValid()
+        assert layer.renderer() is not None
+
+    def test_pinned_aspect_ratio_is_written_for_unresolved_layers(
+        self, map_cache, tmp_path
+    ):
+        from .project_files import fixed_aspect_ratios, write_kumoy_point_project
+
+        path = write_kumoy_point_project(tmp_path)
+        assert fixed_aspect_ratios(path.read_text(encoding="utf-8")) == ["0"]
+
+        qgisproject = map_cache.serialize_detached_project(
+            map_cache.read_project_file(str(path))
+        )
+
+        assert fixed_aspect_ratios(qgisproject) == ["0.5"]
+        assert "vector_id=v1" in qgisproject
+
+    def test_local_paths_become_relative_to_cache_dir(self, map_cache, tmp_path):
+        from qgis.core import (
+            QgsCoordinateTransformContext,
+            QgsProject,
+            QgsVectorFileWriter,
+            QgsVectorLayer,
+        )
+
+        data_dir = tmp_path / "src" / "data"
+        data_dir.mkdir(parents=True)
+        gpkg = str(data_dir / "points.gpkg")
+        QgsVectorFileWriter.writeAsVectorFormatV3(
+            QgsVectorLayer("Point?crs=EPSG:4326", "points", "memory"),
+            gpkg,
+            QgsCoordinateTransformContext(),
+            QgsVectorFileWriter.SaveVectorOptions(),
+        )
+        project = QgsProject()
+        project.addMapLayer(QgsVectorLayer(gpkg, "points", "ogr"))
+        project_path = str(tmp_path / "src" / "project.qgz")
+        project.write(project_path)
+
+        qgisproject = map_cache.serialize_detached_project(
+            map_cache.read_project_file(project_path)
+        )
+
+        assert "<datasource>../src/data/points.gpkg</datasource>" in qgisproject
+
+    def test_unreadable_file_fails(self, map_cache, tmp_path):
+        path = tmp_path / "broken.qgs"
+        path.write_text("not a project", encoding="utf-8")
+
+        with pytest.raises(RuntimeError):
+            map_cache.read_project_file(str(path))
