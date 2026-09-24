@@ -285,6 +285,31 @@ class TestRaster:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestMainThread:
+    @pytest.mark.parametrize(
+        "module, alg_name, expected",
+        [
+            ("vector.add_to_map", "AddVectorToMapAlgorithm", True),
+            ("raster.add_to_map", "AddRasterToMapAlgorithm", True),
+            ("map.create", "CreateMapAlgorithm", True),
+            ("map.update", "UpdateMapAlgorithm", True),
+            ("map.get", "GetMapAlgorithm", False),
+            ("vector.update", "UpdateVectorAlgorithm", False),
+        ],
+    )
+    def test_flag_and_help_match(self, module, alg_name, expected):
+        import importlib
+
+        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
+        alg = getattr(alg_module, alg_name)()
+
+        no_threading = bool(alg.flags() & Qgis.ProcessingAlgorithmFlag.NoThreading)
+        assert no_threading is expected
+        # Script authors calling processing.run() are not covered by the flag
+        assert ("main thread" in alg.shortHelpString()) is expected
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestApiErrors:
     def _raise(self, error):
         def fake(*_):

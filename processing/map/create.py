@@ -45,6 +45,9 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
     IS_PUBLIC = "IS_PUBLIC"
     PROJECT_FILE = "PROJECT_FILE"
     MAP = "MAP"
+    # Reading and writing a QgsProject and rendering sprites are not safe off
+    # the main thread
+    REQUIRES_MAIN_THREAD = True
 
     def name(self) -> str:
         return "createmap"
@@ -59,6 +62,7 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
                 "(.qgs / .qgz). Without a file, an empty map is created.\n\n"
             )
             + project_file_help()
+            + self.main_thread_help()
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:

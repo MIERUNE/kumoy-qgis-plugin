@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, Optional
 
 from qgis.core import (
+    Qgis,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingException,
@@ -49,7 +50,8 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
 
     Resources are addressed by ID instead of enum indexes, and nothing talks to
     the network, QMessageBox or iface outside processAlgorithm(). This keeps
-    them usable from processing.run() in scripts, any thread, or without GUI.
+    them usable from processing.run() in scripts or without GUI. Algorithms
+    with REQUIRES_MAIN_THREAD must still be called from the main thread.
 
     Kumoy treats a project as the data boundary: like the Browser panel, only
     vectors, rasters and maps of the selected project are accessible.
@@ -57,6 +59,9 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
 
     GROUP_ID: str = ""
     HTML: str = "HTML"
+    # Set when processAlgorithm() does work that crashes QGIS off the main
+    # thread, such as showing dialogs or building a QgsProject
+    REQUIRES_MAIN_THREAD: bool = False
 
     def __init__(self) -> None:
         super().__init__()
@@ -73,6 +78,27 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
 
     def helpUrl(self) -> str:
         return constants.DOCUMENTATION_URL
+
+    def flags(self) -> Qgis.ProcessingAlgorithmFlags:
+        flags = super().flags()
+        if self.REQUIRES_MAIN_THREAD:
+            # The toolbox would otherwise run it in a background thread
+            flags |= Qgis.ProcessingAlgorithmFlag.NoThreading
+        return flags
+
+    def main_thread_help(self) -> str:
+        # NoThreading only covers the toolbox; processing.run() runs the
+        # algorithm in the caller's thread, so script authors must know
+        if not self.REQUIRES_MAIN_THREAD:
+            return ""
+        return i18n.tr(
+            "\n\nThis tool must run on the main thread, so QGIS does not respond "
+            "until it finishes. When calling it with processing.run() from your "
+            "own Processing script or a QgsTask, run the caller on the main "
+            "thread as well (for a Processing script, add "
+            "Qgis.ProcessingAlgorithmFlag.NoThreading to its flags()). "
+            "Otherwise QGIS may crash."
+        )
 
     def selected_project_id(self) -> str:
         project_id = get_settings().selected_project_id

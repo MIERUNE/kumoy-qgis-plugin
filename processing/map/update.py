@@ -29,6 +29,9 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
     IS_PUBLIC = "IS_PUBLIC"
     PROJECT_FILE = "PROJECT_FILE"
     MAP = "MAP"
+    # Reading and writing a QgsProject and rendering sprites are not safe off
+    # the main thread
+    REQUIRES_MAIN_THREAD = True
 
     # Index of IS_PUBLIC options
     KEEP, PUBLIC, PRIVATE = 0, 1, 2
@@ -48,6 +51,7 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
                 "Leave a field empty to keep its current value.\n\n"
             )
             + project_file_help()
+            + self.main_thread_help()
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:

@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional
 
 from qgis.core import (
-    Qgis,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsProcessingOutputVectorLayer,
@@ -16,6 +15,8 @@ class AddVectorToMapAlgorithm(KumoyApiAlgorithm):
     GROUP_ID = "vector"
     VECTOR_ID = "VECTOR_ID"
     OUTPUT = "OUTPUT"
+    # The data provider shows a progress dialog while syncing its local cache
+    REQUIRES_MAIN_THREAD = True
 
     def name(self) -> str:
         return "addvectortomap"
@@ -24,16 +25,14 @@ class AddVectorToMapAlgorithm(KumoyApiAlgorithm):
         return i18n.tr("Add vector to map")
 
     def shortHelpString(self) -> str:
-        return i18n.tr(
-            "Add a Kumoy vector in the selected project to the map as a layer.\n\n"
-            "From a script, use processing.runAndLoadResults() instead of "
-            "processing.run() to add the layer to the project."
+        return (
+            i18n.tr(
+                "Add a Kumoy vector in the selected project to the map as a layer.\n\n"
+                "From a script, use processing.runAndLoadResults() instead of "
+                "processing.run() to add the layer to the project."
+            )
+            + self.main_thread_help()
         )
-
-    def flags(self) -> Qgis.ProcessingAlgorithmFlags:
-        # The data provider may show a progress dialog while syncing its local
-        # cache, which only works on the main thread
-        return super().flags() | Qgis.ProcessingAlgorithmFlag.NoThreading
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
         self.add_id_parameter(self.VECTOR_ID, i18n.tr("Vector ID"))
