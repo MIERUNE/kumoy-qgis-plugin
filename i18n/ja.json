@@ -369,7 +369,7 @@
   "The input layer has no coordinate reference system. Please set one in the 'Assign CRS' field before uploading.": "入力レイヤーに座標参照系(CRS)が設定されていません。アップロード前に「CRSを割り当て」で指定してください。",
   "The input raster layer has no readable data source.": "入力ラスターレイヤーに読み取り可能なデータソースがありません。",
   "The layer is no longer valid or has been removed.": "レイヤが無効であるか、削除されています。",
-  "The map extent saved in the project file becomes the default extent of the map.\n\n": "プロジェクトファイルに保存された地図領域が、そのままマップのデフォルトの地図範囲になります。\n\n",
+  "The map extent saved in the project file becomes the default extent of the map. For a project built by a script, which has no map canvas, set it with project.viewSettings().setDefaultViewExtent(); without it, the full extent of the layers is used.\n\n": "プロジェクトファイルに保存された地図領域が、そのままマップのデフォルトの地図範囲になります。スクリプトで作成したプロジェクトにはマップキャンバスが無いため、project.viewSettings().setDefaultViewExtent() で設定してください。設定しない場合はレイヤー全体の範囲を使用します。\n\n",
   "The selected layer is no longer valid or has been removed.": "選択したレイヤが無効であるか、削除されています。",
   "This item does not belong to the selected Kumoy project. Switch to its project from the Kumoy item in the Browser panel.": "この項目は選択中のKumoyプロジェクトに属していません。ブラウザパネルのKumoyから該当するプロジェクトに切り替えてください。",
   "This map belongs to a different Kumoy project. Please switch to the correct project.": "このマップは別の Kumoy プロジェクトに属しています。正しいプロジェクトに切り替えてください。",

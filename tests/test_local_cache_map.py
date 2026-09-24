@@ -120,6 +120,72 @@ class TestReadProjectFile:
 
         assert "<datasource>../src/data/points.gpkg</datasource>" in qgisproject
 
+    @staticmethod
+    def _canvas_extent(qgisproject):
+        import xml.etree.ElementTree as ET
+
+        (canvas,) = [
+            e
+            for e in ET.fromstring(qgisproject).iter("mapcanvas")
+            if e.get("name") == "theMapCanvas"
+        ]
+        extent = canvas.find("extent")
+        return [float(extent.find(k).text) for k in ("xmin", "ymin", "xmax", "ymax")]
+
+    def test_map_canvas_extent_is_kept(self, map_cache, tmp_path):
+        from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+
+        path = tmp_path / "project.qgs"
+        project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        project.write(str(path))
+        # As saved from QGIS, whose map canvas writes this element
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "</qgis>",
+                '<mapcanvas name="theMapCanvas"><units>degrees</units><extent>'
+                "<xmin>139</xmin><ymin>35</ymin><xmax>140</xmax><ymax>36</ymax>"
+                "</extent><rotation>0</rotation></mapcanvas></qgis>",
+            ),
+            encoding="utf-8",
+        )
+
+        qgisproject = map_cache.serialize_detached_project(
+            map_cache.read_project_file(str(path))
+        )
+
+        assert self._canvas_extent(qgisproject) == [139, 35, 140, 36]
+
+    def test_default_view_extent_becomes_map_canvas_extent(self, map_cache, tmp_path):
+        from qgis.core import (
+            QgsCoordinateReferenceSystem,
+            QgsProject,
+            QgsRectangle,
+            QgsReferencedRectangle,
+        )
+
+        # A project built by a script has no map canvas to write <mapcanvas>
+        project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        project.viewSettings().setDefaultViewExtent(
+            QgsReferencedRectangle(
+                QgsRectangle(15473000, 4163000, 15585000, 4300000),
+                QgsCoordinateReferenceSystem("EPSG:3857"),
+            )
+        )
+        path = str(tmp_path / "project.qgs")
+        project.write(path)
+
+        qgisproject = map_cache.serialize_detached_project(
+            map_cache.read_project_file(path)
+        )
+
+        xmin, ymin, xmax, ymax = self._canvas_extent(qgisproject)
+        assert xmin == pytest.approx(139.0, abs=0.01)
+        assert ymin == pytest.approx(34.9, abs=0.1)
+        assert xmax == pytest.approx(140.0, abs=0.01)
+        assert ymax == pytest.approx(35.9, abs=0.1)
+
     def test_unreadable_file_fails(self, map_cache, tmp_path):
         path = tmp_path / "broken.qgs"
         path.write_text("not a project", encoding="utf-8")
