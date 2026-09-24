@@ -285,6 +285,102 @@ class TestRaster:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestProjectFileMapCanvas:
+    """Kumoy opens a map at the extent of <mapcanvas name="theMapCanvas">."""
+
+    @pytest.fixture(autouse=True)
+    def cache_dir(self, monkeypatch, tmp_path):
+        from plugin_dir.kumoy.local_cache import map as map_cache
+
+        cache_dir = tmp_path / "maps"
+        cache_dir.mkdir()
+        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
+
+    @staticmethod
+    def _canvas_extents(qgisproject):
+        import xml.etree.ElementTree as ET
+
+        return [
+            [
+                float(e.find("extent").find(k).text)
+                for k in ("xmin", "ymin", "xmax", "ymax")
+            ]
+            for e in ET.fromstring(qgisproject).iter("mapcanvas")
+            if e.get("name") == "theMapCanvas"
+        ]
+
+    @staticmethod
+    def _project(tmp_path, configure=lambda project: None):
+        from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+
+        project = QgsProject()
+        project.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+        configure(project)
+        path = tmp_path / "project.qgs"
+        project.write(str(path))
+        return path
+
+    def _load(self, path):
+        from plugin_dir.processing.map._project_file import load_project_file
+
+        return load_project_file(str(path)).qgisproject
+
+    def test_map_canvas_of_file_is_kept(self, tmp_path):
+        path = self._project(tmp_path)
+        # As QGIS writes it when saving from the GUI
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "</qgis>",
+                '<mapcanvas name="theMapCanvas"><units>degrees</units><extent>'
+                "<xmin>139</xmin><ymin>35</ymin><xmax>140</xmax><ymax>36</ymax>"
+                "</extent><rotation>0</rotation></mapcanvas></qgis>",
+            ),
+            encoding="utf-8",
+        )
+
+        assert self._canvas_extents(self._load(path)) == [[139, 35, 140, 36]]
+
+    def test_default_view_extent_is_used_in_project_crs(self, tmp_path):
+        from qgis.core import (
+            QgsCoordinateReferenceSystem,
+            QgsRectangle,
+            QgsReferencedRectangle,
+        )
+
+        path = self._project(
+            tmp_path,
+            lambda project: project.viewSettings().setDefaultViewExtent(
+                QgsReferencedRectangle(
+                    QgsRectangle(15473000, 4163000, 15585000, 4300000),
+                    QgsCoordinateReferenceSystem("EPSG:3857"),
+                )
+            ),
+        )
+
+        ((xmin, ymin, xmax, ymax),) = self._canvas_extents(self._load(path))
+        assert (xmin, xmax) == (
+            pytest.approx(139.0, abs=0.01),
+            pytest.approx(140.0, abs=0.01),
+        )
+        assert (ymin, ymax) == (
+            pytest.approx(35.0, abs=0.1),
+            pytest.approx(36.0, abs=0.1),
+        )
+
+    def test_project_without_extent_has_no_map_canvas(self, tmp_path):
+        assert self._canvas_extents(self._load(self._project(tmp_path))) == []
+
+    def test_open_project_is_not_affected(self, tmp_path):
+        from qgis.core import QgsProject
+
+        self._load(self._project(tmp_path))
+
+        out = tmp_path / "open.qgs"
+        QgsProject.instance().write(str(out))
+        assert 'name="theMapCanvas"' not in out.read_text(encoding="utf-8")
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestMainThread:
     @pytest.mark.parametrize(
         "module, alg_name, expected",
