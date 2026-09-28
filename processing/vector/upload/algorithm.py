@@ -28,7 +28,7 @@ from ....kumoy import api, constants
 from ....kumoy.api.error import format_api_error
 from ....kumoy.get_token import get_token
 from ....kumoy.settings_manager import get_settings
-from ...base import group_name
+from ...base import group_name, raise_if_not_logged_in
 from .normalize_field_name import MAX_FIELD_LENGTH, normalize_field_name
 
 
@@ -368,6 +368,7 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         """Process the algorithm"""
+        raise_if_not_logged_in()
         vector = None
 
         try:

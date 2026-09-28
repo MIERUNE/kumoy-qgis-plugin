@@ -19,6 +19,7 @@ from qgis.core import (
 from .. import i18n
 from ..kumoy import api, constants
 from ..kumoy.api.error import format_api_error
+from ..kumoy.get_token import get_token
 from ..kumoy.settings_manager import get_settings
 
 
@@ -33,6 +34,23 @@ def to_output(obj: Any) -> Any:
     if isinstance(obj, list):
         return [to_output(item) for item in obj]
     return obj
+
+
+def raise_if_not_logged_in() -> None:
+    # Checked first: logging out also clears the selected project and the
+    # upload destinations, which would otherwise surface as misleading errors
+    if get_token() is None:
+        raise QgsProcessingException(
+            i18n.tr(
+                "You are not logged in to Kumoy ({}). Log in from the Kumoy item "
+                "in the Browser panel."
+            ).format(server_url())
+        )
+
+
+def server_url() -> str:
+    # Shown in login errors so users on a custom server see which one is meant
+    return api.config.get_api_config().SERVER_URL
 
 
 def group_name(group_id: str) -> str:
@@ -207,6 +225,7 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
+        raise_if_not_logged_in()
         try:
             return self.run_api(parameters, context, feedback)
         except QgsProcessingException:
@@ -215,10 +234,11 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
         except api.error.UnauthorizedError as e:
             raise QgsProcessingException(
                 i18n.tr(
-                    "Kumoy rejected the request. You may not be logged in, your "
-                    "session may have expired, or you may not have permission "
-                    "for this operation. Details: {}"
-                ).format(format_api_error(e))
+                    "Kumoy ({}) rejected the request. Your session may have "
+                    "expired, or you may not have permission for this operation. "
+                    "If your session has expired, log in again from the Kumoy item "
+                    "in the Browser panel. Details: {}"
+                ).format(server_url(), format_api_error(e))
             ) from None
         except api.error.QuotaExceededError as e:
             raise QgsProcessingException(

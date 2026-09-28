@@ -47,7 +47,10 @@ def _select_project(monkeypatch, project_id):
 
 @pytest.fixture(autouse=True)
 def selected_project(qgis_plugin_path, api, monkeypatch):
-    """Select p1 and make every vector/raster/map belong to it unless overridden."""
+    """Log in, select p1 and make every vector/raster/map belong to it unless overridden."""
+    from plugin_dir.processing import base
+
+    monkeypatch.setattr(base, "get_token", lambda: "token")
     _select_project(monkeypatch, "p1")
     in_p1 = lambda _: SimpleNamespace(projectId="p1")  # noqa: E731
     monkeypatch.setattr(api.vector, "get_vector", in_p1)
@@ -804,3 +807,85 @@ class TestSelectedProject:
         _run(CreateMapAlgorithm(), {"NAME": "map"})
 
         assert captured["project_id"] == "p9"
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestNotLoggedIn:
+    @pytest.fixture(autouse=True)
+    def logged_out(self, monkeypatch):
+        from plugin_dir.processing import base
+
+        monkeypatch.setattr(base, "get_token", lambda: None)
+        # Logging out also clears the selected project
+        _select_project(monkeypatch, "")
+
+    @pytest.mark.parametrize(
+        "module, alg_name, parameters",
+        [
+            ("organization.list_organizations", "ListOrganizationsAlgorithm", {}),
+            ("organization.get_project", "GetProjectAlgorithm", {}),
+            ("vector.get", "GetVectorAlgorithm", {"VECTOR_ID": "v1"}),
+            ("map.delete", "DeleteMapAlgorithm", {"MAP_ID": "m1"}),
+        ],
+    )
+    def test_says_not_logged_in(self, module, alg_name, parameters):
+        import importlib
+
+        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
+
+        with pytest.raises(QgsProcessingException, match="not logged in"):
+            _run(getattr(alg_module, alg_name)(), parameters)
+
+    @pytest.mark.parametrize("kind", ["vector", "raster"])
+    def test_upload_says_not_logged_in(self, kind):
+        import importlib
+
+        algorithm = importlib.import_module(
+            f"plugin_dir.processing.{kind}.upload.algorithm"
+        )
+        alg = (
+            algorithm.UploadVectorAlgorithm()
+            if kind == "vector"
+            else algorithm.UploadRasterAlgorithm()
+        )
+
+        with pytest.raises(QgsProcessingException, match="not logged in"):
+            _run(alg, {"PROJECT_ID": "p1"})
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestServerUrlInLoginErrors:
+    @pytest.fixture(autouse=True)
+    def custom_server(self, api, monkeypatch):
+        monkeypatch.setattr(
+            api.config,
+            "get_settings",
+            lambda: SimpleNamespace(
+                use_custom_server="true",
+                custom_server_url="https://kumoy.example.com",
+            ),
+        )
+
+    def test_not_logged_in(self, monkeypatch):
+        from plugin_dir.processing import base
+        from plugin_dir.processing.organization.list_organizations import (
+            ListOrganizationsAlgorithm,
+        )
+
+        monkeypatch.setattr(base, "get_token", lambda: None)
+
+        with pytest.raises(QgsProcessingException, match="https://kumoy.example.com"):
+            _run(ListOrganizationsAlgorithm(), {})
+
+    def test_rejected(self, api, monkeypatch):
+        from plugin_dir.processing.organization.list_organizations import (
+            ListOrganizationsAlgorithm,
+        )
+
+        def fake():
+            raise api.error.UnauthorizedError("Unauthorized", "expired")
+
+        monkeypatch.setattr(api.organization, "get_organizations", fake)
+
+        with pytest.raises(QgsProcessingException, match="https://kumoy.example.com"):
+            _run(ListOrganizationsAlgorithm(), {})

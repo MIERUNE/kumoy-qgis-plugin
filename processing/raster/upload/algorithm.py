@@ -28,7 +28,7 @@ from ....kumoy.upload.presigned import (
     UploadCanceled,
     upload_file_to_presigned_put,
 )
-from ...base import group_name
+from ...base import group_name, raise_if_not_logged_in
 from .cog import (
     SOURCE_UNREADABLE,
     CogConversionCanceled,
@@ -315,6 +315,7 @@ class UploadRasterAlgorithm(QgsProcessingAlgorithm):
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
+        raise_if_not_logged_in()
         raster_id: Optional[str] = None
         cog_path: Optional[str] = None
         materialized_path: Optional[str] = None
