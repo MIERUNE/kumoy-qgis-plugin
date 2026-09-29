@@ -1,6 +1,7 @@
+from qgis.core import QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QBuffer, QByteArray, QRect, Qt, QUrl
 from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
-from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import QLabel
 
 from ..pyqt_version import (
@@ -23,12 +24,14 @@ class RemoteImageLabel(QLabel):
         self.setAlignment(QT_ALIGN.AlignCenter)
         self.setFixedSize(*size)
         self._img: QImage | None = None
-        self.nam = QNetworkAccessManager(self)
         self._reply: QNetworkReply | None = None
 
     def load(self, url: str):
         self.setPixmap(placeholder_pixmap)
-        self._reply = self.nam.get(QNetworkRequest(QUrl(url)))
+        # Use QGIS's manager so proxy settings apply
+        self._reply = QgsNetworkAccessManager.instance().get(QNetworkRequest(QUrl(url)))
+        # Tie the reply's lifetime to this label (the shared manager outlives it)
+        self._reply.setParent(self)
         self._reply.finished.connect(self._on_finished)
 
     def _on_finished(self):

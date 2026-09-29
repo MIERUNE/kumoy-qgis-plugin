@@ -6,6 +6,7 @@ from qgis.core import (
     Qgis,
     QgsBlockingNetworkRequest,
     QgsMessageLog,
+    QgsNetworkAccessManager,
     QgsNetworkReplyContent,
 )
 from qgis.PyQt.QtCore import (
@@ -15,7 +16,7 @@ from qgis.PyQt.QtCore import (
     QUrl,
     pyqtSignal,
 )
-from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
 from ..pyqt_version import (
     Q_NETWORK_REPLY_ERROR,
@@ -48,7 +49,6 @@ class AuthManager(QObject):
         self._expires_in_device: int = 1800
         self._poll_timer: Optional[QTimer] = None
         self._auth_start_time: Optional[float] = None
-        self._network_manager: Optional[QNetworkAccessManager] = None
         self._pending_reply: Optional[QNetworkReply] = None
         self._cancelled: bool = False
         self._completed: bool = False
@@ -138,7 +138,6 @@ class AuthManager(QObject):
                 "client_id": DEVICE_AUTH_CLIENT_ID,
             }
         ).encode("utf-8")
-        self._network_manager = QNetworkAccessManager(self)
         self._poll_timer = QTimer(self)
         self._poll_timer.timeout.connect(self._poll_for_token)
         self._poll_timer.start(self.polling_interval * 1000)
@@ -159,7 +158,12 @@ class AuthManager(QObject):
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
         req.setRawHeader(b"Origin", self.server_url.encode("utf-8"))
 
-        reply = self._network_manager.post(req, QByteArray(self._poll_data))
+        # A plain QNetworkAccessManager ignores QGIS proxy settings (and proxy
+        # auth), so polling would fail behind a proxy while the device code
+        # request (QgsBlockingNetworkRequest) succeeds.
+        reply = QgsNetworkAccessManager.instance().post(
+            req, QByteArray(self._poll_data)
+        )
         self._pending_reply = reply
         reply.finished.connect(lambda r=reply: self._on_poll_reply(r))
 
@@ -250,7 +254,6 @@ class AuthManager(QObject):
         if self._pending_reply:
             self._pending_reply.abort()
             self._pending_reply = None
-        self._network_manager = None
 
     def poll_now(self):
         """即座にポーリングを1回実行し、タイマーをリスタートする"""
