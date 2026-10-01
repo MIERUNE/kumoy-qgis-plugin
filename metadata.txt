@@ -6,7 +6,7 @@ description=Turn your QGIS project into a web map without setting up a server
 
 about=Publish your QGIS projects to the web without setting up a server.
  
- Upload your QGIS project directly from browser panel and get a shareable web map in minutes. Your layer styling, symbology, and labels carry over, so your map looks just as you designed it in QGIS.
+ Upload your QGIS project directly from the Browser panel and get a shareable web map in minutes. Your layer styling, symbology, and labels carry over, so your map looks just as you designed it in QGIS.
  
  - Publish in one click: Upload your current project and republish anytime to update your map.
  - Share with control: Share a public link or restrict access to your map.
