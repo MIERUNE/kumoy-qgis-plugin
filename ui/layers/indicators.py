@@ -13,11 +13,13 @@ _KUMOY_INDICATOR_PROPERTY = "kumoyIndicator"
 
 def update_kumoy_indicator():
     """Ensure the Kumoy indicator is present on Kumoy layers and removed from other nodes."""
-    root = QgsProject.instance().layerTreeRoot()
+    project = QgsProject.instance()
     view = iface.layerTreeView()
 
-    for node in root.findLayers():
-        layer = node.layer()
+    for node in project.layerTreeRoot().findLayers():
+        # Don't use node.layer() here: during project load it is still None.
+        # Resolve by id so Kumoy layers still get their indicator.
+        layer = project.mapLayer(node.layerId())
         is_kumoy = layer is not None and layer.providerType() in (
             DATA_PROVIDER_KEY,
             RASTER_DATA_PROVIDER_KEY,
