@@ -53,6 +53,10 @@ def layer_tree_view(qgis_app, indicators, monkeypatch):
         def removeIndicator(self, node, indicator):
             self._by_layer_id[node.layerId()].remove(indicator)
 
+        def forget_all(self):
+            """Drop every indicator, as if the view had never seen these nodes."""
+            self._by_layer_id.clear()
+
     view = _View()
 
     class _Iface:
@@ -155,10 +159,16 @@ def test_kumoy_layers_get_indicator_when_a_project_is_opened(
     project.addMapLayer(_kumoy_layer("points"))
     project.addMapLayer(_kumoy_layer("lines"))
     path = str(tmp_path / "map.qgs")
-    assert project.write(path)
+    written = project.write(path)
+    assert written
 
     project.clear()
-    assert project.read(path)
+    # A saved project keeps the layer ids, so the reloaded nodes would otherwise get
+    # the indicators of the nodes they replace and the test would pass even if the
+    # slot added nothing while the project loads.
+    layer_tree_view.forget_all()
+    loaded = project.read(path)
+    assert loaded
 
     assert _n_kumoy_indicators(layer_tree_view, indicators, "points") == 1
     assert _n_kumoy_indicators(layer_tree_view, indicators, "lines") == 1
