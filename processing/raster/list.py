@@ -36,4 +36,5 @@ class ListRastersAlgorithm(KumoyApiAlgorithm):
             without_project(item)
             for item in to_output(api.raster.get_rasters(project_id))
         ]
-        return {self.RASTERS: rasters, **self.report(context, feedback, rasters)}
+        self.log_result(feedback, rasters)
+        return {self.RASTERS: rasters}

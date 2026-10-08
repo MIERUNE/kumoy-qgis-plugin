@@ -60,6 +60,22 @@ def selected_project(qgis_plugin_path, api, monkeypatch):
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestProject:
+    def test_has_no_html_output(self):
+        # The Results Viewer, opened for HTML outputs on completion, makes the
+        # algorithm dialog disappear along with its log
+        from qgis.core import QgsProcessingOutputHtml
+
+        from plugin_dir.processing.organization.list_organizations import (
+            ListOrganizationsAlgorithm,
+        )
+
+        alg = ListOrganizationsAlgorithm()
+        alg.initAlgorithm()
+
+        assert not any(
+            isinstance(o, QgsProcessingOutputHtml) for o in alg.outputDefinitions()
+        )
+
     def test_list_organizations_returns_plain_dicts(self, api, monkeypatch):
         from plugin_dir.processing.organization.list_organizations import (
             ListOrganizationsAlgorithm,
@@ -111,20 +127,6 @@ class TestProject:
 
         assert captured["id"] == "o1"
         assert result["PROJECTS"] == []
-
-    def test_result_is_written_to_html_for_results_viewer(self, api, monkeypatch):
-        from plugin_dir.processing.organization.list_projects import (
-            ListProjectsAlgorithm,
-        )
-
-        monkeypatch.setattr(
-            api.project, "get_projects_by_organization", lambda _: [{"name": "<P>"}]
-        )
-
-        result = _run(ListProjectsAlgorithm(), {"ORGANIZATION_ID": "o1"})
-
-        with open(result["HTML"], encoding="utf-8") as f:
-            assert "&lt;P&gt;" in f.read()
 
     def test_get_project_targets_selected_project(self, api, monkeypatch):
         from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
@@ -435,24 +437,6 @@ class TestMainThread:
         assert no_threading is expected
         # Script authors calling processing.run() are not covered by the flag
         assert ("main thread" in alg.shortHelpString()) is expected
-
-    def test_dialog_shows_log_after_finish(self, qgis_iface):
-        from qgis.PyQt.QtWidgets import QTabWidget
-
-        from plugin_dir.processing.map.get import GetMapAlgorithm
-        from plugin_dir.processing.map.update import UpdateMapAlgorithm
-
-        assert GetMapAlgorithm().createCustomParametersWidget(None) is None
-
-        alg = UpdateMapAlgorithm()
-        alg.initAlgorithm()
-        dialog = alg.createCustomParametersWidget(None)
-        tabs = dialog.findChild(QTabWidget)
-        assert tabs.currentIndex() == 0
-
-        dialog.algorithmFinished.emit(True, {})
-
-        assert tabs.currentIndex() == 1
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")

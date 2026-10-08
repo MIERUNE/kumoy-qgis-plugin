@@ -42,4 +42,5 @@ class GetVectorAlgorithm(KumoyApiAlgorithm):
         detail = api.vector.get_vector(vector_id)
 
         vector = to_output(detail)
-        return {self.VECTOR: vector, **self.report(context, feedback, vector)}
+        self.log_result(feedback, vector)
+        return {self.VECTOR: vector}

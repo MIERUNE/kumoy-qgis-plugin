@@ -1,5 +1,4 @@
 import dataclasses
-import html
 import json
 from typing import Any, Dict, Optional
 
@@ -9,11 +8,9 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
-    QgsProcessingOutputHtml,
     QgsProcessingOutputVariant,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterString,
-    QgsProcessingUtils,
 )
 
 from .. import i18n
@@ -82,7 +79,6 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
     """
 
     GROUP_ID: str = ""
-    HTML: str = "HTML"
     # Set when processAlgorithm() does work that crashes QGIS off the main
     # thread, such as showing dialogs or building a QgsProject
     REQUIRES_MAIN_THREAD: bool = False
@@ -109,18 +105,6 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
             # The toolbox would otherwise run it in a background thread
             flags |= Qgis.ProcessingAlgorithmFlag.NoThreading
         return flags
-
-    def createCustomParametersWidget(self, parent=None):
-        if not self.REQUIRES_MAIN_THREAD:
-            return None
-        # Imported lazily: the Processing GUI is unavailable without QGIS Desktop
-        from ..qgis_version import PROCESSING_ALGORITHM_DIALOG
-
-        # Without threading the log appears in a separate progress dialog that
-        # closes on completion, leaving the Parameters tab as if nothing happened
-        dialog = PROCESSING_ALGORITHM_DIALOG(self, parent=parent)
-        dialog.algorithmFinished.connect(lambda *_: dialog.showLog())
-        return dialog
 
     def main_thread_help(self) -> str:
         # NoThreading only covers the toolbox; processing.run() runs the
@@ -174,9 +158,6 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
 
     def add_output(self, name: str, description: str) -> None:
         self.addOutput(QgsProcessingOutputVariant(name, description))
-        # The dialog closes on success by default, taking its log with it;
-        # HTML outputs stay in the Results Viewer panel
-        self.addOutput(QgsProcessingOutputHtml(self.HTML, i18n.tr("Result")))
 
     def parameter_as_id(
         self, parameters: Dict[str, Any], name: str, context: QgsProcessingContext
@@ -213,21 +194,8 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
             )
         return value
 
-    def report(
-        self, context: QgsProcessingContext, feedback: QgsProcessingFeedback, value: Any
-    ) -> Dict[str, str]:
-        """Show the result in the log and the Results Viewer; returns the HTML output."""
-        text = json.dumps(value, ensure_ascii=False, indent=2)
-        feedback.pushInfo(text)
-
-        path = QgsProcessingUtils.generateTempFilename(f"{self.name()}.html", context)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(
-                '<html><head><meta charset="utf-8"></head><body>'
-                f"<h3>{html.escape(self.displayName())}</h3>"
-                f"<pre>{html.escape(text)}</pre></body></html>"
-            )
-        return {self.HTML: path}
+    def log_result(self, feedback: QgsProcessingFeedback, value: Any) -> None:
+        feedback.pushInfo(json.dumps(value, ensure_ascii=False, indent=2))
 
     def run_api(
         self,

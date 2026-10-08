@@ -34,7 +34,5 @@ class ListOrganizationsAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         organizations = to_output(api.organization.get_organizations())
-        return {
-            self.ORGANIZATIONS: organizations,
-            **self.report(context, feedback, organizations),
-        }
+        self.log_result(feedback, organizations)
+        return {self.ORGANIZATIONS: organizations}

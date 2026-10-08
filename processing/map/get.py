@@ -66,5 +66,5 @@ class GetMapAlgorithm(KumoyApiAlgorithm):
 
         result = without_qgisproject(to_output(styled_map))
         results[self.MAP] = result
-        results.update(self.report(context, feedback, result))
+        self.log_result(feedback, result)
         return results

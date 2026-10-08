@@ -46,7 +46,5 @@ class DeleteVectorAlgorithm(KumoyApiAlgorithm):
                     vector_id
                 )
             )
-        return {
-            self.VECTOR_ID: vector_id,
-            **self.report(context, feedback, {"deleted": vector_id}),
-        }
+        self.log_result(feedback, {"deleted": vector_id})
+        return {self.VECTOR_ID: vector_id}

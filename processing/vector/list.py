@@ -36,4 +36,5 @@ class ListVectorsAlgorithm(KumoyApiAlgorithm):
             without_project(item)
             for item in to_output(api.vector.get_vectors(project_id))
         ]
-        return {self.VECTORS: vectors, **self.report(context, feedback, vectors)}
+        self.log_result(feedback, vectors)
+        return {self.VECTORS: vectors}

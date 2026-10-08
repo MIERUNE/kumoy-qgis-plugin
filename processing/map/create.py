@@ -155,4 +155,5 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
                 raise
 
         result = without_qgisproject(to_output(styled_map))
-        return {self.MAP: result, **self.report(context, feedback, result)}
+        self.log_result(feedback, result)
+        return {self.MAP: result}

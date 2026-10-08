@@ -137,4 +137,5 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
         styled_map = api.styledmap.update_styled_map(map_id, options)
 
         result = without_qgisproject(to_output(styled_map))
-        return {self.MAP: result, **self.report(context, feedback, result)}
+        self.log_result(feedback, result)
+        return {self.MAP: result}

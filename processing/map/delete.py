@@ -45,7 +45,5 @@ class DeleteMapAlgorithm(KumoyApiAlgorithm):
             feedback.pushWarning(
                 i18n.tr("Could not clear the local cache of map: {}").format(map_id)
             )
-        return {
-            self.MAP_ID: map_id,
-            **self.report(context, feedback, {"deleted": map_id}),
-        }
+        self.log_result(feedback, {"deleted": map_id})
+        return {self.MAP_ID: map_id}

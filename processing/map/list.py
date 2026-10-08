@@ -36,4 +36,5 @@ class ListMapsAlgorithm(KumoyApiAlgorithm):
             without_project(item)
             for item in to_output(api.styledmap.get_styled_maps(project_id))
         ]
-        return {self.MAPS: maps, **self.report(context, feedback, maps)}
+        self.log_result(feedback, maps)
+        return {self.MAPS: maps}

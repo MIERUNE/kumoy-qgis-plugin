@@ -46,7 +46,5 @@ class DeleteRasterAlgorithm(KumoyApiAlgorithm):
                     raster_id
                 )
             )
-        return {
-            self.RASTER_ID: raster_id,
-            **self.report(context, feedback, {"deleted": raster_id}),
-        }
+        self.log_result(feedback, {"deleted": raster_id})
+        return {self.RASTER_ID: raster_id}

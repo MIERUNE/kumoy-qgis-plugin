@@ -57,4 +57,5 @@ class UpdateRasterAlgorithm(KumoyApiAlgorithm):
             raise QgsProcessingException(i18n.tr("Nothing to update."))
 
         raster = to_output(api.raster.update_raster(raster_id, options))
-        return {self.RASTER: raster, **self.report(context, feedback, raster)}
+        self.log_result(feedback, raster)
+        return {self.RASTER: raster}

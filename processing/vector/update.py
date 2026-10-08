@@ -57,4 +57,5 @@ class UpdateVectorAlgorithm(KumoyApiAlgorithm):
             raise QgsProcessingException(i18n.tr("Nothing to update."))
 
         vector = to_output(api.vector.update_vector(vector_id, options))
-        return {self.VECTOR: vector, **self.report(context, feedback, vector)}
+        self.log_result(feedback, vector)
+        return {self.VECTOR: vector}

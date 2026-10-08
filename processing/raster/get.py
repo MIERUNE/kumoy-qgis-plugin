@@ -41,4 +41,5 @@ class GetRasterAlgorithm(KumoyApiAlgorithm):
         detail = api.raster.get_raster(raster_id)
 
         raster = to_output(detail)
-        return {self.RASTER: raster, **self.report(context, feedback, raster)}
+        self.log_result(feedback, raster)
+        return {self.RASTER: raster}

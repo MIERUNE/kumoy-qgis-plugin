@@ -333,7 +333,6 @@
   "Reprojecting from {} to EPSG:4326": "{}からEPSG:4326への投影変換",
   "Requesting device code...": "デバイスコードをリクエスト中...",
   "Reset Plugin Settings": "プラグインの設定を削除",
-  "Result": "結果",
   "Save Current Project As...": "現在のプロジェクトを名前を付けて保存…",
   "Save Map": "マップを保存",
   "Save QGIS project to": "QGISプロジェクトの保存先",

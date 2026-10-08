@@ -39,4 +39,5 @@ class ListProjectsAlgorithm(KumoyApiAlgorithm):
             parameters, self.ORGANIZATION_ID, context
         )
         projects = to_output(api.project.get_projects_by_organization(organization_id))
-        return {self.PROJECTS: projects, **self.report(context, feedback, projects)}
+        self.log_result(feedback, projects)
+        return {self.PROJECTS: projects}

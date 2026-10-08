@@ -46,4 +46,5 @@ class GetProjectAlgorithm(KumoyApiAlgorithm):
             for m in to_output(api.styledmap.get_styled_maps(project_id))
         ]
 
-        return {self.PROJECT: project, **self.report(context, feedback, project)}
+        self.log_result(feedback, project)
+        return {self.PROJECT: project}
