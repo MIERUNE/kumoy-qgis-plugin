@@ -13,7 +13,6 @@ renderers.
 """
 
 import base64
-import os
 from typing import Optional
 
 from qgis.core import Qgis, QgsMessageLog, QgsPathResolver, QgsSymbolLayerUtils
