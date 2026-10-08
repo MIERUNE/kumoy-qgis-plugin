@@ -88,6 +88,11 @@ def project_file_help() -> str:
             "data is downloaded to the local cache if it is not cached yet."
         )
         + i18n.tr(
+            "\n\nThe Kumoy layers in the project file must belong to the same "
+            "Kumoy project as the map. A map cannot mix layers from different "
+            "projects, and this is not checked here."
+        )
+        + i18n.tr(
             "\n\nThe project file must be {:,} characters or less when saved as .qgs."
         ).format(local_cache.map.LENGTH_LIMIT)
     )
