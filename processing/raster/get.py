@@ -23,7 +23,7 @@ class GetRasterAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Get the details of a Kumoy raster in the selected project.\n\n"
+            "Get the details of a Kumoy raster.\n\n"
             "To create a raster, use 'Upload Raster Layer to Kumoy'."
         )
 
@@ -39,7 +39,6 @@ class GetRasterAlgorithm(KumoyApiAlgorithm):
     ) -> Dict[str, Any]:
         raster_id = self.parameter_as_id(parameters, self.RASTER_ID, context)
         detail = api.raster.get_raster(raster_id)
-        self.ensure_in_selected_project(detail.projectId)
 
         raster = to_output(detail)
         return {self.RASTER: raster, **self.report(context, feedback, raster)}

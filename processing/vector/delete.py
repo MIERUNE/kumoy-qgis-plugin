@@ -22,7 +22,7 @@ class DeleteVectorAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Delete a Kumoy vector in the selected project and its local cache. This cannot be undone.\n\n"
+            "Delete a Kumoy vector and its local cache. This cannot be undone.\n\n"
             "Layers of this vector already added to the map are not removed."
         )
 
@@ -37,7 +37,6 @@ class DeleteVectorAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         vector_id = self.parameter_as_id(parameters, self.VECTOR_ID, context)
-        self.ensure_in_selected_project(api.vector.get_vector(vector_id).projectId)
         api.vector.delete_vector(vector_id)
         feedback.pushInfo(i18n.tr("Deleted vector: {}").format(vector_id))
 

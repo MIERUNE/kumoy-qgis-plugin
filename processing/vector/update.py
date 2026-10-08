@@ -26,7 +26,7 @@ class UpdateVectorAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Update the name or attribution of a Kumoy vector in the selected project.\n\n"
+            "Update the name or attribution of a Kumoy vector.\n\n"
             "Leave a field empty to keep its current value."
         )
 
@@ -55,7 +55,6 @@ class UpdateVectorAlgorithm(KumoyApiAlgorithm):
         )
         if options.name is None and options.attribution is None:
             raise QgsProcessingException(i18n.tr("Nothing to update."))
-        self.ensure_in_selected_project(api.vector.get_vector(vector_id).projectId)
 
         vector = to_output(api.vector.update_vector(vector_id, options))
         return {self.VECTOR: vector, **self.report(context, feedback, vector)}

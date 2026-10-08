@@ -23,7 +23,7 @@ class GetVectorAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Get the details of a Kumoy vector in the selected project: geometry type, extent, feature "
+            "Get the details of a Kumoy vector: geometry type, extent, feature "
             "count and columns.\n\n"
             "To create a vector, use 'Upload Vector Layer to Kumoy'."
         )
@@ -40,7 +40,6 @@ class GetVectorAlgorithm(KumoyApiAlgorithm):
     ) -> Dict[str, Any]:
         vector_id = self.parameter_as_id(parameters, self.VECTOR_ID, context)
         detail = api.vector.get_vector(vector_id)
-        self.ensure_in_selected_project(detail.projectId)
 
         vector = to_output(detail)
         return {self.VECTOR: vector, **self.report(context, feedback, vector)}

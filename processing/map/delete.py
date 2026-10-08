@@ -22,7 +22,7 @@ class DeleteMapAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Delete a Kumoy map in the selected project and its local cache. "
+            "Delete a Kumoy map and its local cache. "
             "This cannot be undone.\n\n"
             "The vectors and rasters used by the map are not deleted."
         )
@@ -38,7 +38,6 @@ class DeleteMapAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         map_id = self.parameter_as_id(parameters, self.MAP_ID, context)
-        self.ensure_in_selected_project(api.styledmap.get_styled_map(map_id).projectId)
         api.styledmap.delete_styled_map(map_id)
         feedback.pushInfo(i18n.tr("Deleted map: {}").format(map_id))
 

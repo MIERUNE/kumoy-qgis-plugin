@@ -27,7 +27,7 @@ class AddVectorToMapAlgorithm(KumoyApiAlgorithm):
     def shortHelpString(self) -> str:
         return (
             i18n.tr(
-                "Add a Kumoy vector in the selected project to the map as a layer.\n\n"
+                "Add a Kumoy vector to the map as a layer.\n\n"
                 "From a script, use processing.runAndLoadResults() instead of "
                 "processing.run() to add the layer to the project."
             )
@@ -46,7 +46,6 @@ class AddVectorToMapAlgorithm(KumoyApiAlgorithm):
     ) -> Dict[str, Any]:
         vector_id = self.parameter_as_id(parameters, self.VECTOR_ID, context)
         vector = api.vector.get_vector(vector_id)
-        self.ensure_in_selected_project(vector.projectId)
 
         layer = vector_layer.create_vector_layer(vector)
         vector_layer.apply_pixel_based_style(layer)

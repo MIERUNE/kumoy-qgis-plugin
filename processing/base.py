@@ -36,6 +36,11 @@ def to_output(obj: Any) -> Any:
     return obj
 
 
+def without_project(item: Dict[str, Any]) -> Dict[str, Any]:
+    # Items listed in a project would otherwise each repeat the whole project
+    return {k: v for k, v in item.items() if k != "project"}
+
+
 def raise_if_not_logged_in() -> None:
     # Checked first: logging out also clears the selected project and the
     # upload destinations, which would otherwise surface as misleading errors
@@ -71,8 +76,8 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
     them usable from processing.run() in scripts or without GUI. Algorithms
     with REQUIRES_MAIN_THREAD must still be called from the main thread.
 
-    Kumoy treats a project as the data boundary: like the Browser panel, only
-    vectors, rasters and maps of the selected project are accessible.
+    Existing resources are addressed by ID regardless of the project selected
+    in the Browser panel; the server decides what the user may access.
     """
 
     GROUP_ID: str = ""
@@ -104,6 +109,18 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
             flags |= Qgis.ProcessingAlgorithmFlag.NoThreading
         return flags
 
+    def createCustomParametersWidget(self, parent=None):
+        if not self.REQUIRES_MAIN_THREAD:
+            return None
+        # Imported lazily: the Processing GUI is unavailable without QGIS Desktop
+        from ..qgis_version import PROCESSING_ALGORITHM_DIALOG
+
+        # Without threading the log appears in a separate progress dialog that
+        # closes on completion, leaving the Parameters tab as if nothing happened
+        dialog = PROCESSING_ALGORITHM_DIALOG(self, parent=parent)
+        dialog.algorithmFinished.connect(lambda *_: dialog.showLog())
+        return dialog
+
     def main_thread_help(self) -> str:
         # NoThreading only covers the toolbox; processing.run() runs the
         # algorithm in the caller's thread, so script authors must know
@@ -128,15 +145,6 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
                 )
             )
         return project_id
-
-    def ensure_in_selected_project(self, project_id: str) -> None:
-        if project_id != self.selected_project_id():
-            raise QgsProcessingException(
-                i18n.tr(
-                    "This item does not belong to the selected Kumoy project. "
-                    "Switch to its project from the Kumoy item in the Browser panel."
-                )
-            )
 
     def add_id_parameter(self, name: str, description: str) -> None:
         self.addParameter(QgsProcessingParameterString(name, description))

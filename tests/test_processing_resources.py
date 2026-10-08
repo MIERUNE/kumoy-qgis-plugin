@@ -160,6 +160,35 @@ class TestProject:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestList:
+    @pytest.mark.parametrize(
+        "module, alg_name, api_name, fn, output",
+        [
+            ("vector.list", "ListVectorsAlgorithm", "vector", "get_vectors", "VECTORS"),
+            ("raster.list", "ListRastersAlgorithm", "raster", "get_rasters", "RASTERS"),
+            ("map.list", "ListMapsAlgorithm", "styledmap", "get_styled_maps", "MAPS"),
+        ],
+    )
+    def test_lists_given_project(
+        self, api, monkeypatch, module, alg_name, api_name, fn, output
+    ):
+        import importlib
+
+        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
+        requested = []
+        monkeypatch.setattr(
+            getattr(api, api_name),
+            fn,
+            lambda i: requested.append(i) or [{"id": "x", "project": {"id": i}}],
+        )
+
+        result = _run(getattr(alg_module, alg_name)(), {"PROJECT_ID": "p9"})
+
+        assert requested == ["p9"]
+        assert result[output] == [{"id": "x"}]
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestVector:
     def _update_alg(self):
         from plugin_dir.processing.vector.update import UpdateVectorAlgorithm
@@ -406,6 +435,24 @@ class TestMainThread:
         assert no_threading is expected
         # Script authors calling processing.run() are not covered by the flag
         assert ("main thread" in alg.shortHelpString()) is expected
+
+    def test_dialog_shows_log_after_finish(self, qgis_iface):
+        from qgis.PyQt.QtWidgets import QTabWidget
+
+        from plugin_dir.processing.map.get import GetMapAlgorithm
+        from plugin_dir.processing.map.update import UpdateMapAlgorithm
+
+        assert GetMapAlgorithm().createCustomParametersWidget(None) is None
+
+        alg = UpdateMapAlgorithm()
+        alg.initAlgorithm()
+        dialog = alg.createCustomParametersWidget(None)
+        tabs = dialog.findChild(QTabWidget)
+        assert tabs.currentIndex() == 0
+
+        dialog.algorithmFinished.emit(True, {})
+
+        assert tabs.currentIndex() == 1
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -701,7 +748,7 @@ class TestUploadProjectId:
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestSelectedProject:
-    """Kumoy treats a project as the data boundary, as the Browser panel does."""
+    """Only tools without a resource ID fall back to the selected project."""
 
     def test_no_selected_project_fails(self, monkeypatch):
         from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
@@ -710,16 +757,6 @@ class TestSelectedProject:
 
         with pytest.raises(QgsProcessingException, match="No Kumoy project"):
             _run(GetProjectAlgorithm(), {})
-
-    def test_get_vector_of_other_project_fails(self, api, monkeypatch):
-        from plugin_dir.processing.vector.get import GetVectorAlgorithm
-
-        monkeypatch.setattr(
-            api.vector, "get_vector", lambda _: SimpleNamespace(projectId="p2")
-        )
-
-        with pytest.raises(QgsProcessingException, match="selected Kumoy project"):
-            _run(GetVectorAlgorithm(), {"VECTOR_ID": "v1"})
 
     @pytest.mark.parametrize(
         "module, api_name, alg_name, getter, mutator, parameters",
@@ -774,23 +811,34 @@ class TestSelectedProject:
             ),
         ],
     )
-    def test_other_project_is_not_modified(
-        self, api, monkeypatch, module, api_name, alg_name, getter, mutator, parameters
+    def test_resource_id_works_without_selected_project(
+        self,
+        api,
+        local_cache,
+        monkeypatch,
+        module,
+        api_name,
+        alg_name,
+        getter,
+        mutator,
+        parameters,
     ):
         import importlib
 
+        _select_project(monkeypatch, "")
         alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
         api_module = getattr(api, api_name)
         monkeypatch.setattr(
             api_module, getter, lambda _: SimpleNamespace(projectId="p2")
         )
         called = []
-        monkeypatch.setattr(api_module, mutator, lambda *a: called.append(a))
+        monkeypatch.setattr(api_module, mutator, lambda *a: called.append(a) or {})
+        for cache in (local_cache.vector, local_cache.raster, local_cache.map):
+            monkeypatch.setattr(cache, "clear", lambda _: True)
 
-        with pytest.raises(QgsProcessingException, match="selected Kumoy project"):
-            _run(getattr(alg_module, alg_name)(), parameters)
+        _run(getattr(alg_module, alg_name)(), parameters)
 
-        assert called == []
+        assert len(called) == 1
 
     def test_create_map_goes_to_selected_project(self, api, monkeypatch):
         from plugin_dir.processing.map.create import CreateMapAlgorithm

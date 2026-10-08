@@ -4,12 +4,7 @@ from qgis.core import QgsProcessingContext, QgsProcessingFeedback
 
 from ... import i18n
 from ...kumoy import api
-from ..base import KumoyApiAlgorithm, to_output
-
-
-def _without_project(item: Dict[str, Any]) -> Dict[str, Any]:
-    # Children of a project detail would otherwise repeat the whole parent
-    return {k: v for k, v in item.items() if k != "project"}
+from ..base import KumoyApiAlgorithm, to_output, without_project
 
 
 class GetProjectAlgorithm(KumoyApiAlgorithm):
@@ -43,11 +38,11 @@ class GetProjectAlgorithm(KumoyApiAlgorithm):
 
         project = to_output(api.project.get_project(project_id))
         project["vectors"] = [
-            _without_project(v) for v in to_output(api.vector.get_vectors(project_id))
+            without_project(v) for v in to_output(api.vector.get_vectors(project_id))
         ]
         project["rasters"] = to_output(api.raster.get_rasters(project_id))
         project["maps"] = [
-            _without_project(m)
+            without_project(m)
             for m in to_output(api.styledmap.get_styled_maps(project_id))
         ]
 

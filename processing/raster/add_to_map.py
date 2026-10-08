@@ -27,7 +27,7 @@ class AddRasterToMapAlgorithm(KumoyApiAlgorithm):
     def shortHelpString(self) -> str:
         return (
             i18n.tr(
-                "Add a Kumoy raster in the selected project to the map as a layer. "
+                "Add a Kumoy raster to the map as a layer. "
                 "The raster is downloaded if it is not cached locally yet.\n\n"
                 "From a script, use processing.runAndLoadResults() instead of "
                 "processing.run() to add the layer to the project."
@@ -47,7 +47,6 @@ class AddRasterToMapAlgorithm(KumoyApiAlgorithm):
     ) -> Dict[str, Any]:
         raster_id = self.parameter_as_id(parameters, self.RASTER_ID, context)
         raster = api.raster.get_raster(raster_id)
-        self.ensure_in_selected_project(raster.projectId)
 
         layer = raster_layer.create_raster_layer(raster)
 

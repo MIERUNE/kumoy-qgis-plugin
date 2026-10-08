@@ -45,7 +45,7 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
     def shortHelpString(self) -> str:
         return (
             i18n.tr(
-                "Update the properties of a Kumoy map in the selected project, or "
+                "Update the properties of a Kumoy map, or "
                 "replace its QGIS "
                 "project with a file (.qgs / .qgz).\n\n"
                 "Leave a field empty to keep its current value.\n\n"
@@ -124,7 +124,6 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
         ):
             raise QgsProcessingException(i18n.tr("Nothing to update."))
         current = api.styledmap.get_styled_map(map_id)
-        self.ensure_in_selected_project(current.projectId)
 
         if loaded is not None:
             new_assets_hash = loaded.sprite.assets_hash if loaded.sprite else None

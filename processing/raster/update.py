@@ -26,7 +26,7 @@ class UpdateRasterAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Update the name or attribution of a Kumoy raster in the selected project.\n\n"
+            "Update the name or attribution of a Kumoy raster.\n\n"
             "Leave a field empty to keep its current value."
         )
 
@@ -55,7 +55,6 @@ class UpdateRasterAlgorithm(KumoyApiAlgorithm):
         )
         if options.name is None and options.attribution is None:
             raise QgsProcessingException(i18n.tr("Nothing to update."))
-        self.ensure_in_selected_project(api.raster.get_raster(raster_id).projectId)
 
         raster = to_output(api.raster.update_raster(raster_id, options))
         return {self.RASTER: raster, **self.report(context, feedback, raster)}

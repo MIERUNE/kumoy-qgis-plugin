@@ -28,7 +28,7 @@ class GetMapAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Get the details of a Kumoy map in the selected project.\n\n"
+            "Get the details of a Kumoy map.\n\n"
             "Optionally, save the map's QGIS project (.qgs) to a file."
         )
 
@@ -53,7 +53,6 @@ class GetMapAlgorithm(KumoyApiAlgorithm):
     ) -> Dict[str, Any]:
         map_id = self.parameter_as_id(parameters, self.MAP_ID, context)
         styled_map = api.styledmap.get_styled_map(map_id)
-        self.ensure_in_selected_project(styled_map.projectId)
 
         results: Dict[str, Any] = {}
         project_file = self.parameterAsFileOutput(

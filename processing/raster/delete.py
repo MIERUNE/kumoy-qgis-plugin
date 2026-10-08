@@ -22,7 +22,7 @@ class DeleteRasterAlgorithm(KumoyApiAlgorithm):
 
     def shortHelpString(self) -> str:
         return i18n.tr(
-            "Delete a Kumoy raster in the selected project and its local cache. This cannot be undone.\n\n"
+            "Delete a Kumoy raster and its local cache. This cannot be undone.\n\n"
             "Layers of this raster already added to the map are not removed."
         )
 
@@ -37,7 +37,6 @@ class DeleteRasterAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         raster_id = self.parameter_as_id(parameters, self.RASTER_ID, context)
-        self.ensure_in_selected_project(api.raster.get_raster(raster_id).projectId)
         api.raster.delete_raster(raster_id)
         feedback.pushInfo(i18n.tr("Deleted raster: {}").format(raster_id))
 
