@@ -77,7 +77,8 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
     with REQUIRES_MAIN_THREAD must still be called from the main thread.
 
     Existing resources are addressed by ID regardless of the project selected
-    in the Browser panel; the server decides what the user may access.
+    in the Browser panel; the server decides what the user may access. Adding
+    to the map is the exception, as a map must not mix layers across projects.
     """
 
     GROUP_ID: str = ""
@@ -145,6 +146,15 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
                 )
             )
         return project_id
+
+    def ensure_in_selected_project(self, project_id: str) -> None:
+        if project_id != self.selected_project_id():
+            raise QgsProcessingException(
+                i18n.tr(
+                    "This item does not belong to the selected Kumoy project. "
+                    "Switch to its project from the Kumoy item in the Browser panel."
+                )
+            )
 
     def add_id_parameter(self, name: str, description: str) -> None:
         self.addParameter(QgsProcessingParameterString(name, description))

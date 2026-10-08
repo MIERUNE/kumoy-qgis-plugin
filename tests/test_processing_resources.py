@@ -748,7 +748,8 @@ class TestUploadProjectId:
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestSelectedProject:
-    """Only tools without a resource ID fall back to the selected project."""
+    """Resource IDs work across projects, except adding to the map: a map must
+    not mix layers of different projects."""
 
     def test_no_selected_project_fails(self, monkeypatch):
         from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
@@ -757,6 +758,38 @@ class TestSelectedProject:
 
         with pytest.raises(QgsProcessingException, match="No Kumoy project"):
             _run(GetProjectAlgorithm(), {})
+
+    @pytest.mark.parametrize(
+        "module, api_name, alg_name, getter, parameters",
+        [
+            (
+                "vector.add_to_map",
+                "vector",
+                "AddVectorToMapAlgorithm",
+                "get_vector",
+                {"VECTOR_ID": "v1"},
+            ),
+            (
+                "raster.add_to_map",
+                "raster",
+                "AddRasterToMapAlgorithm",
+                "get_raster",
+                {"RASTER_ID": "r1"},
+            ),
+        ],
+    )
+    def test_add_to_map_of_other_project_fails(
+        self, api, monkeypatch, module, api_name, alg_name, getter, parameters
+    ):
+        import importlib
+
+        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
+        monkeypatch.setattr(
+            getattr(api, api_name), getter, lambda _: SimpleNamespace(projectId="p2")
+        )
+
+        with pytest.raises(QgsProcessingException, match="selected Kumoy project"):
+            _run(getattr(alg_module, alg_name)(), parameters)
 
     @pytest.mark.parametrize(
         "module, api_name, alg_name, getter, mutator, parameters",
