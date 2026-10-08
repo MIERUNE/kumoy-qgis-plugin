@@ -46,7 +46,11 @@ from ...qgis_version import (
 from ...ui.layers.convert import convert_local_layers
 from ..error_handler import handle_api_error, refresh_kumoy_browser
 from ..icons import BROWSER_MAP_ICON
-from ..project_save_handler import show_map_save_result, warn_if_project_too_large
+from ..project_save_handler import (
+    confirm_symbol_embedding,
+    show_map_save_result,
+    warn_if_project_too_large,
+)
 from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
 from .utils import ErrorItem
 
@@ -258,6 +262,8 @@ class StyledMapItem(QgsDataItem):
                     ),
                 )
                 return
+
+        confirm_symbol_embedding(QgsProject.instance())
 
         # Pre-flight size check before any upload: serialize to a throwaway temp
         # file and validate, without touching the cache. The .qgs size barely
@@ -530,6 +536,8 @@ class StyledMapRoot(QgsDataItem):
         if clear:
             # Create an empty QGIS project
             QgsProject.instance().clear()
+
+        confirm_symbol_embedding(QgsProject.instance())
 
         # Pre-flight size check before any upload: serialize to a throwaway temp
         # file and validate, without touching the cache.
