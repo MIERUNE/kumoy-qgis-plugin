@@ -37,7 +37,7 @@ def _load_layer(path: str) -> QgsRasterLayer:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestResolveAssignCrsWkt:
     def _fn(self):
-        from plugin_dir.processing.upload_raster.algorithm import (
+        from plugin_dir.processing.raster.upload.algorithm import (
             _resolve_assign_crs_wkt,
         )
 

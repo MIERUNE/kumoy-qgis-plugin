@@ -1,7 +1,7 @@
 from qgis.PyQt.QtWidgets import QApplication
 
 from ..qgis_version import PROCESSING_ALGORITHM_DIALOG
-from .upload_vector.algorithm import UploadVectorAlgorithm
+from .vector.upload.algorithm import UploadVectorAlgorithm
 
 
 def close_all_processing_dialogs():
