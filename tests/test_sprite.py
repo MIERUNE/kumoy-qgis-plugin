@@ -371,6 +371,7 @@ def _file_values(qgs: str) -> list:
 def _canonical_without_file_values(qgs: str) -> str:
     """Canonical XML with the file paths blanked, to compare everything else."""
     root = ET.fromstring(qgs)
+    root.attrib.pop("saveDateTime", None)  # differs between two writes
     for option in _file_options(root):
         option.set("value", "")
     return ET.canonicalize(ET.tostring(root, encoding="unicode"), strip_text=True)
@@ -381,8 +382,8 @@ def _embedded(data: bytes) -> str:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
-class TestEmbedSymbolFiles:
-    """ローカルのSVG/画像パスが、保存する .qgs で base64 埋め込みに置き換わること。
+class TestSymbolEmbedding:
+    """ローカルのSVG/画像パスが、プロジェクト内で base64 埋め込みに置き換わること。
 
     パスのまま保存すると別PCで開いたときにアイコンが消える。
     """
@@ -405,31 +406,47 @@ class TestEmbedSymbolFiles:
         path = tmp_path / "icon.png"
         img = QImage(QSize(8, 4), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 0, 255, 255))
-        assert img.save(str(path))
+        saved = img.save(str(path))
+        assert saved
         return path
 
-    def _add_layer(self, project, symbol):
+    def _add_layer(self, project, symbol, name="layer"):
         geometry = {
             "QgsMarkerSymbol": "Point",
             "QgsLineSymbol": "LineString",
             "QgsFillSymbol": "Polygon",
         }[type(symbol).__name__]
-        layer = QgsVectorLayer(f"{geometry}?crs=EPSG:4326", "layer", "memory")
+        layer = QgsVectorLayer(f"{geometry}?crs=EPSG:4326", name, "memory")
         layer.setRenderer(QgsSingleSymbolRenderer(symbol))
         project.addMapLayer(layer)
         return layer
 
     def _write(self, project, tmp_path):
-        """Write the project like QGIS does (next to the files, so paths are relative)."""
+        """The project as QGIS writes it (next to the files, so paths are relative)."""
         path = str(tmp_path / "project.qgs")
-        assert project.write(path)
+        written = project.write(path)
+        assert written
         with open(path, encoding="utf-8") as f:
-            return f.read(), path
+            return f.read()
 
-    def _embed(self, qgs, path):
-        from plugin_dir.kumoy.sprite import embed_symbol_files
+    def _embed(self, project):
+        """Prepare and apply, as the save flows do when the user agrees."""
+        from plugin_dir.kumoy.sprite import (
+            apply_symbol_embedding,
+            prepare_symbol_embedding,
+        )
 
-        return embed_symbol_files(qgs, path)
+        styles = prepare_symbol_embedding(project)
+        apply_symbol_embedding(styles)
+        return styles
+
+    def _svg_marker(self, path):
+        layer = QgsSvgMarkerSymbolLayer(str(path))
+        # Non-default style: setPath() would reset these to the SVG's defaults.
+        layer.setFillColor(QColor(10, 20, 30))
+        layer.setStrokeColor(QColor(40, 50, 60))
+        layer.setStrokeWidth(3.5)
+        return layer
 
     @pytest.mark.parametrize(
         "kind",
@@ -460,17 +477,30 @@ class TestEmbedSymbolFiles:
             ),
         }[kind]
         self._add_layer(project, symbol([symbol_layer]))
-        raw, path = self._write(project, tmp_path)
-        assert len(_file_values(raw)) == 1
-        assert not _file_values(raw)[0].startswith("base64:")
+        before = self._write(project, tmp_path)
+        assert not _file_values(before)[0].startswith("base64:")
 
-        out = self._embed(raw, path)
+        self._embed(project)
 
-        assert _file_values(out) == [_embedded(source.read_bytes())]
+        after = self._write(project, tmp_path)
+        assert _file_values(after) == [_embedded(source.read_bytes())]
         # Only the path changed: colours, widths, renderer... are untouched.
-        assert _canonical_without_file_values(out) == _canonical_without_file_values(
-            raw
+        assert _canonical_without_file_values(after) == _canonical_without_file_values(
+            before
         )
+
+    def test_svg_marker_keeps_its_look(self, project, svg_file):
+        symbol = QgsMarkerSymbol([self._svg_marker(svg_file)])
+        self._add_layer(project, symbol)
+        image = symbol.asImage(QSize(64, 64))
+
+        self._embed(project)
+
+        # The layer got a new renderer: read the symbol back from it.
+        layer = next(iter(project.mapLayers().values()))
+        embedded = layer.renderer().symbol()
+        assert embedded.symbolLayer(0).path().startswith("base64:")
+        assert embedded.asImage(QSize(64, 64)) == image
 
     def test_nested_sub_symbol_is_embedded(self, project, tmp_path, svg_file):
         line_layer = QgsMarkerLineSymbolLayer()
@@ -478,11 +508,12 @@ class TestEmbedSymbolFiles:
             QgsMarkerSymbol([QgsSvgMarkerSymbolLayer(str(svg_file))])
         )
         self._add_layer(project, QgsLineSymbol([line_layer]))
-        raw, path = self._write(project, tmp_path)
 
-        out = self._embed(raw, path)
+        self._embed(project)
 
-        assert _file_values(out) == [_embedded(svg_file.read_bytes())]
+        assert _file_values(self._write(project, tmp_path)) == [
+            _embedded(svg_file.read_bytes())
+        ]
 
     def test_every_category_is_embedded(self, project, tmp_path, png_file):
         categories = [
@@ -496,12 +527,11 @@ class TestEmbedSymbolFiles:
         layer = QgsVectorLayer("Point?crs=EPSG:4326", "layer", "memory")
         layer.setRenderer(QgsCategorizedSymbolRenderer("id", categories))
         project.addMapLayer(layer)
-        raw, path = self._write(project, tmp_path)
 
-        out = self._embed(raw, path)
+        self._embed(project)
 
         # The categorized renderer also keeps a source symbol: 3 categories + 1.
-        values = _file_values(out)
+        values = _file_values(self._write(project, tmp_path))
         assert len(values) >= 3
         assert set(values) == {_embedded(png_file.read_bytes())}
 
@@ -511,76 +541,100 @@ class TestEmbedSymbolFiles:
         if not resolved or resolved == name:
             pytest.skip(f"{name} is not in this QGIS install's SVG paths")
         self._add_layer(project, QgsMarkerSymbol([QgsSvgMarkerSymbolLayer(name)]))
-        raw, path = self._write(project, tmp_path)
 
-        out = self._embed(raw, path)
+        self._embed(project)
 
         with open(resolved, "rb") as f:
-            assert _file_values(out) == [_embedded(f.read())]
+            assert _file_values(self._write(project, tmp_path)) == [_embedded(f.read())]
 
     @pytest.mark.parametrize(
-        "value",
-        ["", "missing/icon.png", "base64:aGVsbG8=", "https://example.invalid/icon.png"],
-        ids=["empty", "missing", "already-embedded", "remote"],
+        "path",
+        ["", "/nonexistent/dir/icon.png", "base64:aGVsbG8="],
+        ids=["empty", "missing", "already-embedded"],
     )
-    def test_unembeddable_path_is_left_alone(self, project, tmp_path, png_file, value):
-        self._add_layer(
-            project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
+    def test_nothing_to_embed(self, project, path):
+        symbol_layer = QgsRasterMarkerSymbolLayer(path)
+        self._add_layer(project, QgsMarkerSymbol([symbol_layer]))
+
+        assert self._embed(project) == {}
+        assert symbol_layer.path() == path
+
+    def test_remote_url_is_not_treated_as_a_file(self, qgis_app):
+        """Calls the helper directly: a symbol layer built on a real URL starts a
+        network fetch that crashes QGIS 4 at interpreter shutdown."""
+        from plugin_dir.kumoy.sprite.symbol_embedder import _embedded_value
+
+        cache = {}
+        url = "https://example.invalid/icon.png"
+
+        assert _embedded_value(url, False, QgsPathResolver(), cache) is None
+        # Skipped up front instead of failing to open() it (which would be cached).
+        assert cache == {}
+
+    def test_only_layers_with_local_files_are_listed(self, project, png_file):
+        with_file = self._add_layer(
+            project,
+            QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))]),
+            name="with file",
         )
-        raw, path = self._write(project, tmp_path)
-        # Patch the XML rather than the symbol layer: one built on a real URL starts a
-        # network fetch, which crashes QGIS 4 at interpreter shutdown.
-        root = ET.fromstring(raw)
-        _file_options(root)[0].set("value", value)
-        patched = ET.tostring(root, encoding="unicode")
+        self._add_layer(project, QgsMarkerSymbol.createSimple({}), name="plain")
 
-        assert self._embed(patched, path) == patched
+        from plugin_dir.kumoy.sprite import prepare_symbol_embedding
 
-    def test_idempotent(self, project, tmp_path, png_file):
-        self._add_layer(
-            project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
-        )
-        raw, path = self._write(project, tmp_path)
+        assert list(prepare_symbol_embedding(project)) == [with_file]
 
-        once = self._embed(raw, path)
-
-        assert once != raw
-        assert self._embed(once, path) == once
-
-    def test_unparseable_input_is_returned_as_is(self, qgis_app, tmp_path):
-        assert (
-            self._embed("this is not xml", str(tmp_path / "p.qgs")) == "this is not xml"
-        )
-
-    def test_serialize_project_embeds_but_leaves_the_live_project_alone(
-        self, project, png_file
-    ):
-        """全保存フローが通る serialize_project() で埋め込まれること。"""
-        from plugin_dir.kumoy.local_cache.map import serialize_project
+    def test_prepare_changes_nothing(self, project, tmp_path, png_file):
+        from plugin_dir.kumoy.sprite import prepare_symbol_embedding
 
         symbol_layer = QgsRasterMarkerSymbolLayer(str(png_file))
         self._add_layer(project, QgsMarkerSymbol([symbol_layer]))
+        before = self._write(project, tmp_path)
 
-        qgs = serialize_project()
+        assert prepare_symbol_embedding(project)
 
-        assert _file_values(qgs) == [_embedded(png_file.read_bytes())]
+        after = self._write(project, tmp_path)
         assert symbol_layer.path() == str(png_file)
+        assert _file_values(after) == _file_values(before)
+        assert _canonical_without_file_values(after) == _canonical_without_file_values(
+            before
+        )
+
+    def test_idempotent(self, project, png_file):
+        self._add_layer(
+            project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
+        )
+
+        assert self._embed(project) != {}
+        assert self._embed(project) == {}
+
+    def test_serialize_project_does_not_embed(self, project, png_file):
+        """serialize_project() stays a plain serialization: embedding is opt-in."""
+        from plugin_dir.kumoy.local_cache.map import serialize_project
+
+        self._add_layer(
+            project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
+        )
+
+        values = _file_values(serialize_project())
+
+        assert len(values) == 1
+        assert not values[0].startswith("base64:")
 
     def test_icon_survives_reopening_without_the_original_file(
         self, project, png_file, tmp_path
     ):
         """The reported bug: the same project opened on a PC that lacks the file."""
-        from plugin_dir.kumoy.local_cache.map import serialize_project
-
         self._add_layer(
             project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
         )
+        self._embed(project)
         saved = tmp_path / "saved.qgs"
-        saved.write_text(serialize_project(), encoding="utf-8")
+        saved.write_text(self._write(project, tmp_path), encoding="utf-8")
         png_file.unlink()
 
         project.clear()
-        assert project.read(str(saved))
+        read_ok = project.read(str(saved))
+        assert read_ok
 
         layer = next(iter(project.mapLayers().values()))
         image = layer.renderer().symbol().asImage(QSize(32, 32))

@@ -1,28 +1,41 @@
-"""Embed local SVG / raster symbol files into the serialized project at save time.
+"""Embed local SVG / raster symbol files into the project's symbology.
 
 A symbol layer that references a file on disk stores that path in the .qgs, so the
 icon is broken as soon as the project is opened on another machine (the Kumoy web
 map is unaffected: it renders from the sprite). QGIS's "Embed file" button stores
-the content inline as a ``base64:`` string instead; this module does the same on the
-serialized .qgs automatically.
+the content inline as a ``base64:`` string instead; this module does the same for
+every layer of the project.
 
-WHY the XML and not the symbol layers: setPath() resets an SVG's fill/stroke to its
-own defaults (so each setter would need a save/restore dance), and one pass over the
-XML also reaches every symbol (sub-symbols, categories, rules) without walking the
+Embedding is split in two steps, prepare then apply, so the caller can ask the user
+in between: prepare_symbol_embedding() changes nothing.
+
+WHY the style XML and not the symbol layers: setPath() resets an SVG's fill/stroke to
+its own defaults (so each setter would need a save/restore dance), and one pass over
+the XML also reaches every symbol (sub-symbols, categories, rules) without walking the
 renderers.
 """
 
 import base64
 from typing import Optional
 
-from qgis.core import Qgis, QgsMessageLog, QgsPathResolver, QgsSymbolLayerUtils
+from qgis.core import (
+    Qgis,
+    QgsMapLayer,
+    QgsMessageLog,
+    QgsPathResolver,
+    QgsProject,
+    QgsSymbolLayerUtils,
+    QgsVectorLayer,
+)
 from qgis.PyQt.QtXml import QDomDocument
 
 from ..constants import LOG_CATEGORY
 
 EMBEDDED_PREFIX = "base64:"
 
-# <layer class="..."> in the .qgs -> (name of the <Option> holding the path, is_svg).
+_SYMBOLOGY = QgsMapLayer.StyleCategory.Symbology
+
+# <layer class="..."> in the style XML -> (name of the <Option> holding the path, is_svg).
 # is_svg is False for raster images. SVG paths may be bare names relative to the QGIS
 # SVG search paths, so they are resolved differently from plain raster file paths.
 _FILE_OPTIONS = {
@@ -40,7 +53,7 @@ def _read_as_embedded(file_path: str) -> Optional[str]:
         with open(file_path, "rb") as f:
             data = f.read()
     except OSError as e:
-        # Info, not Warning: this runs on every save and a broken path stays broken.
+        # Info, not Warning: a broken path stays broken and is retried on every save.
         QgsMessageLog.logMessage(
             f"Could not embed symbol file {file_path}: {e}", LOG_CATEGORY, Qgis.Info
         )
@@ -74,21 +87,12 @@ def _embedded_value(
     return cache[file_path]
 
 
-def embed_symbol_files(qgs: str, project_path: str) -> str:
-    """Return ``qgs`` with the files of SVG / raster symbols embedded as ``base64:``.
-
-    ``project_path`` is the file the project was written to: relative paths in the
-    XML are relative to its directory. Already-embedded, remote, missing and empty
-    paths are left untouched. ``qgs`` is returned as is when nothing was embedded
-    (or when it cannot be parsed), so the call is idempotent.
-
-    Every file-based symbol layer is covered, but paths driven by a data-defined
-    override (icon chosen per feature) are not: only the static fallback path is.
-    """
-    doc = QDomDocument()
-    doc.setContent(qgs)
-    resolver = QgsPathResolver(project_path)
-    cache: dict[str, Optional[str]] = {}
+def _embed_in_document(
+    doc: QDomDocument,
+    resolver: QgsPathResolver,
+    cache: dict[str, Optional[str]],
+) -> bool:
+    """Embed the files of the SVG / raster symbols of ``doc``. True if any changed."""
     changed = False
 
     layers = doc.elementsByTagName("layer")
@@ -112,4 +116,42 @@ def embed_symbol_files(qgs: str, project_path: str) -> str:
                 changed = True
             break
 
-    return doc.toString(2) if changed else qgs
+    return changed
+
+
+def prepare_symbol_embedding(project: QgsProject) -> dict[QgsVectorLayer, QDomDocument]:
+    """Compute, without changing anything, the symbology to embed local symbol files.
+
+    Returns, for each vector layer that references SVG / raster files on disk, its
+    symbology style XML with those files embedded; layers with nothing to embed are
+    left out, so an empty result means there is nothing to do. Missing or unreadable
+    files, remote images and already-embedded ones are not counted.
+
+    Paths driven by a data-defined override (icon chosen per feature) are not covered:
+    only the static fallback path is.
+    """
+    resolver = QgsPathResolver()
+    cache: dict[str, Optional[str]] = {}
+    styles: dict[QgsVectorLayer, QDomDocument] = {}
+
+    for layer in project.mapLayers().values():
+        if not isinstance(layer, QgsVectorLayer):
+            continue
+        doc = QDomDocument()
+        layer.exportNamedStyle(doc, categories=_SYMBOLOGY)
+        if _embed_in_document(doc, resolver, cache):
+            styles[layer] = doc
+
+    return styles
+
+
+def apply_symbol_embedding(styles: dict[QgsVectorLayer, QDomDocument]) -> None:
+    """Replace the symbology of the layers with what prepare_symbol_embedding() built."""
+    for layer, doc in styles.items():
+        ok, error = layer.importNamedStyle(doc, categories=_SYMBOLOGY)
+        if not ok:
+            QgsMessageLog.logMessage(
+                f"Could not embed symbol files of layer '{layer.name()}': {error}",
+                LOG_CATEGORY,
+                Qgis.Warning,
+            )

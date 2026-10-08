@@ -13,7 +13,7 @@ from qgis.core import (
 
 from ... import i18n
 from ..constants import DATA_PROVIDER_KEY, LOG_CATEGORY
-from ..sprite import embed_symbol_files, pin_fixed_aspect_ratios
+from ..sprite import pin_fixed_aspect_ratios
 from .size import dir_total_size, files_total_size
 
 # Flag to prevent double updates when handling the project saved event.
@@ -162,9 +162,6 @@ def serialize_project() -> str:
 
     QgsProject.write() changes fileName and clears the dirty flag, so we
     snapshot and restore both to hide that side effect from callers.
-
-    SVG / raster symbol files are embedded in the returned XML only: the live
-    project keeps its file paths. Every save flow goes through here.
     """
     global is_updating
     project = QgsProject.instance()
@@ -180,7 +177,7 @@ def serialize_project() -> str:
     try:
         project.write(tmp_path)
         with open(tmp_path, "r", encoding="utf-8") as f:
-            return embed_symbol_files(f.read(), tmp_path)
+            return f.read()
     finally:
         is_updating = False
         project.setFileName(prev_name)
