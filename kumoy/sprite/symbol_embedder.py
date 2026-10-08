@@ -23,8 +23,9 @@ from ..constants import LOG_CATEGORY
 
 EMBEDDED_PREFIX = "base64:"
 
-# <layer class="..."> in the .qgs -> (name of the <Option> holding the path, is it SVG).
-# SVG paths may be bare names relative to the QGIS SVG search paths.
+# <layer class="..."> in the .qgs -> (name of the <Option> holding the path, is_svg).
+# is_svg is False for raster images. SVG paths may be bare names relative to the QGIS
+# SVG search paths, so they are resolved differently from plain raster file paths.
 _FILE_OPTIONS = {
     "SvgMarker": ("name", True),
     "SVGFill": ("svgFile", True),
