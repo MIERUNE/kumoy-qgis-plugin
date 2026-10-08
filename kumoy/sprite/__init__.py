@@ -6,9 +6,15 @@ from qgis.core import QgsProject
 
 from .sprite_packer import pack_sprites
 from .symbol_collector import collect_sprites
+from .symbol_embedder import embed_symbol_files
 from .symbol_normalizer import pin_fixed_aspect_ratios
 
-__all__ = ["SpriteData", "generate_sprite", "pin_fixed_aspect_ratios"]
+__all__ = [
+    "SpriteData",
+    "embed_symbol_files",
+    "generate_sprite",
+    "pin_fixed_aspect_ratios",
+]
 
 
 @dataclass
