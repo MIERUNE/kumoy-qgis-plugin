@@ -595,14 +595,70 @@ class TestSymbolEmbedding:
     def test_remote_url_is_not_treated_as_a_file(self, qgis_app):
         """Calls the helper directly: a symbol layer built on a real URL starts a
         network fetch that crashes QGIS 4 at interpreter shutdown."""
-        from plugin_dir.kumoy.sprite.symbol_embedder import _embedded_value
+        from plugin_dir.kumoy.sprite.symbol_embedder import _local_file
 
-        cache = {}
         url = "https://example.invalid/icon.png"
 
-        assert _embedded_value(url, False, QgsPathResolver(), cache) is None
-        # Skipped up front instead of failing to open() it (which would be cached).
-        assert cache == {}
+        assert _local_file(url, False, QgsPathResolver()) is None
+
+    def test_prepare_does_not_read_the_files(self, project, png_file, monkeypatch):
+        """Reading and encoding wait for the user's answer: the files can be large."""
+        from plugin_dir.kumoy.sprite import prepare_symbol_embedding, symbol_embedder
+
+        layer = self._add_layer(
+            project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
+        )
+
+        def fail(file_path):
+            raise AssertionError("prepare must not read the files")
+
+        monkeypatch.setattr(symbol_embedder, "file_to_embedded_path", fail)
+
+        assert list(prepare_symbol_embedding(project)) == [layer]
+
+    def test_a_file_used_by_several_symbols_is_read_once(
+        self, project, png_file, monkeypatch
+    ):
+        from plugin_dir.kumoy.sprite import symbol_embedder
+
+        categories = [
+            QgsRendererCategory(
+                i,
+                QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))]),
+                str(i),
+            )
+            for i in range(3)
+        ]
+        layer = QgsVectorLayer("Point?crs=EPSG:4326", "layer", "memory")
+        layer.setRenderer(QgsCategorizedSymbolRenderer("id", categories))
+        project.addMapLayer(layer)
+        reads = []
+        read_file = symbol_embedder.file_to_embedded_path
+
+        def counting_read(file_path):
+            reads.append(file_path)
+            return read_file(file_path)
+
+        monkeypatch.setattr(symbol_embedder, "file_to_embedded_path", counting_read)
+
+        self._embed(project)
+
+        assert reads == [str(png_file)]
+
+    def test_unreadable_file_keeps_its_path(self, project, png_file, monkeypatch):
+        from plugin_dir.kumoy.sprite import symbol_embedder
+
+        symbol_layer = QgsRasterMarkerSymbolLayer(str(png_file))
+        self._add_layer(project, QgsMarkerSymbol([symbol_layer]))
+
+        def unreadable(file_path):
+            raise PermissionError(file_path)
+
+        monkeypatch.setattr(symbol_embedder, "file_to_embedded_path", unreadable)
+
+        self._embed(project)
+
+        assert symbol_layer.path() == str(png_file)
 
     def test_only_layers_with_local_files_are_listed(self, project, png_file):
         with_file = self._add_layer(

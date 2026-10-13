@@ -11,6 +11,7 @@ in between: prepare_symbol_embedding() changes nothing.
 """
 
 import base64
+import os
 from typing import Iterator, Optional
 
 from qgis.core import (
@@ -63,13 +64,12 @@ def _read_as_embedded(file_path: str) -> Optional[str]:
         return None
 
 
-def _embedded_value(
-    path: str,
-    is_svg: bool,
-    resolver: QgsPathResolver,
-    cache: dict[str, Optional[str]],
-) -> Optional[str]:
-    """Return the embedded replacement for ``path``, or None to leave it as is."""
+def _local_file(path: str, is_svg: bool, resolver: QgsPathResolver) -> Optional[str]:
+    """Return the existing file ``path`` refers to, or None if there is nothing to embed.
+
+    Nothing is read here: this only decides whether the symbol is worth asking the
+    user about, and reading (and encoding) is left to apply_symbol_embedding().
+    """
     if not path or is_embedded_path(path):
         return None
     # Remote images are portable already, and fetching them here would block the save.
@@ -80,13 +80,15 @@ def _embedded_value(
         file_path = QgsSymbolLayerUtils.svgSymbolNameToPath(path, resolver)
     else:
         file_path = resolver.readPath(path)
-    if not file_path:
+    if not os.path.isfile(file_path):
+        # Info, not Warning: a broken path stays broken and is checked on every save.
+        QgsMessageLog.logMessage(
+            f"Could not embed symbol file {file_path or path}: not found",
+            LOG_CATEGORY,
+            Qgis.Info,
+        )
         return None
-
-    # A categorized renderer often repeats one icon in every category: read it once.
-    if file_path not in cache:
-        cache[file_path] = _read_as_embedded(file_path)
-    return cache[file_path]
+    return file_path
 
 
 def _iter_symbol_layers(symbol: QgsSymbol) -> Iterator[QgsSymbolLayer]:
@@ -143,18 +145,20 @@ def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
 def prepare_symbol_embedding(
     project: QgsProject,
 ) -> dict[QgsVectorLayer, list[tuple[QgsSymbolLayer, str]]]:
-    """Work out, without changing anything, which symbol files to embed.
+    """Work out, without reading or changing anything, which symbol files to embed.
 
     Returns, for each vector layer that references SVG / raster files on disk, the
-    symbol layers to update with their embedded content; layers with nothing to embed
-    are left out, so an empty result means there is nothing to do. Missing or
-    unreadable files, remote images and already-embedded ones are not counted.
+    symbol layers to update with the file to embed; layers with nothing to embed are
+    left out, so an empty result means there is nothing to do. Missing files, remote
+    images and already-embedded ones are not counted.
+
+    The files are only read by apply_symbol_embedding(), once the user has agreed:
+    they can be large and the answer may be no.
 
     Paths driven by a data-defined override (icon chosen per feature) are not covered:
     only the static fallback path is.
     """
     resolver = QgsPathResolver()
-    cache: dict[str, Optional[str]] = {}
     render_context = QgsRenderContext()
     changes: dict[QgsVectorLayer, list[tuple[QgsSymbolLayer, str]]] = {}
 
@@ -166,9 +170,9 @@ def prepare_symbol_embedding(
                 file = _file_path(symbol_layer)
                 if file is None:
                     continue
-                embedded = _embedded_value(*file, resolver, cache)
-                if embedded is not None:
-                    changes.setdefault(layer, []).append((symbol_layer, embedded))
+                file_path = _local_file(*file, resolver)
+                if file_path is not None:
+                    changes.setdefault(layer, []).append((symbol_layer, file_path))
 
     return changes
 
@@ -176,8 +180,18 @@ def prepare_symbol_embedding(
 def apply_symbol_embedding(
     changes: dict[QgsVectorLayer, list[tuple[QgsSymbolLayer, str]]],
 ) -> None:
-    """Embed the files, as worked out by prepare_symbol_embedding()."""
+    """Embed the files, as worked out by prepare_symbol_embedding().
+
+    A file that cannot be read is logged and its symbol keeps the path.
+    """
+    # A categorized renderer often repeats one icon in every category: read it once.
+    cache: dict[str, Optional[str]] = {}
+
     for layer, layer_changes in changes.items():
-        for symbol_layer, embedded in layer_changes:
-            _set_file_path(symbol_layer, embedded)
+        for symbol_layer, file_path in layer_changes:
+            if file_path not in cache:
+                cache[file_path] = _read_as_embedded(file_path)
+            embedded = cache[file_path]
+            if embedded is not None:
+                _set_file_path(symbol_layer, embedded)
         layer.emitStyleChanged()
