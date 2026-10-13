@@ -496,11 +496,25 @@ class TestSymbolEmbedding:
 
         self._embed(project)
 
-        # The layer got a new renderer: read the symbol back from it.
+        # Read the symbol back from the layer, as the canvas does.
         layer = next(iter(project.mapLayers().values()))
         embedded = layer.renderer().symbol()
         assert embedded.symbolLayer(0).path().startswith("base64:")
         assert embedded.asImage(QSize(64, 64)) == image
+
+    def test_svg_fill_keeps_its_colours(self, project, svg_file):
+        # Non-default values: setSvgFilePath() resets them to the SVG's own defaults.
+        symbol_layer = QgsSVGFillSymbolLayer(str(svg_file))
+        symbol_layer.setSvgFillColor(QColor(10, 20, 30))
+        symbol_layer.setSvgStrokeColor(QColor(40, 50, 60))
+        symbol_layer.setSvgStrokeWidth(3.5)
+        self._add_layer(project, QgsFillSymbol([symbol_layer]))
+        before = symbol_layer.properties()
+
+        self._embed(project)
+
+        after = symbol_layer.properties()
+        assert {k for k in before if before[k] != after[k]} == {"svgFile"}
 
     def test_nested_sub_symbol_is_embedded(self, project, tmp_path, svg_file):
         line_layer = QgsMarkerLineSymbolLayer()
