@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestNormalizeFieldName:
     def _fn(self):
-        from plugin_dir.processing.upload_vector.normalize_field_name import (
+        from plugin_dir.processing.vector.upload.normalize_field_name import (
             normalize_field_name,
         )
 

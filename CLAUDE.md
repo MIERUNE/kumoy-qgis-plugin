@@ -37,7 +37,9 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
   - `kumoy/settings_manager.py` — QSettingsラッパー（session_token等のドメイン状態を保持）
 - `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI、保存ハンドラ、共通エラーハンドラ等）
   - `ui/error_handler.py` — 共通APIエラーハンドラ（QMessageBox表示・Browserリフレッシュを含むのでUI責務）
-- `processing/` — QGIS Processing アルゴリズム（ベクターアップロード等）
+- `processing/` — QGIS Processing アルゴリズム。ツールボックスの階層とディレクトリを一致させる（グループ = ディレクトリ、1ツール = 1モジュール。補助モジュールを持つツールはパッケージにする）
+  - `processing/base.py` — リソース操作系アルゴリズムの基底クラスとグループ名
+  - `processing/{organization,vector,raster,map}/` — 各グループのツール（例: `vector/update.py`、`vector/upload/`）
 - `tests/` — pytest ベースのテスト（pytest-qgis使用）
 - `i18n/` — 国際化（英語デフォルト、日本語対応済み）
 

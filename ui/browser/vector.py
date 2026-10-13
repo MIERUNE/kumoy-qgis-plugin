@@ -4,17 +4,9 @@ from qgis import processing
 from qgis.core import (
     Qgis,
     QgsDataItem,
-    QgsFields,
     QgsMessageLog,
     QgsMimeDataUtils,
     QgsProject,
-    QgsSimpleFillSymbolLayer,
-    QgsSimpleLineSymbolLayer,
-    QgsSimpleMarkerSymbolLayer,
-    QgsSingleSymbolRenderer,
-    QgsSymbol,
-    QgsUnitTypes,
-    QgsVectorLayer,
 )
 from qgis.PyQt.QtWidgets import (
     QAction,
@@ -31,7 +23,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ..error_handler import handle_api_error
-from ...kumoy import api, constants, local_cache
+from ...kumoy import api, constants, local_cache, vector_layer
 from ...kumoy.api.error import UnauthorizedError, format_api_error
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
@@ -70,7 +62,6 @@ class VectorItem(QgsDataItem):
         )
 
         self.vector = vector
-        self.vector_uri = f"project_id={self.vector.projectId};vector_id={self.vector.id};vector_name={self.vector.name};vector_type={self.vector.type};"
         self.role = role
 
         # Set icon based on geometry type
@@ -92,7 +83,7 @@ class VectorItem(QgsDataItem):
         u.layerType = "vector"
         u.providerKey = constants.DATA_PROVIDER_KEY
         u.name = self.vector.name
-        u.uri = self.vector_uri
+        u.uri = vector_layer.vector_uri(self.vector)
         return [u]
 
     def build_actions(self, parent: QMenu) -> list[QAction]:
@@ -128,23 +119,9 @@ class VectorItem(QgsDataItem):
         return actions
 
     def import_vector(self) -> None:
-        api.vector.get_vector(self.vector.id)
-
-        layer = QgsVectorLayer(
-            self.vector_uri, self.vector.name, constants.DATA_PROVIDER_KEY
-        )
-        self._set_pixel_based_style(layer)
-
-        if layer.isValid():
-            # Set kumoy_id to read-only
-            field_idx = layer.fields().indexOf("kumoy_id")
-            if layer.fields().fieldOrigin(field_idx) == QgsFields.OriginProvider:
-                config = layer.editFormConfig()
-                config.setReadOnly(field_idx, True)
-                layer.setEditFormConfig(config)
-            QgsProject.instance().addMapLayer(layer)
-        else:
-            raise RuntimeError(i18n.tr("Layer is invalid: {}").format(self.vector_uri))
+        layer = vector_layer.create_vector_layer(api.vector.get_vector(self.vector.id))
+        vector_layer.apply_pixel_based_style(layer)
+        QgsProject.instance().addMapLayer(layer)
 
     def add_to_map(self) -> None:
         """Add vector layer to QGIS map"""
@@ -156,58 +133,6 @@ class VectorItem(QgsDataItem):
                 parent=None,
                 log_prefix=i18n.tr("Error adding vector to map"),
             )
-
-    def _set_pixel_based_style(self, layer: QgsVectorLayer) -> None:
-        """Set pixel-based styling for the layer"""
-        # Create symbol based on geometry type
-        if self.vector.type == "POINT":
-            # Create point symbol with pixel units
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-            if symbol and symbol.symbolLayerCount() > 0:
-                marker_layer = symbol.symbolLayer(0)
-                if isinstance(marker_layer, QgsSimpleMarkerSymbolLayer):
-                    # Set size in pixels
-                    marker_layer.setSize(5.0)
-                    marker_layer.setSizeUnit(QgsUnitTypes.RenderPixels)
-                    # Set stroke width in pixels
-                    marker_layer.setStrokeWidth(1.0)
-                    marker_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
-                    # offset
-                    marker_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
-
-        elif self.vector.type == "LINESTRING":
-            # Create line symbol with pixel units
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-            if symbol and symbol.symbolLayerCount() > 0:
-                line_layer = symbol.symbolLayer(0)
-                if isinstance(line_layer, QgsSimpleLineSymbolLayer):
-                    # Set line width in pixels
-                    line_layer.setWidth(2.0)
-                    line_layer.setWidthUnit(QgsUnitTypes.RenderPixels)
-                    # Set line offset in pixels
-                    line_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
-
-        elif self.vector.type == "POLYGON":
-            # Create polygon symbol with pixel units
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-            if symbol and symbol.symbolLayerCount() > 0:
-                fill_layer = symbol.symbolLayer(0)
-                if isinstance(fill_layer, QgsSimpleFillSymbolLayer):
-                    # Set stroke width in pixels
-                    fill_layer.setStrokeWidth(1.0)
-                    fill_layer.setStrokeWidthUnit(QgsUnitTypes.RenderPixels)
-                    # Set offset in pixels
-                    fill_layer.setOffsetUnit(QgsUnitTypes.RenderPixels)
-
-        else:
-            # Use default symbol for unknown types
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-
-        # Apply the symbol to the layer
-        if symbol:
-            renderer = QgsSingleSymbolRenderer(symbol)
-            layer.setRenderer(renderer)
-            layer.triggerRepaint()
 
     def handleDoubleClick(self) -> bool:
         """Handle double-click event by adding the vector layer to the map"""

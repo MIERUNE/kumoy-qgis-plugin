@@ -14,7 +14,7 @@ class TestGetGeometryType:
     """_get_geometry_type が各WKBタイプを正しくマッピングすること"""
 
     def _get_fn(self):
-        from plugin_dir.processing.upload_vector.algorithm import _get_geometry_type
+        from plugin_dir.processing.vector.upload.algorithm import _get_geometry_type
 
         return _get_geometry_type
 
@@ -60,7 +60,7 @@ class TestCreateAttributeList:
     """_create_attribute_list がQgsFieldの型を正しくマッピングすること"""
 
     def _get_fn(self):
-        from plugin_dir.processing.upload_vector.algorithm import _create_attribute_list
+        from plugin_dir.processing.vector.upload.algorithm import _create_attribute_list
 
         return _create_attribute_list
 

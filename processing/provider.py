@@ -1,11 +1,27 @@
-import os
-
 from qgis.core import Qgis, QgsProcessingProvider
 
 from ..kumoy.constants import PLUGIN_NAME
 from ..ui.icons import MAIN_ICON
-from .upload_raster.algorithm import UploadRasterAlgorithm
-from .upload_vector.algorithm import UploadVectorAlgorithm
+from .map.create import CreateMapAlgorithm
+from .map.delete import DeleteMapAlgorithm
+from .map.get import GetMapAlgorithm
+from .map.list import ListMapsAlgorithm
+from .map.update import UpdateMapAlgorithm
+from .organization.get_project import GetProjectAlgorithm
+from .organization.list_organizations import ListOrganizationsAlgorithm
+from .organization.list_projects import ListProjectsAlgorithm
+from .raster.add_to_map import AddRasterToMapAlgorithm
+from .raster.delete import DeleteRasterAlgorithm
+from .raster.get import GetRasterAlgorithm
+from .raster.list import ListRastersAlgorithm
+from .raster.update import UpdateRasterAlgorithm
+from .raster.upload.algorithm import UploadRasterAlgorithm
+from .vector.add_to_map import AddVectorToMapAlgorithm
+from .vector.delete import DeleteVectorAlgorithm
+from .vector.get import GetVectorAlgorithm
+from .vector.list import ListVectorsAlgorithm
+from .vector.update import UpdateVectorAlgorithm
+from .vector.upload.algorithm import UploadVectorAlgorithm
 
 
 class KumoyProcessingProvider(QgsProcessingProvider):
@@ -38,6 +54,24 @@ class KumoyProcessingProvider(QgsProcessingProvider):
         """Load algorithms"""
         self.addAlgorithm(UploadVectorAlgorithm())
         self.addAlgorithm(UploadRasterAlgorithm())
+        self.addAlgorithm(ListOrganizationsAlgorithm())
+        self.addAlgorithm(ListProjectsAlgorithm())
+        self.addAlgorithm(GetProjectAlgorithm())
+        self.addAlgorithm(ListVectorsAlgorithm())
+        self.addAlgorithm(GetVectorAlgorithm())
+        self.addAlgorithm(AddVectorToMapAlgorithm())
+        self.addAlgorithm(UpdateVectorAlgorithm())
+        self.addAlgorithm(DeleteVectorAlgorithm())
+        self.addAlgorithm(ListRastersAlgorithm())
+        self.addAlgorithm(GetRasterAlgorithm())
+        self.addAlgorithm(AddRasterToMapAlgorithm())
+        self.addAlgorithm(UpdateRasterAlgorithm())
+        self.addAlgorithm(DeleteRasterAlgorithm())
+        self.addAlgorithm(ListMapsAlgorithm())
+        self.addAlgorithm(CreateMapAlgorithm())
+        self.addAlgorithm(GetMapAlgorithm())
+        self.addAlgorithm(UpdateMapAlgorithm())
+        self.addAlgorithm(DeleteMapAlgorithm())
 
     def longName(self):
         """Longer version of the provider name"""

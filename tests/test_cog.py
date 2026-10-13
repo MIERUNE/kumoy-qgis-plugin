@@ -53,7 +53,7 @@ only_without_gdal_311 = pytest.mark.skipif(
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestConvertToCog:
     def _fn(self):
-        from plugin_dir.processing.upload_raster.cog import convert_to_cog
+        from plugin_dir.processing.raster.upload.cog import convert_to_cog
 
         return convert_to_cog
 
@@ -154,7 +154,7 @@ class TestConvertToCog:
         ds.Close()
 
     def test_cancellation_raises(self, tmp_path):
-        from plugin_dir.processing.upload_raster.cog import CogConversionCanceled
+        from plugin_dir.processing.raster.upload.cog import CogConversionCanceled
 
         src = str(tmp_path / "src.tif")
         dst = str(tmp_path / "out.tif")
@@ -179,7 +179,7 @@ class TestConvertToCog:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestReadSourceCrsWkt:
     def _fn(self):
-        from plugin_dir.processing.upload_raster.cog import read_source_crs_wkt
+        from plugin_dir.processing.raster.upload.cog import read_source_crs_wkt
 
         return read_source_crs_wkt
 
@@ -197,7 +197,7 @@ class TestReadSourceCrsWkt:
 
     def test_defers_error_for_unopenable_path(self, tmp_path):
         """開けないパスは SOURCE_UNREADABLE でエラー報告を convert_to_cog に委ねる。"""
-        from plugin_dir.processing.upload_raster.cog import SOURCE_UNREADABLE
+        from plugin_dir.processing.raster.upload.cog import SOURCE_UNREADABLE
 
         assert self._fn()(str(tmp_path / "missing.tif")) is SOURCE_UNREADABLE
 
@@ -209,7 +209,7 @@ def test_multiband_errors_without_gdal_311(tmp_path):
 
     単バンドは古い GDAL でも通る（TestConvertToCog の各テストが担保）。
     """
-    from plugin_dir.processing.upload_raster.cog import convert_to_cog
+    from plugin_dir.processing.raster.upload.cog import convert_to_cog
 
     src = str(tmp_path / "src.tif")
     dst = str(tmp_path / "out.tif")
