@@ -31,7 +31,7 @@ from qgis.PyQt.QtXml import QDomDocument
 
 from ..constants import LOG_CATEGORY
 
-EMBEDDED_PREFIX = "base64:"
+_EMBEDDED_PREFIX = "base64:"
 
 _SYMBOLOGY = QgsMapLayer.StyleCategory.Symbology
 
@@ -47,18 +47,32 @@ _FILE_OPTIONS = {
 }
 
 
+def file_to_embedded_path(file_path: str) -> str:
+    """Return the file content as an embedded path: ``base64:`` + the base64 data.
+
+    This is what QGIS's "Embed file" button stores in a symbol layer instead of a
+    path. The prefix and the encoding live together here, with is_embedded_path()
+    as the matching check. Raises OSError if the file cannot be read.
+    """
+    with open(file_path, "rb") as f:
+        return _EMBEDDED_PREFIX + base64.b64encode(f.read()).decode("ascii")
+
+
+def is_embedded_path(path: str) -> bool:
+    """Whether ``path`` is already embedded content (see file_to_embedded_path)."""
+    return path.startswith(_EMBEDDED_PREFIX)
+
+
 def _read_as_embedded(file_path: str) -> Optional[str]:
-    """Return the file content as a ``base64:`` string, or None if unreadable."""
+    """Embedded form of the file, or None (logged) if it cannot be read."""
     try:
-        with open(file_path, "rb") as f:
-            data = f.read()
+        return file_to_embedded_path(file_path)
     except OSError as e:
         # Info, not Warning: a broken path stays broken and is retried on every save.
         QgsMessageLog.logMessage(
             f"Could not embed symbol file {file_path}: {e}", LOG_CATEGORY, Qgis.Info
         )
         return None
-    return EMBEDDED_PREFIX + base64.b64encode(data).decode("ascii")
 
 
 def _embedded_value(
@@ -67,8 +81,8 @@ def _embedded_value(
     resolver: QgsPathResolver,
     cache: dict[str, Optional[str]],
 ) -> Optional[str]:
-    """Return the ``base64:`` replacement for ``path``, or None to leave it as is."""
-    if not path or path.startswith(EMBEDDED_PREFIX):
+    """Return the embedded replacement for ``path``, or None to leave it as is."""
+    if not path or is_embedded_path(path):
         return None
     # Remote images are portable already, and fetching them here would block the save.
     if path.lower().startswith(("http://", "https://")):

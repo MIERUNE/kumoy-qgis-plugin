@@ -559,6 +559,25 @@ class TestSymbolEmbedding:
         assert self._embed(project) == {}
         assert symbol_layer.path() == path
 
+    def test_file_to_embedded_path_and_is_embedded_path(self, png_file):
+        from plugin_dir.kumoy.sprite.symbol_embedder import (
+            file_to_embedded_path,
+            is_embedded_path,
+        )
+
+        embedded = file_to_embedded_path(str(png_file))
+
+        assert embedded == _embedded(png_file.read_bytes())
+        assert is_embedded_path(embedded)
+        assert not is_embedded_path(str(png_file))
+        assert not is_embedded_path("")
+
+    def test_file_to_embedded_path_raises_for_a_missing_file(self, tmp_path):
+        from plugin_dir.kumoy.sprite.symbol_embedder import file_to_embedded_path
+
+        with pytest.raises(OSError):
+            file_to_embedded_path(str(tmp_path / "missing.png"))
+
     def test_remote_url_is_not_treated_as_a_file(self, qgis_app):
         """Calls the helper directly: a symbol layer built on a real URL starts a
         network fetch that crashes QGIS 4 at interpreter shutdown."""
