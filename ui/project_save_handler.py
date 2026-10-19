@@ -111,9 +111,10 @@ def confirm_symbol_embedding(project: QgsProject) -> None:
         i18n.tr("Embed Symbol Files"),
         i18n.tr(
             "This project contains symbols that point to files on your computer. "
-            "They will display on the Kumoy web map, but other users who open this "
-            "project in QGIS will not see them unless the files are embedded.\n\n"
-            "Do you want to embed these files in the project?"
+            "They will display on the Kumoy map, but other users who open this "
+            "project in QGIS will not see them. Embedding the files in the project "
+            "lets other users see the symbols too. "
+            "Do you want to embed the files in the project?"
         ),
         Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
         Q_MESSAGEBOX_STD_BUTTON.Yes,
