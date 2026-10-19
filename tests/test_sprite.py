@@ -434,10 +434,10 @@ class TestSymbolEmbedding:
 
         embed_local_symbol_files(project)
 
-    def _has_local_files(self, project):
-        from plugin_dir.kumoy.sprite import has_local_symbol_files
+    def _increase(self, project):
+        from plugin_dir.kumoy.sprite import embedding_size_increase
 
-        return has_local_symbol_files(project)
+        return embedding_size_increase(project)
 
     def _svg_marker(self, path):
         layer = QgsSvgMarkerSymbolLayer(str(path))
@@ -569,27 +569,27 @@ class TestSymbolEmbedding:
         symbol_layer = QgsRasterMarkerSymbolLayer(path)
         self._add_layer(project, QgsMarkerSymbol([symbol_layer]))
 
-        assert not self._has_local_files(project)
+        assert self._increase(project) == 0
         self._embed(project)
         assert symbol_layer.path() == path
 
-    def test_has_local_files_only_with_a_file_symbol(self, project, png_file):
+    def test_increase_only_with_a_file_symbol(self, project, png_file):
         self._add_layer(project, QgsMarkerSymbol.createSimple({}), name="plain")
-        assert not self._has_local_files(project)
+        assert self._increase(project) == 0
 
         self._add_layer(
             project,
             QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))]),
             name="with file",
         )
-        assert self._has_local_files(project)
+        assert self._increase(project) > 0
 
-    def test_has_local_files_changes_nothing(self, project, tmp_path, png_file):
+    def test_increase_changes_nothing(self, project, tmp_path, png_file):
         symbol_layer = QgsRasterMarkerSymbolLayer(str(png_file))
         self._add_layer(project, QgsMarkerSymbol([symbol_layer]))
         before = self._write(project, tmp_path)
 
-        assert self._has_local_files(project)
+        assert self._increase(project) > 0
 
         after = self._write(project, tmp_path)
         assert symbol_layer.path() == str(png_file)
@@ -605,7 +605,34 @@ class TestSymbolEmbedding:
 
         self._embed(project)
 
-        assert not self._has_local_files(project)
+        assert self._increase(project) == 0
+
+    def test_increase_predicts_the_written_size(
+        self, project, tmp_path, svg_file, png_file
+    ):
+        """The prediction must not fall short of the real growth, or a save could
+        be offered embedding and then be refused by the size limit."""
+        categories = [
+            QgsRendererCategory(
+                i,
+                QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))]),
+                str(i),
+            )
+            for i in range(3)
+        ]
+        layer = QgsVectorLayer("Point?crs=EPSG:4326", "layer", "memory")
+        layer.setRenderer(QgsCategorizedSymbolRenderer("id", categories))
+        project.addMapLayer(layer)
+        self._add_layer(project, QgsFillSymbol([QgsSVGFillSymbolLayer(str(svg_file))]))
+        before = len(self._write(project, tmp_path))
+        increase = self._increase(project)
+
+        self._embed(project)
+
+        growth = len(self._write(project, tmp_path)) - before
+        assert growth <= increase
+        # Off only by the replaced paths, which the prediction does not subtract.
+        assert increase - growth < 500
 
     def test_serialize_project_does_not_embed(self, project, png_file):
         """serialize_project() stays a plain serialization: embedding is opt-in."""

@@ -6,14 +6,14 @@ from qgis.core import QgsProject
 
 from .sprite_packer import pack_sprites
 from .symbol_collector import collect_sprites
-from .symbol_embedder import embed_local_symbol_files, has_local_symbol_files
+from .symbol_embedder import embed_local_symbol_files, embedding_size_increase
 from .symbol_normalizer import pin_fixed_aspect_ratios
 
 __all__ = [
     "SpriteData",
     "embed_local_symbol_files",
+    "embedding_size_increase",
     "generate_sprite",
-    "has_local_symbol_files",
     "pin_fixed_aspect_ratios",
 ]
 

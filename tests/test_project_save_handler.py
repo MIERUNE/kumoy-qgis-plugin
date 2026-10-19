@@ -16,13 +16,15 @@ class TestConfirmSymbolEmbedding:
 
     @pytest.fixture
     def ask(self, monkeypatch, qgis_app):
-        """Replace the dialog: ask.answer is what the user clicks, ask.calls the asks."""
+        """Replace the dialogs: ask.answer is what the user clicks, ask.calls the
+        asks, ask.warnings the warnings shown."""
         from plugin_dir.pyqt_version import Q_MESSAGEBOX_STD_BUTTON
         from plugin_dir.ui import project_save_handler
 
         class _Ask:
             answer = Q_MESSAGEBOX_STD_BUTTON.Yes
             calls = 0
+            warnings = 0
 
         ask = _Ask()
 
@@ -31,6 +33,10 @@ class TestConfirmSymbolEmbedding:
             def question(parent, title, text, buttons, default):
                 ask.calls += 1
                 return ask.answer
+
+            @staticmethod
+            def warning(parent, title, text):
+                ask.warnings += 1
 
         monkeypatch.setattr(project_save_handler, "QMessageBox", _FakeMessageBox)
         return ask
@@ -103,3 +109,42 @@ class TestConfirmSymbolEmbedding:
         confirm_symbol_embedding(project)
 
         assert ask.calls == 1
+
+    def _set_limit_above_current_size(self, monkeypatch, offset):
+        """Set the size limit to the current project size plus ``offset``."""
+        from plugin_dir.kumoy.local_cache import map as cache_map
+
+        size = len(cache_map.serialize_project())
+        monkeypatch.setattr(cache_map, "LENGTH_LIMIT", size + offset)
+
+    def test_does_not_offer_when_embedding_would_exceed_the_limit(
+        self, project, ask, tmp_path, monkeypatch
+    ):
+        from plugin_dir.kumoy.sprite import embedding_size_increase
+        from plugin_dir.ui.project_save_handler import confirm_symbol_embedding
+
+        layer, icon = self._project_with_icon(project, tmp_path)
+        self._set_limit_above_current_size(
+            monkeypatch, embedding_size_increase(project) - 1
+        )
+
+        confirm_symbol_embedding(project)
+
+        assert ask.calls == 0
+        assert ask.warnings == 1
+        assert self._icon_path(layer) == icon
+
+    def test_silent_when_already_over_the_limit(
+        self, project, ask, tmp_path, monkeypatch
+    ):
+        """The size check that follows reports it: no second dialog."""
+        from plugin_dir.ui.project_save_handler import confirm_symbol_embedding
+
+        layer, icon = self._project_with_icon(project, tmp_path)
+        self._set_limit_above_current_size(monkeypatch, -1)
+
+        confirm_symbol_embedding(project)
+
+        assert ask.calls == 0
+        assert ask.warnings == 0
+        assert self._icon_path(layer) == icon

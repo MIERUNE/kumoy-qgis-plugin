@@ -6,7 +6,7 @@ map is unaffected: it renders from the sprite). QGIS's "Embed file" button store
 the content inline as a ``base64:`` string instead; this module does the same for
 every layer of the project.
 
-has_local_symbol_files() only checks, so the caller can ask the user before
+embedding_size_increase() only checks, so the caller can ask the user before
 embed_local_symbol_files() changes anything. Nothing is carried between the two:
 the project is walked again, so no symbol layer is held across the user's answer.
 """
@@ -33,6 +33,8 @@ from qgis.core import (
 )
 
 from ..constants import LOG_CATEGORY
+
+_EMBEDDED_PREFIX = "base64:"
 
 
 def _iter_symbol_layers(symbol: QgsSymbol) -> Iterator[QgsSymbolLayer]:
@@ -96,7 +98,7 @@ def _read_as_embedded(file_path: str) -> Optional[str]:
     if the file cannot be read."""
     try:
         with open(file_path, "rb") as f:
-            return "base64:" + base64.b64encode(f.read()).decode("ascii")
+            return _EMBEDDED_PREFIX + base64.b64encode(f.read()).decode("ascii")
     except OSError as e:
         # Info, not Warning: the path stays as is and is retried on every save.
         QgsMessageLog.logMessage(
@@ -130,12 +132,20 @@ def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
         symbol_layer.setPath(path)
 
 
-def has_local_symbol_files(project: QgsProject) -> bool:
-    """Whether any symbol in the project draws an SVG / raster file on this computer.
+def embedding_size_increase(project: QgsProject) -> int:
+    """Characters that embed_local_symbol_files() would add to the serialized project.
 
-    Reads no file content and changes nothing.
+    0 means there is nothing to embed. Each symbol layer gets its own copy, so an
+    icon repeated in every category counts once per category. Reads no file content
+    and changes nothing. Slightly overestimates: the replaced paths are not
+    subtracted, which is negligible next to the base64 content.
     """
-    return next(_local_symbol_files(project), None) is not None
+    return sum(
+        # base64 turns every 3 bytes (rounded up) into 4 characters, none of which
+        # need escaping in XML.
+        len(_EMBEDDED_PREFIX) + 4 * ((os.path.getsize(file_path) + 2) // 3)
+        for _, _, file_path in _local_symbol_files(project)
+    )
 
 
 def embed_local_symbol_files(project: QgsProject) -> None:
