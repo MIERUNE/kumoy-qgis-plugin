@@ -14,7 +14,11 @@ from qgis.utils import iface
 from .. import i18n
 from ..kumoy import api, settings_manager
 from ..kumoy.local_cache import map as cache_map
-from ..kumoy.sprite import generate_sprite
+from ..kumoy.sprite import (
+    embed_local_symbol_files,
+    embedding_size_increase,
+    generate_sprite,
+)
 from ..kumoy.sprite.uploader import upload_sprites
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON
 from .error_handler import handle_api_error, refresh_kumoy_browser
@@ -71,6 +75,52 @@ def warn_if_project_too_large(qgs_str: str) -> bool:
         QMessageBox.critical(None, i18n.tr("Error"), size_error)
         return True
     return False
+
+
+def confirm_symbol_embedding(project: QgsProject) -> None:
+    """Offer to embed local symbol files, and embed them if the user agrees.
+
+    Only asks when the project has SVG / raster symbols that point to files on this
+    computer, and only if embedding them keeps the project within the size limit
+    (otherwise the user is told the paths are kept). Declining keeps the paths and the save goes on as before; the question
+    comes back on the next save. Call it before the size check so that the check
+    measures the embedded project.
+    """
+    increase = embedding_size_increase(project)
+    if not increase:
+        return
+
+    size = len(cache_map.serialize_project())
+    if size + increase > cache_map.LENGTH_LIMIT:
+        # Not offered: the size check would refuse the save and leave the project
+        # embedded in memory, with no way back to the paths.
+        if size <= cache_map.LENGTH_LIMIT:  # else the size check reports it anyway
+            QMessageBox.warning(
+                None,
+                i18n.tr("Embed Symbol Files"),
+                i18n.tr(
+                    "This project contains symbols that point to files on your "
+                    "computer. They will display on the Kumoy map, but other users "
+                    "who open this project in QGIS will not see them."
+                ),
+            )
+        return
+
+    answer = QMessageBox.question(
+        None,
+        i18n.tr("Embed Symbol Files"),
+        i18n.tr(
+            "This project contains symbols that point to files on your computer. "
+            "They will display on the Kumoy map, but other users who open this "
+            "project in QGIS will not see them. Embedding the files in the project "
+            "lets other users see the symbols too. "
+            "Do you want to embed the files in the project?"
+        ),
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.Yes,
+    )
+    if answer == Q_MESSAGEBOX_STD_BUTTON.Yes:
+        embed_local_symbol_files(project)
 
 
 def handle_project_saved() -> None:
@@ -145,6 +195,8 @@ def handle_project_saved() -> None:
     )
     if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
         return
+
+    confirm_symbol_embedding(project)
 
     # Pre-flight size check before any upload: serialize to a throwaway temp
     # file and validate, without touching the cache.
