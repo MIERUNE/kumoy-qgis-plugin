@@ -100,9 +100,8 @@ def confirm_symbol_embedding(project: QgsProject) -> None:
                 i18n.tr("Embed Symbol Files"),
                 i18n.tr(
                     "This project contains symbols that point to files on your "
-                    "computer. They will display on the Kumoy web map, but embedding "
-                    "them would exceed the project size limit, so other users who "
-                    "open this project in QGIS will not see them."
+                    "computer. They will display on the Kumoy map, but other users "
+                    "who open this project in QGIS will not see them."
                 ),
             )
         return
