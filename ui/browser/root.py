@@ -11,9 +11,10 @@ from ... import i18n
 from ..error_handler import handle_api_error
 from ...kumoy import api, constants
 from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
-from ...kumoy.settings_manager import get_settings
+from ...kumoy.settings_manager import get_settings, store_setting
 from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
+from ...ui.dialog_onboarding import OnboardingDialog
 from ...ui.dialog_project_select import ProjectSelectDialog
 from ...ui.icons import MAIN_ICON
 from .raster import RasterRoot
@@ -137,7 +138,13 @@ class RootCollection(QgsDataCollectionItem):
     def login(self):
         """Login to Kumoy"""
 
-        # Show config dialog with Supabase login tab
+        if get_settings().onboarding_seen != "true":
+            guide = OnboardingDialog()
+            # Dismissing the introduction also counts as seen. Continue with the
+            # requested login after it closes, whether the tour was read or skipped.
+            store_setting("onboarding_seen", "true")
+            exec_dialog(guide)
+
         dialog = DialogLogin()
         result = exec_dialog(dialog)
 
