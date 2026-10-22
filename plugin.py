@@ -39,6 +39,7 @@ from .kumoy.settings_manager import (
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider
 from .ui.icons import MAIN_ICON
+from .ui.dialog_onboarding import OnboardingDialog
 from .ui.layers.convert import on_convert_layer_clicked
 from .ui.layers.indicators import update_kumoy_indicator
 
@@ -69,6 +70,7 @@ class KumoyPlugin:
         self.logout_action = None
         self.help_action = None
         self.data_item_gui_provider = None
+        self.onboarding_dialog = None
 
     def init_translation(self):
         """Load translations for the current QGIS locale."""
@@ -394,6 +396,10 @@ class KumoyPlugin:
         self.kumoy_menu.setIcon(MAIN_ICON)
         self.iface.pluginMenu().addMenu(self.kumoy_menu)
 
+        self.onboarding_action = QAction(i18n.tr("Getting Started"), self.win)
+        self.onboarding_action.triggered.connect(lambda: self.show_onboarding())
+        self.kumoy_menu.addAction(self.onboarding_action)
+
         # Add menu action for logout
         self.logout_action = QAction(i18n.tr("Logout"), self.win)
         self.logout_action.triggered.connect(self.on_logout)
@@ -418,12 +424,24 @@ class KumoyPlugin:
         # Check plugin version compatibility
         self.check_plugin_version()
 
+    def show_onboarding(self):
+        if self.onboarding_dialog is None:
+            self.onboarding_dialog = OnboardingDialog(self.win)
+        self.onboarding_dialog.show_guide(introductory=False)
+        self.onboarding_dialog.raise_()
+        self.onboarding_dialog.activateWindow()
+
     def update_logout_action_visibility(self):
         # MEMO: メニューバーを開くたびに実行されるので重たい処理を実装してはいけない
         is_logged_in = bool(api.config.get_settings().session_token)
         self.logout_action.setVisible(is_logged_in)
 
     def unload(self):
+        if self.onboarding_dialog is not None:
+            self.onboarding_dialog.close()
+            self.onboarding_dialog.deleteLater()
+            self.onboarding_dialog = None
+
         # Remove menu actions
         if self.kumoy_menu is not None:
             self.iface.pluginMenu().removeAction(self.kumoy_menu.menuAction())
