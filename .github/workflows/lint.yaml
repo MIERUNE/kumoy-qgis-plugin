@@ -9,7 +9,8 @@ on:
 jobs:
   Test:
     name: Lint
-    runs-on: ubuntu-latest
+    # ubuntu-latest (26.04) has no Python 3.9 for setup-python
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
