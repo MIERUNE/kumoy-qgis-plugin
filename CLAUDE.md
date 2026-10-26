@@ -65,7 +65,7 @@ plugin.py
 - `kumoy/` 配下から `ui/`・`processing/` を import しない。UI対話やユーザー操作起点のフロー（QMessageBoxを出す、保存ハンドラ、レイヤー変換ダイアログ等）はすべて `ui/` か `processing/` 側に置く。
 - `kumoy/local_cache/` などのドメイン層は純粋なデータ・ファイル操作のみを担い、UI/API連携を伴うオーケストレーションは UI 層に切り出す（例: `ui/project_save_handler.py`）。
 - Kumoyドメインの状態（session_token、選択中のorganization/project、カスタムサーバURL等）は `kumoy/settings_manager.py` に集約。`ui/` や `processing/` から読み書きするのはOK、`kumoy/` 内部からの参照もsibling同士の通常import。
-- `ui/error_handler.py` は `kumoy.settings_manager` と `kumoy.api.error` のみに依存し、QGISの公開API（`dataItemProviderRegistry`）を介してBrowserをリフレッシュする。`plugin.py` への callback 登録などの「隠れた逆向き依存」は持たない。
+- `ui/error_handler.py` は `kumoy.settings_manager`・`kumoy.api.error`・`kumoy.basemap` のみに依存し、QGISの公開API（`dataItemProviderRegistry`）を介してBrowserをリフレッシュする。`plugin.py` への callback 登録などの「隠れた逆向き依存」は持たない。
 - `processing/` → `ui/error_handler` は横方向の例外依存。`error_handler` はUI責務（QMessageBox表示）を持つため `ui/` 配下に置く一方、`processing/` からも共通利用したいので許可。それ以外の `processing/` ↔ `ui/` の横断 import は避ける。
 - レイヤー間で何かを呼びたくなったら、まず依存方向を確認すること。逆向きの import が必要に思えたら設計を見直すサイン。
 

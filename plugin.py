@@ -107,6 +107,8 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             close_all_processing_dialogs()
             reset_settings()
+            remove_xyz_connections()
+            self.iface.reloadConnections()
 
             self._refresh_browser_panel()
 
@@ -340,6 +342,9 @@ class KumoyPlugin:
             store_setting("user_info", "")
             store_setting("selected_project_id", "")
             store_setting("selected_organization_id", "")
+
+            remove_xyz_connections()
+            self.iface.reloadConnections()
 
             QgsMessageLog.logMessage(
                 "Logged out due to incompatible plugin version",
