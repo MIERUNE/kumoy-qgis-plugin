@@ -18,7 +18,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
-from ..kumoy.basemap import register_xyz_connections
+from ..kumoy.basemap import add_xyz_connections
 from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
@@ -215,7 +215,7 @@ class DialogLogin(QDialog):
 
         store_setting("session_token", self.auth_manager.get_access_token())
 
-        register_xyz_connections()
+        add_xyz_connections()
         iface.reloadConnections()
 
         QgsMessageLog.logMessage(

@@ -1,6 +1,7 @@
 import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog, QgsProject
+from qgis.utils import iface
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -12,6 +13,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
+from ..kumoy.basemap import remove_xyz_connections
 from ..kumoy.constants import LOG_CATEGORY
 from ..plugin_version import read_plugin_version
 from ..processing.close_all_processing_dialogs import close_all_processing_dialogs
@@ -225,6 +227,9 @@ class DialogAccount(QDialog):
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
+
+        remove_xyz_connections()
+        iface.reloadConnections()
 
         QgsMessageLog.logMessage(
             "Logged out via account dialog", LOG_CATEGORY, Qgis.Info
