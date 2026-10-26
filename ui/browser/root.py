@@ -16,7 +16,6 @@ from ...ui.dialog_account import DialogAccount
 from ...ui.dialog_login import DialogLogin
 from ...ui.dialog_project_select import ProjectSelectDialog
 from ...ui.icons import MAIN_ICON
-from .basemap import BasemapRoot
 from .raster import RasterRoot
 from .styledmap import StyledMapRoot
 from .utils import ErrorItem
@@ -227,19 +226,16 @@ class RootCollection(QgsDataCollectionItem):
 
     def createChildren(self):
         """Create child items for the root collection"""
-        # Basemaps don't depend on the Kumoy project, so show them even before login
-        basemap_root = BasemapRoot(self, f"{self.path()}/basemaps")
-        basemap_root.setSortKey(3)
-        children = [basemap_root]
+        # Create vector root directly
+        children = []
 
         if self.organization_data is None or self.project_data is None:
-            children.append(
+            return [
                 ErrorItem(
                     self,
                     i18n.tr("Please select a project"),
                 )
-            )
-            return children
+            ]
 
         vector_path = f"{self.path()}/vectors"
         vector_root = VectorRoot(
