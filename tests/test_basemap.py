@@ -1,5 +1,7 @@
 """register_xyz_connections のユニットテスト"""
 
+from urllib.parse import unquote
+
 import pytest
 from qgis.core import QgsApplication, QgsRasterLayer, QgsSettingsTree
 
@@ -25,9 +27,11 @@ def test_registered_connections_appear_in_xyz_browser():
         }
         for name, style in BASEMAPS:
             uri = items[name].mimeUris()[0].uri
-            assert f"/latest/{style}/raster/512/" in uri
-            assert "tilePixelRatio=2" in uri
-            assert "http-header:referer=https://app.kumoy.io/" in uri
+            # QGIS 4 percent-encodes the parameter values, QGIS 3 doesn't
+            decoded = unquote(uri)
+            assert f"/latest/{style}/raster/512/" in decoded
+            assert "tilePixelRatio=2" in decoded
+            assert "http-header:referer=https://app.kumoy.io/" in decoded
             assert QgsRasterLayer(uri, name, "wms").isValid()
     finally:
         node = QgsSettingsTree.node("connections").childNode("xyz")
