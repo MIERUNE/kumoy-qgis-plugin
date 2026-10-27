@@ -2,6 +2,7 @@ import webbrowser
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.gui import QgsCollapsibleGroupBox
+from qgis.utils import iface
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -17,6 +18,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import i18n
 from ..kumoy import api
+from ..kumoy.basemap import add_xyz_connections
 from ..kumoy.api.error import AppError, format_api_error
 from ..kumoy.auth_manager import AuthManager
 from ..kumoy.constants import LOG_CATEGORY
@@ -212,6 +214,9 @@ class DialogLogin(QDialog):
             return
 
         store_setting("session_token", self.auth_manager.get_access_token())
+
+        add_xyz_connections()
+        iface.reloadConnections()
 
         QgsMessageLog.logMessage(
             "Authentication successful!", LOG_CATEGORY, Qgis.Success

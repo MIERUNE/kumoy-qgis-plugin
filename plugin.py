@@ -17,6 +17,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu, QMessageBox
 from . import i18n
 from .ui.error_handler import handle_api_error
 from .kumoy import api
+from .kumoy.basemap import remove_xyz_connections
 from .kumoy.api.error import AppError, format_api_error
 from .kumoy.constants import (
     DATA_PROVIDER_KEY,
@@ -106,6 +107,8 @@ class KumoyPlugin:
             QgsProject.instance().clear()
             close_all_processing_dialogs()
             reset_settings()
+            remove_xyz_connections()
+            self.iface.reloadConnections()
 
             self._refresh_browser_panel()
 
@@ -141,6 +144,9 @@ class KumoyPlugin:
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")
+
+        remove_xyz_connections()
+        self.iface.reloadConnections()
 
         QgsMessageLog.logMessage("Logged out via menu", PLUGIN_NAME, Qgis.Info)
         QMessageBox.information(
@@ -336,6 +342,9 @@ class KumoyPlugin:
             store_setting("user_info", "")
             store_setting("selected_project_id", "")
             store_setting("selected_organization_id", "")
+
+            remove_xyz_connections()
+            self.iface.reloadConnections()
 
             QgsMessageLog.logMessage(
                 "Logged out due to incompatible plugin version",

@@ -15,21 +15,28 @@ from typing import Optional
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
+from qgis.utils import iface
 
 from .. import i18n
 from ..kumoy import constants
+from ..kumoy.basemap import remove_xyz_connections
 from ..kumoy.api.error import UnauthorizedError, format_api_error
 from ..kumoy.settings_manager import get_settings, store_setting
 
 
 def _clear_session() -> None:
-    """セッション関連設定のうち、トークン情報のみクリアする。
+    """セッション関連設定のうちトークン情報のみクリアし、背景地図のXYZ接続を削除する。
 
     selected_organization_id / selected_project_id は残し、
     再ログイン後にユーザーがプロジェクトを選び直さなくて済むようにする。
     """
     store_setting("session_token", "")
     store_setting("user_info", "")
+
+    remove_xyz_connections()
+    # iface is None when processing runs headless (qgis_process)
+    if iface:
+        iface.reloadConnections()
 
 
 def refresh_kumoy_browser() -> None:
