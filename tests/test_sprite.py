@@ -76,9 +76,9 @@ class TestRender:
     @pytest.mark.parametrize(
         "unit, size, expected_px",
         [
-            # 72 dpi as in the style converter, times SPRITE_PIXEL_RATIO (2)
-            ("MM", "10", 10 * 72 / 25.4 * 2),
-            ("Point", "10", 20),
+            # 96 dpi as in the style converter, times SPRITE_PIXEL_RATIO (2)
+            ("MM", "10", 10 * 96 / 25.4 * 2),
+            ("Point", "10", 10 * 96 / 72 * 2),
             ("Pixel", "10", 20),
         ],
     )

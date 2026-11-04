@@ -16,11 +16,12 @@ from ...pyqt_version import Q_IMAGE_FORMAT
 from ..constants import DATA_PROVIDER_KEY
 
 # The web map renders the sprite at its real size, so mm must convert to px the
-# same way as the style converter does (convertToPixel in @kumoy-packages/qgisproject)
-_PX_PER_MM = 72 / 25.4
+# same way as the style converter does (convertToPixel in @kumoy-packages/qgisproject):
+# 96 dpi, the CSS px definition, which matches QGIS on Windows/Linux
+_PX_PER_MM = 96 / 25.4
 # Rendered at this multiple of the display size for HiDPI screens (pixelRatio in sprite.json)
 SPRITE_PIXEL_RATIO = 2
-# 256 CSS px (about 90 mm) per side; larger symbols are clipped
+# 256 CSS px (about 68 mm) per side; larger symbols are clipped
 _CANVAS_SIZE = 512
 
 
