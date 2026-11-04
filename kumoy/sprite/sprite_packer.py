@@ -6,7 +6,7 @@ from qgis.PyQt.QtCore import QBuffer, QSize
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_IMAGE_FORMAT, Q_PAINTER_RENDER_HINT
-from .symbol_collector import SPRITE_PIXEL_RATIO, SpriteEntry
+from .symbol_collector import SpriteEntry
 
 SPRITE_ATLAS_MAX_WIDTH = 1024
 SPRITE_PADDING = 2
@@ -23,7 +23,7 @@ def _pack_images(
     y = 0
     row_height = 0
     total_width = 0
-    positions: list[tuple[str, QImage, int, int]] = []
+    positions: list[tuple[SpriteEntry, int, int]] = []
 
     for entry in sprites:
         img = entry.image
@@ -35,7 +35,7 @@ def _pack_images(
             x = 0
             row_height = 0
 
-        positions.append((entry.name, img, x, y))
+        positions.append((entry, x, y))
         row_height = max(row_height, h)
         x += w + SPRITE_PADDING
         total_width = max(total_width, x - SPRITE_PADDING)
@@ -54,14 +54,14 @@ def _pack_images(
     painter = QPainter(atlas)
     painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
 
-    for name, img, px, py in positions:
-        painter.drawImage(px, py, img)
-        sprite_json[name] = {
-            "width": img.width(),
-            "height": img.height(),
+    for entry, px, py in positions:
+        painter.drawImage(px, py, entry.image)
+        sprite_json[entry.name] = {
+            "width": entry.image.width(),
+            "height": entry.image.height(),
             "x": px,
             "y": py,
-            "pixelRatio": SPRITE_PIXEL_RATIO,
+            "pixelRatio": entry.pixel_ratio,
         }
 
     painter.end()

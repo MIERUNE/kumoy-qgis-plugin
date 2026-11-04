@@ -61,14 +61,22 @@ class TestTrim:
         assert not result.isNull()
 
 
+# CSS px per mm on the web map (72 dpi)
+_MM = 72 / 25.4
+
+
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestRender:
     """_render がシンボルを実寸で、回転を焼き込まずに描くこと"""
 
-    def _sprite(self, symbol: QgsMarkerSymbol) -> QImage:
+    def _render(self, symbol: QgsMarkerSymbol):
         from plugin_dir.kumoy.sprite.symbol_collector import _render, _trim
 
-        return _trim(_render(symbol))
+        image, pixel_ratio = _render(symbol)
+        return _trim(image), pixel_ratio
+
+    def _sprite(self, symbol: QgsMarkerSymbol) -> QImage:
+        return self._render(symbol)[0]
 
     def _marker(self, **props) -> QgsMarkerSymbol:
         return QgsMarkerSymbol.createSimple({"outline_style": "no", **props})
@@ -77,7 +85,7 @@ class TestRender:
         "unit, size, expected_px",
         [
             # 72 dpi as in the style converter, times SPRITE_PIXEL_RATIO (2)
-            ("MM", "10", 10 * 72 / 25.4 * 2),
+            ("MM", "10", 10 * _MM * 2),
             ("Point", "10", 20),
             ("Pixel", "10", 20),
         ],
@@ -108,6 +116,38 @@ class TestRender:
         assert self._sprite(symbol([30, 75])) == self._sprite(symbol([0, 45]))
         assert self._sprite(symbol([0, 45])) != self._sprite(symbol([0, 0]))
 
+    @pytest.mark.parametrize(
+        "props, expected_css_px",
+        [
+            ({"name": "square", "size": "100"}, (100 * _MM, 100 * _MM)),
+            ({"name": "circle", "size": "300", "size_unit": "Pixel"}, (300, 300)),
+            # Offset from the anchor: padded to keep the anchor at the center
+            ({"name": "square", "size": "20", "offset": "40,0"}, (100 * _MM, 20 * _MM)),
+        ],
+    )
+    def test_large_symbol_is_downscaled_to_its_real_size(self, props, expected_css_px):
+        from plugin_dir.kumoy.sprite.symbol_collector import MAX_IMAGE_SIZE, _render
+
+        raw, pixel_ratio = _render(self._marker(**props))
+        image = self._render(self._marker(**props))[0]
+        assert max(image.width(), image.height()) <= MAX_IMAGE_SIZE
+        assert pixel_ratio < 2
+        # MapLibre displays width / pixelRatio CSS px (+-1 image px of antialiasing per side)
+        width, height = expected_css_px
+        assert abs(image.width() / pixel_ratio - width) <= 2 / pixel_ratio
+        assert abs(image.height() / pixel_ratio - height) <= 2 / pixel_ratio
+        # Not clipped: the border of the canvas stays transparent
+        edges = [(x, 0) for x in range(raw.width())] + [
+            (0, y) for y in range(raw.height())
+        ]
+        edges += [(x, raw.height() - 1) for x in range(raw.width())]
+        edges += [(raw.width() - 1, y) for y in range(raw.height())]
+        assert all(raw.pixelColor(x, y).alpha() == 0 for x, y in edges)
+
+    def test_small_symbol_keeps_full_resolution(self):
+        _, pixel_ratio = self._render(self._marker(name="square", size="10"))
+        assert pixel_ratio == 2
+
     def test_does_not_modify_the_symbol(self):
         symbol = self._marker(name="square", angle="45")
         self._sprite(symbol)
@@ -128,7 +168,7 @@ class TestPackSprites:
 
         img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(255, 0, 0, 255))
-        return SpriteEntry(name=name, image=img)
+        return SpriteEntry(name=name, image=img, pixel_ratio=2)
 
     def test_single_sprite(self):
         """1つのスプライトでJSON/PNGが正しく生成されること。"""
@@ -261,7 +301,7 @@ class TestPackImages:
 
         img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 255, 0, 255))
-        return SpriteEntry(name=name, image=img)
+        return SpriteEntry(name=name, image=img, pixel_ratio=2)
 
     def test_atlas_dimensions(self):
         """アトラス画像がスプライトを包含するサイズであること。"""

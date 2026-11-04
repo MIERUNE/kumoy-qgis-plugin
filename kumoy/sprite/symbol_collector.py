@@ -1,5 +1,6 @@
 """シンボルからスプライト用画像を生成する"""
 
+import math
 from dataclasses import dataclass
 
 from qgis.core import (
@@ -20,8 +21,11 @@ from ..constants import DATA_PROVIDER_KEY
 _PX_PER_MM = 72 / 25.4
 # Rendered at this multiple of the display size for HiDPI screens (pixelRatio in sprite.json)
 SPRITE_PIXEL_RATIO = 2
-# 256 CSS px (about 90 mm) per side; larger symbols are clipped
-_CANVAS_SIZE = 512
+# Longest side of a sprite image (px). Larger symbols get a lower pixelRatio, so
+# MapLibre upscales them back to their real size
+MAX_IMAGE_SIZE = 128
+# symbol.bounds() can fall short of the drawn pixels by a fraction of a pixel
+_BOUNDS_MARGIN = 2
 
 
 @dataclass
@@ -30,34 +34,58 @@ class SpriteEntry:
 
     name: str  # {layerID}_{symbolIndex}
     image: QImage
+    pixel_ratio: float  # image px per CSS px
 
 
-def _render(symbol: QgsMarkerSymbol) -> QImage:
-    """シンボルを実寸 × SPRITE_PIXEL_RATIO で、キャンバス中心に描画する。"""
-    symbol = symbol.clone()
-    # The web map applies the symbol angle as icon-rotate (it may be data-defined),
-    # so only the angles of the layers relative to the symbol are baked in
-    symbol.setAngle(0)
-
-    image = QImage(
-        _CANVAS_SIZE, _CANVAS_SIZE, Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied
-    )
-    image.fill(0)
-    painter = QPainter(image)
+def _render_context(painter: QPainter, pixel_ratio: float) -> QgsRenderContext:
     # Scale the painter, not the scaleFactor: the latter leaves Pixel-unit sizes unscaled
-    painter.scale(SPRITE_PIXEL_RATIO, SPRITE_PIXEL_RATIO)
+    painter.scale(pixel_ratio, pixel_ratio)
     context = QgsRenderContext.fromQPainter(painter)
     context.setScaleFactor(_PX_PER_MM)
     context.setFlag(Qgis.RenderContextFlag.Antialiasing, True)
     # SVG markers are otherwise drawn from an unscaled cached image and come out blurry
     context.setFlag(Qgis.RenderContextFlag.ForceVectorOutput, True)
+    return context
 
-    center = _CANVAS_SIZE / SPRITE_PIXEL_RATIO / 2
+
+def _half_extent(symbol: QgsMarkerSymbol) -> float:
+    """アンカーからシンボルの最も遠い端までの距離（CSS px）。"""
+    image = QImage(1, 1, Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied)
+    painter = QPainter(image)
+    context = _render_context(painter, 1)
+    symbol.startRender(context)
+    rect = symbol.bounds(QPointF(0, 0), context)
+    symbol.stopRender(context)
+    painter.end()
+    edges = (rect.left(), rect.right(), rect.top(), rect.bottom())
+    return max(abs(edge) for edge in edges) + _BOUNDS_MARGIN
+
+
+def _render(symbol: QgsMarkerSymbol) -> tuple[QImage, float]:
+    """シンボルを実寸でキャンバス中心（＝アンカー）に描画し、画像と pixelRatio を返す。
+
+    一辺が MAX_IMAGE_SIZE に収まるよう、大きいシンボルほど pixelRatio を下げる。
+    """
+    symbol = symbol.clone()
+    # The web map applies the symbol angle as icon-rotate (it may be data-defined),
+    # so only the angles of the layers relative to the symbol are baked in
+    symbol.setAngle(0)
+
+    half = _half_extent(symbol)
+    pixel_ratio = min(SPRITE_PIXEL_RATIO, MAX_IMAGE_SIZE / (2 * half))
+    # Even, so that the anchor falls on a pixel boundary as _trim() assumes
+    size = min(MAX_IMAGE_SIZE, 2 * math.ceil(half * pixel_ratio))
+
+    image = QImage(size, size, Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied)
+    image.fill(0)
+    painter = QPainter(image)
+    context = _render_context(painter, pixel_ratio)
+    center = size / pixel_ratio / 2
     symbol.startRender(context)
     symbol.renderPoint(QPointF(center, center), None, context)
     symbol.stopRender(context)
     painter.end()
-    return image
+    return image, pixel_ratio
 
 
 def _trim(image: QImage) -> QImage:
@@ -131,7 +159,13 @@ def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
             continue
 
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
-            sprite_name = f"{layer.id()}_{symbol_index}"
-            sprites.append(SpriteEntry(name=sprite_name, image=_trim(_render(symbol))))
+            image, pixel_ratio = _render(symbol)
+            sprites.append(
+                SpriteEntry(
+                    name=f"{layer.id()}_{symbol_index}",
+                    image=_trim(image),
+                    pixel_ratio=pixel_ratio,
+                )
+            )
 
     return sprites
