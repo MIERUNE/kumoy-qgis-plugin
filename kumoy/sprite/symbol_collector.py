@@ -12,7 +12,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QPointF, QRect
 from qgis.PyQt.QtGui import QImage, QPainter
 
-from ...pyqt_version import Q_IMAGE_FORMAT
+from ...pyqt_version import Q_IMAGE_FORMAT, Q_PAINTER_RENDER_HINT
 from ..constants import DATA_PROVIDER_KEY
 
 # The web map renders the sprite at its real size, so mm must convert to px the
@@ -43,11 +43,13 @@ def _render(symbol: QgsMarkerSymbol) -> QImage:
     )
     image.fill(0)
     painter = QPainter(image)
+    # Simple markers draw straight through the painter, so its own hint decides the
+    # antialiasing; the context flag alone leaves their edges jagged
+    painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
     # Scale the painter, not the scaleFactor: the latter leaves Pixel-unit sizes unscaled
     painter.scale(SPRITE_PIXEL_RATIO, SPRITE_PIXEL_RATIO)
     context = QgsRenderContext.fromQPainter(painter)
     context.setScaleFactor(_PX_PER_MM)
-    context.setFlag(Qgis.RenderContextFlag.Antialiasing, True)
     # SVG markers are otherwise drawn from an unscaled cached image and come out blurry
     context.setFlag(Qgis.RenderContextFlag.ForceVectorOutput, True)
 

@@ -94,6 +94,16 @@ class TestRender:
         rotated = self._sprite(self._marker(name=name, size="10", angle="45"))
         assert rotated == upright
 
+    def test_edges_are_antialiased(self):
+        """The reported bug: simple markers came out jagged on the web map."""
+        image = self._sprite(self._marker(name="circle", size="6"))
+        alphas = {
+            image.pixelColor(x, y).alpha()
+            for x in range(image.width())
+            for y in range(image.height())
+        }
+        assert any(0 < a < 255 for a in alphas)
+
     def test_does_not_modify_the_symbol(self):
         symbol = self._marker(name="square", angle="45")
         self._sprite(symbol)
