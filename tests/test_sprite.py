@@ -94,24 +94,45 @@ class TestRender:
         rotated = self._sprite(self._marker(name=name, size="10", angle="45"))
         assert rotated == upright
 
-    def test_relative_angles_between_layers_are_kept(self):
-        def symbol(angles):
-            layers = [
-                self._marker(name="triangle", size="10", angle=str(a)).takeSymbolLayer(
-                    0
-                )
-                for a in angles
-            ]
-            return QgsMarkerSymbol(layers)
-
-        # Only the symbol angle (= first layer) is left to the web map
-        assert self._sprite(symbol([30, 75])) == self._sprite(symbol([0, 45]))
-        assert self._sprite(symbol([0, 45])) != self._sprite(symbol([0, 0]))
-
     def test_does_not_modify_the_symbol(self):
         symbol = self._marker(name="square", angle="45")
         self._sprite(symbol)
         assert symbol.angle() == 45
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestSymbolSprites:
+    """シンボルレイヤーごとに、そのレイヤーだけを描いた画像になること"""
+
+    def _sprites(self, symbol: QgsMarkerSymbol) -> list:
+        from plugin_dir.kumoy.sprite.symbol_collector import _symbol_sprites
+
+        return _symbol_sprites("L_0", symbol)
+
+    def _symbol(self, *names) -> QgsMarkerSymbol:
+        return QgsMarkerSymbol(
+            [
+                QgsMarkerSymbol.createSimple({"name": n}).takeSymbolLayer(0)
+                for n in names
+            ]
+        )
+
+    def test_one_sprite_per_layer(self):
+        """The reported bug: a data-defined angle on one layer rotated the whole
+        symbol on the web map, because the symbol was drawn as one image."""
+        sprites = self._sprites(self._symbol("triangle", "square"))
+        assert [s.name for s in sprites] == ["L_0_0", "L_0_1"]
+        assert sprites[1].image == self._sprites(self._symbol("square"))[0].image
+
+    def test_each_layer_angle_is_not_baked(self):
+        from plugin_dir.kumoy.sprite.symbol_collector import _render, _trim
+
+        symbol = self._symbol("triangle", "triangle")
+        symbol.symbolLayer(1).setAngle(45)
+        sprites = self._sprites(symbol)
+        upright = _trim(_render(self._symbol("triangle")))
+        assert sprites[0].image == upright
+        assert sprites[1].image == upright
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")

@@ -26,17 +26,16 @@ _CANVAS_SIZE = 512
 
 @dataclass
 class SpriteEntry:
-    """スプライトアトラスの1エントリ（シンボル単位）"""
+    """スプライトアトラスの1エントリ（シンボルレイヤー単位）"""
 
-    name: str  # {layerID}_{symbolIndex}
+    name: str  # {layerID}_{symbolIndex}_{symbolLayerIndex}
     image: QImage
 
 
 def _render(symbol: QgsMarkerSymbol) -> QImage:
     """シンボルを実寸 × SPRITE_PIXEL_RATIO で、キャンバス中心に描画する。"""
     symbol = symbol.clone()
-    # The web map applies the symbol angle as icon-rotate (it may be data-defined),
-    # so only the angles of the layers relative to the symbol are baked in
+    # The web map applies the angle as icon-rotate (it may be data-defined)
     symbol.setAngle(0)
 
     image = QImage(
@@ -109,6 +108,19 @@ def _trim(image: QImage) -> QImage:
     return image.copy(QRect(cx - half_w, cy - half_h, 2 * half_w, 2 * half_h))
 
 
+def _symbol_sprites(name: str, symbol: QgsMarkerSymbol) -> list[SpriteEntry]:
+    """1シンボル分のスプライト。シンボルレイヤーごとに1枚（{name}_{layerIndex}）。"""
+    # The web map rotates each image by its own layer's angle (which may be
+    # data-defined on only some layers), which one image per symbol cannot reproduce
+    return [
+        SpriteEntry(
+            name=f"{name}_{layer_index}",
+            image=_trim(_render(QgsMarkerSymbol([layer.clone()]))),
+        )
+        for layer_index, layer in enumerate(symbol.symbolLayers())
+    ]
+
+
 def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
     """プロジェクト内の全Pointシンボルからスプライト画像を収集する。"""
     sprites: list[SpriteEntry] = []
@@ -131,7 +143,6 @@ def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
             continue
 
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
-            sprite_name = f"{layer.id()}_{symbol_index}"
-            sprites.append(SpriteEntry(name=sprite_name, image=_trim(_render(symbol))))
+            sprites.extend(_symbol_sprites(f"{layer.id()}_{symbol_index}", symbol))
 
     return sprites
