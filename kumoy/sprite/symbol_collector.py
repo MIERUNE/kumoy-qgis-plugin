@@ -6,7 +6,9 @@ from qgis.core import (
     Qgis,
     QgsMarkerSymbol,
     QgsProject,
+    QgsProperty,
     QgsRenderContext,
+    QgsSymbolLayer,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QPointF, QRect
@@ -35,8 +37,12 @@ class SpriteEntry:
 def _render(symbol: QgsMarkerSymbol) -> QImage:
     """シンボルを実寸 × SPRITE_PIXEL_RATIO で、キャンバス中心に描画する。"""
     symbol = symbol.clone()
-    # The web map applies the angle as icon-rotate (it may be data-defined)
+    # The web map applies the angle as icon-rotate (it may be data-defined).
+    # Clear the data-defined angle too: an expression that evaluates without a
+    # feature (e.g. a constant) would otherwise be baked in
     symbol.setAngle(0)
+    for layer in symbol.symbolLayers():
+        layer.setDataDefinedProperty(QgsSymbolLayer.Property.Angle, QgsProperty())
 
     image = QImage(
         _CANVAS_SIZE, _CANVAS_SIZE, Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied

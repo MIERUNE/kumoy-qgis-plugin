@@ -14,6 +14,7 @@ from qgis.core import (
     QgsMarkerSymbol,
     QgsPathResolver,
     QgsProject,
+    QgsProperty,
     QgsRasterFillSymbolLayer,
     QgsRasterLineSymbolLayer,
     QgsRasterMarkerSymbolLayer,
@@ -21,6 +22,7 @@ from qgis.core import (
     QgsSingleSymbolRenderer,
     QgsSVGFillSymbolLayer,
     QgsSvgMarkerSymbolLayer,
+    QgsSymbolLayer,
     QgsSymbolLayerUtils,
     QgsVectorLayer,
 )
@@ -93,6 +95,15 @@ class TestRender:
         upright = self._sprite(self._marker(name=name, size="10"))
         rotated = self._sprite(self._marker(name=name, size="10", angle="45"))
         assert rotated == upright
+
+    def test_data_defined_angle_is_not_baked(self):
+        """An expression that evaluates without a feature must not be baked in either."""
+        upright = self._sprite(self._marker(name="triangle", size="10"))
+        rotated = self._marker(name="triangle", size="10", angle="30")
+        rotated.symbolLayer(0).setDataDefinedProperty(
+            QgsSymbolLayer.Property.Angle, QgsProperty.fromExpression("45")
+        )
+        assert self._sprite(rotated) == upright
 
     def test_edges_are_antialiased(self):
         """The reported bug: simple markers came out jagged on the web map."""
