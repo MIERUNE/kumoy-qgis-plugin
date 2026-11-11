@@ -35,7 +35,7 @@ class SpriteEntry:
 
 
 def _render(symbol: QgsMarkerSymbol) -> QImage:
-    """シンボルを実寸 × SPRITE_PIXEL_RATIO で、キャンバス中心に描画する。"""
+    """Draw the symbol at real size x SPRITE_PIXEL_RATIO, centered on the canvas."""
     symbol = symbol.clone()
     # The web map applies the angle as icon-rotate (it may be data-defined).
     # Clear the data-defined angle too: an expression that evaluates without a
@@ -68,7 +68,7 @@ def _render(symbol: QgsMarkerSymbol) -> QImage:
 
 
 def _trim(image: QImage) -> QImage:
-    """画像中心を保ったまま、透明な余白を切り落とす。"""
+    """Trim the transparent margins while keeping the image center."""
     img = image.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
     w, h = img.width(), img.height()
     stride = img.bytesPerLine()
@@ -119,7 +119,7 @@ def _trim(image: QImage) -> QImage:
 
 
 def _symbol_sprites(name: str, symbol: QgsMarkerSymbol) -> list[SpriteEntry]:
-    """1シンボル分のスプライト。シンボルレイヤーごとに1枚（{name}_{layerIndex}）。"""
+    """Sprites for one symbol: one per symbol layer ({name}_{layerIndex})."""
     # The web map rotates each image by its own layer's angle (which may be
     # data-defined on only some layers), which one image per symbol cannot reproduce
     return [
