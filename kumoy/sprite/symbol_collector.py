@@ -89,7 +89,8 @@ def _trim(image: QImage) -> QImage:
         y_min += 1
 
     if y_min == h:
-        # 完全に透明な画像。MapLibreは画像が無いと警告するので最小の画像を返す
+        # Fully transparent image. MapLibre warns when an image is missing, so
+        # return a minimal one
         return image.copy(QRect(0, 0, 1, 1))
 
     # 下端から上へ走査
@@ -107,8 +108,9 @@ def _trim(image: QImage) -> QImage:
     while x_max > x_min and not _has_alpha_in_col(x_max):
         x_max -= 1
 
-    # 元画像中心から最も外側のalpha画素までの距離で対称クロップする。
-    # 画像中心＝シンボルのアンカーなので、オフセットも回転の中心も保たれる。
+    # Crop symmetrically by the distance from the image center to the outermost
+    # opaque pixel. The image center is the symbol's anchor, so both the offset
+    # and the rotation center are preserved.
     cx = w // 2
     cy = h // 2
     half_w = max(cx - x_min, (x_max + 1) - cx)
