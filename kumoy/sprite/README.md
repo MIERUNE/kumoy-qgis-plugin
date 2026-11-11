@@ -28,5 +28,5 @@ Kumoyクラウドストレージ
 
 ## 主要なデータ型
 
-- `SpriteEntry` — シンボル1つ分の画像データ（name + QImage）
+- `SpriteEntry` — シンボルレイヤー1つ分の画像データ（name + QImage）
 - `SpriteData` — 生成済みスプライト一式（json_bytes + png_bytes + hash）

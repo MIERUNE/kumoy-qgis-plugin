@@ -4,27 +4,71 @@ from dataclasses import dataclass
 
 from qgis.core import (
     Qgis,
+    QgsMarkerSymbol,
     QgsProject,
+    QgsProperty,
     QgsRenderContext,
+    QgsSymbolLayer,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QRect, QSize
-from qgis.PyQt.QtGui import QImage
+from qgis.PyQt.QtCore import QPointF, QRect
+from qgis.PyQt.QtGui import QImage, QPainter
 
-from ...pyqt_version import Q_IMAGE_FORMAT, QT_ASPECT_RATIO_MODE, QT_TRANSFORMATION_MODE
+from ...pyqt_version import Q_IMAGE_FORMAT, Q_PAINTER_RENDER_HINT
 from ..constants import DATA_PROVIDER_KEY
+
+# The web map renders the sprite at its real size, so mm must convert to px the
+# same way as the style converter does (convertToPixel in @kumoy-packages/qgisproject)
+_PX_PER_MM = 72 / 25.4
+# Rendered at this multiple of the display size for HiDPI screens (pixelRatio in sprite.json)
+SPRITE_PIXEL_RATIO = 2
+# 256 CSS px (about 90 mm) per side; larger symbols are clipped
+_CANVAS_SIZE = 512
 
 
 @dataclass
 class SpriteEntry:
-    """スプライトアトラスの1エントリ（シンボル単位）"""
+    """スプライトアトラスの1エントリ（シンボルレイヤー単位）"""
 
-    name: str  # {layerID}_{symbolIndex}
+    name: str  # {layerID}_{symbolIndex}_{symbolLayerIndex}
     image: QImage
 
 
-def _trim_and_fit(image: QImage, max_size: int) -> QImage:
-    """画像の透明余白をトリムし、max_size x max_size 内にフィットさせる。"""
+def _render(symbol: QgsMarkerSymbol) -> QImage:
+    """Draw the symbol at real size x SPRITE_PIXEL_RATIO, centered on the canvas."""
+    symbol = symbol.clone()
+    # The web map applies the angle as icon-rotate (it may be data-defined).
+    # Clear the data-defined angle too: an expression that evaluates without a
+    # feature (e.g. a constant) would otherwise be baked in
+    symbol.setAngle(0)
+    for layer in symbol.symbolLayers():
+        layer.setDataDefinedProperty(QgsSymbolLayer.Property.Angle, QgsProperty())
+
+    image = QImage(
+        _CANVAS_SIZE, _CANVAS_SIZE, Q_IMAGE_FORMAT.Format_ARGB32_Premultiplied
+    )
+    image.fill(0)
+    painter = QPainter(image)
+    # Simple markers draw straight through the painter, so its own hint decides the
+    # antialiasing; the context flag alone leaves their edges jagged
+    painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
+    # Scale the painter, not the scaleFactor: the latter leaves Pixel-unit sizes unscaled
+    painter.scale(SPRITE_PIXEL_RATIO, SPRITE_PIXEL_RATIO)
+    context = QgsRenderContext.fromQPainter(painter)
+    context.setScaleFactor(_PX_PER_MM)
+    # SVG markers are otherwise drawn from an unscaled cached image and come out blurry
+    context.setFlag(Qgis.RenderContextFlag.ForceVectorOutput, True)
+
+    center = _CANVAS_SIZE / SPRITE_PIXEL_RATIO / 2
+    symbol.startRender(context)
+    symbol.renderPoint(QPointF(center, center), None, context)
+    symbol.stopRender(context)
+    painter.end()
+    return image
+
+
+def _trim(image: QImage) -> QImage:
+    """Trim the transparent margins while keeping the image center."""
     img = image.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
     w, h = img.width(), img.height()
     stride = img.bytesPerLine()
@@ -45,12 +89,9 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
         y_min += 1
 
     if y_min == h:
-        # 完全に透明な画像
-        return image.scaled(
-            QSize(max_size, max_size),
-            QT_ASPECT_RATIO_MODE.KeepAspectRatio,
-            QT_TRANSFORMATION_MODE.SmoothTransformation,
-        )
+        # Fully transparent image. MapLibre warns when an image is missing, so
+        # return a minimal one
+        return image.copy(QRect(0, 0, 1, 1))
 
     # 下端から上へ走査
     y_max = h - 1
@@ -67,19 +108,27 @@ def _trim_and_fit(image: QImage, max_size: int) -> QImage:
     while x_max > x_min and not _has_alpha_in_col(x_max):
         x_max -= 1
 
-    # 元画像中心から最も外側のalpha画素までの距離で対称クロップする。
-    # こうすれば画像中心が自動的に維持され、canvasへの再配置が不要になる。
+    # Crop symmetrically by the distance from the image center to the outermost
+    # opaque pixel. The image center is the symbol's anchor, so both the offset
+    # and the rotation center are preserved.
     cx = w // 2
     cy = h // 2
     half_w = max(cx - x_min, (x_max + 1) - cx)
     half_h = max(cy - y_min, (y_max + 1) - cy)
-    cropped = image.copy(QRect(cx - half_w, cy - half_h, 2 * half_w, 2 * half_h))
+    return image.copy(QRect(cx - half_w, cy - half_h, 2 * half_w, 2 * half_h))
 
-    # シンボル本体(対称化前のbbox)の高さが max_size になるようスケール。
-    # 中心維持のための対称余白分、最終キャンバスは max_size より大きくなり得る。
-    content_h = y_max - y_min + 1
-    target_h = max(1, round(2 * half_h * max_size / content_h))
-    return cropped.scaledToHeight(target_h, QT_TRANSFORMATION_MODE.SmoothTransformation)
+
+def _symbol_sprites(name: str, symbol: QgsMarkerSymbol) -> list[SpriteEntry]:
+    """Sprites for one symbol: one per symbol layer ({name}_{layerIndex})."""
+    # The web map rotates each image by its own layer's angle (which may be
+    # data-defined on only some layers), which one image per symbol cannot reproduce
+    return [
+        SpriteEntry(
+            name=f"{name}_{layer_index}",
+            image=_trim(_render(QgsMarkerSymbol([layer.clone()]))),
+        )
+        for layer_index, layer in enumerate(symbol.symbolLayers())
+    ]
 
 
 def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
@@ -104,10 +153,6 @@ def collect_sprites(project: QgsProject) -> list[SpriteEntry]:
             continue
 
         for symbol_index, symbol in enumerate(renderer.symbols(render_context)):
-            raw_image = symbol.asImage(QSize(256, 256))
-            if raw_image and not raw_image.isNull():
-                image = _trim_and_fit(raw_image, 64)
-                sprite_name = f"{layer.id()}_{symbol_index}"
-                sprites.append(SpriteEntry(name=sprite_name, image=image))
+            sprites.extend(_symbol_sprites(f"{layer.id()}_{symbol_index}", symbol))
 
     return sprites

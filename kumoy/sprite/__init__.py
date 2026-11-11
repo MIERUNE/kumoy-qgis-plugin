@@ -18,6 +18,10 @@ __all__ = [
 ]
 
 
+# Keep in sync with REAL_SIZE_SPRITE_PREFIX in @kumoy-packages/qgisproject
+SPRITE_FORMAT_PREFIX = "v2-"
+
+
 @dataclass
 class SpriteData:
     json_bytes: bytes
@@ -35,7 +39,11 @@ def generate_sprite(project: QgsProject) -> Optional[SpriteData]:
         return None
 
     json_bytes, png_bytes = pack_sprites(sprites)
-    assets_hash = hashlib.sha256(json_bytes + png_bytes).hexdigest()
+    # The prefix tells the web map that the sprite is drawn at its real size with
+    # no rotation baked in (older sprites are scaled to 64 px with the angle baked)
+    assets_hash = (
+        SPRITE_FORMAT_PREFIX + hashlib.sha256(json_bytes + png_bytes).hexdigest()
+    )
 
     return SpriteData(
         json_bytes=json_bytes, png_bytes=png_bytes, assets_hash=assets_hash

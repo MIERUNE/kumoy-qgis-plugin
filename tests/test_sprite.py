@@ -14,6 +14,7 @@ from qgis.core import (
     QgsMarkerSymbol,
     QgsPathResolver,
     QgsProject,
+    QgsProperty,
     QgsRasterFillSymbolLayer,
     QgsRasterLineSymbolLayer,
     QgsRasterMarkerSymbolLayer,
@@ -21,6 +22,7 @@ from qgis.core import (
     QgsSingleSymbolRenderer,
     QgsSVGFillSymbolLayer,
     QgsSvgMarkerSymbolLayer,
+    QgsSymbolLayer,
     QgsSymbolLayerUtils,
     QgsVectorLayer,
 )
@@ -29,144 +31,129 @@ from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
-class TestTrimAndFit:
-    """_trim_and_fit が透明余白をトリムし、max_size内にフィットさせること"""
+class TestTrim:
+    """_trim が画像中心を保ったまま透明余白を切り落とすこと（拡大縮小はしない）"""
 
-    def _get_fn(self):
-        from plugin_dir.kumoy.sprite.symbol_collector import _trim_and_fit
+    def _trim(self, img: QImage) -> QImage:
+        from plugin_dir.kumoy.sprite.symbol_collector import _trim
 
-        return _trim_and_fit
+        return _trim(img)
 
-    def _make_image(self, width: int, height: int) -> QImage:
-        """指定サイズの透明画像を作成する。"""
-        img = QImage(QSize(width, height), Q_IMAGE_FORMAT.Format_ARGB32)
+    def _image_with_rect(self, x: int, y: int, w: int, h: int) -> QImage:
+        img = QImage(QSize(100, 100), Q_IMAGE_FORMAT.Format_ARGB32)
         img.fill(QColor(0, 0, 0, 0))
+        painter = QPainter(img)
+        painter.fillRect(x, y, w, h, QColor(255, 0, 0, 255))
+        painter.end()
         return img
 
-    def _draw_rect(
-        self, img: QImage, x: int, y: int, w: int, h: int, color: QColor
-    ) -> None:
-        """画像上に矩形を描画する。"""
-        painter = QPainter(img)
-        painter.fillRect(x, y, w, h, color)
-        painter.end()
+    def test_trims_to_content_without_scaling(self):
+        result = self._trim(self._image_with_rect(40, 45, 20, 10))
+        assert (result.width(), result.height()) == (20, 10)
 
-    def _alpha_at(self, img: QImage, x: int, y: int) -> int:
-        """画像の指定座標のアルファ値を取得する。"""
-        img32 = img.convertToFormat(Q_IMAGE_FORMAT.Format_ARGB32)
-        stride = img32.bytesPerLine()
-        buf = img32.constBits().asstring(stride * img32.height())
-        return buf[y * stride + x * 4 + 3]
-
-    def test_trims_transparent_margin(self):
-        """余白がトリムされ、シンボル高さが max_size に揃うこと。"""
-        img = self._make_image(100, 100)
-        # 20x20 の不透明矩形を画像中心に配置。tight bbox が正方形なので
-        # スケール後も正方形、かつ中心一致のためキャンバスも正方形。
-        self._draw_rect(img, 40, 40, 20, 20, QColor(255, 0, 0, 255))
-
-        result = self._get_fn()(img, 64)
-        # 高さは max_size に固定
-        assert result.height() == 64
-        # tight bbox が正方形かつ中心対称のため、幅も max_size
-        assert result.width() == 64
-
-    def test_fits_to_max_size(self):
-        """入力がキャンバスを埋め尽くしていても高さは max_size に揃うこと。"""
-        img = self._make_image(200, 200)
-        self._draw_rect(img, 0, 0, 200, 200, QColor(0, 255, 0, 255))
-
-        result = self._get_fn()(img, 32)
-        # tight bbox が正方形かつ画像中心と一致するので幅高さ共に max_size
-        assert result.width() == 32
-        assert result.height() == 32
-
-    def test_non_square_aspect_ratio(self):
-        """縦長画像はシンボル高さ基準でスケールされ、高さが max_size になること。"""
-        img = self._make_image(200, 200)
-        # 20x100 の縦長矩形を画像中心に配置
-        self._draw_rect(img, 90, 50, 20, 100, QColor(0, 0, 255, 255))
-
-        result = self._get_fn()(img, 64)
-        assert result.height() == 64
-        # 縦長なので幅は高さより小さい
-        assert result.width() < result.height()
+    def test_offset_symbol_keeps_the_image_center(self):
+        # Content 25 px left of the center: padded on the right to keep the anchor
+        result = self._trim(self._image_with_rect(20, 45, 10, 10))
+        assert (result.width(), result.height()) == (60, 10)
+        assert result.pixelColor(0, 5).alpha() > 0
+        assert result.pixelColor(59, 5).alpha() == 0
 
     def test_fully_transparent_image(self):
-        """完全に透明な画像でも max_size x max_size のキャンバスが返ること。"""
-        img = self._make_image(100, 100)
-
-        result = self._get_fn()(img, 64)
+        result = self._trim(self._image_with_rect(0, 0, 0, 0))
         assert not result.isNull()
-        assert result.width() == 64
-        assert result.height() == 64
 
-    def test_horizontal_image_preserves_aspect(self):
-        """横長画像はシンボル高さが max_size に揃い、幅は自然アスペクト比に従うこと。
 
-        クライアント側は icon-size = 実寸 / max_size で計算するため、
-        スプライト内のシンボル高さは max_size に一致する必要がある。
-        横長シンボルは幅が max_size を超えても、高さ方向で基準化する。
-        """
-        img = self._make_image(400, 200)
-        # 100x20 の横長矩形を画像中心に配置
-        self._draw_rect(img, 150, 90, 100, 20, QColor(255, 255, 0, 255))
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestRender:
+    """_render がシンボルを実寸で、回転を焼き込まずに描くこと"""
 
-        result = self._get_fn()(img, 64)
-        # 高さは max_size に固定
-        assert result.height() == 64
-        # 横長の自然アスペクト比が保たれ、幅は高さを大きく上回る
-        assert result.width() > result.height()
+    def _sprite(self, symbol: QgsMarkerSymbol) -> QImage:
+        from plugin_dir.kumoy.sprite.symbol_collector import _render, _trim
 
-    def test_offset_symbol_preserves_center(self):
-        """シンボルが画像中心からオフセットしていても、出力キャンバスの中心が
-        元画像の中心に対応し、シンボル高さは max_size に保たれること。
+        return _trim(_render(symbol))
 
-        シンボル中心（bbox中心）ではなく元画像中心を不変にするため、
-        オフセットが大きい側の反対側は透明パディングで補う。
-        """
-        img = self._make_image(100, 100)
-        # 10x10 の矩形を画像中心 (50,50) から大きく左にオフセット。
-        # シンボルbbox: (20,45)-(29,54), 中心 (25, 50)。
-        # 画像中心からのオフセット: x方向 -25px。
-        self._draw_rect(img, 20, 45, 10, 10, QColor(255, 0, 0, 255))
+    def _marker(self, **props) -> QgsMarkerSymbol:
+        return QgsMarkerSymbol.createSimple({"outline_style": "no", **props})
 
-        result = self._get_fn()(img, 64)
-        # 縦方向は対称オフセットなので高さは max_size
-        assert result.height() == 64
-        # x方向オフセットが大きく、反対側に透明パディングが入るため
-        # キャンバス幅は max_size を大きく上回る
-        assert result.width() > 64
+    @pytest.mark.parametrize(
+        "unit, size, expected_px",
+        [
+            # 72 dpi as in the style converter, times SPRITE_PIXEL_RATIO (2)
+            ("MM", "10", 10 * 72 / 25.4 * 2),
+            ("Point", "10", 20),
+            ("Pixel", "10", 20),
+        ],
+    )
+    def test_real_size(self, unit, size, expected_px):
+        image = self._sprite(self._marker(name="square", size=size, size_unit=unit))
+        # +-1 px of antialiasing per side
+        assert abs(image.height() - expected_px) <= 2
 
-        # 中心不変性: シンボルが左側に寄っているので、キャンバス右端は透明
-        w = result.width()
-        h = result.height()
-        for y in range(h):
-            assert self._alpha_at(result, w - 1, y) == 0
-        # 逆に、シンボルが配置されている左端は非透明ピクセルを含む
-        assert any(self._alpha_at(result, 0, y) != 0 for y in range(h))
+    @pytest.mark.parametrize("name", ["circle", "triangle", "star", "square"])
+    def test_angle_is_not_baked(self, name):
+        """The reported bug: a rotated symbol grew on the web map."""
+        upright = self._sprite(self._marker(name=name, size="10"))
+        rotated = self._sprite(self._marker(name=name, size="10", angle="45"))
+        assert rotated == upright
 
-    def test_vertical_offset_symbol_preserves_center(self):
-        """縦方向オフセットでも元画像中心を基準にキャンバス中心が配置されること。"""
-        img = self._make_image(100, 100)
-        # 10x10 の矩形を画像中心 (50,50) から下にオフセット。
-        # シンボルbbox: (45,70)-(54,79), 中心 (50, 75)。
-        self._draw_rect(img, 45, 70, 10, 10, QColor(0, 255, 0, 255))
-
-        result = self._get_fn()(img, 64)
-        # 縦オフセットが大きいため、キャンバス高さは max_size を超える
-        assert result.height() > 64
-        # x方向は対称なので幅は max_size
-        assert result.width() == 64
-
-        # シンボルは下寄りに配置されているので、キャンバス上端は透明
-        w = result.width()
-        for x in range(w):
-            assert self._alpha_at(result, x, 0) == 0
-        # シンボルの配置されている下端は非透明
-        assert any(
-            self._alpha_at(result, x, result.height() - 1) != 0 for x in range(w)
+    def test_data_defined_angle_is_not_baked(self):
+        """An expression that evaluates without a feature must not be baked in either."""
+        upright = self._sprite(self._marker(name="triangle", size="10"))
+        rotated = self._marker(name="triangle", size="10", angle="30")
+        rotated.symbolLayer(0).setDataDefinedProperty(
+            QgsSymbolLayer.Property.Angle, QgsProperty.fromExpression("45")
         )
+        assert self._sprite(rotated) == upright
+
+    def test_edges_are_antialiased(self):
+        """The reported bug: simple markers came out jagged on the web map."""
+        image = self._sprite(self._marker(name="circle", size="6"))
+        alphas = {
+            image.pixelColor(x, y).alpha()
+            for x in range(image.width())
+            for y in range(image.height())
+        }
+        assert any(0 < a < 255 for a in alphas)
+
+    def test_does_not_modify_the_symbol(self):
+        symbol = self._marker(name="square", angle="45")
+        self._sprite(symbol)
+        assert symbol.angle() == 45
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestSymbolSprites:
+    """シンボルレイヤーごとに、そのレイヤーだけを描いた画像になること"""
+
+    def _sprites(self, symbol: QgsMarkerSymbol) -> list:
+        from plugin_dir.kumoy.sprite.symbol_collector import _symbol_sprites
+
+        return _symbol_sprites("L_0", symbol)
+
+    def _symbol(self, *names) -> QgsMarkerSymbol:
+        return QgsMarkerSymbol(
+            [
+                QgsMarkerSymbol.createSimple({"name": n}).takeSymbolLayer(0)
+                for n in names
+            ]
+        )
+
+    def test_one_sprite_per_layer(self):
+        """The reported bug: a data-defined angle on one layer rotated the whole
+        symbol on the web map, because the symbol was drawn as one image."""
+        sprites = self._sprites(self._symbol("triangle", "square"))
+        assert [s.name for s in sprites] == ["L_0_0", "L_0_1"]
+        assert sprites[1].image == self._sprites(self._symbol("square"))[0].image
+
+    def test_each_layer_angle_is_not_baked(self):
+        from plugin_dir.kumoy.sprite.symbol_collector import _render, _trim
+
+        symbol = self._symbol("triangle", "triangle")
+        symbol.symbolLayer(1).setAngle(45)
+        sprites = self._sprites(symbol)
+        upright = _trim(_render(self._symbol("triangle")))
+        assert sprites[0].image == upright
+        assert sprites[1].image == upright
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -196,7 +183,7 @@ class TestPackSprites:
         assert sprite_json["icon_0"]["height"] == 32
         assert sprite_json["icon_0"]["x"] == 0
         assert sprite_json["icon_0"]["y"] == 0
-        assert sprite_json["icon_0"]["pixelRatio"] == 1
+        assert sprite_json["icon_0"]["pixelRatio"] == 2
 
         # PNGバイト列が有効であること（PNGシグネチャ）
         assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"

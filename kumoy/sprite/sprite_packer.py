@@ -6,7 +6,7 @@ from qgis.PyQt.QtCore import QBuffer, QSize
 from qgis.PyQt.QtGui import QImage, QPainter
 
 from ...pyqt_version import Q_BUFFER_OPEN_MODE, Q_IMAGE_FORMAT, Q_PAINTER_RENDER_HINT
-from .symbol_collector import SpriteEntry
+from .symbol_collector import SPRITE_PIXEL_RATIO, SpriteEntry
 
 SPRITE_ATLAS_MAX_WIDTH = 1024
 SPRITE_PADDING = 2
@@ -61,7 +61,7 @@ def _pack_images(
             "height": img.height(),
             "x": px,
             "y": py,
-            "pixelRatio": 1,
+            "pixelRatio": SPRITE_PIXEL_RATIO,
         }
 
     painter.end()
