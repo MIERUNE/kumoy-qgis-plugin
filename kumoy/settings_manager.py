@@ -9,6 +9,7 @@ from .local_cache.settings import reset_local_cache_settings
 
 @dataclass
 class UserSettings:
+    onboarding_seen: str = "false"
     session_token: str = ""
     selected_organization_id: str = ""
     selected_project_id: str = ""
@@ -26,6 +27,7 @@ def get_settings():
 
     try:
         loaded_settings = UserSettings(
+            onboarding_seen=qsettings.value("onboarding_seen", "false"),
             session_token=qsettings.value("session_token", ""),
             selected_organization_id=qsettings.value("selected_organization_id", ""),
             selected_project_id=qsettings.value("selected_project_id", ""),

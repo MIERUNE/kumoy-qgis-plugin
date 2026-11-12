@@ -15,11 +15,20 @@ from qgis.PyQt.QtWidgets import (
 QT_VERSION_INT = int(QT_VERSION_STR.split(".")[0])
 """Qt major version as integer"""
 
+# QShortcut moved from QtWidgets to QtGui in Qt6.
+if QT_VERSION_INT <= 5:
+    from qgis.PyQt.QtWidgets import QShortcut
+else:
+    from qgis.PyQt.QtGui import QShortcut
+
 QT_USER_ROLE = Qt.UserRole if QT_VERSION_INT <= 5 else Qt.ItemDataRole.UserRole
 """Qt user role constant
 Qt5: Qt.UserRole
 Qt6: Qt.ItemDataRole.UserRole
 """
+
+QT_KEY = Qt if QT_VERSION_INT <= 5 else Qt.Key
+"""Keyboard key constants, including navigation arrows."""
 
 QT_DIALOG_BUTTON_OK = (
     QDialogButtonBox.Ok if QT_VERSION_INT <= 5 else QDialogButtonBox.StandardButton.Ok
