@@ -1,209 +1,98 @@
+"""Feature endpoints used only by the plugin (/api/_qgis/vector/...).
+
+Rows are {"kumoy_id": int, "kumoy_wkb": bytes, "properties": dict}; WKB is
+base64 on the wire and bytes here.
+"""
+
 import base64
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from qgis.core import QgsFeature
-from qgis.PyQt.QtCore import QDate, QDateTime, QTime, QVariant
+from . import client
 
-from .. import constants
-from ... import i18n
-from .client import ApiClient
+# Fixed page size of get-features-v2: a shorter page is the last one
+FEATURES_PAGE_SIZE = 5000
+# add/change/delete accept at most this many items per request
+MAX_ITEMS_PER_REQUEST = 1000
+# Limit of one base64-encoded geometry
+MAX_WKB_BASE64_LENGTH = 10_000_000
+# get-diff answers 400 with this when more than 1000 rows changed
+MAX_DIFF_COUNT_EXCEEDED = "MAX_DIFF_COUNT_EXCEEDED"
 
 
-def get_features(
-    vector_id: str,
-    after_id: Optional[int] = None,
-) -> list:
+def _decode_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    for row in rows:
+        row["kumoy_wkb"] = base64.b64decode(row["kumoy_wkb"])
+    return rows
+
+
+def encode_wkb(wkb: bytes) -> str:
+    return base64.b64encode(bytes(wkb)).decode("ascii")
+
+
+def get_features(vector_id: str, after_id: Optional[int] = None) -> List[Dict]:
+    """One page of features ordered by kumoy_id, starting after `after_id`."""
+    payload = {} if after_id is None else {"after_id": after_id}
+    rows = client.post(f"/_qgis/vector/{vector_id}/get-features-v2", payload)
+    return _decode_rows(rows or [])
+
+
+@dataclass
+class Diff:
+    updated_rows: List[Dict]
+    deleted_ids: List[int]
+
+
+def get_diff(vector_id: str, last_updated: str) -> Diff:
+    """Rows changed after `last_updated` (ISO 8601, server clock).
+
+    Raises AppError with error == MAX_DIFF_COUNT_EXCEEDED when the diff is too
+    large; reload everything then.
     """
-    Get features from a vector layer
-    """
-    options = {}
-    if after_id is not None:
-        options["after_id"] = after_id
-
-    response = ApiClient.post(f"/_qgis/vector/{vector_id}/get-features-v2", options)
-
-    # decode base64
-    for feature in response:
-        feature["kumoy_wkb"] = base64.b64decode(feature["kumoy_wkb"])
-
-    return response
-
-
-class WkbTooLargeError(Exception):
-    """Raised when a feature's WKB exceeds the maximum allowed length."""
-
-    pass
-
-
-def add_features(
-    vector_id: str,
-    features: List[QgsFeature],
-) -> None:
-    """
-    Add features to a vector layer
-    """
-    _features = []
-    for f in features:
-        kumoy_wkb = base64.b64encode(f.geometry().asWkb()).decode("utf-8")
-        if len(kumoy_wkb) > constants.MAX_WKB_LENGTH:
-            raise WkbTooLargeError(
-                i18n.tr("Feature geometry exceeds maximum WKB length ({} > {})").format(
-                    f"{len(kumoy_wkb):,}", f"{constants.MAX_WKB_LENGTH:,}"
-                )
-            )
-        _features.append(
-            {
-                "kumoy_wkb": kumoy_wkb,
-                "properties": dict(zip(f.fields().names(), f.attributes())),
-            }
-        )
-
-    # rm kumoy_id from properties
-    for feature in _features:
-        if "kumoy_id" in feature["properties"]:
-            del feature["properties"]["kumoy_id"]
-
-    for feature in _features:
-        for k in feature["properties"]:
-            # HACK: replace QVariant of properties with None
-            # attribute of f.attributes() become QVariant when it is null (other type is automatically casted to primitive)
-            if (
-                isinstance(feature["properties"][k], QVariant)
-                and feature["properties"][k].isNull()
-            ):
-                feature["properties"][k] = None
-
-            # HACK: Replace Qt datetime objects to string
-            # attribute of f.attributes() become QDateTime/QDate/QTime when the field type is written in date time format
-            # input: PyQt.QtCore.QDateTime(2026, 2, 4, 10, 29, 41, 859)
-            # output: '2026-02-04T10:29:41.859'
-            elif isinstance(feature["properties"][k], QDateTime):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "yyyy-MM-ddTHH:mm:ss.zzz"
-                )
-            elif isinstance(feature["properties"][k], QDate):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "yyyy-MM-dd"
-                )
-            elif isinstance(feature["properties"][k], QTime):
-                feature["properties"][k] = feature["properties"][k].toString(
-                    "HH:mm:ss.zzz"
-                )
-
-    ApiClient.post(f"/_qgis/vector/{vector_id}/add-features", {"features": _features})
-
-
-def delete_features(
-    vector_id: str,
-    kumoy_ids: List[int],
-) -> None:
-    """
-    Delete features from a vector layer
-    """
-    ApiClient.post(
-        f"/_qgis/vector/{vector_id}/delete-features", {"kumoy_ids": kumoy_ids}
+    data = client.post(
+        f"/_qgis/vector/{vector_id}/get-diff", {"last_updated": last_updated}
     )
+    # The OpenAPI schema says [{kumoy_id}] but the server sends plain ids
+    deleted = [d["kumoy_id"] if isinstance(d, dict) else d for d in data["deletedRows"]]
+    return Diff(_decode_rows(data["updatedRows"]), deleted)
 
 
-def change_attribute_values(
-    vector_id: str,
-    attribute_items: List[Dict],
-) -> None:
-    """
-    Change attribute values of a feature in a vector layer
-    """
-    ApiClient.post(
+def add_features(vector_id: str, features: List[Dict]) -> List[int]:
+    """features: [{"kumoy_wkb": base64 str, "properties": {...}}]. Returns new ids."""
+    data = client.post(
+        f"/_qgis/vector/{vector_id}/add-features", {"features": features}
+    )
+    return list(data or [])
+
+
+def change_attribute_values(vector_id: str, items: List[Dict]) -> None:
+    """items: [{"kumoy_id": int, "properties": {...}}]"""
+    client.post(
         f"/_qgis/vector/{vector_id}/change-attribute-values",
-        {"attribute_items": attribute_items},
+        {"attribute_items": items},
     )
 
 
-def change_geometry_values(
-    vector_id: str,
-    geometry_items: List[Dict],
-) -> None:
-    """
-    Change geometry values of a feature in a vector layer
-    """
-    geometry_items_encoded = [
-        {
-            "kumoy_id": item["kumoy_id"],
-            "kumoy_wkb": base64.b64encode(item["geom"]).decode("utf-8"),
-        }
-        for item in geometry_items
-    ]
-
-    ApiClient.post(
+def change_geometry_values(vector_id: str, items: List[Dict]) -> None:
+    """items: [{"kumoy_id": int, "kumoy_wkb": base64 str}]"""
+    client.post(
         f"/_qgis/vector/{vector_id}/change-geometry-values",
-        {"geometry_items": geometry_items_encoded},
+        {"geometry_items": items},
     )
 
 
-def update_columns(
-    vector_id: str,
-    columns: dict,
-) -> None:
-    """
-    Update column types in a vector layer
-
-    Args:
-        vector_id: The ID of the vector layer
-        columns: Dictionary mapping column names to data types ('integer', 'float', 'string', 'boolean')
-    """
-    ApiClient.post(f"/_qgis/vector/{vector_id}/update-columns", {"columns": columns})
+def delete_features(vector_id: str, kumoy_ids: List[int]) -> None:
+    client.post(f"/_qgis/vector/{vector_id}/delete-features", {"kumoy_ids": kumoy_ids})
 
 
-def add_attributes(
-    vector_id: str,
-    attributes: List[dict],
-) -> None:
-    """
-    Add new attributes to a vector layer
-
-    Args:
-        vector_id: The ID of the vector layer
-        attributes: List of dicts with 'name' and 'type' keys.
-                    type is one of 'integer', 'float', 'string', 'boolean'
-    """
-    ApiClient.post(
+def add_attributes(vector_id: str, attributes: List[Dict[str, str]]) -> None:
+    """attributes: [{"name": str, "type": integer|float|string|boolean}]"""
+    client.post(
         f"/_qgis/vector/{vector_id}/add-attributes-v2", {"attributes": attributes}
     )
 
 
-def delete_attributes(
-    vector_id: str,
-    attribute_names: List[str],
-) -> None:
-    """
-    Delete attributes from a vector layer
-
-    Args:
-        vector_id: The ID of the vector layer
-        attribute_names: List of attribute names to delete
-    """
-    ApiClient.post(
-        f"/_qgis/vector/{vector_id}/delete-attributes",
-        {"attributeNames": attribute_names},
+def delete_attributes(vector_id: str, names: List[str]) -> None:
+    client.post(
+        f"/_qgis/vector/{vector_id}/delete-attributes", {"attributeNames": names}
     )
-
-
-def get_diff(vector_id: str, last_updated: str) -> Dict:
-    """
-    Get the difference of features in a vector layer since the last updated time.
-
-    Args:
-        vector_id: The ID of the vector layer.
-        last_updated_at: The last updated time in ISO format.
-
-    Returns:
-        A list of features that have changed since the last updated time.
-    """
-    response = ApiClient.post(
-        f"/_qgis/vector/{vector_id}/get-diff",
-        {"last_updated": last_updated},
-    )
-
-    for feature in response["updatedRows"]:
-        feature["kumoy_wkb"] = base64.b64decode(feature["kumoy_wkb"])
-
-    return response

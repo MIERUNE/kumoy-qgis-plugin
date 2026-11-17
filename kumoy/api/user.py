@@ -1,44 +1,18 @@
-from dataclasses import dataclass
-from typing import Optional
-
-from . import config as api_config
-from .client import ApiClient
-
-
-@dataclass
-class User:
-    id: str
-    name: str
-    email: str
-    authId: str
-    avatarImage: Optional[str]
-    createdAt: str
-    updatedAt: str
+from . import client
+from .models import PublicParams, User, from_dict
 
 
 def get_me() -> User:
-    """
-    Get the current user information
-
-    Returns:
-        User object or None if not found
-    """
-    response = ApiClient.get("/user/me")
-    return User(
-        id=response.get("id", ""),
-        name=response.get("name", ""),
-        email=response.get("email", ""),
-        authId=response.get("authId", ""),
-        avatarImage=response.get("avatarImage"),
-        createdAt=response.get("createdAt", ""),
-        updatedAt=response.get("updatedAt", ""),
-    )
+    return from_dict(User, client.get("/user/me"))
 
 
 def resolve_avatar_url(avatar_image: str) -> str:
-    """Build a displayable URL from the avatarImage returned by the API"""
-    # The server returns an absolute URL for external providers (Google etc.)
-    # and a server-relative path for self-hosted storage
+    """External providers give absolute URLs, self-hosted storage a path."""
     if avatar_image.startswith(("http://", "https://")):
         return avatar_image
-    return api_config.get_api_config().SERVER_URL.rstrip("/") + avatar_image
+    return client.server_url().rstrip("/") + avatar_image
+
+
+def get_public_params() -> PublicParams:
+    data = client.request("GET", "/api/_public/params", auth=False)
+    return from_dict(PublicParams, data or {})

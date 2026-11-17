@@ -1,114 +1,160 @@
-"""共通のAPIエラーハンドラ。
+"""Report API errors to the user, and end the session on 401.
 
-UI 層・processing 層の `except Exception` ブロックから呼び出して、
-- セッション切れ（UnauthorizedError）の場合はトークンを破棄して再ログインを促す
-- それ以外は従来どおりエラーメッセージを表示する
-を一箇所で行う。
-
-QMessageBox 表示や Browser パネルの再構築など UI 操作を含むため `ui/` 配下に
-置く。`processing/` からの import は sideways（横方向）になるが、
-`error_handler` が UI 責務を負う以上やむを得ない位置取り。
+Usable from any thread: the UI part is dispatched to the main thread.
 """
 
-from typing import Optional
+from typing import Callable, Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
-from qgis.PyQt.QtCore import QTimer
+from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 from qgis.utils import iface
 
 from .. import i18n
-from ..kumoy import constants
+from ..kumoy import constants, session
+from ..kumoy.api import client
+from ..kumoy.api.error import (
+    ForbiddenError,
+    NetworkError,
+    QuotaExceededError,
+    UnauthorizedError,
+    UnderMaintenanceError,
+    format_api_error,
+)
 from ..kumoy.basemap import remove_xyz_connections
-from ..kumoy.api.error import UnauthorizedError, format_api_error
-from ..kumoy.settings_manager import get_settings, store_setting
+from ..kumoy.tasks import Canceled
 
 
-def _clear_session() -> None:
-    """セッション関連設定のうちトークン情報のみクリアし、背景地図のXYZ接続を削除する。
+class _MainThreadDispatcher(QObject):
+    call = pyqtSignal(object)
 
-    selected_organization_id / selected_project_id は残し、
-    再ログイン後にユーザーがプロジェクトを選び直さなくて済むようにする。
-    """
-    store_setting("session_token", "")
-    store_setting("user_info", "")
+    def __init__(self):
+        super().__init__()
+        self.call.connect(lambda fn: fn())
 
+
+_dispatcher: Optional[_MainThreadDispatcher] = None
+
+
+def run_on_main_thread(fn: Callable[[], None]) -> None:
+    """Run fn on the main thread: now if already there, else queued."""
+    global _dispatcher
+    app = QgsApplication.instance()
+    if app is None or QThread.currentThread() == app.thread():
+        fn()
+        return
+    if _dispatcher is None:
+        # Created lazily but must live in the main thread to receive queued calls
+        _dispatcher = _MainThreadDispatcher()
+        _dispatcher.moveToThread(app.thread())
+    _dispatcher.call.emit(fn)
+
+
+def refresh_kumoy_browser() -> None:
+    """Rebuild the Kumoy node in the Browser panel (via the public registry)."""
+    registry = QgsApplication.instance().dataItemProviderRegistry()
+    for provider in registry.providers():
+        if provider.name() == constants.PLUGIN_NAME:
+            root = getattr(provider, "root_collection", None)
+            if root is not None:
+                root.refresh()
+            return
+
+
+def end_session() -> None:
+    """Forget the login locally (the server already rejected it, or logout)."""
+    session.clear()
     remove_xyz_connections()
-    # iface is None when processing runs headless (qgis_process)
     if iface:
         iface.reloadConnections()
 
 
-def refresh_kumoy_browser() -> None:
-    """QGIS の dataItemProviderRegistry を辿って Kumoy provider を見つけ、
-    RootCollection.refresh() を呼ぶ。
-
-    registry は QGIS の公開 API、provider 名は `constants.PLUGIN_NAME` で
-    一意。plugin.py への参照や callback 登録を介さずに直接 UI を更新できる。"""
-    registry = QgsApplication.instance().dataItemProviderRegistry()
-    for provider in registry.providers():
-        if provider.name() != constants.PLUGIN_NAME:
-            continue
-        root = getattr(provider, "root_collection", None)
-        if root is not None:
-            root.refresh()
+def _session_expired() -> None:
+    # Several requests fail together when a session expires; notify once
+    if not session.is_logged_in():
         return
-
-
-def _show_session_expired_and_refresh() -> None:
-    """セッション切れダイアログを表示し、Browser パネルをリフレッシュする。
-    QTimer.singleShot 経由でメインイベントループの次の tick に呼ばれる前提。"""
-    QMessageBox.warning(
-        None,
-        i18n.tr("Session expired"),
-        i18n.tr(
-            "Your Kumoy session has expired or is no longer valid.\n"
-            "Please log in again from the Kumoy item in the Browser panel."
-        ),
+    end_session()
+    QgsMessageLog.logMessage(
+        "Session expired. Cleared local session token.",
+        constants.LOG_CATEGORY,
+        Qgis.Warning,
     )
     refresh_kumoy_browser()
+    if iface is None:
+        return
+    box = QMessageBox(iface.mainWindow())
+    box.setIcon(QMessageBox.Icon.Warning)
+    box.setWindowTitle(i18n.tr("Session expired"))
+    box.setText(
+        i18n.tr(
+            "Your Kumoy session has expired or was signed out. Please log in again."
+        )
+    )
+    login = box.addButton(i18n.tr("Log In"), QMessageBox.ButtonRole.AcceptRole)
+    box.addButton(i18n.tr("Later"), QMessageBox.ButtonRole.RejectRole)
+    box.exec()
+    if box.clickedButton() is login:
+        from .dialog_login import open_login_dialog
+
+        open_login_dialog()
+
+
+def describe_error(exception: Exception) -> str:
+    """User-facing explanation of an API error."""
+    detail = format_api_error(exception)
+    if isinstance(exception, ForbiddenError):
+        return i18n.tr(
+            "You do not have permission for this operation. Editing requires the "
+            "Editor role in the project's team, and some features require a paid "
+            "plan. Details: {}"
+        ).format(detail)
+    if isinstance(exception, QuotaExceededError):
+        return i18n.tr(
+            "Your organization has reached a limit of its plan. Details: {}"
+        ).format(detail)
+    if isinstance(exception, NetworkError):
+        return i18n.tr(
+            "Could not connect to Kumoy ({}). Check your internet connection and "
+            "proxy settings. Details: {}"
+        ).format(client.server_url(), detail)
+    if isinstance(exception, UnderMaintenanceError):
+        return i18n.tr("Kumoy is under maintenance. Please try again later.")
+    return detail
 
 
 def handle_api_error(
     exception: Exception,
     parent: Optional[QWidget] = None,
-    log_prefix: str = "",
-) -> bool:
-    """API例外を共通ハンドリングして表示する。
+    title: str = "",
+) -> None:
+    """Report `exception`. 401 ends the session; cancellation is silent.
 
-    UnauthorizedError の場合はトークンをクリアした上で、ダイアログ表示と
-    Browser パネル再構築を **次のイベントループ tick に遅延させる**。
-    これは QGIS の `createChildren` のような Python オブジェクトの寿命を
-    巻き込むコンテキストから呼ばれたときに、Browser model から item を
-    取り除く操作が同期実行されてクラッシュするのを防ぐため。
-
-    また、複数の `createChildren` が並行発火して 401 が連発する状況でも
-    モーダルが多重キューイングされないよう、トークンが「直前まで有効」だった
-    最初の1回だけ通知する（dedup）。再ログインで token が再設定されると判定は
-    リセットされる。
-
-    Returns:
-        UnauthorizedError として処理した場合は True、それ以外は False
+    Errors go to the message bar so they do not block work; pass `parent` to
+    show a dialog instead when the error belongs to an open dialog.
     """
+    if isinstance(exception, Canceled):
+        return
     if isinstance(exception, UnauthorizedError):
-        already_cleared = not get_settings().session_token
-        if not already_cleared:
-            # 実際にトークンを破棄するのは「直前まで有効だった」最初の1回のみ。
-            # それ以降の UnauthorizedError は、無効化済みのトークンに対する
-            # 追加 API 呼び出しが空振りしているだけなので、ログ/ダイアログ/
-            # Browser リフレッシュは抑制する。
-            _clear_session()
-            QgsMessageLog.logMessage(
-                i18n.tr("Session expired. Cleared local session token."),
-                constants.LOG_CATEGORY,
-                Qgis.Warning,
-            )
-            QTimer.singleShot(0, _show_session_expired_and_refresh)
-        return True
+        run_on_main_thread(_session_expired)
+        return
 
-    detail = format_api_error(exception)
-    title = log_prefix or i18n.tr("Error")
-    log_message = f"{title}: {detail}" if log_prefix else detail
-    QgsMessageLog.logMessage(log_message, constants.LOG_CATEGORY, Qgis.Warning)
-    QMessageBox.critical(parent, title, detail)
-    return False
+    title = title or i18n.tr("Kumoy")
+    message = describe_error(exception)
+    QgsMessageLog.logMessage(
+        f"{title}: {format_api_error(exception)}", constants.LOG_CATEGORY, Qgis.Warning
+    )
+
+    def show() -> None:
+        if parent is not None:
+            QMessageBox.critical(parent, title, message)
+        elif iface is not None:
+            iface.messageBar().pushMessage(title, message, Qgis.Critical, 0)
+
+    run_on_main_thread(show)
+
+
+def push_success(message: str, title: str = "") -> None:
+    if iface is not None:
+        iface.messageBar().pushMessage(
+            title or i18n.tr("Kumoy"), message, Qgis.Success, 5
+        )

@@ -1,427 +1,85 @@
-from dataclasses import dataclass, field
-from typing import List, Literal, Optional
+from dataclasses import dataclass
+from typing import List, Optional
 
-from .client import ApiClient
-from .organization import Organization
-from .project import Project
-from .team import Team
+from . import client
+from ._util import UNSET, compact
+from .models import PresignedPost, StyledMap, StyledMapDetail, from_dict, list_of
 
-_UNSET = object()
-
-
-@dataclass
-class KumoyStyledMap:
-    """
-    KumoyのStyledMapを表すデータクラス
-    """
-
-    id: str
-    name: str
-    description: str
-    isPublic: bool
-    projectId: str
-    project: Project
-    attribution: str
-    assetsHash: Optional[str]
-    thumbnailImageUrl: str
-    createdAt: str
-    updatedAt: str
+# Server limit on the project XML (characters)
+MAX_QGISPROJECT_LENGTH = 3_000_000
 
 
-def get_styled_maps(project_id: str) -> List[KumoyStyledMap]:
-    """
-    特定のプロジェクトのスタイルマップリストを取得する
-
-    Args:
-        project_id: プロジェクトID
-
-    Returns:
-        KumoyStyledMapオブジェクトのリスト
-    """
-    response = ApiClient.get(f"/project/{project_id}/styled-map")
-
-    styled_maps = []
-    for styled_map_data in response:
-        styled_maps.append(
-            KumoyStyledMap(
-                id=styled_map_data.get("id", ""),
-                name=styled_map_data.get("name", ""),
-                isPublic=styled_map_data.get("isPublic", False),
-                projectId=project_id,
-                project=Project(
-                    id=styled_map_data.get("project", {}).get("id", ""),
-                    name=styled_map_data.get("project", {}).get("name", ""),
-                    description=styled_map_data.get("project", {}).get(
-                        "description", ""
-                    ),
-                    createdAt=styled_map_data.get("project", {}).get("createdAt", ""),
-                    updatedAt=styled_map_data.get("project", {}).get("updatedAt", ""),
-                    teamId=styled_map_data.get("project", {})
-                    .get("team", {})
-                    .get("id", ""),
-                    team=Team(
-                        id=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("id", ""),
-                        name=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("name", ""),
-                        createdAt=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("createdAt", ""),
-                        updatedAt=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("updatedAt", ""),
-                        organizationId=styled_map_data.get("project", {})
-                        .get("team", {})
-                        .get("organizationId", ""),
-                        organization=Organization(
-                            id=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("id", ""),
-                            name=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("name", ""),
-                            subscriptionPlan=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("subscriptionPlan", ""),
-                            stripeCustomerId=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("stripeCustomerId", ""),
-                            storageUnits=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("storageUnits", 0),
-                            createdAt=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("createdAt", ""),
-                            updatedAt=styled_map_data.get("project", {})
-                            .get("team", {})
-                            .get("organization", {})
-                            .get("updatedAt", ""),
-                        ),
-                    ),
-                ),
-                description=styled_map_data.get("description", ""),
-                attribution=styled_map_data.get("attribution", ""),
-                assetsHash=styled_map_data.get("assetsHash"),
-                thumbnailImageUrl=styled_map_data.get("thumbnailImageUrl"),
-                createdAt=styled_map_data.get("createdAt", ""),
-                updatedAt=styled_map_data.get("updatedAt", ""),
-            )
-        )
-
-    return styled_maps
+def get_styled_maps(project_id: str) -> List[StyledMap]:
+    return list_of(StyledMap, client.get(f"/project/{project_id}/styled-map"))
 
 
-@dataclass
-class KumoyStyledMapDetail:
-    """
-    KumoyのStyledMapの詳細を表すデータクラス
-    """
-
-    id: str
-    name: str
-    description: str
-    isPublic: bool
-    projectId: str
-    project: Project
-    attribution: str
-    assetsHash: Optional[str]
-    thumbnailImageUrl: str
-    createdAt: str
-    updatedAt: str
-    qgisproject: str
-    role: Literal["ADMIN", "OWNER", "MEMBER"]
+def get_styled_map(styled_map_id: str) -> StyledMapDetail:
+    """The map with its QGIS project XML and the user's role."""
+    data = client.post(f"/_qgis/styled-map/{styled_map_id}")
+    return from_dict(StyledMapDetail, data)
 
 
-def get_styled_map(styled_map_id: str) -> KumoyStyledMapDetail:
-    """
-    特定のスタイルマップの詳細を取得する
-
-    Args:
-        styled_map_id: スタイルマップID
-
-    Returns:
-        KumoyStyledMapオブジェクトまたは見つからない場合はNone
-    """
-    response = ApiClient.post(f"/_qgis/styled-map/{styled_map_id}", {})
-
-    return KumoyStyledMapDetail(
-        id=response.get("id", ""),
-        name=response.get("name", ""),
-        isPublic=response.get("isPublic", False),
-        projectId=response.get("projectId", ""),
-        project=Project(
-            id=response.get("project", {}).get("id", ""),
-            name=response.get("project", {}).get("name", ""),
-            description=response.get("project", {}).get("description", ""),
-            createdAt=response.get("project", {}).get("createdAt", ""),
-            updatedAt=response.get("project", {}).get("updatedAt", ""),
-            teamId=response.get("project", {}).get("team", {}).get("id", ""),
-            team=Team(
-                id=response.get("project", {}).get("team", {}).get("id", ""),
-                name=response.get("project", {}).get("team", {}).get("name", ""),
-                createdAt=response.get("project", {})
-                .get("team", {})
-                .get("createdAt", ""),
-                updatedAt=response.get("project", {})
-                .get("team", {})
-                .get("updatedAt", ""),
-                organizationId=response.get("project", {})
-                .get("team", {})
-                .get("organizationId", ""),
-                organization=Organization(
-                    id=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("id", ""),
-                    name=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("name", ""),
-                    subscriptionPlan=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("subscriptionPlan", ""),
-                    stripeCustomerId=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("stripeCustomerId", ""),
-                    storageUnits=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("storageUnits", 0),
-                    createdAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("createdAt", ""),
-                    updatedAt=response.get("project", {})
-                    .get("team", {})
-                    .get("organization", {})
-                    .get("updatedAt", ""),
-                ),
-            ),
-        ),
-        description=response.get("description", ""),
-        attribution=response.get("attribution", ""),
-        thumbnailImageUrl=response.get("thumbnailImageUrl"),
-        createdAt=response.get("createdAt", ""),
-        updatedAt=response.get("updatedAt", ""),
-        qgisproject=response.get("qgisproject", ""),
-        role=response.get("role", "MEMBER"),
-        assetsHash=response.get("assetsHash"),
+def create_styled_map(
+    project_id: str,
+    name: str,
+    qgisproject: str,
+    description: str = "",
+    attribution: str = "",
+    isPublic: bool = False,
+) -> StyledMap:
+    data = client.post(
+        f"/project/{project_id}/styled-map",
+        {
+            "name": name,
+            "qgisproject": qgisproject,
+            "description": description,
+            "attribution": attribution,
+            "isPublic": isPublic,
+        },
     )
-
-
-@dataclass
-class AddStyledMapOptions:
-    """
-    新しいスタイルマップを追加するためのオプション
-    """
-
-    name: str
-    qgisproject: str
-    attribution: Optional[str] = None
-    description: Optional[str] = None
-    isPublic: Optional[bool] = None
-
-
-@dataclass
-class AddStyledMapResponse:
-    id: str
-    name: str
-    description: str
-    thumbnailImageUrl: Optional[str]
-    qgisproject: str
-    projectId: str
-    attribution: str
-    isPublic: bool
-    createdAt: str
-    updatedAt: str
-
-
-def add_styled_map(
-    project_id: str, options: AddStyledMapOptions
-) -> AddStyledMapResponse:
-    """
-    プロジェクトに新しいスタイルマップを追加する
-
-    Args:
-        project_id: プロジェクトID
-        options: 新しいスタイルマップのオプション
-
-    Returns:
-        KumoyStyledMapオブジェクトまたは作成失敗時はNone
-    """
-
-    payload = {
-        "name": options.name,
-        "qgisproject": options.qgisproject,
-    }
-    if options.attribution is not None:
-        payload["attribution"] = options.attribution
-    if options.description is not None:
-        payload["description"] = options.description
-    if options.isPublic is not None:
-        payload["isPublic"] = options.isPublic
-
-    response = ApiClient.post(f"/project/{project_id}/styled-map", payload)
-
-    return AddStyledMapResponse(
-        id=response.get("id", ""),
-        name=response.get("name", ""),
-        description=response.get("description", ""),
-        isPublic=response.get("isPublic", False),
-        projectId=project_id,
-        qgisproject=response.get("qgisproject", ""),
-        attribution=response.get("attribution", ""),
-        thumbnailImageUrl=response.get("thumbnailImageUrl"),
-        createdAt=response.get("createdAt", ""),
-        updatedAt=response.get("updatedAt", ""),
-    )
-
-
-def delete_styled_map(styled_map_id: str):
-    """
-    スタイルマップを削除する
-
-    Args:
-        styled_map_id: スタイルマップID
-
-    Returns:
-        成功した場合はTrue、それ以外はFalse
-    """
-    ApiClient.delete(f"/styled-map/{styled_map_id}")
-
-
-@dataclass
-class UpdateStyledMapOptions:
-    """
-    スタイルマップを更新するためのオプション
-    """
-
-    name: Optional[str] = None
-    description: Optional[str] = None
-    qgisproject: Optional[str] = None
-    isPublic: Optional[bool] = None
-    attribution: Optional[str] = None
-    assetsHash: object = field(default=_UNSET)
-
-
-@dataclass
-class UpdateStyledMapResponse:
-    id: str
-    name: str
-    description: str
-    thumbnailImageUrl: Optional[str]
-    qgisproject: str
-    projectId: str
-    isPublic: bool
-    attribution: str
-    createdAt: str
-    updatedAt: str
-    assetsHash: Optional[str] = None
+    return from_dict(StyledMap, data)
 
 
 def update_styled_map(
-    styled_map_id: str, options: UpdateStyledMapOptions
-) -> UpdateStyledMapResponse:
-    """
-    スタイルマップを更新する
-
-    Args:
-        styled_map_id: スタイルマップID
-        options: 更新オプション
-
-    Returns:
-        更新されたUpdateStyledMapResponseオブジェクト
-    """
-    update_data = {}
-    if options.name is not None:
-        update_data["name"] = options.name
-    if options.qgisproject is not None:
-        update_data["qgisproject"] = options.qgisproject
-    if options.isPublic is not None:
-        update_data["isPublic"] = options.isPublic
-    if options.attribution is not None:
-        update_data["attribution"] = options.attribution
-    if options.description is not None:
-        update_data["description"] = options.description
-    if options.assetsHash is not _UNSET:
-        # memo: options.assetsHashが未指定=_UNSETの場合はupdate_dataに含めない（変更がないので送信されない）
-        # options.assetsHash=Noneの場合は、update_data.assetsHash=nullとなり、（変更があるので送信される）
-        update_data["assetsHash"] = options.assetsHash
-
-    response = ApiClient.put(
-        f"/styled-map/{styled_map_id}",
-        update_data,
+    styled_map_id: str,
+    name: Optional[str] = UNSET,
+    description: Optional[str] = UNSET,
+    qgisproject: Optional[str] = UNSET,
+    isPublic: Optional[bool] = UNSET,
+    attribution: Optional[str] = UNSET,
+    assetsHash: Optional[str] = UNSET,
+) -> StyledMap:
+    """Update only the given fields. assetsHash=None clears the sprite hash."""
+    payload = compact(
+        name=name,
+        description=description,
+        qgisproject=qgisproject,
+        isPublic=isPublic,
+        attribution=attribution,
+        assetsHash=assetsHash,
     )
-
-    return UpdateStyledMapResponse(
-        id=response.get("id", ""),
-        name=response.get("name", ""),
-        description=response.get("description", ""),
-        isPublic=response.get("isPublic", False),
-        projectId=response.get("projectId", ""),
-        qgisproject=response.get("qgisproject", ""),
-        attribution=response.get("attribution", ""),
-        thumbnailImageUrl=response.get("thumbnailImageUrl"),
-        createdAt=response.get("createdAt", ""),
-        updatedAt=response.get("updatedAt", ""),
-        assetsHash=response.get("assetsHash"),
-    )
+    return from_dict(StyledMap, client.put(f"/styled-map/{styled_map_id}", payload))
 
 
-@dataclass
-class PresignedUrl:
-    url: str
-    filename: str
-    fields: dict[str, str]
+def delete_styled_map(styled_map_id: str) -> None:
+    client.delete(f"/styled-map/{styled_map_id}")
 
 
 @dataclass
 class SpriteUploadUrls:
-    json: PresignedUrl
-    png: PresignedUrl
+    json: PresignedPost
+    png: PresignedPost
 
 
 def get_sprite_upload_urls(
-    styled_map_id: str,
-    json_file_size: int,
-    png_file_size: int,
+    styled_map_id: str, json_file_size: int, png_file_size: int
 ) -> SpriteUploadUrls:
-    """スプライトアップロード用のpresigned URLを取得する。
-
-    Args:
-        styled_map_id: StyledMap ID
-        json_file_size: sprite.jsonのファイルサイズ
-        png_file_size: sprite.pngのファイルサイズ
-
-    Returns:
-        SpriteUploadUrls
-    """
-    response = ApiClient.post(
+    """Presigned multipart POSTs (relative to the server, valid 30 s)."""
+    data = client.post(
         f"/styled-map/{styled_map_id}/assets-upload",
-        {
-            "jsonFileSize": json_file_size,
-            "pngFileSize": png_file_size,
-        },
+        {"jsonFileSize": json_file_size, "pngFileSize": png_file_size},
     )
     return SpriteUploadUrls(
-        json=PresignedUrl(
-            url=response["json"]["url"],
-            filename=response["json"]["filename"],
-            fields=response["json"]["fields"],
-        ),
-        png=PresignedUrl(
-            url=response["png"]["url"],
-            filename=response["png"]["filename"],
-            fields=response["png"]["fields"],
-        ),
+        json=from_dict(PresignedPost, data["json"]),
+        png=from_dict(PresignedPost, data["png"]),
     )
