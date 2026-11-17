@@ -63,3 +63,5 @@ docker run --rm \
   "
 ```
 
+`tests/integration/` runs the plugin's real code paths against a running Kumoy server at any URL; see [tests/integration/README.md](tests/integration/README.md).
+
