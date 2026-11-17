@@ -574,6 +574,30 @@ class TestProjectDialog:
         assert dialog.button_panel["new_project_btn"].isEnabled()
         assert shell.settings.get("last_organization_id") == "o2"
 
+    def test_storage_usage_accepts_fractional_units(
+        self, shell, org_api, api, monkeypatch
+    ):
+        # The API sends numbers; from_dict turns them into floats, which
+        # QProgressBar.setMaximum() rejects
+        detail = models.from_dict(
+            models.OrganizationDetail,
+            {
+                "id": "org1",
+                "name": "Org",
+                "availableStorageUnits": 30,
+                "usage": {"usedStorageUnits": 12.5},
+            },
+        )
+        monkeypatch.setattr(api.organization, "get_organization", lambda i: detail)
+        log_in(shell, monkeypatch, project=False)
+        shell.settings.select_project("o1", "")
+
+        dialog = shell.dialog_project_select.ProjectSelectDialog()
+        shell.tasks.flush()
+
+        bar = dialog.org_details_panel["usage_widgets"]["storage"]["progress"]
+        assert (bar.maximum(), bar.value()) == (30, 13)
+
     def test_changing_org_loads_it_and_drops_stale_results(
         self, shell, org_api, monkeypatch
     ):

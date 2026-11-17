@@ -968,7 +968,7 @@ class ProjectSelectDialog(QDialog):
             if total > 0:
                 self.org_details_panel["usage_widgets"]["storage"][
                     "progress"
-                ].setMaximum(total)
+                ].setMaximum(math.ceil(total))  # SU may be fractional; Qt wants int
                 self.org_details_panel["usage_widgets"]["storage"]["progress"].setValue(
                     math.ceil(used)
                 )
