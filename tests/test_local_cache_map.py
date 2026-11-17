@@ -1,134 +1,83 @@
-"""Tests for kumoy/local_cache/map.py
+"""Tests for kumoy/local_cache/map.py: map files left by older plugin versions."""
 
-Verifies that get_cache_size sums sizes with the same matching rule as
-clear(): any file whose name contains map_id.
-"""
-
-import types
+import os
 
 import pytest
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
+@pytest.fixture
+def cache(qgis_plugin_path, tmp_path, monkeypatch):
+    from plugin_dir.kumoy.local_cache import map as map_cache
+
+    cache_dir = tmp_path / "maps"
+    cache_dir.mkdir()
+    monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
+    # The tests reach the directory through the module they test
+    monkeypatch.setattr(map_cache, "dir", cache_dir, raising=False)
+    return map_cache
+
+
 class TestCacheSize:
-    @pytest.fixture
-    def cache(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy.local_cache import map as map_cache
-
-        cache_dir = tmp_path / "maps"
-        cache_dir.mkdir()
-        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
-        return types.SimpleNamespace(mod=map_cache, cache_dir=cache_dir)
-
     def test_zero_when_not_cached(self, cache):
-        assert cache.mod.get_cache_size("m-1") == 0
+        assert cache.get_cache_size("m-1") == 0
 
-    def test_zero_when_cache_file_is_empty(self, cache):
-        (cache.cache_dir / "m-1.qgs").write_bytes(b"")
+    def test_zero_without_cache_dir(self, cache, monkeypatch, tmp_path):
+        monkeypatch.setattr(cache, "get_cache_dir", lambda: str(tmp_path / "none"))
 
-        assert cache.mod.get_cache_size("m-1") == 0
+        assert cache.get_cache_size("m-1") == 0
+        assert cache.get_total_cache_size() == 0
+        assert cache.clear("m-1") is True
+        assert cache.clear_all() is True
 
     def test_sums_files_containing_map_id(self, cache):
-        (cache.cache_dir / "m-1.qgs").write_bytes(b"x" * 100)
-        (cache.cache_dir / "m-1_extra.dat").write_bytes(b"x" * 30)
+        (cache.dir / "m-1.qgs").write_bytes(b"x" * 100)
+        (cache.dir / "m-1_extra.dat").write_bytes(b"x" * 30)
         # Files of other maps are not counted
-        (cache.cache_dir / "m-2.qgs").write_bytes(b"x" * 999)
+        (cache.dir / "m-2.qgs").write_bytes(b"x" * 999)
 
-        assert cache.mod.get_cache_size("m-1") == 130
-
-    def test_total_zero_when_no_files(self, cache):
-        assert cache.mod.get_total_cache_size() == 0
+        assert cache.get_cache_size("m-1") == 130
 
     def test_total_sums_all_files(self, cache):
-        (cache.cache_dir / "m-1.qgs").write_bytes(b"x" * 100)
-        (cache.cache_dir / "m-2.qgs").write_bytes(b"x" * 60)
+        (cache.dir / "m-1.qgs").write_bytes(b"x" * 100)
+        (cache.dir / "m-2.qgs").write_bytes(b"x" * 60)
 
-        assert cache.mod.get_total_cache_size() == 160
+        assert cache.get_total_cache_size() == 160
+
+
+class TestClear:
+    def test_clear_removes_only_that_map(self, cache):
+        (cache.dir / "m-1.qgs").write_bytes(b"x")
+        (cache.dir / "m-2.qgs").write_bytes(b"x")
+
+        assert cache.clear("m-1") is True
+        assert [p.name for p in cache.dir.iterdir()] == ["m-2.qgs"]
 
     def test_clear_all_removes_files_and_subdirs(self, cache):
-        (cache.cache_dir / "m-1.qgs").write_bytes(b"x" * 100)
-        sub = cache.cache_dir / "sub"
+        (cache.dir / "m-1.qgs").write_bytes(b"x" * 100)
+        sub = cache.dir / "sub"
         sub.mkdir()
         (sub / "nested.qgs").write_bytes(b"x" * 60)
 
-        assert cache.mod.clear_all() is True
-        assert list(cache.cache_dir.iterdir()) == []
-        assert cache.mod.get_total_cache_size() == 0
+        assert cache.clear_all() is True
+        assert list(cache.dir.iterdir()) == []
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestReadProjectFile:
-    @pytest.fixture
-    def map_cache(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy.local_cache import map as map_cache
+class TestLegacyMapId:
+    def test_map_file_in_cache(self, cache):
+        assert cache.legacy_map_id(str(cache.dir / "abc-123.qgs")) == "abc-123"
 
-        cache_dir = tmp_path / "maps"
-        cache_dir.mkdir()
-        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
-        return map_cache
+    def test_relative_spelling_of_the_cache_dir(self, cache):
+        path = os.path.join(str(cache.dir), "..", "maps", "abc.qgs")
 
-    def test_layer_tree_keeps_provider_key(
-        self, map_cache, tmp_path, fake_kumoy_provider
-    ):
-        import re
+        assert cache.legacy_map_id(path) == "abc"
 
-        from .project_files import write_kumoy_point_project
+    @pytest.mark.parametrize("name", ["abc.qgz", "abc.gpkg"])
+    def test_other_files_in_cache(self, cache, name):
+        assert cache.legacy_map_id(str(cache.dir / name)) is None
 
-        qgisproject = map_cache.serialize_detached_project(
-            map_cache.read_project_file(str(write_kumoy_point_project(tmp_path)))
-        )
+    def test_file_elsewhere(self, cache, tmp_path):
+        assert cache.legacy_map_id(str(tmp_path / "abc.qgs")) is None
 
-        # The web layer tree derives geometry types of legends from this key
-        assert re.findall(
-            r'<layer-tree-layer[^>]*providerKey="([^"]*)"', qgisproject
-        ) == ["kumoy"]
-
-    def test_pinned_aspect_ratio_is_written(
-        self, map_cache, tmp_path, fake_kumoy_provider
-    ):
-        from .project_files import fixed_aspect_ratios, write_kumoy_point_project
-
-        path = write_kumoy_point_project(tmp_path)
-        assert fixed_aspect_ratios(path.read_text(encoding="utf-8")) == ["0"]
-
-        qgisproject = map_cache.serialize_detached_project(
-            map_cache.read_project_file(str(path))
-        )
-
-        assert fixed_aspect_ratios(qgisproject) == ["0.5"]
-        assert "vector_id=v1" in qgisproject
-
-    def test_local_paths_become_relative_to_cache_dir(self, map_cache, tmp_path):
-        from qgis.core import (
-            QgsCoordinateTransformContext,
-            QgsProject,
-            QgsVectorFileWriter,
-            QgsVectorLayer,
-        )
-
-        data_dir = tmp_path / "src" / "data"
-        data_dir.mkdir(parents=True)
-        gpkg = str(data_dir / "points.gpkg")
-        QgsVectorFileWriter.writeAsVectorFormatV3(
-            QgsVectorLayer("Point?crs=EPSG:4326", "points", "memory"),
-            gpkg,
-            QgsCoordinateTransformContext(),
-            QgsVectorFileWriter.SaveVectorOptions(),
-        )
-        project = QgsProject()
-        project.addMapLayer(QgsVectorLayer(gpkg, "points", "ogr"))
-        project_path = str(tmp_path / "src" / "project.qgz")
-        project.write(project_path)
-
-        qgisproject = map_cache.serialize_detached_project(
-            map_cache.read_project_file(project_path)
-        )
-
-        assert "<datasource>../src/data/points.gpkg</datasource>" in qgisproject
-
-    def test_unreadable_file_fails(self, map_cache, tmp_path):
-        path = tmp_path / "broken.qgs"
-        path.write_text("not a project", encoding="utf-8")
-
-        with pytest.raises(RuntimeError):
-            map_cache.read_project_file(str(path))
+    @pytest.mark.parametrize("path", ["", "kumoy:abc"])
+    def test_not_a_file(self, cache, path):
+        assert cache.legacy_map_id(path) is None

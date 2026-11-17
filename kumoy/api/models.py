@@ -233,6 +233,8 @@ class StyledMapDetail(StyledMap):
 
     qgisproject: str = ""
     role: Role = "MEMBER"
+    # Carries project.team.organizationId, to select the map's project
+    project: Optional[Project] = None
 
 
 # --- User / misc -----------------------------------------------------------

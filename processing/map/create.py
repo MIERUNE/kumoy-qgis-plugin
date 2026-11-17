@@ -1,18 +1,14 @@
-import os
-import tempfile
 from typing import Any, Dict, Optional
 
 from qgis.core import (
     QgsProcessingContext,
-    QgsProcessingException,
     QgsProcessingFeedback,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterFile,
-    QgsProject,
 )
 
 from ... import i18n
-from ...kumoy import api, constants
+from ...kumoy import api, constants, map_project
 from ...kumoy.sprite.uploader import upload_sprites
 from ..base import KumoyApiAlgorithm, to_output
 from ._project_file import (
@@ -22,19 +18,6 @@ from ._project_file import (
     project_file_help,
     without_qgisproject,
 )
-
-
-def _empty_project_xml() -> str:
-    # A standalone QgsProject leaves the project open in QGIS untouched
-    fd, tmp_path = tempfile.mkstemp(suffix=".qgs")
-    os.close(fd)
-    try:
-        if not QgsProject().write(tmp_path):
-            raise QgsProcessingException(i18n.tr("Failed to create an empty project."))
-        with open(tmp_path, encoding="utf-8") as f:
-            return f.read()
-    finally:
-        os.remove(tmp_path)
 
 
 class CreateMapAlgorithm(KumoyApiAlgorithm):
@@ -121,32 +104,25 @@ class CreateMapAlgorithm(KumoyApiAlgorithm):
         loaded = (
             load_project_file(project_file)
             if project_file
-            else ProjectFile(qgisproject=_empty_project_xml(), sprite=None)
+            else ProjectFile(qgisproject=map_project.empty_project_xml(), sprite=None)
         )
 
-        styled_map = api.styledmap.add_styled_map(
+        styled_map = api.styledmap.create_styled_map(
             project_id,
-            api.styledmap.AddStyledMapOptions(
-                name=name,
-                qgisproject=loaded.qgisproject,
-                description=self.parameter_as_text(
-                    parameters, self.DESCRIPTION, context
-                ),
-                attribution=self.parameter_as_text(
-                    parameters, self.ATTRIBUTION, context
-                ),
-                isPublic=self.parameterAsBoolean(parameters, self.IS_PUBLIC, context),
-            ),
+            name=name,
+            qgisproject=loaded.qgisproject,
+            description=self.parameter_as_text(parameters, self.DESCRIPTION, context)
+            or "",
+            attribution=self.parameter_as_text(parameters, self.ATTRIBUTION, context)
+            or "",
+            isPublic=self.parameterAsBoolean(parameters, self.IS_PUBLIC, context),
         )
         # Sprites are stored per map, so they can only be uploaded once it exists
         if loaded.sprite is not None:
             try:
                 upload_sprites(styled_map.id, loaded.sprite)
                 styled_map = api.styledmap.update_styled_map(
-                    styled_map.id,
-                    api.styledmap.UpdateStyledMapOptions(
-                        assetsHash=loaded.sprite.assets_hash
-                    ),
+                    styled_map.id, assetsHash=loaded.sprite.assets_hash
                 )
             except Exception:
                 # A map without its sprites renders broken symbols; don't leave

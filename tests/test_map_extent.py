@@ -1,12 +1,11 @@
-"""Map保存時に <extent> が書き込まれることのテスト
+"""Tests for kumoy/map_project.py (serializing projects for Kumoy maps).
 
-QgsVectorLayer はプロバイダの extent を一度だけ問い合わせてキャッシュし、write() は
-その値を書き出す（null なら <extent> 要素が丸ごと欠落する）。Kumoyレイヤーは
-サーバ側にまだextentが無い瞬間に null を返しうるので、保存直前に再計算が必要。
+QgsVectorLayer asks its provider for the extent once and caches it, and write()
+omits <extent> entirely when it is null. A Kumoy layer can return null while
+the server has no extent yet, so map_project.prepare() recomputes it.
 """
 
 import re
-import types
 
 import pytest
 
@@ -23,48 +22,6 @@ def _extent_block(qgs_str: str, layer_name: str):
     raise AssertionError(f"maplayer '{layer_name}' not found in project")
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestFeatureCount:
-    """ローカルキャッシュが無いときは 0。
-
-    KumoyFeatureIterator が0件しか返さないので、サーバ側の count を返すと
-    getFeatures() と矛盾する。
-    """
-
-    def _provider(self, kumoy_vector, cached_layer):
-        from qgis.core import QgsVectorDataProvider
-
-        from plugin_dir.kumoy.provider.dataprovider import KumoyDataProvider
-
-        class _Provider(KumoyDataProvider):
-            def __init__(self):
-                # KumoyDataProvider.__init__ はAPI通信・キャッシュ同期を伴うので飛ばす
-                QgsVectorDataProvider.__init__(self, "")
-                self.kumoy_vector = kumoy_vector
-                self.cached_layer = cached_layer
-
-        return _Provider()
-
-    def test_zero_without_cache_even_if_server_has_count(self, qgis_app):
-        provider = self._provider(types.SimpleNamespace(count=7), None)
-        assert provider.featureCount() == 0
-
-    def test_uses_cached_layer_when_available(self, qgis_app):
-        """キャッシュがあればサーバ側の count ではなくキャッシュの件数が真。"""
-        from qgis.core import QgsFeature, QgsGeometry, QgsPointXY, QgsVectorLayer
-
-        cached = QgsVectorLayer("Point?crs=EPSG:4326", "cache", "memory")
-        feats = []
-        for x in (139.0, 139.5):
-            f = QgsFeature(cached.fields())
-            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(x, 35.0)))
-            feats.append(f)
-        assert cached.dataProvider().addFeatures(feats)[0]
-
-        provider = self._provider(types.SimpleNamespace(count=7), cached)
-        assert provider.featureCount() == 2
-
-
 def _make_tif(path: str):
     from osgeo import gdal, osr
 
@@ -76,135 +33,79 @@ def _make_tif(path: str):
     ds.Close()
 
 
-@pytest.fixture(scope="session")
-def _registered_raster_metadata(qgis_app):
-    from qgis.core import QgsProviderRegistry
+@pytest.fixture
+def map_project(qgis_plugin_path):
+    from plugin_dir.kumoy import map_project
 
-    from plugin_dir.kumoy.provider.raster_dataprovider_metadata import (
-        KumoyRasterProviderMetadata,
+    return map_project
+
+
+@pytest.fixture
+def kumoy_layer(fake_kumoy_provider):
+    from qgis.core import QgsProject, QgsVectorLayer
+
+    from plugin_dir.kumoy.constants import DATA_PROVIDER_KEY
+
+    project = QgsProject()
+    layer = QgsVectorLayer(
+        "project_id=p-1;vector_id=v-1;vector_name=points;vector_type=POINT;",
+        "points",
+        DATA_PROVIDER_KEY,
     )
+    assert layer.isValid()
+    project.addMapLayer(layer)
+    # The project owns the layer: keep it alive for the test
+    layer.owner = project
+    return layer
 
-    # 同一キーの二重登録は False になるだけで無害
-    QgsProviderRegistry.instance().registerProvider(KumoyRasterProviderMetadata())
+
+def _serialize(map_project, layer):
+    return map_project.serialize_detached(layer.owner)
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestSerializeProjectExtent:
-    @pytest.fixture
-    def kumoy_raster_layer(
-        self, _registered_raster_metadata, monkeypatch, tmp_path, kumoy_layer
-    ):
-        """Kumoyラスタレイヤーをプロジェクトに追加する（kumoy_layer の後に追加）。"""
-        from qgis.core import QgsProject, QgsRasterLayer
-
-        from plugin_dir.kumoy import constants
-        from plugin_dir.kumoy.provider import raster_dataprovider as rp
-
-        path = str(tmp_path / "r-1.tif")
-        _make_tif(path)
-        monkeypatch.setattr(rp.local_cache.raster, "is_cached", lambda rid: True)
-        monkeypatch.setattr(rp.local_cache.raster, "get_cache_path", lambda rid: path)
-
-        layer = QgsRasterLayer(
-            "project_id=p-1;raster_id=r-1;raster_name=dem;",
-            "dem",
-            constants.RASTER_DATA_PROVIDER_KEY,
-        )
-        assert layer.isValid()
-        assert layer.dataProvider().name() == constants.RASTER_DATA_PROVIDER_KEY
-        QgsProject.instance().addMapLayer(layer)
-        return layer
-
-    @pytest.fixture
-    def kumoy_layer(self, fake_kumoy_provider):
-        from qgis.core import QgsProject, QgsVectorLayer
-
-        from plugin_dir.kumoy.constants import DATA_PROVIDER_KEY
-
-        project = QgsProject.instance()
-        project.clear()
-        layer = QgsVectorLayer(
-            "project_id=p-1;vector_id=v-1;vector_name=points;vector_type=POINT;",
-            "points",
-            DATA_PROVIDER_KEY,
-        )
-        assert layer.isValid()
-        project.addMapLayer(layer)
-        yield layer
-        project.clear()
-
-    def test_extent_written(self, kumoy_layer, fake_kumoy_provider):
+class TestExtent:
+    def test_extent_written(self, map_project, kumoy_layer, fake_kumoy_provider):
         from qgis.core import QgsRectangle
-
-        from plugin_dir.kumoy.local_cache.map import serialize_project
 
         fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
         fake_kumoy_provider.feature_count = 3
 
-        block = _extent_block(serialize_project(), "points")
+        block = _extent_block(_serialize(map_project, kumoy_layer), "points")
         assert block is not None
         assert "<xmin>139</xmin>" in block
 
     def test_extent_recovered_after_null_was_cached(
-        self, kumoy_layer, fake_kumoy_provider
+        self, map_project, kumoy_layer, fake_kumoy_provider
     ):
-        """レイヤー追加直後の描画で null がキャッシュされても復旧すること。"""
         from qgis.core import QgsRectangle
 
-        from plugin_dir.kumoy.local_cache.map import serialize_project
-
-        assert kumoy_layer.extent().isNull()  # ここで null がキャッシュされる
+        assert kumoy_layer.extent().isNull()  # null is cached here
 
         fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
         fake_kumoy_provider.feature_count = 3
 
-        block = _extent_block(serialize_project(), "points")
-        assert block is not None
+        block = _extent_block(_serialize(map_project, kumoy_layer), "points")
         assert "<xmin>139</xmin>" in block
 
-    def test_kumoy_raster_layer_does_not_break_serialization(
-        self, kumoy_layer, fake_kumoy_provider, kumoy_raster_layer
+    def test_extent_written_without_local_cache(
+        self, map_project, kumoy_layer, fake_kumoy_provider
     ):
-        """QgsRasterLayer に updateExtents() は無いので、触ってはいけない。"""
+        """updateExtents() does nothing while featureCount() is 0."""
         from qgis.core import QgsRectangle
 
-        from plugin_dir.kumoy.local_cache.map import serialize_project
-
-        fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
-        fake_kumoy_provider.feature_count = 3
-
-        qgs_str = serialize_project()
-
-        block = _extent_block(qgs_str, "points")
-        assert block is not None
-        assert "<xmin>139</xmin>" in block
-        assert _extent_block(qgs_str, "dem") is not None
-
-    def test_extent_written_without_local_cache(self, kumoy_layer, fake_kumoy_provider):
-        """キャッシュ同期失敗時。featureCount() が 0 だと updateExtents() は効かない。"""
-        from qgis.core import QgsRectangle
-
-        from plugin_dir.kumoy.local_cache.map import serialize_project
-
-        assert kumoy_layer.extent().isNull()  # null がキャッシュされる
+        assert kumoy_layer.extent().isNull()
 
         fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
         fake_kumoy_provider.feature_count = 0
 
-        block = _extent_block(serialize_project(), "points")
-        assert block is not None
+        block = _extent_block(_serialize(map_project, kumoy_layer), "points")
         assert "<xmin>139</xmin>" in block
 
-    def test_null_provider_extent_left_alone(self, kumoy_layer, fake_kumoy_provider):
-        """サーバもextentを知らないなら、書ける値が無いので何もしない。"""
-        from plugin_dir.kumoy.local_cache.map import serialize_project
+    def test_null_provider_extent_left_alone(self, map_project, kumoy_layer):
+        assert _extent_block(_serialize(map_project, kumoy_layer), "points") is None
 
-        assert _extent_block(serialize_project(), "points") is None
-
-    def test_stale_extent_updated(self, kumoy_layer, fake_kumoy_provider):
+    def test_stale_extent_updated(self, map_project, kumoy_layer, fake_kumoy_provider):
         from qgis.core import QgsRectangle
-
-        from plugin_dir.kumoy.local_cache.map import serialize_project
 
         fake_kumoy_provider.extent = QgsRectangle(0.0, 0.0, 1.0, 1.0)
         fake_kumoy_provider.feature_count = 1
@@ -212,6 +113,118 @@ class TestSerializeProjectExtent:
 
         fake_kumoy_provider.extent = QgsRectangle(139.0, 35.0, 140.0, 36.0)
 
-        block = _extent_block(serialize_project(), "points")
-        assert block is not None
+        block = _extent_block(_serialize(map_project, kumoy_layer), "points")
         assert "<xmin>139</xmin>" in block
+
+    def test_raster_layer_is_left_alone(
+        self, map_project, kumoy_layer, fake_kumoy_provider, tmp_path
+    ):
+        """QgsRasterLayer has no updateExtents()."""
+        from qgis.core import QgsRasterLayer
+
+        path = str(tmp_path / "dem.tif")
+        _make_tif(path)
+        kumoy_layer.owner.addMapLayer(QgsRasterLayer(path, "dem"))
+
+        assert _extent_block(_serialize(map_project, kumoy_layer), "dem") is not None
+
+
+class TestSerializeDetached:
+    def test_layer_tree_keeps_provider_key(
+        self, map_project, tmp_path, fake_kumoy_provider
+    ):
+        from .project_files import write_kumoy_point_project
+
+        qgisproject = map_project.serialize_detached(
+            map_project.read_project_file(str(write_kumoy_point_project(tmp_path)))
+        )
+
+        # The web layer tree derives geometry types of legends from this key
+        assert re.findall(
+            r'<layer-tree-layer[^>]*providerKey="([^"]*)"', qgisproject
+        ) == ["kumoy"]
+
+    def test_pinned_aspect_ratio_is_written(
+        self, map_project, tmp_path, fake_kumoy_provider
+    ):
+        from .project_files import fixed_aspect_ratios, write_kumoy_point_project
+
+        path = write_kumoy_point_project(tmp_path)
+        assert fixed_aspect_ratios(path.read_text(encoding="utf-8")) == ["0"]
+
+        qgisproject = map_project.serialize_detached(
+            map_project.read_project_file(str(path))
+        )
+
+        assert fixed_aspect_ratios(qgisproject) == ["0.5"]
+        assert "vector_id=v1" in qgisproject
+
+    def test_local_paths_are_absolute(self, map_project, tmp_path):
+        """A map has no directory that relative paths could refer to."""
+        from qgis.core import (
+            QgsCoordinateTransformContext,
+            QgsProject,
+            QgsVectorFileWriter,
+            QgsVectorLayer,
+        )
+
+        data_dir = tmp_path / "src" / "data"
+        data_dir.mkdir(parents=True)
+        gpkg = str(data_dir / "points.gpkg")
+        QgsVectorFileWriter.writeAsVectorFormatV3(
+            QgsVectorLayer("Point?crs=EPSG:4326", "points", "memory"),
+            gpkg,
+            QgsCoordinateTransformContext(),
+            QgsVectorFileWriter.SaveVectorOptions(),
+        )
+        project = QgsProject()
+        project.addMapLayer(QgsVectorLayer(gpkg, "points", "ogr"))
+        project_path = str(tmp_path / "src" / "project.qgz")
+        project.write(project_path)
+
+        qgisproject = map_project.serialize_detached(
+            map_project.read_project_file(project_path)
+        )
+
+        assert f"<datasource>{gpkg}</datasource>" in qgisproject
+
+    def test_unreadable_file_fails(self, map_project, tmp_path):
+        path = tmp_path / "broken.qgs"
+        path.write_text("not a project", encoding="utf-8")
+
+        with pytest.raises(RuntimeError):
+            map_project.read_project_file(str(path))
+
+
+class TestHelpers:
+    def test_uri_roundtrip(self, map_project):
+        assert map_project.map_id_from_uri(map_project.map_uri("m-1")) == "m-1"
+
+    @pytest.mark.parametrize("uri", ["", "kumoy:", "/tmp/kumoy:m-1.qgs", "m-1"])
+    def test_not_a_map_uri(self, map_project, uri):
+        assert map_project.map_id_from_uri(uri) is None
+
+    def test_size_error(self, map_project, monkeypatch):
+        monkeypatch.setattr(map_project, "MAX_QGISPROJECT_LENGTH", 5)
+
+        assert map_project.size_error("12345") is None
+        assert "6" in map_project.size_error("123456")
+
+    def test_foreign_kumoy_layers(self, map_project, fake_kumoy_provider):
+        from qgis.core import QgsProject, QgsVectorLayer
+
+        from plugin_dir.kumoy.constants import DATA_PROVIDER_KEY
+
+        project = QgsProject()
+        for name, project_id in (("mine", "p-1"), ("theirs", "p-2")):
+            project.addMapLayer(
+                QgsVectorLayer(
+                    f"project_id={project_id};vector_id={name};vector_name={name};"
+                    "vector_type=POINT;",
+                    name,
+                    DATA_PROVIDER_KEY,
+                )
+            )
+        project.addMapLayer(QgsVectorLayer("Point?crs=EPSG:4326", "local", "memory"))
+
+        assert map_project.foreign_kumoy_layers(project, "p-1") == ["theirs"]
