@@ -286,7 +286,9 @@ def project_choices() -> List[Tuple[str, str]]:
 
 
 def forget_project_choices() -> None:
+    global _last_refresh
     _project_choices.clear()
+    _last_refresh = 0.0
 
 
 def refresh_project_choices() -> None:

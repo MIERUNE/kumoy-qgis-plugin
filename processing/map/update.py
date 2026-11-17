@@ -21,6 +21,7 @@ from ._project_file import (
 
 
 class UpdateMapAlgorithm(KumoyApiAlgorithm):
+    CHANGES_RESOURCES = True
     GROUP_ID = "map"
     MAP_ID = "MAP_ID"
     NAME = "NAME"

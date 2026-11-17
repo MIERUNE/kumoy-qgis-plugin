@@ -12,7 +12,7 @@ Worker threads read the token through get_token(), which only touches the
 in-memory copy; anything that may prompt runs on the main thread.
 """
 
-from typing import Optional
+from typing import Callable, List, Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.PyQt.QtCore import QSettings
@@ -25,6 +25,22 @@ LEGACY_QSETTINGS_KEY = "Kumoy/session_token"
 
 _token: Optional[str] = None
 _loaded = False
+# Called on the main thread after the login state changes (load, login, logout)
+_listeners: List[Callable[[], None]] = []
+
+
+def add_listener(fn: Callable[[], None]) -> None:
+    _listeners.append(fn)
+
+
+def remove_listener(fn: Callable[[], None]) -> None:
+    if fn in _listeners:
+        _listeners.remove(fn)
+
+
+def _notify() -> None:
+    for fn in list(_listeners):
+        fn()
 
 
 def _auth_manager():
@@ -64,6 +80,12 @@ def load() -> None:
         settings.remove(LEGACY_QSETTINGS_KEY)
         set_token(str(legacy))
         return
+    _load_from_auth_db()
+    _notify()
+
+
+def _load_from_auth_db() -> None:
+    global _token
 
     am = _auth_manager()
     if am is None or not am.existsAuthSetting(AUTH_SETTING_KEY):
@@ -108,6 +130,7 @@ def set_token(token: str) -> bool:
             LOG_CATEGORY,
             Qgis.Warning,
         )
+    _notify()
     return persisted
 
 
@@ -115,3 +138,4 @@ def clear() -> None:
     global _token
     _token = None
     _persist(None)
+    _notify()

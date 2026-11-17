@@ -19,6 +19,7 @@ from .kumoy.constants import DATA_PROVIDER_KEY, DOCUMENTATION_URL, PLUGIN_NAME
 from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .kumoy.provider.raster_dataprovider_metadata import KumoyRasterProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
+from .processing.base import forget_project_choices, refresh_project_choices
 from .processing.provider import KumoyProcessingProvider
 from .ui import account_actions, project_storage
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
@@ -28,6 +29,12 @@ from .ui.icons import MAIN_ICON
 from .ui.layers import raster as raster_layers
 from .ui.layers.convert import on_convert_layer_clicked
 from .ui.layers.indicators import update_kumoy_indicator
+
+
+def _on_session_changed() -> None:
+    # The upload tools list the user's projects; reload them for the new login
+    forget_project_choices()
+    refresh_project_choices()
 
 
 class KumoyPlugin:
@@ -62,6 +69,7 @@ class KumoyPlugin:
 
         project_storage.register()
         raster_layers.register()
+        session.add_listener(_on_session_changed)
 
         self.iface.layerTreeView().contextMenuAboutToShow.connect(
             self.show_layer_context_menu
@@ -187,6 +195,7 @@ class KumoyPlugin:
 
         project_storage.unregister()
         raster_layers.unregister()
+        session.remove_listener(_on_session_changed)
 
         project = QgsProject.instance()
         for signal, slot in (
