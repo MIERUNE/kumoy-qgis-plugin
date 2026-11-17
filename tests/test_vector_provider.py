@@ -26,7 +26,7 @@ from qgis.core import (
     QgsVectorLayer,
     QgsVectorLayerCache,
 )
-from qgis.PyQt.QtCore import QMetaType
+from qgis.PyQt.QtCore import QMetaType, Qt
 
 # The shared conftest may register a stub under "kumoy"; registration is once
 # per session, so the real provider gets its own key here
@@ -459,7 +459,10 @@ class TestSync:
         assert {f.id(): f["n"] for f in layer.getFeatures()} == {1: 5, 2: 6}
         assert model.columnCount() == 2
         assert model.rowCount() == 2
-        assert model.headerData(1, 1, 0) == "n"
+        assert (
+            model.headerData(1, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole)
+            == "n"
+        )
 
     def test_cancel_is_reported_as_canceled(self, env):
         from plugin_dir.kumoy.tasks import Canceled

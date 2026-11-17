@@ -44,7 +44,7 @@ def test_load_reads_locale_json():
     i18n.load("ja")
     assert i18n._translations, "ja.json should load a non-empty dict"
     # 既知のキーが訳されること（原文フォールバックでないこと）
-    assert i18n.tr("Error") != "Error"
+    assert i18n.tr("Login") != "Login"
 
 
 def test_load_missing_locale_falls_back_to_source():
