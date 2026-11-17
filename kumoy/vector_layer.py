@@ -9,10 +9,12 @@ from qgis.core import (
 )
 
 from .. import i18n
-from . import api, constants
+from . import constants
+from .api.models import Vector, VectorDetail
+from .provider.dataprovider import prime_vector
 
 
-def vector_uri(vector: api.vector.KumoyVector) -> str:
+def vector_uri(vector: Vector) -> str:
     return (
         f"project_id={vector.projectId};"
         f"vector_id={vector.id};"
@@ -21,10 +23,20 @@ def vector_uri(vector: api.vector.KumoyVector) -> str:
     )
 
 
-def create_vector_layer(vector: api.vector.KumoyVector) -> QgsVectorLayer:
+def create_vector_layer(vector: Vector) -> QgsVectorLayer:
+    """Open a Kumoy vector as a layer. Raises RuntimeError when invalid.
+
+    Pass a VectorDetail when you have one: without a local cache the provider
+    then needs no metadata request.
+    """
+    if isinstance(vector, VectorDetail):
+        prime_vector(vector)
     layer = QgsVectorLayer(vector_uri(vector), vector.name, constants.DATA_PROVIDER_KEY)
     if not layer.isValid():
-        error_msg = layer.error().message() if layer.error() else "Unknown error"
+        # The layer does not copy its provider's error
+        provider = layer.dataProvider()
+        error = provider.error() if provider is not None else layer.error()
+        error_msg = error.summary() or i18n.tr("Unknown error")
         raise RuntimeError(
             i18n.tr("Failed to create Kumoy layer: {}").format(error_msg)
         )
