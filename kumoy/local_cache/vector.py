@@ -93,7 +93,7 @@ def _read_meta(path: str) -> Optional[dict]:
         # and an open connection keeps the -wal/-shm files (and Windows locks)
         with contextlib.closing(sqlite3.connect(path)) as con:
             row = con.execute(
-                f"SELECT value FROM {_META_TABLE} WHERE fid = 1"
+                "SELECT value FROM kumoy_meta WHERE fid = 1"  # = _META_TABLE
             ).fetchone()
     except sqlite3.Error:
         return None  # not a cache file, or still being built
