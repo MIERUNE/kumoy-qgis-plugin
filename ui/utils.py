@@ -11,7 +11,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
-from ..kumoy import constants
+from ..kumoy import constants, map_project
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON, QT_TEXT_FORMAT_PLAIN, exec_dialog
 
 
@@ -73,17 +73,8 @@ def layers_of(provider_key: str, id_key: str, resource_id: str) -> List[QgsMapLa
 
 
 def kumoy_map_open() -> bool:
-    """Whether the current QGIS project is a Kumoy map.
-
-    Maps opened from Kumoy carry the `kumoy_map_id` project variable; maps
-    read through the Kumoy project storage have a `kumoy:` file name.
-    INTEGRATION(C): replace with the project storage's own check if it has one.
-    """
-    project = QgsProject.instance()
-    return bool(
-        project.customVariables().get("kumoy_map_id")
-        or project.fileName().startswith("kumoy:")
-    )
+    """Whether the current QGIS project is a Kumoy map (a ``kumoy:`` project)."""
+    return map_project.map_id_from_uri(QgsProject.instance().fileName()) is not None
 
 
 def confirm(parent: Optional[QWidget], title: str, text: str) -> bool:

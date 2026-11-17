@@ -160,7 +160,8 @@ class ResourceItem(QgsDataItem):
     def layer_uri(resource) -> str:
         raise NotImplementedError
 
-    def create_layer(self) -> QgsMapLayer:
+    def create_layer(self) -> Optional[QgsMapLayer]:
+        """The layer to add, or None when the item adds it itself later."""
         raise NotImplementedError
 
     @staticmethod
@@ -280,7 +281,9 @@ def add_to_map(items: List[ResourceItem]) -> None:
     errors = []
     for item in items:
         try:
-            QgsProject.instance().addMapLayer(item.create_layer())
+            layer = item.create_layer()
+            if layer is not None:
+                QgsProject.instance().addMapLayer(layer)
         except Exception as e:
             if isinstance(e, UnauthorizedError):
                 handle_api_error(e)

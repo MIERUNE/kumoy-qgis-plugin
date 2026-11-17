@@ -20,19 +20,14 @@ from .kumoy.provider.dataprovider_metadata import KumoyProviderMetadata
 from .kumoy.provider.raster_dataprovider_metadata import KumoyRasterProviderMetadata
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.provider import KumoyProcessingProvider
-from .ui import account_actions
+from .ui import account_actions, project_storage
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider, current_project
 from .ui.dialog_login import open_login_dialog
 from .ui.icons import MAIN_ICON
+from .ui.layers import raster as raster_layers
 from .ui.layers.convert import on_convert_layer_clicked
 from .ui.layers.indicators import update_kumoy_indicator
-
-try:
-    # INTEGRATION(C): maps open/save through the Kumoy project storage
-    from .ui import project_storage
-except ImportError:
-    project_storage = None
 
 
 class KumoyPlugin:
@@ -65,8 +60,8 @@ class KumoyPlugin:
         self.processing_provider = KumoyProcessingProvider()
         QgsApplication.processingRegistry().addProvider(self.processing_provider)
 
-        if project_storage is not None:
-            project_storage.register()
+        project_storage.register()
+        raster_layers.register()
 
         self.iface.layerTreeView().contextMenuAboutToShow.connect(
             self.show_layer_context_menu
@@ -190,8 +185,8 @@ class KumoyPlugin:
         if self.processing_provider is not None:
             QgsApplication.processingRegistry().removeProvider(self.processing_provider)
 
-        if project_storage is not None:
-            project_storage.unregister()
+        project_storage.unregister()
+        raster_layers.unregister()
 
         project = QgsProject.instance()
         for signal, slot in (

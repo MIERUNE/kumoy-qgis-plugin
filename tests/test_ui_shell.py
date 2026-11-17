@@ -447,7 +447,7 @@ class TestLogout:
     def test_open_map_asks_and_closes(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
         monkeypatch.setattr(api.auth, "sign_out", lambda t: None)
-        QgsProject.instance().setCustomVariables({"kumoy_map_id": "m1"})
+        QgsProject.instance().setFileName("kumoy:m1")
         answers = [False, True]
         monkeypatch.setattr(shell.account_actions, "confirm", lambda *a: answers.pop(0))
 
@@ -455,18 +455,18 @@ class TestLogout:
         assert shell.session.is_logged_in()
 
         assert shell.account_actions.logout()
-        assert QgsProject.instance().customVariables().get("kumoy_map_id") is None
+        assert QgsProject.instance().fileName() == ""
 
     def test_forced_logout_keeps_project(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
         monkeypatch.setattr(api.auth, "sign_out", lambda t: None)
-        QgsProject.instance().setCustomVariables({"kumoy_map_id": "m1"})
+        QgsProject.instance().setFileName("kumoy:m1")
         monkeypatch.setattr(
             shell.account_actions, "confirm", lambda *a: pytest.fail("asked")
         )
         shell.account_actions.logout(ask=False)
         assert not shell.session.is_logged_in()
-        assert QgsProject.instance().customVariables().get("kumoy_map_id") == "m1"
+        assert QgsProject.instance().fileName() == "kumoy:m1"
 
 
 class TestVersionCheck:

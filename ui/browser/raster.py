@@ -5,6 +5,7 @@ from qgis.PyQt.QtWidgets import QAction, QMenu
 from ... import i18n
 from ...kumoy import api, constants, local_cache, raster_layer
 from ..icons import BROWSER_RASTER_ICON
+from ..layers.raster import add_raster_to_map
 from .utils import ResourceItem, ResourceRoot
 
 
@@ -38,9 +39,10 @@ class RasterItem(ResourceItem):
         return raster_layer.raster_uri(raster)
 
     def create_layer(self):
-        # INTEGRATION(B): switch to area B's add-to-map helper, which
-        # downloads the COG in the background instead of in the provider
-        return raster_layer.create_raster_layer(self.resource)
+        # The COG downloads in the background first; the helper adds the layer
+        # itself once it is cached, so there is nothing to return here
+        add_raster_to_map(self.resource)
+        return None
 
     @staticmethod
     def texts() -> Dict[str, str]:
