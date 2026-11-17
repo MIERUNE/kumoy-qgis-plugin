@@ -122,3 +122,22 @@ def fake_kumoy_provider(_registered_fake_provider):
     _registered_fake_provider.extent = QgsRectangle()
     _registered_fake_provider.feature_count = 0
     return _registered_fake_provider
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _collect_garbage_before_qgis_exits(qgis_app):
+    """Free unreachable Python wrappers of QGIS objects while QGIS still runs.
+
+    pytest forces a garbage collection after the session, which is after
+    pytest-qgis called exitQgis(). Collecting cycles that hold wrappers of
+    QGIS objects (providers, tasks, layers) then touched freed C++ objects
+    and crashed the interpreter at random (exit 139).
+    """
+    yield
+    import gc
+
+    from qgis.PyQt.QtCore import QCoreApplication
+
+    for _ in range(3):
+        gc.collect()
+        QCoreApplication.processEvents()  # run the deleteLater()s it caused
