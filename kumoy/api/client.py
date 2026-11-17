@@ -50,11 +50,13 @@ def request(
     params: Optional[Dict[str, Any]] = None,
     auth: bool = True,
     headers: Optional[Dict[str, str]] = None,
+    response_headers: Optional[Dict[str, str]] = None,
 ) -> Any:
     """Send a request to `{server}{path}` and return the decoded JSON body.
 
     `path` includes the `/api` prefix. Raises an AppError subclass on any
-    failure, chosen by HTTP status (see error.py).
+    failure, chosen by HTTP status (see error.py). When `response_headers` is
+    given it is filled with the reply headers (lower-case names).
     """
     url = f"{server_url()}{path}"
     if params:
@@ -87,6 +89,10 @@ def request(
         raise ValueError(f"Unsupported method: {method}")
 
     reply = blocking.reply()
+    if response_headers is not None:
+        for name, value in reply.rawHeaderPairs():
+            key = bytes(name).decode("latin-1").lower()
+            response_headers[key] = bytes(value).decode("latin-1")
     status = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
     status = int(status) if status is not None else None
     content = _decode(reply.content())

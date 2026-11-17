@@ -6,9 +6,12 @@ base64 on the wire and bytes here.
 
 import base64
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from . import client
+from .models import VectorDetail, from_dict
 
 # Fixed page size of get-features-v2: a shorter page is the last one
 FEATURES_PAGE_SIZE = 5000
@@ -28,6 +31,23 @@ def _decode_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def encode_wkb(wkb: bytes) -> str:
     return base64.b64encode(bytes(wkb)).decode("ascii")
+
+
+def get_vector_and_server_time(
+    vector_id: str,
+) -> Tuple[VectorDetail, Optional[datetime]]:
+    """GET /vector/{id} plus the server clock (HTTP Date header, UTC).
+
+    Diff sync needs a timestamp from the server's clock: the client clock may
+    be off by minutes. None when a proxy dropped the header.
+    """
+    headers: Dict[str, str] = {}
+    data = client.request("GET", f"/api/vector/{vector_id}", response_headers=headers)
+    try:
+        server_time = parsedate_to_datetime(headers["date"])
+    except (KeyError, TypeError, ValueError):
+        server_time = None
+    return from_dict(VectorDetail, data), server_time
 
 
 def get_features(vector_id: str, after_id: Optional[int] = None) -> List[Dict]:
