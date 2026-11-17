@@ -585,6 +585,18 @@ class TestSymbolEmbedding:
             before
         )
 
+    def test_local_symbol_files(self, project, png_file):
+        from plugin_dir.kumoy.sprite import local_symbol_files
+
+        for name in ("a", "b"):
+            self._add_layer(
+                project,
+                QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))]),
+                name,
+            )
+
+        assert local_symbol_files(project) == {str(png_file)}
+
     def test_nothing_left_after_embedding(self, project, png_file):
         self._add_layer(
             project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
@@ -621,15 +633,16 @@ class TestSymbolEmbedding:
         # Off only by the replaced paths, which the prediction does not subtract.
         assert increase - growth < 500
 
-    def test_serialize_project_does_not_embed(self, project, png_file):
-        """serialize_project() stays a plain serialization: embedding is opt-in."""
-        from plugin_dir.kumoy.local_cache.map import serialize_project
+    def test_serialize_does_not_embed(self, project, png_file):
+        """Serializing for a map stays plain: embedding is opt-in."""
+        from plugin_dir.kumoy import map_project
 
         self._add_layer(
             project, QgsMarkerSymbol([QgsRasterMarkerSymbolLayer(str(png_file))])
         )
 
-        values = _file_values(serialize_project())
+        map_project.prepare(project)
+        values = _file_values(map_project.write_xml(project))
 
         assert len(values) == 1
         assert not values[0].startswith("base64:")

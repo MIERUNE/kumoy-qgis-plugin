@@ -100,41 +100,37 @@ class UpdateMapAlgorithm(KumoyApiAlgorithm):
         map_id = self.parameter_as_id(parameters, self.MAP_ID, context)
         visibility = self.parameterAsEnum(parameters, self.IS_PUBLIC, context)
 
-        options = api.styledmap.UpdateStyledMapOptions(
-            name=self.parameter_as_text(parameters, self.NAME, context),
-            description=self.parameter_as_text(parameters, self.DESCRIPTION, context),
-            attribution=self.parameter_as_text(parameters, self.ATTRIBUTION, context),
-            isPublic=None if visibility == self.KEEP else visibility == self.PUBLIC,
+        changes = {
+            name: self.parameter_as_text(parameters, param, context)
+            for name, param in (
+                ("name", self.NAME),
+                ("description", self.DESCRIPTION),
+                ("attribution", self.ATTRIBUTION),
+            )
+        }
+        changes["isPublic"] = (
+            None if visibility == self.KEEP else visibility == self.PUBLIC
         )
+        # None means "keep": update_styled_map() would send it as null
+        changes = {key: value for key, value in changes.items() if value is not None}
 
         project_file = self.parameterAsFile(parameters, self.PROJECT_FILE, context)
         loaded = load_project_file(project_file) if project_file else None
-        if loaded is not None:
-            options.qgisproject = loaded.qgisproject
-
-        if all(
-            value is None
-            for value in (
-                options.name,
-                options.description,
-                options.attribution,
-                options.isPublic,
-                options.qgisproject,
-            )
-        ):
+        if loaded is None and not changes:
             raise QgsProcessingException(i18n.tr("Nothing to update."))
-        current = api.styledmap.get_styled_map(map_id)
 
         if loaded is not None:
+            changes["qgisproject"] = loaded.qgisproject
+            current = api.styledmap.get_styled_map(map_id)
             new_assets_hash = loaded.sprite.assets_hash if loaded.sprite else None
             # The old sprites no longer match the replaced project's symbols
             if new_assets_hash != current.assetsHash:
                 if loaded.sprite is not None:
                     upload_sprites(map_id, loaded.sprite)
                 # None clears the hash when the project has no point symbols
-                options.assetsHash = new_assets_hash
+                changes["assetsHash"] = new_assets_hash
 
-        styled_map = api.styledmap.update_styled_map(map_id, options)
+        styled_map = api.styledmap.update_styled_map(map_id, **changes)
 
         result = without_qgisproject(to_output(styled_map))
         self.log_result(feedback, result)
