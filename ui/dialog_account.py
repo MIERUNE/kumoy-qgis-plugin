@@ -1,30 +1,25 @@
 import webbrowser
 
-from qgis.core import Qgis, QgsMessageLog, QgsProject
-from qgis.utils import iface
 from qgis.PyQt.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
 
 from .. import i18n
 from ..kumoy import api
-from ..kumoy.basemap import remove_xyz_connections
-from ..kumoy.constants import LOG_CATEGORY
+from ..kumoy.tasks import run_task
 from ..plugin_version import read_plugin_version
-from ..processing.close_all_processing_dialogs import close_all_processing_dialogs
 from ..pyqt_version import (
-    Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
     QT_ALIGN,
     QT_CURSOR_SHAPE,
     QT_TEXT_INTERACTION,
 )
-from ..kumoy.settings_manager import store_setting
+from . import account_actions
+from .error_handler import handle_api_error
 from .icons import MAIN_ICON
 from .remote_image_label import RemoteImageLabel
 
@@ -36,7 +31,6 @@ class DialogAccount(QDialog):
         super().__init__(parent)
         self.server_url = ""
         self.account_settings_url = ""
-        self.user_info = {}
 
         self._init_ui()
         self._load_user_info()
@@ -162,81 +156,37 @@ class DialogAccount(QDialog):
         main_layout.addWidget(self.logout_button)
 
     def _load_user_info(self) -> None:
-        self.user_info = api.user.get_me()
+        def on_success(user: api.models.User) -> None:
+            name = user.name or user.email or i18n.tr("Unknown user")
+            self.name_label.setText(name)
+            self.email_label.setText(user.email or "")
+            if user.avatarImage:
+                self.avatar_label.load(api.user.resolve_avatar_url(user.avatarImage))
+            else:
+                self.avatar_label.setText(self._create_initials(name))
 
-        name = self.user_info.name or self.user_info.email or i18n.tr("Unknown user")
-        email = self.user_info.email or ""
-
-        self.name_label.setText(name)
-        self.email_label.setText(email)
-
-        if self.user_info.avatarImage:
-            self.avatar_label.load(
-                api.user.resolve_avatar_url(self.user_info.avatarImage)
-            )
-        else:
-            initials = self._create_initials(name)
-            self.avatar_label.setText(initials)
+        self.name_label.setText(i18n.tr("Loading..."))
+        run_task(
+            i18n.tr("Loading Kumoy account"),
+            lambda task: api.user.get_me(),
+            on_success,
+            lambda e: handle_api_error(e, parent=self),
+        )
 
     def _load_server_config(self) -> None:
-        config = api.config.get_api_config()
-        self.server_url = config.SERVER_URL
+        self.server_url = api.client.server_url()
         self.account_settings_url = self.server_url.rstrip("/") + "/organization"
         self.server_url_label.setText(i18n.tr("Server URL\n{}").format(self.server_url))
 
     def _create_initials(self, name: str) -> str:
         parts = [part.strip() for part in name.split() if part.strip()]
-        if not parts:
-            return "??"
         initials = "".join(part[0].upper() for part in parts[:2])
         return initials or "??"
 
     def _open_account_settings(self) -> None:
-        if not self.account_settings_url:
-            return
-        try:
+        if self.account_settings_url:
             webbrowser.open(self.account_settings_url)
-        except Exception as exc:  # pylint: disable=broad-except
-            QMessageBox.warning(
-                self,
-                i18n.tr("Error"),
-                i18n.tr("Error opening web browser: {}").format(str(exc)),
-            )
 
     def _logout(self) -> None:
-        if QgsProject.instance().isDirty():
-            confirmed = QMessageBox.question(
-                self,
-                i18n.tr("Logout"),
-                i18n.tr(
-                    "You have unsaved changes. "
-                    "Logging out will clear your current project. Continue?"
-                ),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.No,
-            )
-
-            if confirmed != Q_MESSAGEBOX_STD_BUTTON.Yes:
-                return
-
-        QgsProject.instance().clear()
-
-        close_all_processing_dialogs()
-
-        store_setting("session_token", "")
-        store_setting("user_info", "")
-        store_setting("selected_project_id", "")
-        store_setting("selected_organization_id", "")
-
-        remove_xyz_connections()
-        iface.reloadConnections()
-
-        QgsMessageLog.logMessage(
-            "Logged out via account dialog", LOG_CATEGORY, Qgis.Info
-        )
-        QMessageBox.information(
-            self,
-            i18n.tr("Logout"),
-            i18n.tr("You have been logged out from Kumoy."),
-        )
-        self.accept()
+        if account_actions.logout(self):
+            self.accept()

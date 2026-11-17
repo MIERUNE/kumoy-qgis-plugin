@@ -1,3 +1,4 @@
+import functools
 import os
 
 from qgis.core import Qgis, QgsMessageLog
@@ -5,8 +6,10 @@ from qgis.core import Qgis, QgsMessageLog
 from .kumoy.constants import LOG_CATEGORY
 
 
+@functools.lru_cache(maxsize=None)
 def read_plugin_version() -> str:
-    # read version from metadata.txt
+    """Version from metadata.txt (read once: the API client sends it with
+    every request)."""
     version = "v0.0.0"
     try:
         metadata_path = os.path.join(os.path.dirname(__file__), "./metadata.txt")

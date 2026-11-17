@@ -1,4 +1,4 @@
-from qgis.PyQt.QtWidgets import QMessageBox, QWidget
+from typing import List, Optional
 
 from qgis.core import (
     QgsLayerTreeGroup,
@@ -9,9 +9,10 @@ from qgis.core import (
     QgsRasterLayer,
     QgsVectorLayer,
 )
+from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 from ..kumoy import constants
-from ..pyqt_version import QT_TEXT_FORMAT_PLAIN, exec_dialog
+from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON, QT_TEXT_FORMAT_PLAIN, exec_dialog
 
 
 def get_local_layers() -> list[QgsMapLayer]:
@@ -48,10 +49,52 @@ def get_local_layers() -> list[QgsMapLayer]:
     return layers
 
 
-def show_plain_text_message(parent: QWidget, title: str, message: str) -> None:
-    """Show a plain-text message box to avoid rendering HTML in user data."""
-    msg_box = QMessageBox(parent)
-    msg_box.setWindowTitle(title)
-    msg_box.setText(message)
-    msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-    exec_dialog(msg_box)
+def uri_param(source: str, key: str) -> str:
+    """Read `key` from a Kumoy layer source ("project_id=..;vector_id=..;...").
+
+    Parsed here instead of asking the provider object: the URI format is the
+    contract between areas, provider attributes are not.
+    """
+    for part in source.split(";"):
+        name, sep, value = part.partition("=")
+        if sep and name.strip() == key:
+            return value
+    return ""
+
+
+def layers_of(provider_key: str, id_key: str, resource_id: str) -> List[QgsMapLayer]:
+    """Layers of the current QGIS project that show the given Kumoy resource."""
+    return [
+        layer
+        for layer in QgsProject.instance().mapLayers().values()
+        if layer.providerType() == provider_key
+        and uri_param(layer.source(), id_key) == resource_id
+    ]
+
+
+def kumoy_map_open() -> bool:
+    """Whether the current QGIS project is a Kumoy map.
+
+    Maps opened from Kumoy carry the `kumoy_map_id` project variable; maps
+    read through the Kumoy project storage have a `kumoy:` file name.
+    INTEGRATION(C): replace with the project storage's own check if it has one.
+    """
+    project = QgsProject.instance()
+    return bool(
+        project.customVariables().get("kumoy_map_id")
+        or project.fileName().startswith("kumoy:")
+    )
+
+
+def confirm(parent: Optional[QWidget], title: str, text: str) -> bool:
+    """Yes/No question with No as default. Plain text: names come from users."""
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setWindowTitle(title)
+    box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
+    box.setText(text)
+    box.setStandardButtons(Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No)
+    box.setDefaultButton(Q_MESSAGEBOX_STD_BUTTON.No)
+    exec_dialog(box)
+    # exec() returns a plain int under PyQt6, which never equals the enum
+    return box.standardButton(box.clickedButton()) == Q_MESSAGEBOX_STD_BUTTON.Yes

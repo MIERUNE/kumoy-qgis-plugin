@@ -20,11 +20,7 @@ class TestResolveAvatarUrl:
 
     def test_relative_path_is_prefixed_with_server_url(self, monkeypatch):
         m = self._mod()
-        monkeypatch.setattr(
-            m.api_config,
-            "get_api_config",
-            lambda: m.api_config.ApiConfig(SERVER_URL="https://example.kumoy.io"),
-        )
+        monkeypatch.setattr(m.client, "server_url", lambda: "https://example.kumoy.io")
         assert (
             m.resolve_avatar_url("/user-content/avatars/a.png")
             == "https://example.kumoy.io/user-content/avatars/a.png"
@@ -32,11 +28,7 @@ class TestResolveAvatarUrl:
 
     def test_trailing_slash_in_server_url_does_not_duplicate(self, monkeypatch):
         m = self._mod()
-        monkeypatch.setattr(
-            m.api_config,
-            "get_api_config",
-            lambda: m.api_config.ApiConfig(SERVER_URL="https://example.kumoy.io/"),
-        )
+        monkeypatch.setattr(m.client, "server_url", lambda: "https://example.kumoy.io/")
         assert (
             m.resolve_avatar_url("/user-content/avatars/a.png")
             == "https://example.kumoy.io/user-content/avatars/a.png"

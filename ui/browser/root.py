@@ -1,25 +1,40 @@
+from typing import List, Optional, Tuple
+
 from qgis.core import (
+    Qgis,
     QgsDataCollectionItem,
+    QgsDataItem,
     QgsDataItemProvider,
     QgsDataProvider,
-    QgsProject,
 )
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
-from qgis.utils import iface
+from qgis.PyQt.QtCore import QTimer
+from qgis.PyQt.QtWidgets import QAction
 
 from ... import i18n
-from ..error_handler import handle_api_error
-from ...kumoy import api, constants
-from ...pyqt_version import Q_MESSAGEBOX_STD_BUTTON, exec_dialog
-from ...kumoy.settings_manager import get_settings
-from ...ui.dialog_account import DialogAccount
-from ...ui.dialog_login import DialogLogin
-from ...ui.dialog_project_select import ProjectSelectDialog
-from ...ui.icons import MAIN_ICON
+from ...kumoy import api, constants, session, settings_manager
+from ...kumoy.api.models import OrganizationDetail, ProjectDetail
+from ...pyqt_version import exec_dialog
+from ..dialog_account import DialogAccount
+from ..dialog_login import open_login_dialog
+from ..dialog_project_select import open_project_dialog
+from ..error_handler import run_on_main_thread
+from ..icons import MAIN_ICON
 from .raster import RasterRoot
 from .styledmap import StyledMapRoot
-from .utils import ErrorItem
+from .utils import ActionItem, error_item
 from .vector import VectorRoot
+
+# The selected project as last loaded by the Browser. Read by the layer
+# context menu (plugin.py) to decide on "Convert to Kumoy ..." without a
+# network call; None until loaded or when logged out.
+_current: Optional[ProjectDetail] = None
+
+
+def current_project() -> Optional[ProjectDetail]:
+    """The selected project's details, if loaded and still selected."""
+    if _current is None or _current.id != settings_manager.selected_project_id():
+        return None
+    return _current
 
 
 class DataItemProvider(QgsDataItemProvider):
@@ -40,236 +55,122 @@ class DataItemProvider(QgsDataItemProvider):
 
 
 class RootCollection(QgsDataCollectionItem):
-    """Root collection for Kumoy browser"""
+    """The "Kumoy" node. Never touches the network on the main thread: the
+    organization and project are loaded in createChildren, which QGIS runs
+    on a worker thread."""
 
     def __init__(self):
-        # Initialize with default name, will update with project name later
         QgsDataCollectionItem.__init__(
             self, None, constants.PLUGIN_NAME, constants.BROWSER_ROOT_PATH
         )
         self.setIcon(MAIN_ICON)
+        self._refresh_pending = False
+        self.stateChanged.connect(self._on_state_changed)
 
-        self.setName(constants.PLUGIN_NAME)
-
-        self.organization_data = None
-        self.project_data = None
-
-        self.project_select_dialog = None
-        self.account_setting_dialog = None
-
-        try:
-            self.load_organization_project()
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=None,
-                log_prefix=i18n.tr("Error loading organization/project data"),
-            )
-
-    def load_organization_project(self):
-        self.organization_data = None
-        self.project_data = None
-        # ログアウト/セッション切れ時にも呼ばれるので、まずプレーンな表示名へ戻す。
-        self.setName(constants.PLUGIN_NAME)
-
-        settings = get_settings()
-        if (
-            not settings.session_token
-            or not settings.selected_organization_id
-            or not settings.selected_project_id
-        ):
+    def refresh(self):
+        """Rebuild all children: they were made for one project and login."""
+        if self.state() == Qgis.BrowserItemState.Populating:
+            # Rerun once the current load ends, or this change would be lost
+            self._refresh_pending = True
             return
+        self.depopulate()
+        super().refresh()
 
-        # Get organization and project details
-        self.organization_data = api.organization.get_organization(
-            settings.selected_organization_id
-        )
-        self.project_data = api.project.get_project(settings.selected_project_id)
+    def _on_state_changed(self, item, old_state) -> None:
+        populating = Qgis.BrowserItemState.Populating
+        if self._refresh_pending and self.state() != populating:
+            self._refresh_pending = False
+            QTimer.singleShot(0, self.refresh)
 
-        self.setName(
-            f"{constants.PLUGIN_NAME}: {self.project_data.name}({self.organization_data.name})"
-        )
+    def _set_title(self, title: str) -> None:
+        # From the worker thread via run_on_main_thread
+        try:
+            if self.name() != title:
+                self.setName(title)
+                self.dataChanged.emit(self)
+        except RuntimeError:
+            pass  # the Browser deleted the item (plugin unloaded)
 
     def handleDoubleClick(self):
-        # 非ログイン時ならログイン画面を開く
-        if not get_settings().session_token:
-            self.login()
-
-        return False  # デフォルトのダブルクリック動作を実行
+        if not session.is_logged_in():
+            open_login_dialog()
+            return True
+        return False
 
     def actions(self, parent):
-        session_token = get_settings().session_token
-        if not session_token:
-            # Login action
-            login_action = QAction(i18n.tr("Login"), parent)
-            login_action.triggered.connect(self.login)
+        if not session.is_logged_in():
+            login_action = QAction(i18n.tr("Log In…"), parent)
+            login_action.triggered.connect(open_login_dialog)
             return [login_action]
 
-        # Select Project action
         select_project_action = QAction(i18n.tr("Select Project"), parent)
-        select_project_action.triggered.connect(self.select_project)
+        select_project_action.triggered.connect(open_project_dialog)
 
-        # Refresh action
         refresh_action = QAction(i18n.tr("Refresh"), parent)
         refresh_action.triggered.connect(self.refresh)
 
-        # Account action
         account_action = QAction(i18n.tr("Account"), parent)
         account_action.triggered.connect(self.account_settings)
 
         return [select_project_action, refresh_action, account_action]
 
-    def refresh(self):
-        """Refresh the children of the root collection
-        also called when refresh button is clicked in browser panel"""
-
-        try:
-            self.load_organization_project()
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=None,
-                log_prefix=i18n.tr("Error loading organization/project data"),
-            )
-
-        self.depopulate()
-
-    def login(self):
-        """Login to Kumoy"""
-
-        # Show config dialog with Supabase login tab
-        dialog = DialogLogin()
-        result = exec_dialog(dialog)
-
-        if result:
-            self.select_project()
-
-    def select_project(self):
-        """Select a project to display"""
-        # Warn if current project has unsaved changes
-        if QgsProject.instance().isDirty() and (
-            QMessageBox.question(
-                None,
-                i18n.tr("Change Project"),
-                i18n.tr(
-                    "Switching projects will discard the current map state. Continue?"
-                ),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.No,
-            )
-            != Q_MESSAGEBOX_STD_BUTTON.Yes
-        ):
-            return
-
-        prev_project_id = get_settings().selected_project_id
-
-        # プロジェクト選択ダイアログは初回時のみ生成、それ以降は再利用する
-        try:
-            if self.project_select_dialog is None:
-                self.project_select_dialog = ProjectSelectDialog()
-            else:
-                self.project_select_dialog.load_user_info()
-                self.project_select_dialog.load_organizations()
-                self.project_select_dialog.load_saved_selection()
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=None,
-                log_prefix=i18n.tr("Error loading project selection dialog"),
-            )
-            return
-
-        result = exec_dialog(self.project_select_dialog)
-
-        if not result:
-            return
-
-        # 別Projectを選んだ場合だけ QGIS Project をクリアする。
-        # ただしブラウザ自体は常にリフレッシュする：セッション切れ→再ログインで
-        # 同じプロジェクトを選び直したとき、selected_project_id が変わっていない
-        # ので前者の条件だけだと「Please select a project」表示のまま残ってしまう。
-        if prev_project_id != get_settings().selected_project_id:
-            QgsProject.instance().clear()
-            iface.messageBar().pushSuccess(
-                i18n.tr("Project Changed"),
-                i18n.tr(
-                    "Your QGIS project was cleared because the active project changed."
-                ),
-            )
-        self.refresh()
-
     def account_settings(self):
-        """Show account settings dialog"""
-        try:
-            if self.account_setting_dialog is None:
-                self.account_setting_dialog = DialogAccount()
-            else:
-                self.account_setting_dialog._load_user_info()
-                self.account_setting_dialog._load_server_config()
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=None,
-                log_prefix=i18n.tr("Error loading account settings dialog"),
-            )
-            return
-
-        should_logout = exec_dialog(self.account_setting_dialog)
-
-        if should_logout:
-            # Reset browser name
-            self.organization_data = None
-            self.project_data = None
-            self.setName(constants.PLUGIN_NAME)
-            # Refresh to update UI
-            self.refresh()
+        exec_dialog(DialogAccount())
 
     def createChildren(self):
-        """Create child items for the root collection"""
-        # Create vector root directly
-        children = []
+        # Worker thread: no widgets, no iface
+        global _current
+        _current = None
+        title = constants.PLUGIN_NAME
+        try:
+            children, loaded = self._load_children()
+            if loaded is not None:
+                organization, _current = loaded
+                title = f"{title}: {_current.name}({organization.name})"
+            return children
+        finally:
+            run_on_main_thread(lambda: self._set_title(title))
 
-        if self.organization_data is None or self.project_data is None:
-            return [
-                ErrorItem(
-                    self,
-                    i18n.tr("Please select a project"),
-                )
-            ]
-
-        vector_path = f"{self.path()}/vectors"
-        vector_root = VectorRoot(
+    def _load_children(
+        self,
+    ) -> Tuple[List[QgsDataItem], Optional[Tuple[OrganizationDetail, ProjectDetail]]]:
+        if not session.is_logged_in():
+            login_item = ActionItem(
+                self, i18n.tr("Log in…"), f"{self.path()}/login", open_login_dialog
+            )
+            return [login_item], None
+        organization_id = settings_manager.selected_organization_id()
+        project_id = settings_manager.selected_project_id()
+        select_item = ActionItem(
             self,
-            i18n.tr("Vectors"),
-            vector_path,
-            self.organization_data,
-            self.project_data,
+            i18n.tr("Select project…"),
+            f"{self.path()}/select",
+            open_project_dialog,
         )
-        vector_root.setSortKey(1)
-        children.append(vector_root)
+        if not organization_id or not project_id:
+            return [select_item], None
 
-        # Create styled map root
-        styled_map_path = f"{self.path()}/styledmaps"
-        styled_map_root = StyledMapRoot(
-            self,
-            i18n.tr("Maps"),
-            styled_map_path,
-            self.organization_data,
-            self.project_data,
-        )
-        styled_map_root.setSortKey(0)
-        children.append(styled_map_root)
+        try:
+            organization = api.organization.get_organization(organization_id)
+            project = api.project.get_project(project_id)
+        except Exception as e:
+            # Also when the project was deleted or access was revoked: offer
+            # to pick another one instead of a dead end
+            error = error_item(self, i18n.tr("Could not load the project"), e)
+            return [error, select_item], None
 
-        # Create raster root
-        raster_path = f"{self.path()}/rasters"
-        raster_root = RasterRoot(
-            self,
-            i18n.tr("Rasters"),
-            raster_path,
-            self.organization_data,
-            self.project_data,
-        )
-        raster_root.setSortKey(2)
-        children.append(raster_root)
-
-        return children
+        path = f"{self.path()}{project.id}"
+        children = [
+            StyledMapRoot(
+                self, i18n.tr("Maps"), f"{path}/styledmaps", organization, project
+            ),
+            VectorRoot(
+                self, i18n.tr("Vectors"), f"{path}/vectors", organization, project
+            ),
+            RasterRoot(
+                self, i18n.tr("Rasters"), f"{path}/rasters", organization, project
+            ),
+        ]
+        for key, child in enumerate(children):
+            child.setSortKey(key)
+        return children, (organization, project)
