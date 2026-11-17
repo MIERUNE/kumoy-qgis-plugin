@@ -285,6 +285,10 @@ def project_choices() -> List[Tuple[str, str]]:
     return list(_project_choices)
 
 
+def forget_project_choices() -> None:
+    _project_choices.clear()
+
+
 def refresh_project_choices() -> None:
     """Reload the upload destinations in the background. Main thread only.
 
