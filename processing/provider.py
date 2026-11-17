@@ -27,15 +27,10 @@ from .vector.upload.algorithm import UploadVectorAlgorithm
 class KumoyProcessingProvider(QgsProcessingProvider):
     """Processing provider for Kumoy plugin"""
 
-    def __init__(self):
-        super().__init__()
-
     def flags(self):
-        """
-        CompatibleWithVirtualRaster: これがないと Processing の入力UIがvirtualrasterを候補から除外してしまう
-        非ファイルラスタを一括で候補に含めるため WMS/WCS 等も UI 上は選べてしまうが
-        それらは algorithm 側(materialize)が実行時に明示的に弾く。
-        """
+        # Without CompatibleWithVirtualRaster the input widgets hide virtual
+        # rasters. It also lists WMS/WCS layers; the raster upload rejects
+        # those at run time (materialize).
         return Qgis.ProcessingProviderFlag.CompatibleWithVirtualRaster
 
     def id(self):
@@ -52,8 +47,9 @@ class KumoyProcessingProvider(QgsProcessingProvider):
 
     def loadAlgorithms(self):
         """Load algorithms"""
-        self.addAlgorithm(UploadVectorAlgorithm())
-        self.addAlgorithm(UploadRasterAlgorithm())
+        # prototype=True: see KumoyUploadAlgorithm.createInstance
+        self.addAlgorithm(UploadVectorAlgorithm(prototype=True))
+        self.addAlgorithm(UploadRasterAlgorithm(prototype=True))
         self.addAlgorithm(ListOrganizationsAlgorithm())
         self.addAlgorithm(ListProjectsAlgorithm())
         self.addAlgorithm(GetProjectAlgorithm())

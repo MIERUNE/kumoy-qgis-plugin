@@ -17,6 +17,7 @@ class UpdateRasterAlgorithm(KumoyApiAlgorithm):
     NAME = "NAME"
     ATTRIBUTION = "ATTRIBUTION"
     RASTER = "RASTER"
+    CHANGES_RESOURCES = True
 
     def name(self) -> str:
         return "updateraster"
@@ -49,13 +50,17 @@ class UpdateRasterAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         raster_id = self.parameter_as_id(parameters, self.RASTER_ID, context)
-        options = api.raster.UpdateRasterOptions(
-            name=self.parameter_as_text(parameters, self.NAME, context),
-            attribution=self.parameter_as_text(parameters, self.ATTRIBUTION, context),
-        )
-        if options.name is None and options.attribution is None:
+        given = {
+            "name": self.parameter_as_text(parameters, self.NAME, context),
+            "attribution": self.parameter_as_text(
+                parameters, self.ATTRIBUTION, context
+            ),
+        }
+        # Send only the given fields: absent ones keep their value
+        changes = {key: value for key, value in given.items() if value is not None}
+        if not changes:
             raise QgsProcessingException(i18n.tr("Nothing to update."))
 
-        raster = to_output(api.raster.update_raster(raster_id, options))
+        raster = to_output(api.raster.update_raster(raster_id, **changes))
         self.log_result(feedback, raster)
         return {self.RASTER: raster}

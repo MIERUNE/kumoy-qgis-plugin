@@ -1,161 +1,183 @@
-from typing import Any, Dict, List, Optional, Set
+"""kumoy:uploadvector — create a Kumoy vector from a vector layer.
+
+Features are prepared and uploaded in one streaming pass: geometries are
+reduced to 2D single parts in EPSG:4326 (the server's storage format), made
+valid, and sent in batches as they are read. Nothing is copied into
+intermediate layers, so memory stays flat for large layers.
+"""
+
+import json
+import math
+from dataclasses import dataclass
+from itertools import chain
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
-    QgsMessageLog,
-    QgsProcessing,
-    QgsProcessingAlgorithm,
+    QgsCoordinateTransform,
+    QgsCsException,
+    QgsFeatureRequest,
+    QgsFields,
+    QgsGeometry,
     QgsProcessingContext,
     QgsProcessingException,
+    QgsProcessingFeatureSource,
     QgsProcessingFeedback,
-    QgsProcessingParameterDefinition,
-    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterField,
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
     QgsVectorLayer,
-    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QVariant
-from qgis.utils import iface
-
-import processing
+from qgis.PyQt.QtCore import QDate, QDateTime, QMetaType, QTime, QVariant
 
 from .... import i18n
 from ....kumoy import api, constants
-from ....kumoy.api.error import format_api_error
-from ....kumoy.get_token import get_token
-from ....kumoy.settings_manager import get_settings
-from ...base import group_name, raise_if_not_logged_in
-from .normalize_field_name import MAX_FIELD_LENGTH, normalize_field_name
+from ....kumoy.api.qgis_vector import (
+    MAX_ITEMS_PER_REQUEST,
+    MAX_WKB_BASE64_LENGTH,
+    encode_wkb,
+)
+from ....kumoy.tasks import Canceled
+from ...base import KumoyUploadAlgorithm
+from .normalize_field_name import MAX_FIELD_LENGTH, normalize_field_name, truncate_utf16
 
+# PyQt5 exposes the type enum as QMetaType.Int as well, PyQt6 only as Type.Int
+_TYPE = getattr(QMetaType, "Type", QMetaType)
+_INTEGER_TYPES = (_TYPE.Int, _TYPE.UInt, _TYPE.LongLong, _TYPE.ULongLong)
 
-class _UserCanceled(Exception):
-    """Internal exception used to short-circuit on user cancellation"""
+_GEOMETRY_TYPES = {
+    Qgis.GeometryType.Point: "POINT",
+    Qgis.GeometryType.Line: "LINESTRING",
+    Qgis.GeometryType.Polygon: "POLYGON",
+}
 
-
-class _ChildProgressFeedback(QgsProcessingFeedback):
-    """Feedback that forwards progress updates from child algorithms to parent algorithm.
-    Child feedback is separated from parent feedback to report progress
-    without reinitializing the parent feedback.
-    """
-
-    def __init__(self, parent_feedback: QgsProcessingFeedback):
-        super().__init__()
-        self.parent_feedback = parent_feedback
-        # Connect cancellation from parent
-        parent_feedback.canceled.connect(self.cancel)
-
-    def setProgress(self, progress: float) -> None:
-        # Forward progress updates to parent algorithm feedback
-        self.parent_feedback.setProgress(int(progress))
-
-    def pushInfo(self, info: str) -> None:
-        self.parent_feedback.pushInfo(info)
-
-    def reportError(self, error: str, fatalError: bool = False) -> None:
-        self.parent_feedback.reportError(error, fatalError)
-
-    def pushWarning(self, warning: str) -> None:
-        self.parent_feedback.pushWarning(warning)
+# Body size budget of one add-features request (base64 WKB). A single
+# geometry may reach MAX_WKB_BASE64_LENGTH; it is then sent alone.
+_MAX_BATCH_WKB_LENGTH = 10_000_000
 
 
 def _get_geometry_type(layer: QgsVectorLayer) -> Optional[str]:
-    """Determine geometry type and check for multipart"""
-    wkb_type = layer.wkbType()
-    if wkb_type in [
-        QgsWkbTypes.Point,
-        QgsWkbTypes.PointZ,
-        QgsWkbTypes.MultiPoint,
-        QgsWkbTypes.MultiPointZ,
-    ]:
-        vector_type = "POINT"
-    elif wkb_type in [
-        QgsWkbTypes.LineString,
-        QgsWkbTypes.LineStringZ,
-        QgsWkbTypes.MultiLineString,
-        QgsWkbTypes.MultiLineStringZ,
-    ]:
-        vector_type = "LINESTRING"
-    elif wkb_type in [
-        QgsWkbTypes.Polygon,
-        QgsWkbTypes.PolygonZ,
-        QgsWkbTypes.MultiPolygon,
-        QgsWkbTypes.MultiPolygonZ,
-    ]:
-        vector_type = "POLYGON"
-    else:
-        vector_type = None
-
-    return vector_type
+    """Kumoy geometry type of the layer, or None when unsupported."""
+    return _GEOMETRY_TYPES.get(layer.geometryType())
 
 
-def _create_attribute_list(valid_fields_layer: QgsVectorLayer) -> List[dict]:
-    """Convert QgsField list to list of {name, type} dicts"""
-    attr_list = []
-    for field in valid_fields_layer.fields():
-        # Map QGIS field types to our supported types
-        if field.type() == QVariant.String:
-            field_type = "string"
-        elif field.type() in (QVariant.Int, QVariant.LongLong):
-            field_type = "integer"
-        elif field.type() == QVariant.Double:
-            field_type = "float"
-        elif field.type() == QVariant.Bool:
-            field_type = "boolean"
-        else:
-            # 事前に正規化されているのでここには来ないはず
-            raise QgsProcessingException(
-                f"Unexpected field type for field '{field.name()}': {field.type()}"
+def _column_type(field_type: Any) -> str:
+    if field_type == _TYPE.Bool:
+        return "boolean"
+    if field_type in _INTEGER_TYPES:
+        return "integer"
+    if field_type == _TYPE.Double:
+        return "float"
+    # Text, and anything without a Kumoy type (dates, JSON, lists) as text
+    return "string"
+
+
+@dataclass
+class _Column:
+    index: int  # in the source fields
+    name: str  # on the server
+    type: str  # integer | float | string | boolean
+
+
+def _build_columns(
+    fields: QgsFields,
+    selected: Optional[Set[str]],
+    feedback: QgsProcessingFeedback,
+) -> List[_Column]:
+    columns: List[_Column] = []
+    for index, field in enumerate(fields):
+        if selected and field.name() not in selected:
+            continue
+        name = normalize_field_name(field.name(), [c.name for c in columns])
+        if not name:
+            continue
+        if name.startswith(constants.RESERVED_FIELD_NAME_PREFIX):
+            feedback.pushWarning(
+                i18n.tr("Skipping reserved field name '{}'").format(field.name())
             )
+            continue
+        if name != field.name():
+            feedback.pushInfo(
+                i18n.tr("Field '{}' normalized to '{}'").format(field.name(), name)
+            )
+        columns.append(_Column(index, name, _column_type(field.type())))
+    return columns
 
-        attr_list.append({"name": field.name(), "type": field_type})
 
-    return attr_list
+def _to_json_value(value: Any, column_type: str) -> Any:
+    """A JSON value the server accepts for a column of `column_type`."""
+    if value is None or (isinstance(value, QVariant) and value.isNull()):
+        return None
+    if column_type == "float":
+        value = float(value)
+        # NaN and infinity are not valid JSON
+        return value if math.isfinite(value) else None
+    if column_type in ("integer", "boolean"):
+        return value
+    if isinstance(value, QDateTime):
+        text = value.toString("yyyy-MM-ddTHH:mm:ss.zzz")
+    elif isinstance(value, QDate):
+        text = value.toString("yyyy-MM-dd")
+    elif isinstance(value, QTime):
+        text = value.toString("HH:mm:ss.zzz")
+    elif isinstance(value, (dict, list)):
+        text = json.dumps(value, ensure_ascii=False, default=str)
+    else:
+        text = str(value)
+    return truncate_utf16(text, constants.MAX_CHARACTERS_STRING_FIELD)
 
 
-class UploadVectorAlgorithm(QgsProcessingAlgorithm):
+def _prepare_geometry(
+    geometry: QgsGeometry,
+    geometry_type: Qgis.GeometryType,
+    transform: Optional[QgsCoordinateTransform],
+) -> List[QgsGeometry]:
+    """The parts of a geometry as the server stores them, or [] to skip it."""
+    if geometry.isNull() or geometry.isEmpty():
+        return []
+    geometry = QgsGeometry(geometry)
+    # The server's columns are 2D
+    part = geometry.get()
+    part.dropZValue()
+    part.dropMValue()
+    if geometry.type() != geometry_type:
+        return []
+    box = geometry.boundingBox()
+    # NaN coordinates make both comparisons false
+    if not (box.xMinimum() <= box.xMaximum() and box.yMinimum() <= box.yMaximum()):
+        return []
+    if transform is not None:
+        try:
+            geometry.transform(transform)
+        except QgsCsException:
+            return []
+    if geometry_type != Qgis.GeometryType.Point:
+        # Repairing can split a polygon into several or degrade it to lines
+        geometry = geometry.makeValid()
+    return [
+        p
+        for p in geometry.asGeometryCollection()
+        if p.type() == geometry_type and not p.isEmpty()
+    ]
+
+
+class UploadVectorAlgorithm(KumoyUploadAlgorithm):
     """Algorithm to upload vector layer to Kumoy backend"""
 
-    INPUT_LAYER: str = "INPUT"
-    KUMOY_PROJECT: str = "PROJECT"
-    KUMOY_PROJECT_ID: str = "PROJECT_ID"
-    VECTOR_NAME: str = "VECTOR_NAME"
-    SELECTED_FIELDS: str = "SELECTED_FIELDS"
-    OUTPUT: str = "OUTPUT"  # Hidden output for internal processing
-
-    project_ids: List[str]
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.project_ids = []
-
-    def createInstance(self) -> "UploadVectorAlgorithm":
-        """Create new instance of algorithm"""
-        return UploadVectorAlgorithm()
+    GROUP_ID = "vector"
+    VECTOR_NAME = "VECTOR_NAME"
+    SELECTED_FIELDS = "SELECTED_FIELDS"
+    OUTPUT = "OUTPUT"  # Hidden; kept so existing scripts' parameters stay valid
 
     def name(self) -> str:
-        """Algorithm name"""
         return "uploadvector"
 
     def displayName(self) -> str:
-        """Algorithm display name"""
         return i18n.tr("Upload Vector Layer to Kumoy")
 
-    def group(self) -> str:
-        return group_name("vector")
-
-    def groupId(self) -> str:
-        return "vector"
-
-    def helpUrl(self) -> str:
-        """Help button to go to Kumoy documentation"""
-        return constants.DOCUMENTATION_URL
-
     def shortHelpString(self) -> str:
-        """Short help string"""
         return i18n.tr(
             "Upload a vector layer to the Kumoy cloud.\n\n"
             "The Input Vector Layer dropdown shows vector layers in your current map. "
@@ -174,102 +196,29 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
             MAX_FIELD_LENGTH,
             constants.MAX_CHARACTERS_STRING_FIELD,
             constants.RESERVED_FIELD_NAME_PREFIX,
-            constants.MAX_WKB_LENGTH,
+            MAX_WKB_BASE64_LENGTH,
         )
 
     def initAlgorithm(self, _: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize algorithm parameters"""
-        project_options = []
-        self.project_ids = []
-
-        # Input vector layer
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
                 i18n.tr("Input vector layer"),
-                [QgsProcessing.TypeVectorAnyGeometry],
+                [Qgis.ProcessingSourceType.VectorAnyGeometry],
             )
         )
-
-        # Scripts cannot know enum indexes in advance, so accept a stable ID too.
-        # Added before the login check so it is usable even if not logged in yet.
-        project_id_param = QgsProcessingParameterString(
-            self.KUMOY_PROJECT_ID,
-            i18n.tr("Destination project ID (overrides the destination project)"),
-            optional=True,
-        )
-        project_id_param.setFlags(
-            project_id_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced
-        )
-        self.addParameter(project_id_param)
-
-        try:
-            if get_token() is None:
-                # 未ログイン
-                return
-
-            # Get all organizations first
-            organizations = api.organization.get_organizations()
-            project_options = []
-
-            # Get projects for each organization
-            for org in organizations:
-                # Organizations scheduled for deletion are unusable; their
-                # project APIs return not found
-                if org.scheduledDeletionAt:
-                    continue
-                projects = api.project.get_projects_by_organization(org.id)
-                for project in projects:
-                    project_options.append(f"{org.name} / {project.name}")
-                    self.project_ids.append(project.id)
-
-        except Exception as e:
-            msg = i18n.tr("Error Initializing Processing: {}").format(
-                format_api_error(e)
-            )
-            QgsMessageLog.logMessage(msg, constants.LOG_CATEGORY, Qgis.Critical)
-            # iface is None when run from a standalone script
-            if iface is not None:
-                iface.messageBar().pushMessage(
-                    constants.PLUGIN_NAME, msg, level=Qgis.Critical, duration=10
-                )
-            return
-
-        default_project_index = 0
-        selected_project_id = get_settings().selected_project_id
-        if selected_project_id and self.project_ids:
-            # Find the index for the selected project ID
-            for idx, pid in enumerate(self.project_ids):
-                if pid == selected_project_id:
-                    default_project_index = idx
-                    break
-
-        # Project selection
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                self.KUMOY_PROJECT,
-                i18n.tr("Destination project"),
-                options=project_options,
-                allowMultiple=False,
-                optional=False,
-                defaultValue=default_project_index,
-            )
-        )
-
-        # Field selection
+        self.add_project_parameters()
         self.addParameter(
             QgsProcessingParameterField(
                 self.SELECTED_FIELDS,
                 i18n.tr("Attributes to upload"),
                 parentLayerParameterName=self.INPUT_LAYER,
-                type=QgsProcessingParameterField.Any,
+                type=Qgis.ProcessingFieldParameterDataType.Any,
                 optional=True,
                 allowMultiple=True,
                 defaultValue=[],
             )
         )
-
-        # Vector name
         self.addParameter(
             QgsProcessingParameterString(
                 self.VECTOR_NAME,
@@ -280,667 +229,205 @@ class UploadVectorAlgorithm(QgsProcessingAlgorithm):
                 optional=True,
             )
         )
-
-        # Hidden output parameter for internal processing
-        param = QgsProcessingParameterFeatureSink(
+        sink = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
             i18n.tr("Temporary output"),
-            type=QgsProcessing.TypeVectorAnyGeometry,
+            type=Qgis.ProcessingSourceType.VectorAnyGeometry,
             createByDefault=True,
             defaultValue="TEMPORARY_OUTPUT",
             optional=True,
         )
-        param.setFlags(param.flags() | QgsProcessingParameterFeatureSink.FlagHidden)
-        self.addParameter(param)
+        sink.setFlags(sink.flags() | Qgis.ProcessingParameterFlag.Hidden)
+        self.addParameter(sink)
 
-    def _resolve_project_id(
-        self, parameters: Dict[str, Any], context: QgsProcessingContext
-    ) -> str:
-        project_id = self.parameterAsString(
-            parameters, self.KUMOY_PROJECT_ID, context
-        ).strip()
-        if project_id:
-            return project_id
-
-        project_index = self.parameterAsEnum(parameters, self.KUMOY_PROJECT, context)
-        if project_index < 0 or project_index >= len(self.project_ids):
-            raise QgsProcessingException(
-                i18n.tr("Invalid destination project selection.")
-            )
-        return self.project_ids[project_index]
-
-    def _get_project_info_and_validate(
-        self,
-        parameters: Dict[str, Any],
-        context: QgsProcessingContext,
-        layer: QgsVectorLayer,
-    ):
-        """Get project information and validate limits"""
-        # Get project ID
-        project_id = self._resolve_project_id(parameters, context)
-
-        # Get vector name
-        vector_name = self.parameterAsString(parameters, self.VECTOR_NAME, context)
-        if not vector_name:
-            vector_name = layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
-        elif len(vector_name) > constants.MAX_CHARACTERS_VECTOR_NAME:
-            raise QgsProcessingException(
-                i18n.tr("'{}' is too long: {} characters entered.").format(
-                    self.parameterDefinition(self.VECTOR_NAME).description(),
-                    len(vector_name),
-                )
-            )
-
-        # Get project and plan limits
-        project = api.project.get_project(project_id)
-        organization = api.organization.get_organization(project.team.organizationId)
-
-        # Check role
-        if project.role not in ["ADMIN", "OWNER"]:
-            raise QgsProcessingException(
-                i18n.tr(
-                    "You do not have permission to upload vectors to this project. "
-                )
-            )
-
-        # Check vector count limit (organization-wide quota, not per project).
-        # maxVectors is the org-wide cap; usage.vectors is the total across all projects.
-        if organization.usage.vectors >= organization.planSettings.maxVectors:
-            raise QgsProcessingException(
-                i18n.tr(
-                    "Cannot upload vector: your organization has reached your "
-                    "plan's limit of {} vectors. Delete an existing vector or "
-                    "upgrade your plan to add more."
-                ).format(organization.planSettings.maxVectors)
-            )
-
-        return project_id, vector_name, organization.planSettings
-
-    def _raise_if_canceled(self, feedback: QgsProcessingFeedback) -> None:
-        """Raise internal cancel marker to unwind quickly without reporting error."""
-        if feedback.isCanceled():
-            raise _UserCanceled()
-
-    def processAlgorithm(
+    def run_api(
         self,
         parameters: Dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
-        """Process the algorithm"""
-        raise_if_not_logged_in()
-        vector = None
-
-        try:
-            feedback.setProgress(0)
-            self._raise_if_canceled(feedback)
-
-            # Get input layer
-            # 入力レイヤーのproviderチェック
-            layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
-            if layer is None:
-                raise QgsProcessingException(i18n.tr("Invalid input layer"))
-            if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
-                raise QgsProcessingException(
-                    i18n.tr("Cannot upload a layer that is already stored in server.")
-                )
-
-            self._raise_if_canceled(feedback)
-
-            # Get project information and validate
-            project_id, vector_name, plan_limits = self._get_project_info_and_validate(
-                parameters, context, layer
+        layer = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
+        if layer is None:
+            raise QgsProcessingException(i18n.tr("Invalid input layer"))
+        if layer.dataProvider().name() == constants.DATA_PROVIDER_KEY:
+            raise QgsProcessingException(
+                i18n.tr("Cannot upload a layer that is already stored in server.")
             )
-
-            # クリーニング前のレイヤーで地物数チェック
-            layer_feature_count = layer.featureCount()
-            if layer_feature_count > plan_limits.maxVectorFeatures:
-                raise QgsProcessingException(
-                    i18n.tr(
-                        "Cannot upload vector. The layer has {} features, "
-                        "but your plan allows up to {} features per vector."
-                    ).format(layer_feature_count, plan_limits.maxVectorFeatures)
-                )
-
-            self._raise_if_canceled(feedback)
-
-            # Determine geometry type
-            geometry_type = _get_geometry_type(layer)
-            if geometry_type is None:
-                raise QgsProcessingException(i18n.tr("Unsupported geometry type"))
-
-            # Process layer: convert to singlepart and reproject in one step
-            selected_fields = set(
-                self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
-            )
-
-            fields_count = layer.fields().count()
-
-            if selected_fields:
-                feedback.pushInfo(
-                    i18n.tr("Using {} of {} attributes for upload").format(
-                        len(selected_fields), fields_count
-                    )
-                )
-                fields_count = len(selected_fields)
-
-            if fields_count > plan_limits.maxVectorAttributes:
-                raise QgsProcessingException(
-                    i18n.tr(
-                        "Cannot upload vector. The layer has {} attributes, "
-                        "but your plan allows up to {} attributes per vector."
-                    ).format(fields_count, plan_limits.maxVectorAttributes)
-                )
-
-            self._raise_if_canceled(feedback)
-            feedback.setProgress(3)
-
-            # Create separate feedback for child algorithm
-            # to update progress to parent algorithm feedback without reinitializing it
-            child_feedback = _ChildProgressFeedback(feedback)
-
-            # Normalize field types first (convert JSON types to string)
-            normalized_layer = self._normalize_field_types(
-                layer, context, child_feedback
-            )
-            self._raise_if_canceled(feedback)
-            feedback.setProgress(5)
-
-            field_mapping = self._build_field_mapping(
-                normalized_layer,
-                feedback,
-                selected_fields if selected_fields else None,
-            )
-            feedback.setProgress(10)
-
-            # Process layer geometry (progress 10-40%)
-            processed_layer = self._process_layer_geometry(
-                normalized_layer,
-                field_mapping,
-                context,
-                child_feedback,
-            )
-            feedback.setProgress(40)
-
-            self._raise_if_canceled(feedback)
-
-            # クリーニング後にも再度地物数と属性数をチェック（multipart→singlepartで増える可能性があるため）
-            proc_feature_count = processed_layer.featureCount()
-            if proc_feature_count > plan_limits.maxVectorFeatures:
-                raise QgsProcessingException(
-                    i18n.tr(
-                        "Cannot upload vector. The layer has {} features, "
-                        "but your plan allows up to {} features per vector."
-                    ).format(proc_feature_count, plan_limits.maxVectorFeatures)
-                )
-
-            # Create attribute list
-            attr_list = _create_attribute_list(processed_layer)
-
-            # Create vector
-            options = api.vector.AddVectorOptions(
-                name=vector_name,
-                type=geometry_type,
-            )
-            vector = api.vector.add_vector(project_id, options)
-            feedback.pushInfo(
-                i18n.tr("Created vector layer '{}' with ID: {}").format(
-                    vector_name, vector.id
-                )
-            )
-
-            self._raise_if_canceled(feedback)
-            feedback.setProgress(45)
-
-            # Add attributes to vector
-            api.qgis_vector.add_attributes(vector_id=vector.id, attributes=attr_list)
-            feedback.pushInfo(
-                i18n.tr("Added attributes to vector layer '{}': {}").format(
-                    vector_name, ", ".join(a["name"] for a in attr_list)
-                )
-            )
-
-            self._raise_if_canceled(feedback)
-            feedback.setProgress(50)
-
-            # Upload features (progress 50-100%)
-            self._upload_features(vector.id, processed_layer, feedback)
-
-            return {"VECTOR_ID": vector.id}
-
-        except Exception as e:
-            # If vector was created but upload failed, delete it
-            if vector is not None:
-                try:
-                    api.vector.delete_vector(vector.id)
-                    feedback.pushInfo(
-                        i18n.tr(
-                            "Cleaned up incomplete vector layer due to upload failure"
-                        )
-                    )
-                except Exception as cleanup_error:
-                    feedback.reportError(
-                        i18n.tr(
-                            "Failed to clean up incomplete vector layer: {}"
-                        ).format(str(cleanup_error))
-                    )
-
-            if isinstance(e, _UserCanceled):
-                return {}
-
-            # Quota is enforced server-side too: surface its rejection as a clean,
-            # translated message instead of a raw traceback (English detail -> log).
-            if isinstance(e, api.error.QuotaExceededError):
-                QgsMessageLog.logMessage(
-                    format_api_error(e), constants.LOG_CATEGORY, Qgis.Critical
-                )
-                raise QgsProcessingException(
-                    i18n.tr(
-                        "Cannot upload vector: your organization has reached your "
-                        "plan's vector limit. Delete an existing vector or upgrade "
-                        "your plan to add more."
-                    )
-                ) from None
-
-            raise e
-
-    def _process_layer_geometry(
-        self,
-        layer: QgsVectorLayer,
-        field_mapping: Dict[str, Dict[str, Any]],
-        context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
-    ) -> QgsVectorLayer:
-        """Run processing-based pipeline to prepare geometries
-        feedback progress: 10-40%"""
-
-        source_crs = layer.crs()
-        if not source_crs.isValid():
+        geometry_type = _get_geometry_type(layer)
+        if geometry_type is None:
+            raise QgsProcessingException(i18n.tr("Unsupported geometry type"))
+        # A snapshot that is safe to read in this (worker) thread
+        source = self.parameterAsSource(parameters, self.INPUT_LAYER, context)
+        if not source.sourceCrs().isValid():
             raise QgsProcessingException(
                 i18n.tr(
-                    "The input layer has an undefined or invalid coordinate reference system. "
-                    "Please assign a valid CRS to the layer before uploading."
+                    "The input layer has an undefined or invalid coordinate "
+                    "reference system. Please assign a valid CRS to the layer "
+                    "before uploading."
                 )
             )
-        # Step 1: attribute refactor
-        mapping_list = []
 
-        if field_mapping:
-            mapping_list = [
-                field_mapping[field.name()]
-                for field in layer.fields()
-                if field.name() in field_mapping
-            ]
-
-        geometry_filter_expr = self._build_geometry_filter_expression(layer)
-        feedback.pushInfo(
-            i18n.tr("Filtering features using expression: {}").format(
-                geometry_filter_expr
-            )
-        )
-        self._raise_if_canceled(feedback)
-        filtered_layer = self._run_child_algorithm(
-            "native:extractbyexpression",
-            {
-                "INPUT": layer,
-                "EXPRESSION": geometry_filter_expr,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
+        project_id = self._resolve_project_id(parameters, context)
+        vector_name = self.parameter_as_name(
+            parameters,
+            self.VECTOR_NAME,
             context,
-            feedback,
+            layer.name(),
+            constants.MAX_CHARACTERS_VECTOR_NAME,
         )
-
-        self._raise_if_canceled(feedback)
-        feedback.setProgress(15)
-
-        filtered_count = filtered_layer.featureCount()
-        if filtered_count < layer.featureCount():
+        selected = set(
+            self.parameterAsFields(parameters, self.SELECTED_FIELDS, context)
+        )
+        if selected:
             feedback.pushInfo(
-                i18n.tr(
-                    "Removed {} features with missing or incompatible geometries."
-                ).format(layer.featureCount() - filtered_count)
+                i18n.tr("Using {} of {} attributes for upload").format(
+                    len(selected), source.fields().count()
+                )
             )
+        columns = _build_columns(source.fields(), selected, feedback)
 
-        if filtered_layer.featureCount() == 0:
+        plan = self.check_destination(project_id, "vector").planSettings
+        feature_count = source.featureCount()
+        if feature_count > plan.maxVectorFeatures:
+            raise QgsProcessingException(
+                i18n.tr(
+                    "Cannot upload vector. The layer has {} features, "
+                    "but your plan allows up to {} features per vector."
+                ).format(feature_count, plan.maxVectorFeatures)
+            )
+        if len(columns) > plan.maxVectorAttributes:
+            raise QgsProcessingException(
+                i18n.tr(
+                    "Cannot upload vector. The layer has {} attributes, "
+                    "but your plan allows up to {} attributes per vector."
+                ).format(len(columns), plan.maxVectorAttributes)
+            )
+        feedback.setProgress(5)
+
+        progress = _Progress(feedback, feature_count)
+        rows = _rows(source, layer.geometryType(), columns, context, progress)
+        # Read up to the first valid feature before creating anything
+        first = next(rows, None)
+        if first is None:
             raise QgsProcessingException(
                 i18n.tr("No features remain after filtering invalid geometries")
             )
 
-        current_layer = filtered_layer
-
-        # Step 2: drop Z (keep M values untouched)
-        if QgsWkbTypes.hasZ(current_layer.wkbType()):
-            feedback.pushInfo(i18n.tr("Dropping Z coordinates"))
-            current_layer = self._run_child_algorithm(
-                "native:dropmzvalues",
-                {
-                    "INPUT": current_layer,
-                    "DROP_M_VALUES": False,
-                    "DROP_Z_VALUES": True,
-                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context,
-                feedback,
-            )
-            feedback.setProgress(20)
-
-        self._raise_if_canceled(feedback)
-
-        # Step 3: repair geometries prior to other operations
-        feedback.pushInfo(i18n.tr("Repairing geometries..."))
-        current_layer = self._run_child_algorithm(
-            "native:fixgeometries",
-            {
-                "INPUT": current_layer,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context,
-            feedback,
-        )
-        feedback.setProgress(25)
-
-        self._raise_if_canceled(feedback)
-
-        # Step 4: convert to singlepart if needed
-        if QgsWkbTypes.isMultiType(current_layer.wkbType()):
-            feedback.pushInfo(i18n.tr("Converting multipart to singlepart"))
-            current_layer = self._run_child_algorithm(
-                "native:multiparttosingleparts",
-                {
-                    "INPUT": current_layer,
-                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context,
-                feedback,
-            )
-            feedback.setProgress(30)
-
-        self._raise_if_canceled(feedback)
-
-        # Step 5: transform to EPSG:4326 when needed
-        if current_layer.crs().authid() != "EPSG:4326":
-            feedback.pushInfo(
-                i18n.tr("Reprojecting from {} to EPSG:4326").format(
-                    current_layer.crs().authid()
-                )
-            )
-            current_layer = self._run_child_algorithm(
-                "native:reprojectlayer",
-                {
-                    "INPUT": current_layer,
-                    "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:4326"),
-                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context,
-                feedback,
-            )
-            feedback.setProgress(35)
-
-        self._raise_if_canceled(feedback)
-
-        feedback.pushInfo(i18n.tr("Refactoring attributes..."))
-        current_layer = self._run_child_algorithm(
-            "native:refactorfields",
-            {
-                "INPUT": current_layer,
-                "FIELDS_MAPPING": mapping_list,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context,
-            feedback,
-        )
-
-        self._raise_if_canceled(feedback)
-
-        return current_layer
-
-    def _build_field_mapping(
-        self,
-        layer: QgsVectorLayer,
-        feedback: QgsProcessingFeedback,
-        allowed_fields: Optional[Set[str]] = None,
-    ) -> Dict[str, Dict[str, Any]]:
-        """Create field mapping for refactor step"""
-
-        mapping: Dict[str, Dict[str, Any]] = {}
-        for field in layer.fields():
-            if allowed_fields is not None and field.name() not in allowed_fields:
-                continue
-
-            if field.name().startswith(constants.RESERVED_FIELD_NAME_PREFIX):
-                feedback.pushWarning(
-                    i18n.tr("Skipping reserved field name '{}'").format(field.name())
-                )
-                continue
-
-            # 事前に正規化されているのでサポート型のみのはず
-            if field.type() not in [
-                QVariant.String,
-                QVariant.Int,
-                QVariant.LongLong,
-                QVariant.Double,
-                QVariant.Bool,
-            ]:
-                raise QgsProcessingException(
-                    i18n.tr("Unexpected field type for field '{}': {}").format(
-                        field.name(), field.type()
-                    )
-                )
-
-            current_names = [
-                m["name"] for m in mapping.values()
-            ]  # ここまでに正規化済みのフィールド名
-            normalized_name = normalize_field_name(field.name(), current_names)
-            if not normalized_name:
-                continue
-
-            expression = f'"{field.name()}"'
-            length = field.length()
-            if field.type() == QVariant.String:
-                # STRING型フィールドは255文字に制限
-                expression = f"coalesce(left(\"{field.name()}\", {constants.MAX_CHARACTERS_STRING_FIELD}), '')"
-                length = constants.MAX_CHARACTERS_STRING_FIELD
-
-            mapping[field.name()] = {
-                "expression": expression,
-                "length": length,
-                "name": normalized_name,
-                "precision": field.precision(),
-                "type": field.type(),
-            }
-
-            feedback.pushInfo(
-                i18n.tr("Field '{}' normalized to '{}'").format(
-                    field.name(), normalized_name
-                )
-            )
-
-        return mapping
-
-    def _build_geometry_filter_expression(self, layer: QgsVectorLayer) -> str:
-        geom_type = QgsWkbTypes.geometryType(layer.wkbType())
-        if geom_type == QgsWkbTypes.PointGeometry:
-            allowed_type = "Point"
-        elif geom_type == QgsWkbTypes.LineGeometry:
-            allowed_type = "Line"
-        elif geom_type == QgsWkbTypes.PolygonGeometry:
-            allowed_type = "Polygon"
-        else:
-            raise QgsProcessingException(
-                i18n.tr("Filtering failed due to an unsupported geometry type.")
-            )
-
-        return (
-            f"NOT is_empty_or_null($geometry)"
-            f" AND geometry_type($geometry) = '{allowed_type}'"
-            f" AND x_min($geometry) <= x_max($geometry)"  # NaN除外のイディオム
-            f" AND y_min($geometry) <= y_max($geometry)"  # NaN除外のイディオム
-        )
-
-    def _normalize_field_types(
-        self,
-        layer: QgsVectorLayer,
-        context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
-    ) -> QgsVectorLayer:
-        """Normalize all field types to supported types (string/integer/float/boolean).
-
-        Non-supported types (QVariant.Map, QVariant.List, etc.) are converted to string.
-        """
-        SUPPORTED_TYPES = [
-            QVariant.String,
-            QVariant.Int,
-            QVariant.LongLong,
-            QVariant.Double,
-            QVariant.Bool,
-        ]
-
-        mapping_list = []
-        needs_conversion = False
-
-        for field in layer.fields():
-            # QgsField.type() does not distinguish between String and JSON,
-            # so we also check typeName() for JSON fields (e.g., GeoJSON data)
-            is_json = field.typeName().upper() == "JSON"
-            is_supported = field.type() in SUPPORTED_TYPES and not is_json
-
-            if is_supported:
-                # Supported type - keep as is
-                expression = f'"{field.name()}"'
-                field_type = field.type()
-                length = field.length()
-                precision = field.precision()
-            else:
-                # Non-supported type (JSON, Map, List, etc.) - convert to JSON string
-                expression = f'to_json("{field.name()}")'
-                field_type = QVariant.String
-                length = 0
-                precision = 0
-                needs_conversion = True
-                feedback.pushInfo(
-                    i18n.tr("Converting field '{}' to string type").format(field.name())
-                )
-
-            mapping_list.append(
-                {
-                    "expression": expression,
-                    "length": length,
-                    "name": field.name(),
-                    "precision": precision,
-                    "type": field_type,
-                }
-            )
-
-        if not needs_conversion:
-            # No conversion needed, return original layer
-            return layer
-
-        result = self._run_child_algorithm(
-            "native:refactorfields",
-            {
-                "INPUT": layer,
-                "FIELDS_MAPPING": mapping_list,
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context,
-            feedback,
-        )
-        return result
-
-    def _run_child_algorithm(
-        self,
-        algorithm_id: str,
-        params: Dict[str, Any],
-        context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
-    ) -> QgsVectorLayer:
-        """Execute child processing algorithm and return its layer output"""
-
-        result = processing.run(
-            algorithm_id,
-            params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-
-        output = result.get("OUTPUT")
-        if isinstance(output, QgsVectorLayer):
-            return output
-
-        if isinstance(output, str):
-            layer = context.getMapLayer(output)
-            if layer is not None:
-                return layer
-
-            layer = QgsVectorLayer(output, algorithm_id, "ogr")
-            if layer.isValid():
-                return layer
-
-        raise QgsProcessingException(
-            i18n.tr("The '{}' processing step failed to create a valid layer.").format(
-                algorithm_id
+        vector_id = api.vector.create_vector(project_id, vector_name, geometry_type)
+        feedback.pushInfo(
+            i18n.tr("Created vector layer '{}' with ID: {}").format(
+                vector_name, vector_id
             )
         )
-
-    def _upload_features(
-        self,
-        vector_id: str,
-        valid_fields_layer: QgsVectorLayer,
-        feedback: QgsProcessingFeedback,
-    ) -> bool:
-        """Upload features to Kumoy in batches. Returns True when canceled."""
-        cur_features = []
-        accumulated_features = 0
-        batch_size = 1000
-
-        for f in valid_fields_layer.getFeatures():
-            self._raise_if_canceled(feedback)
-
-            if len(cur_features) >= batch_size:
-                self._add_features_batch(vector_id, cur_features)
-
-                accumulated_features += len(cur_features)
-                feedback.pushInfo(
-                    i18n.tr("Upload complete: {} / {} features").format(
-                        accumulated_features, valid_fields_layer.featureCount()
-                    )
-                )
-                # Progress mapped to 50-100% range
-                progress_ratio = (
-                    accumulated_features / valid_fields_layer.featureCount()
-                )
-                feedback.setProgress(50 + int(progress_ratio * 50))
-                cur_features = []
-            cur_features.append(f)
-
-        # Upload remaining features
-        if cur_features:
-            self._add_features_batch(vector_id, cur_features)
-            accumulated_features += len(cur_features)
-            feedback.pushInfo(
-                i18n.tr("Upload complete: {} / {} features").format(
-                    accumulated_features, valid_fields_layer.featureCount()
-                )
-            )
-
-        return feedback.isCanceled()
-
-    def _add_features_batch(self, vector_id: str, features: list) -> None:
         try:
-            api.qgis_vector.add_features(vector_id, features)
-        except api.qgis_vector.WkbTooLargeError as e:
-            raise QgsProcessingException(
+            if columns:
+                api.qgis_vector.add_attributes(
+                    vector_id, [{"name": c.name, "type": c.type} for c in columns]
+                )
+            for batch in _batches(chain([first], rows)):
+                api.qgis_vector.add_features(vector_id, batch)
+                progress.report_uploaded()
+        except BaseException:
+            # Do not leave a half-uploaded vector behind (also on cancel)
+            try:
+                api.vector.delete_vector(vector_id)
+                feedback.pushInfo(
+                    i18n.tr("Cleaned up incomplete vector layer due to upload failure")
+                )
+            except Exception as cleanup_error:
+                feedback.reportError(
+                    i18n.tr("Failed to clean up incomplete vector layer: {}").format(
+                        str(cleanup_error)
+                    )
+                )
+            raise
+
+        if progress.skipped:
+            feedback.pushInfo(
                 i18n.tr(
-                    "Cannot upload feature: geometry is too large. "
-                    "Please simplify the geometry or split it into smaller parts. "
-                    "Details: {}"
-                ).format(str(e))
+                    "Removed {} features with missing or incompatible geometries."
+                ).format(progress.skipped)
             )
-        except api.error.QuotaExceededError as e:
-            raise QgsProcessingException(
-                i18n.tr(
-                    "Cannot upload features: your plan quota has been exceeded. "
-                    "Details: {}"
-                ).format(str(e))
-            )
+        feedback.setProgress(100)
+        return {"VECTOR_ID": vector_id}
+
+
+def _rows(
+    source: QgsProcessingFeatureSource,
+    geometry_type: Qgis.GeometryType,
+    columns: List[_Column],
+    context: QgsProcessingContext,
+    progress: "_Progress",
+) -> Iterator[Dict[str, Any]]:
+    """Yield add-features items, one per single-part geometry."""
+    wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
+    transform = None
+    if source.sourceCrs() != wgs84:
+        transform = QgsCoordinateTransform(
+            source.sourceCrs(), wgs84, context.transformContext()
+        )
+    request = QgsFeatureRequest().setSubsetOfAttributes([c.index for c in columns])
+
+    for feature in source.getFeatures(request):
+        progress.read_one()
+        parts = _prepare_geometry(feature.geometry(), geometry_type, transform)
+        if not parts:
+            progress.skipped += 1
+            continue
+        values = feature.attributes()
+        properties = {c.name: _to_json_value(values[c.index], c.type) for c in columns}
+        for part in parts:
+            wkb = encode_wkb(part.asWkb())
+            if len(wkb) > MAX_WKB_BASE64_LENGTH:
+                raise QgsProcessingException(
+                    i18n.tr(
+                        "Cannot upload feature: geometry is too large. "
+                        "Please simplify the geometry or split it into smaller "
+                        "parts. Details: {}"
+                    ).format(
+                        i18n.tr(
+                            "Feature geometry exceeds maximum WKB length ({} > {})"
+                        ).format(f"{len(wkb):,}", f"{MAX_WKB_BASE64_LENGTH:,}")
+                    )
+                )
+            yield {"kumoy_wkb": wkb, "properties": properties}
+
+
+def _batches(rows: Iterator[Dict[str, Any]]) -> Iterator[List[Dict[str, Any]]]:
+    """Group rows within the server's per-request limits."""
+    batch: List[Dict[str, Any]] = []
+    size = 0
+    for row in rows:
+        length = len(row["kumoy_wkb"])
+        if batch and (
+            len(batch) >= MAX_ITEMS_PER_REQUEST or size + length > _MAX_BATCH_WKB_LENGTH
+        ):
+            yield batch
+            batch, size = [], 0
+        batch.append(row)
+        size += length
+    if batch:
+        yield batch
+
+
+class _Progress:
+    """Progress 5-100% by features read, and cancellation checks."""
+
+    def __init__(self, feedback: QgsProcessingFeedback, total: int) -> None:
+        self._feedback = feedback
+        self._total = max(total, 1)
+        self.read = 0
+        self.skipped = 0
+
+    def read_one(self) -> None:
+        if self._feedback.isCanceled():
+            raise Canceled()
+        self.read += 1
+
+    def report_uploaded(self) -> None:
+        if self._feedback.isCanceled():
+            raise Canceled()
+        self._feedback.setProgress(5 + 95 * min(self.read / self._total, 1.0))
+        self._feedback.pushInfo(
+            i18n.tr("Upload complete: {} / {} features").format(self.read, self._total)
+        )

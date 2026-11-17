@@ -2,7 +2,14 @@ from typing import List, Optional
 
 from . import client
 from ._util import UNSET, compact
-from .models import GeometryType, Vector, VectorDetail, from_dict, list_of
+from .models import (
+    GeometryType,
+    Vector,
+    VectorDetail,
+    VectorMutationResult,
+    from_dict,
+    list_of,
+)
 
 
 def get_vectors(project_id: str) -> List[Vector]:
@@ -26,11 +33,11 @@ def create_vector(
 
 def update_vector(
     vector_id: str, name: Optional[str] = UNSET, attribution: Optional[str] = UNSET
-) -> Vector:
+) -> VectorMutationResult:
     data = client.put(
         f"/vector/{vector_id}", compact(name=name, attribution=attribution)
     )
-    return from_dict(Vector, data)
+    return from_dict(VectorMutationResult, data)
 
 
 def delete_vector(vector_id: str) -> None:

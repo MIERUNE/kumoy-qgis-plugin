@@ -72,6 +72,8 @@ def is_editor(role: Optional[str]) -> bool:
 class Organization:
     id: str
     name: str
+    # Processing tools returned it before the rewrite; kept for scripts
+    stripeCustomerId: Optional[str] = None
     subscriptionPlan: str = ""
     storageUnits: float = 0
     createdAt: str = ""
@@ -187,7 +189,16 @@ class Vector:
 
 
 @dataclass
+class VectorMutationResult(Vector):
+    """PUT /vector/{id} and POST /project/{id}/vector answer these extra fields."""
+
+    uri: str = ""
+    bytes: int = 0
+
+
+@dataclass
 class VectorDetail(Vector):
+    project: Optional[Project] = None
     role: Role = "MEMBER"
     extent: List[float] = field(default_factory=list)
     count: int = 0
@@ -200,6 +211,8 @@ class Raster:
     name: str
     projectId: str = ""
     attribution: Optional[str] = ""
+    # COG size
+    bytes: int = 0
     storageUnits: float = 0
     createdAt: str = ""
     updatedAt: str = ""

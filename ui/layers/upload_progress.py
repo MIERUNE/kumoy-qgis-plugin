@@ -3,12 +3,14 @@
 One dialog per batch instead of one per layer (Issue #538): a 100-layer save
 now shows "3 of 100" and takes a single Cancel press to abort the rest.
 Lifetime belongs to the flow that opens ``upload_progress()``; upload code only
-reports into the dialog it is handed.
+reports into the dialog it is handed. Uploads run in background tasks while the
+main thread waits in an event loop, so the dialog paints by itself: it never
+calls processEvents (which re-entered the upload from the Cancel click).
 """
 
 from contextlib import contextmanager
 
-from qgis.PyQt.QtCore import QCoreApplication, pyqtSignal
+from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtGui import QFontMetrics
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -108,7 +110,6 @@ class UploadProgressDialog(QDialog):
         self._cancel_button.setText(i18n.tr("Cancelling..."))
         self._overall_label.setText(i18n.tr("Cancelling upload..."))
         self.canceled.emit()
-        self._pump()
 
     def reject(self) -> None:
         # Esc and the window close button mean cancel, not close: closing
@@ -121,12 +122,6 @@ class UploadProgressDialog(QDialog):
         self._layer_bar.setValue(0)
         self._overall_bar.setValue(index * _STEPS_PER_LAYER)
         self._update_overall_label()
-
-        # Issue #356: the dialog is sometimes left unpainted on Windows
-        self.repaint()
-        self._pump()
-        self.repaint()
-        self._pump()
 
     def set_layer_progress(self, percent: float) -> None:
         value = min(max(int(percent), 0), _STEPS_PER_LAYER)
@@ -169,7 +164,3 @@ class UploadProgressDialog(QDialog):
                 min(self._current_index + 1, self._total), self._total
             )
         )
-
-    @staticmethod
-    def _pump() -> None:
-        QCoreApplication.processEvents()

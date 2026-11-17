@@ -13,6 +13,7 @@ from ..base import KumoyApiAlgorithm
 class DeleteVectorAlgorithm(KumoyApiAlgorithm):
     GROUP_ID = "vector"
     VECTOR_ID = "VECTOR_ID"
+    CHANGES_RESOURCES = True
 
     def name(self) -> str:
         return "deletevector"
