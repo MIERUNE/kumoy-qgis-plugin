@@ -57,12 +57,11 @@ def request(
     req = QNetworkRequest(QUrl(url))
     for key, value in (headers or {}).items():
         req.setRawHeader(key.encode("utf-8"), value.encode("utf-8"))
-    token = ""
+    token = session.get_token() if auth else None
     if auth:
-        token = session.get_token() or ""
         if not token:
             error = UnauthorizedError("Unauthorized", "Not logged in")
-            error.rejected_token = token
+            error.rejected_token = token or ""
             raise error
         req.setRawHeader(b"Authorization", f"Bearer {token}".encode("utf-8"))
 
@@ -98,7 +97,7 @@ def request(
     error = error_from_response(status, content, blocking.errorMessage())
     if isinstance(error, UnauthorizedError):
         # Lets the 401 handler tell this login from one made since
-        error.rejected_token = token
+        error.rejected_token = token or ""
     raise error
 
 
