@@ -11,15 +11,10 @@ def browser(qgis_plugin_path, qgis_app, monkeypatch):
     from plugin_dir.kumoy import api
     from plugin_dir.ui.browser import styledmap
 
-    def run_task(description, fn, on_success=None, on_error=None, **_):
-        try:
-            result = fn(SimpleNamespace(setProgress=lambda _: None))
-        except Exception as e:
-            on_error(e)
-        else:
-            on_success(result)
+    from ._real_tasks import RealTasks
 
-    monkeypatch.setattr(styledmap, "run_task", run_task)
+    # Real QgsTask worker threads, waited for before the action returns
+    monkeypatch.setattr(styledmap, "run_task", RealTasks().run_task_and_wait)
     state = SimpleNamespace(
         module=styledmap,
         api=api,

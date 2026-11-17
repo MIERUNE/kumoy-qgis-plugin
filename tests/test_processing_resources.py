@@ -633,14 +633,11 @@ class TestUploadProjectChoices:
 class TestRefreshProjectChoices:
     @pytest.fixture
     def tasks(self, base, monkeypatch):
-        started = []
+        from ._real_tasks import RealTasks
 
-        def fake_run_task(_description, fn, on_success, on_error):
-            started.append(fn)
-            on_success(fn(None))
-
-        monkeypatch.setattr(base, "run_task", fake_run_task)
-        return started
+        tasks = RealTasks()
+        monkeypatch.setattr(base, "run_task", tasks.run_task)
+        return tasks
 
     def test_lists_writable_projects(self, api, base, tasks, monkeypatch):
         monkeypatch.setattr(
@@ -669,11 +666,13 @@ class TestRefreshProjectChoices:
         )
 
         base.refresh_project_choices()
+        assert len(tasks.queue) == 1
+        tasks.flush()
 
         assert base.project_choices() == [("p1", "Org / A")]
         # Throttled: a second call right away does not fetch again
         base.refresh_project_choices()
-        assert len(tasks) == 1
+        assert tasks.queue == []
 
     def test_logout_clears(self, base, tasks, monkeypatch):
         from plugin_dir.kumoy import session
@@ -684,7 +683,7 @@ class TestRefreshProjectChoices:
         base.refresh_project_choices()
 
         assert base.project_choices() == []
-        assert tasks == []
+        assert tasks.queue == []
 
     def test_fetch_for_a_previous_login_is_dropped(self, api, base, monkeypatch):
         """Real QgsTask: log out and back in while the first fetch runs."""

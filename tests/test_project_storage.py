@@ -459,15 +459,10 @@ class TestSaveToMap:
 class TestOpenMap:
     @pytest.fixture
     def tasks(self, storage, monkeypatch):
-        def run_task(description, fn, on_success=None, on_error=None, **_):
-            try:
-                result = fn(None)
-            except Exception as e:
-                on_error(e)
-            else:
-                on_success(result)
+        from ._real_tasks import RealTasks
 
-        monkeypatch.setattr(storage.module, "run_task", run_task)
+        # Real QgsTask worker threads, waited for before open_map returns
+        monkeypatch.setattr(storage.module, "run_task", RealTasks().run_task_and_wait)
         errors = []
         monkeypatch.setattr(
             storage.module, "handle_api_error", lambda e, **_: errors.append(e)

@@ -19,33 +19,6 @@ ORG = models.OrganizationDetail(id="org1", name="Org", role="OWNER")
 PROJECT = models.ProjectDetail(id="p1", name="Proj", role="ADMIN", teamId="t1")
 
 
-class Tasks:
-    """Fake kumoy.tasks.run_task: queue, then run on flush() like QGIS would."""
-
-    def __init__(self):
-        self.queue = []
-
-    def run_task(
-        self, description, fn, on_success=None, on_error=None, can_cancel=False
-    ):
-        self.queue.append((fn, on_success, on_error))
-
-    def flush(self):
-        while self.queue:
-            fn, on_success, on_error = self.queue.pop(0)
-            task = types.SimpleNamespace(
-                setProgress=lambda p: None, check_canceled=lambda: None
-            )
-            try:
-                result = fn(task)
-            except Exception as e:
-                if on_error:
-                    on_error(e)
-                continue
-            if on_success:
-                on_success(result)
-
-
 class FakeCache:
     def __init__(self):
         self.cleared = []
@@ -94,7 +67,9 @@ def shell(qgis_app, qgis_plugin_path, monkeypatch):
 
     # Modules imported against the stubs must not leak into other tests
     modules_before = set(sys.modules)
-    fake_tasks = Tasks()
+    from ._real_tasks import RealTasks
+
+    fake_tasks = RealTasks()
     monkeypatch.setattr(tasks, "run_task", fake_tasks.run_task)
 
     caches = types.SimpleNamespace(vector=FakeCache(), raster=FakeCache())
@@ -104,27 +79,10 @@ def shell(qgis_app, qgis_plugin_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "plugin_dir.kumoy.local_cache", local_cache)
     monkeypatch.setattr(kumoy, "local_cache", local_cache, raising=False)
 
-    # The processing package imports its provider (area E) on import
+    from plugin_dir.processing import close_all_processing_dialogs as close_mod
+
     closed = Recorder()
-    processing = types.ModuleType("plugin_dir.processing")
-    processing.__path__ = []
-    close_mod = types.ModuleType("plugin_dir.processing.close_all_processing_dialogs")
-    close_mod.close_all_processing_dialogs = closed
-    processing.close_all_processing_dialogs = close_mod
-    monkeypatch.setitem(sys.modules, "plugin_dir.processing", processing)
-    monkeypatch.setitem(sys.modules, close_mod.__name__, close_mod)
-
-    class StyledMapRoot(QgsDataItem):
-        def __init__(self, parent, name, path, organization, project):
-            QgsDataItem.__init__(self, QgsDataItem.Collection, parent, name, path)
-
-    styledmap = types.ModuleType("plugin_dir.ui.browser.styledmap")
-    styledmap.StyledMapRoot = StyledMapRoot
-    styledmap.StyledMapItem = type("StyledMapItem", (QgsDataItem,), {})
-    styledmap.clear_cache_multiple_maps = Recorder()
-    styledmap.delete_multiple_maps = Recorder()
-    monkeypatch.setitem(sys.modules, "plugin_dir.ui.browser.styledmap", styledmap)
-    monkeypatch.setattr(browser, "styledmap", styledmap, raising=False)
+    monkeypatch.setattr(close_mod, "close_all_processing_dialogs", closed)
 
     # Re-import the shell so it binds the stubs and the fake run_task
     shell_modules = [
