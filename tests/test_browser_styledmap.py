@@ -8,9 +8,6 @@ from qgis.core import QgsProject
 
 @pytest.fixture
 def browser(qgis_plugin_path, qgis_app, monkeypatch):
-    from ._rewrite_shims import install
-
-    install()
     from plugin_dir.kumoy import api
     from plugin_dir.ui.browser import styledmap
 

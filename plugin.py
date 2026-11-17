@@ -27,6 +27,7 @@ from .ui.browser.root import DataItemProvider, current_project
 from .ui.dialog_login import open_login_dialog
 from .ui.icons import MAIN_ICON
 from .ui.layers import raster as raster_layers
+from .ui.layers import vector as vector_layers
 from .ui.layers.convert import on_convert_layer_clicked
 from .ui.layers.indicators import update_kumoy_indicator
 
@@ -69,6 +70,7 @@ class KumoyPlugin:
 
         project_storage.register()
         raster_layers.register()
+        vector_layers.register()
         session.add_listener(_on_session_changed)
 
         self.iface.layerTreeView().contextMenuAboutToShow.connect(
@@ -195,6 +197,7 @@ class KumoyPlugin:
 
         project_storage.unregister()
         raster_layers.unregister()
+        vector_layers.unregister()
         session.remove_listener(_on_session_changed)
 
         project = QgsProject.instance()

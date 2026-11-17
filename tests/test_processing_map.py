@@ -24,9 +24,6 @@ def _run(alg, parameters):
 
 @pytest.fixture
 def api(qgis_plugin_path, monkeypatch):
-    from ._rewrite_shims import install
-
-    install()
     from plugin_dir.kumoy import api, session, settings_manager
 
     # Logged in, with project p1 selected

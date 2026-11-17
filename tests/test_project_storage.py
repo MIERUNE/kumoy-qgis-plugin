@@ -85,9 +85,6 @@ class FakeMessageBox:
 
 @pytest.fixture
 def storage(qgis_plugin_path, qgis_app, monkeypatch, tmp_path):
-    from ._rewrite_shims import install
-
-    install()
     from plugin_dir.kumoy import api
     from plugin_dir.kumoy.local_cache import map as map_cache
     from plugin_dir.pyqt_version import Q_MESSAGEBOX_STD_BUTTON
