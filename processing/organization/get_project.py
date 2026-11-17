@@ -40,7 +40,9 @@ class GetProjectAlgorithm(KumoyApiAlgorithm):
         project["vectors"] = [
             without_project(v) for v in to_output(api.vector.get_vectors(project_id))
         ]
-        project["rasters"] = to_output(api.raster.get_rasters(project_id))
+        project["rasters"] = [
+            without_project(r) for r in to_output(api.raster.get_rasters(project_id))
+        ]
         project["maps"] = [
             without_project(m)
             for m in to_output(api.styledmap.get_styled_maps(project_id))

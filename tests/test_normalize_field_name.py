@@ -44,3 +44,11 @@ class TestNormalizeFieldName:
         base = "a" * 63
         current_names = [base] + ["a" * 61 + f"_{i}" for i in range(1, 10)]
         assert self._fn()(base, current_names=current_names) == "a" * 60 + "_10"
+
+    def test_length_counts_utf16_units_like_the_server(self):
+        # JavaScript's String.length counts an emoji as two
+        assert self._fn()("😀" * 40, current_names=[]) == "😀" * 31
+
+    def test_suffix_does_not_split_a_surrogate_pair(self):
+        name = "😀" * 31
+        assert self._fn()(name, current_names=[name]) == "😀" * 30 + "_1"

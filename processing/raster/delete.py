@@ -13,6 +13,7 @@ from ..base import KumoyApiAlgorithm
 class DeleteRasterAlgorithm(KumoyApiAlgorithm):
     GROUP_ID = "raster"
     RASTER_ID = "RASTER_ID"
+    CHANGES_RESOURCES = True
 
     def name(self) -> str:
         return "deleteraster"
