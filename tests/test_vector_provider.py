@@ -702,3 +702,111 @@ class TestUri:
         assert vector_uri(vector) == (
             "project_id=p;vector_id=v;vector_name=n;vector_type=POINT;"
         )
+
+
+def _cached_names(env):
+    """Names in the cache that providers would switch to now."""
+    path = env.cache.open_cache(VID).path
+    cache = QgsVectorLayer(env.cache.ogr_uri(path), "cache", "ogr")
+    return {f.id(): f["name"] for f in cache.getFeatures()}
+
+
+def _pump_until(condition, timeout=10.0):
+    from qgis.PyQt.QtCore import QCoreApplication
+
+    deadline = time.monotonic() + timeout
+    while not condition():
+        assert time.monotonic() < deadline, "timed out"
+        QCoreApplication.processEvents()
+        time.sleep(0.005)
+
+
+class TestEditDuringSync:
+    """A commit that lands while a sync is between fetching and writing must
+    not be overwritten by the older data that sync fetched."""
+
+    @pytest.fixture
+    def race(self, env, monkeypatch):
+        from plugin_dir.kumoy import api
+
+        env.server.add_row(1, name="a")
+        env.seed()
+        layer = env.open_layer()
+        env.wait()
+
+        state = types.SimpleNamespace(
+            fetched=threading.Event(), proceed=threading.Event(), seen=[]
+        )
+
+        def hold_after(fetch):
+            def held(*args):
+                result = fetch(*args)
+                if not state.fetched.is_set():
+                    state.fetched.set()
+                    state.proceed.wait(10)
+                return result
+
+            return held
+
+        state.hold_after = hold_after
+
+        # Like the real server: edited rows come with later diffs
+        real_change = env.server.change_attribute_values
+
+        def change(vector_id, items):
+            real_change(vector_id, items)
+            env.server.pending_diff = ([i["kumoy_id"] for i in items], [])
+            env.server.diff_error = None
+
+        monkeypatch.setattr(api.qgis_vector, "change_attribute_values", change)
+
+        def record(_vector_id):
+            state.seen.append(_cached_names(env))
+
+        env.dp.sync_events.sync_finished.connect(record)
+
+        def commit_during_sync(value):
+            layer.dataProvider().sync()
+            _pump_until(state.fetched.is_set)
+            layer.startEditing()
+            layer.changeAttributeValue(1, layer.fields().indexOf("name"), value)
+            assert layer.commitChanges(), layer.commitErrors()
+            state.proceed.set()
+            env.wait()
+
+        state.commit_during_sync = commit_during_sync
+        state.layer = layer
+        yield state
+        env.dp.sync_events.sync_finished.disconnect(record)
+
+    def test_diff_fetched_before_the_commit_is_not_applied(
+        self, env, race, monkeypatch
+    ):
+        from plugin_dir.kumoy import api
+
+        # Changed on the server a moment ago: the diff returns it
+        env.server.rows[1]["properties"]["name"] = "b"
+        env.server.pending_diff = ([1], [])
+        monkeypatch.setattr(
+            api.qgis_vector, "get_diff", race.hold_after(env.server.get_diff)
+        )
+
+        race.commit_during_sync("c")
+
+        # Every state the providers switched to has the edit
+        assert race.seen and all(names == {1: "c"} for names in race.seen)
+        assert _names(race.layer) == {1: "c"}
+
+    def test_full_download_catches_up_before_completing(self, env, race, monkeypatch):
+        from plugin_dir.kumoy import api
+        from plugin_dir.kumoy.api.error import AppError
+
+        env.server.diff_error = AppError("Application Error", "MAX_DIFF_COUNT_EXCEEDED")
+        monkeypatch.setattr(
+            api.qgis_vector, "get_features", race.hold_after(env.server.get_features)
+        )
+
+        race.commit_during_sync("c")
+
+        assert race.seen and all(names == {1: "c"} for names in race.seen)
+        assert _names(race.layer) == {1: "c"}

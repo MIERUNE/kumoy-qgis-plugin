@@ -23,7 +23,7 @@ import shutil
 import sqlite3
 import threading
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 from osgeo import gdal, ogr, osr
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
@@ -174,7 +174,8 @@ def write(
     vector: Optional[VectorDetail] = None,
     last_updated: Optional[str] = None,
     partial: bool = False,
-) -> None:
+    precondition: Optional[Callable[[], bool]] = None,
+) -> bool:
     """Apply rows and deletions to a cache file in one transaction.
 
     rows: {"kumoy_id", "kumoy_wkb": bytes, "properties": {...}}. By default
@@ -185,8 +186,14 @@ def write(
 
     Passing `last_updated` (with `vector`) stores the sync state, which also
     marks a new version complete.
+
+    `precondition` is checked under the write lock, so no other write can
+    slip in between; when it returns False nothing is written and this
+    returns False.
     """
     with _write_lock:
+        if precondition is not None and not precondition():
+            return False
         ds = ogr.Open(path, 1)
         if ds is None:
             raise RuntimeError(f"Cannot open {path}: {gdal.GetLastErrorMsg()}")
@@ -212,6 +219,7 @@ def write(
                 raise
         finally:
             ds = None
+    return True
 
 
 def _write_row(layer, defn, names, row: Dict, partial: bool) -> None:
