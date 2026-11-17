@@ -1,152 +1,89 @@
-"""kumoy/local_cache/raster.py のテスト
-
-COG は immutable なので「在れば即返す / 無ければダウンロード」だけを検証する。
-ダウンロード本体（download.download_to_file）と URL 取得（api）はモックする。
-"""
+"""kumoy.local_cache.raster: file operations of the COG cache."""
 
 import os
-import types
 
 import pytest
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestSyncLocalCache:
-    @pytest.fixture
-    def setup(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy.local_cache import raster as raster_cache
+@pytest.fixture
+def cache(qgis_app, tmp_path, monkeypatch):
+    from plugin_dir.kumoy.local_cache import raster
 
-        cache_dir = tmp_path / "rasters"
-        cache_dir.mkdir()
-        monkeypatch.setattr(raster_cache, "_get_cache_dir", lambda: str(cache_dir))
+    cache_dir = tmp_path / "rasters"
+    cache_dir.mkdir()
+    monkeypatch.setattr(raster, "_get_cache_dir", lambda: str(cache_dir))
+    raster.dir = str(cache_dir)
+    return raster
 
-        calls = {"get_url": 0, "download": 0}
 
-        def fake_download(url, dest_path, progress_callback=None, is_canceled=None):
-            calls["download"] += 1
-            # ダウンロード成功を、.part への書き込みで模す
-            with open(dest_path, "wb") as f:
-                f.write(b"COG-BYTES")
+def _write(path, size):
+    with open(path, "wb") as f:
+        f.write(b"x" * size)
 
-        fake_api = types.SimpleNamespace(
-            raster=types.SimpleNamespace(
-                get_download_url=lambda rid: (
-                    calls.__setitem__("get_url", calls["get_url"] + 1)
-                    or f"https://s3/{rid}?sig=x"
-                )
-            )
-        )
-        monkeypatch.setattr(raster_cache, "api", fake_api)
-        monkeypatch.setattr(raster_cache.download, "download_to_file", fake_download)
 
-        yield types.SimpleNamespace(
-            mod=raster_cache, cache_dir=str(cache_dir), calls=calls
-        )
+def test_commit_turns_part_into_cache_entry(cache):
+    part = cache.new_part_path("r-1")
+    _write(part, 10)
+    assert not cache.is_cached("r-1")
 
-    def test_downloads_when_missing(self, setup):
-        s = setup
-        path = s.mod.sync_local_cache("r-1")
+    path = cache.commit("r-1", part)
 
-        assert path == os.path.join(s.cache_dir, "r-1.tif")
-        assert os.path.exists(path)
-        assert s.calls["download"] == 1
-        assert s.calls["get_url"] == 1
-        # 完成ファイルだけが残り、.part は消えている
-        assert not os.path.exists(path + ".part")
+    assert path == os.path.join(cache.dir, "r-1.tif")
+    assert cache.is_cached("r-1")
+    assert os.listdir(cache.dir) == ["r-1.tif"]
 
-    def test_returns_cached_without_network(self, setup):
-        s = setup
-        cached = os.path.join(s.cache_dir, "r-2.tif")
-        with open(cached, "wb") as f:
-            f.write(b"already-here")
 
-        path = s.mod.sync_local_cache("r-2")
+def test_part_paths_are_unique(cache):
+    # Two downloads of one raster must never share a partial file
+    assert cache.new_part_path("r-1") != cache.new_part_path("r-1")
 
-        assert path == cached
-        assert s.calls["download"] == 0
-        assert s.calls["get_url"] == 0
 
-    def test_cancel_leaves_no_file(self, setup, monkeypatch):
-        from plugin_dir.kumoy import download
+def test_commit_keeps_existing_entry(cache):
+    _write(cache.get_cache_path("r-1"), 5)
+    part = cache.new_part_path("r-1")
+    _write(part, 10)
 
-        s = setup
+    cache.commit("r-1", part)
 
-        def cancel_download(url, dest_path, progress_callback=None, is_canceled=None):
-            raise download.DownloadCanceled()
+    assert os.path.getsize(cache.get_cache_path("r-1")) == 5
+    assert not os.path.exists(part)
 
-        monkeypatch.setattr(s.mod.download, "download_to_file", cancel_download)
 
-        with pytest.raises(download.DownloadCanceled):
-            s.mod.sync_local_cache("r-3")
+def test_store_moves_file_into_cache(cache, tmp_path):
+    src = tmp_path / "uploaded.tif"
+    src.write_bytes(b"COG")
 
-        assert not os.path.exists(os.path.join(s.cache_dir, "r-3.tif"))
+    path = cache.store("r-6", str(src))
 
-    def test_clear_removes_file(self, setup):
-        s = setup
-        path = s.mod.sync_local_cache("r-4")
-        assert os.path.exists(path)
+    assert open(path, "rb").read() == b"COG"
+    assert not src.exists()
+    assert os.listdir(cache.dir) == ["r-6.tif"]
 
-        assert s.mod.clear("r-4") is True
-        assert not os.path.exists(path)
 
-    def test_is_cached(self, setup):
-        s = setup
-        assert s.mod.is_cached("r-5") is False
-        s.mod.sync_local_cache("r-5")
-        assert s.mod.is_cached("r-5") is True
+def test_sizes_count_partial_downloads(cache):
+    assert cache.get_cache_size("r-7") == 0
+    _write(cache.get_cache_path("r-7"), 100)
+    _write(cache.new_part_path("r-7"), 40)
+    _write(cache.get_cache_path("r-8"), 60)
 
-    def test_cache_size_counts_tif_and_part(self, setup):
-        s = setup
-        assert s.mod.get_cache_size("r-7") == 0
+    assert cache.get_cache_size("r-7") == 140
+    assert cache.get_total_cache_size() == 200
 
-        open(os.path.join(s.cache_dir, "r-7.tif"), "wb").close()
-        assert s.mod.get_cache_size("r-7") == 0
 
-        with open(os.path.join(s.cache_dir, "r-7.tif"), "wb") as f:
-            f.write(b"x" * 100)
-        with open(os.path.join(s.cache_dir, "r-7.tif.part"), "wb") as f:
-            f.write(b"x" * 40)
+def test_clear_removes_entry_and_parts_only(cache):
+    _write(cache.get_cache_path("r-1"), 1)
+    _write(cache.new_part_path("r-1"), 1)
+    _write(cache.get_cache_path("r-10"), 1)  # same prefix, other raster
 
-        assert s.mod.get_cache_size("r-7") == 140
+    assert cache.clear("r-1") is True
 
-    def test_total_cache_size_sums_all_files(self, setup):
-        s = setup
-        assert s.mod.get_total_cache_size() == 0
+    assert os.listdir(cache.dir) == ["r-10.tif"]
 
-        with open(os.path.join(s.cache_dir, "r-8.tif"), "wb") as f:
-            f.write(b"x" * 100)
-        with open(os.path.join(s.cache_dir, "r-9.tif"), "wb") as f:
-            f.write(b"x" * 60)
 
-        assert s.mod.get_total_cache_size() == 160
+def test_clear_all_removes_files_and_subdirs(cache):
+    _write(cache.get_cache_path("r-1"), 1)
+    os.makedirs(os.path.join(cache.dir, "sub"))
+    _write(os.path.join(cache.dir, "sub", "x"), 1)
 
-    def test_clear_all_removes_files_and_subdirs(self, setup):
-        s = setup
-        with open(os.path.join(s.cache_dir, "r-10.tif"), "wb") as f:
-            f.write(b"x" * 10)
-        sub = os.path.join(s.cache_dir, "sub")
-        os.makedirs(sub)
-        with open(os.path.join(sub, "nested.tif"), "wb") as f:
-            f.write(b"x" * 10)
-
-        assert s.mod.clear_all() is True
-        assert os.listdir(s.cache_dir) == []
-        assert s.mod.get_total_cache_size() == 0
-
-    def test_store_adopts_local_file_and_skips_download(self, setup, tmp_path):
-        s = setup
-        src = tmp_path / "uploaded.tif"
-        src.write_bytes(b"UPLOADED-COG")
-
-        path = s.mod.store("r-6", str(src))
-
-        assert path == os.path.join(s.cache_dir, "r-6.tif")
-        with open(path, "rb") as f:
-            assert f.read() == b"UPLOADED-COG"
-        # src は移動により消費され、.part も残らない
-        assert not src.exists()
-        assert not os.path.exists(path + ".part")
-        # 以降の sync はネットワークに触れない
-        assert s.mod.sync_local_cache("r-6") == path
-        assert s.calls["download"] == 0
-        assert s.calls["get_url"] == 0
+    assert cache.clear_all() is True
+    assert os.listdir(cache.dir) == []

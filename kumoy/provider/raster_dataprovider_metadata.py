@@ -15,7 +15,7 @@ class KumoyRasterProviderMetadata(QgsProviderMetadata):
         )
 
     def decodeUri(self, uri: str) -> Dict[str, str]:
-        """``project_id=..;raster_id=..;raster_name=..`` を dict に分解する。"""
+        """`project_id=..;raster_id=..;raster_name=..;` -> dict."""
         params: Dict[str, str] = {}
         for part in uri.split(";"):
             m = re.match(r"(\w+)=(.*)", part)

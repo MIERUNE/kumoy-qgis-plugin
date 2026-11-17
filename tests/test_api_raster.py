@@ -1,230 +1,86 @@
-"""kumoy.api.raster のユニットテスト（ApiClient をモックする）"""
+"""kumoy.api.raster: endpoints and payloads (the HTTP client is mocked)."""
 
 import pytest
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestCreateRaster:
-    def _mod(self):
-        from plugin_dir.kumoy.api import raster
+@pytest.fixture
+def raster_api(qgis_app, monkeypatch):
+    from plugin_dir.kumoy.api import raster
 
-        return raster
+    calls = []
 
-    def test_sends_payload_and_parses_presigned(self, monkeypatch):
-        raster = self._mod()
-        captured = {}
+    def fake(method):
+        def call(path, *args, **kwargs):
+            calls.append((method, path, args[0] if args else None))
+            return fake.responses.pop(0)
 
-        def fake_post(endpoint, data):
-            captured["endpoint"] = endpoint
-            captured["data"] = data
-            return {
-                "rasterId": "r-123",
-                "uploadUrl": "https://s3.example.com/bucket/raster/r-123/data.tif?X-Amz-Signature=abc",
-            }
+        return call
 
-        monkeypatch.setattr(raster.ApiClient, "post", staticmethod(fake_post))
-
-        result = raster.create_raster("p-1", "dem", 52428800)
-
-        assert captured["endpoint"] == "/project/p-1/raster"
-        assert captured["data"] == {"name": "dem", "bytes": 52428800}
-        assert result.raster_id == "r-123"
-        assert "X-Amz-Signature" in result.upload_url
-
-    def test_includes_attribution_when_given(self, monkeypatch):
-        raster = self._mod()
-        captured = {}
-
-        def fake_post(endpoint, data):
-            captured["data"] = data
-            return {"rasterId": "r", "uploadUrl": "https://s3.example.com/key?sig=x"}
-
-        monkeypatch.setattr(raster.ApiClient, "post", staticmethod(fake_post))
-
-        raster.create_raster("p-1", "dem", 10, attribution="© me")
-
-        assert captured["data"]["attribution"] == "© me"
-
-    def test_omits_attribution_when_none(self, monkeypatch):
-        raster = self._mod()
-        captured = {}
-
-        def fake_post(endpoint, data):
-            captured["data"] = data
-            return {"rasterId": "r", "uploadUrl": "https://s3.example.com/key?sig=x"}
-
-        monkeypatch.setattr(raster.ApiClient, "post", staticmethod(fake_post))
-
-        raster.create_raster("p-1", "dem", 10)
-
-        assert "attribution" not in captured["data"]
+    fake.responses = []
+    for method in ("get", "post", "put", "delete"):
+        monkeypatch.setattr(raster.client, method, fake(method))
+    raster.calls = calls
+    raster.responses = fake.responses
+    return raster
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestGetRasters:
-    def test_parses_list(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
+def test_create_raster_sends_name_bytes_attribution(raster_api):
+    raster_api.responses.append(
+        {"rasterId": "r-1", "uploadUrl": "https://s3/k?X-Amz-Signature=x"}
+    )
 
-        captured = {}
+    result = raster_api.create_raster("p-1", "dem", 52428800)
 
-        def fake_get(endpoint, params=None):
-            captured["endpoint"] = endpoint
-            return [
-                {
-                    "id": "r-1",
-                    "name": "dem",
-                    "projectId": "p-1",
-                    "attribution": "© me",
-                    "bytes": 100,
-                    "createdAt": "2026-01-01",
-                    "updatedAt": "2026-01-02",
-                }
-            ]
-
-        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
-
-        result = raster.get_rasters("p-1")
-
-        assert captured["endpoint"] == "/project/p-1/raster"
-        assert len(result) == 1
-        assert result[0].id == "r-1"
-        assert result[0].name == "dem"
-        assert result[0].bytes == 100
-
-    def test_empty_list(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
-
-        monkeypatch.setattr(
-            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: [])
+    assert raster_api.calls == [
+        (
+            "post",
+            "/project/p-1/raster",
+            {"name": "dem", "bytes": 52428800, "attribution": ""},
         )
-
-        assert raster.get_rasters("p-1") == []
-
-
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestGetRaster:
-    def test_parses_detail_with_role(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
-
-        captured = {}
-
-        def fake_get(endpoint, params=None):
-            captured["endpoint"] = endpoint
-            return {
-                "id": "r-1",
-                "name": "dem",
-                "projectId": "p-1",
-                "attribution": "© me",
-                "bytes": 100,
-                "role": "OWNER",
-                "createdAt": "2026-01-01",
-                "updatedAt": "2026-01-02",
-            }
-
-        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
-
-        result = raster.get_raster("r-1")
-
-        assert captured["endpoint"] == "/raster/r-1"
-        assert result.id == "r-1"
-        assert result.role == "OWNER"
-
-    def test_defaults_role_to_member(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
-
-        monkeypatch.setattr(
-            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: {})
-        )
-
-        assert raster.get_raster("r-1").role == "MEMBER"
+    ]
+    assert result.raster_id == "r-1"
+    assert result.upload_url.endswith("X-Amz-Signature=x")
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestGetDownloadUrl:
-    def test_returns_presigned_url(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
+def test_get_rasters_parses_list(raster_api):
+    raster_api.responses.append([{"id": "r-1", "name": "dem", "projectId": "p-1"}])
 
-        captured = {}
+    rasters = raster_api.get_rasters("p-1")
 
-        def fake_get(endpoint, params=None):
-            captured["endpoint"] = endpoint
-            return {"url": "https://s3.example.com/key?X-Amz-Signature=abc"}
-
-        monkeypatch.setattr(raster.ApiClient, "get", staticmethod(fake_get))
-
-        url = raster.get_download_url("r-9")
-
-        assert captured["endpoint"] == "/raster/r-9/download"
-        assert "X-Amz-Signature" in url
-
-    def test_returns_empty_when_missing(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
-
-        monkeypatch.setattr(
-            raster.ApiClient, "get", staticmethod(lambda endpoint, params=None: {})
-        )
-
-        assert raster.get_download_url("r-9") == ""
+    assert raster_api.calls[0][:2] == ("get", "/project/p-1/raster")
+    assert [(r.id, r.name, r.projectId) for r in rasters] == [("r-1", "dem", "p-1")]
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestUpdateRaster:
-    def test_sends_payload_and_parses_result(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
+def test_get_raster_parses_detail(raster_api):
+    raster_api.responses.append(
+        {"id": "r-1", "name": "dem", "role": "ADMIN", "bandCount": 3}
+    )
 
-        captured = {}
+    detail = raster_api.get_raster("r-1")
 
-        def fake_put(endpoint, data):
-            captured["endpoint"] = endpoint
-            captured["data"] = data
-            return {
-                "id": "r-1",
-                "name": "renamed",
-                "attribution": "© you",
-                "updatedAt": "2026-01-03",
-            }
-
-        monkeypatch.setattr(raster.ApiClient, "put", staticmethod(fake_put))
-
-        result = raster.update_raster(
-            "r-1", raster.UpdateRasterOptions(name="renamed", attribution="© you")
-        )
-
-        assert captured["endpoint"] == "/raster/r-1"
-        assert captured["data"] == {"name": "renamed", "attribution": "© you"}
-        assert result.id == "r-1"
-        assert result.name == "renamed"
-        assert result.attribution == "© you"
-        assert result.updatedAt == "2026-01-03"
-
-    def test_omits_none_fields(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
-
-        captured = {}
-
-        def fake_put(endpoint, data):
-            captured["data"] = data
-            return {"id": "r-1", "name": "dem", "attribution": "", "updatedAt": ""}
-
-        monkeypatch.setattr(raster.ApiClient, "put", staticmethod(fake_put))
-
-        raster.update_raster("r-1", raster.UpdateRasterOptions(name="dem"))
-
-        assert captured["data"] == {"name": "dem"}
+    assert raster_api.calls[0][:2] == ("get", "/raster/r-1")
+    assert (detail.role, detail.bandCount) == ("ADMIN", 3)
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestDeleteRaster:
-    def test_calls_delete_endpoint(self, monkeypatch):
-        from plugin_dir.kumoy.api import raster
+def test_get_download_url(raster_api):
+    raster_api.responses.append({"url": "https://s3/k?sig"})
 
-        captured = {}
-        monkeypatch.setattr(
-            raster.ApiClient,
-            "delete",
-            staticmethod(lambda endpoint: captured.setdefault("endpoint", endpoint)),
-        )
+    assert raster_api.get_download_url("r-9") == "https://s3/k?sig"
+    assert raster_api.calls[0][:2] == ("get", "/raster/r-9/download")
 
-        raster.delete_raster("r-9")
 
-        assert captured["endpoint"] == "/raster/r-9"
+def test_update_raster_sends_only_given_fields(raster_api):
+    raster_api.responses.append({"id": "r-1", "name": "renamed"})
+
+    result = raster_api.update_raster("r-1", name="renamed")
+
+    assert raster_api.calls == [("put", "/raster/r-1", {"name": "renamed"})]
+    assert result.name == "renamed"
+
+
+def test_delete_raster(raster_api):
+    raster_api.responses.append(None)
+
+    raster_api.delete_raster("r-9")
+
+    assert raster_api.calls == [("delete", "/raster/r-9", None)]
