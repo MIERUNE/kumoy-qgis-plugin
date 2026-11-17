@@ -17,7 +17,7 @@ made by others.
 import threading
 import weakref
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from qgis.core import (
     Qgis,
@@ -131,13 +131,6 @@ sync_events = shared("vector_sync_events", SyncEvents)
 _running: Dict[str, FunctionTask] = {}  # main thread only
 _rerun: Set[str] = set()
 _sync_locks: Dict[str, threading.Lock] = {}
-# Per vector: incremented when an edit starts and again when it has been
-# written to the cache, so it is odd while an edit is in flight. A sync only
-# writes what it fetched if no edit started meanwhile: an older diff applied
-# after the edit's own cache write would show the old values again until
-# the next sync.
-_edit_generation: Dict[str, int] = {}
-_edit_generation_lock = threading.Lock()
 # How often a full download catches up with edits made while it ran before
 # it completes anyway (the sync queued by those edits fixes the rest)
 _CATCH_UP_ATTEMPTS = 3
@@ -229,23 +222,10 @@ def sync_now(vector_id: str, task: Optional[FunctionTask] = None) -> None:
             local_cache.vector.cleanup(vector_id, keep=_paths_in_use())
 
 
-def _bump_edit_generation(vector_id: str) -> None:
-    with _edit_generation_lock:
-        _edit_generation[vector_id] = _edit_generation.get(vector_id, 0) + 1
-
-
-def _edit_generation_of(vector_id: str) -> int:
-    with _edit_generation_lock:
-        return _edit_generation.get(vector_id, 0)
-
-
-def _no_edit_since(vector_id: str, generation: int) -> Callable[[], bool]:
-    """Precondition for writing data fetched when `generation` was current."""
-    return lambda: generation % 2 == 0 and _edit_generation_of(vector_id) == generation
-
-
 def _sync(vector_id: str, task: Optional[FunctionTask]) -> None:
-    generation = _edit_generation_of(vector_id)
+    # Data fetched from here on may predate an edit made meanwhile; such
+    # writes are skipped (see local_cache.vector.write)
+    edits_seen = local_cache.vector.local_edit_count(vector_id)
     # The timestamp is taken before any feature query: rows changed while
     # we download are newer than it and come with the next diff
     vector, server_time = api.qgis_vector.get_vector_and_server_time(vector_id)
@@ -274,7 +254,7 @@ def _sync(vector_id: str, task: Optional[FunctionTask]) -> None:
                 diff.deleted_ids,
                 vector=vector,
                 last_updated=last_updated,
-                precondition=_no_edit_since(vector_id, generation),
+                edits_seen=edits_seen,
             )
             if not written:
                 # The diff may predate the edit. Its cache write already shows
@@ -297,11 +277,11 @@ def _sync(vector_id: str, task: Optional[FunctionTask]) -> None:
         after_id = rows[-1]["kumoy_id"]
         if task is not None:
             task.setProgress(min(99.0, done * 100.0 / max(vector.count, 1)))
-    _complete(path, vector_id, vector, last_updated, generation)
+    _complete(path, vector_id, vector, last_updated, edits_seen)
 
 
 def _complete(
-    path: str, vector_id: str, vector: VectorDetail, last_updated: str, generation: int
+    path: str, vector_id: str, vector: VectorDetail, last_updated: str, edits_seen: int
 ) -> None:
     """Mark a full download complete, so that providers switch to it.
 
@@ -315,10 +295,10 @@ def _complete(
             [],
             vector=vector,
             last_updated=last_updated,
-            precondition=_no_edit_since(vector_id, generation),
+            edits_seen=edits_seen,
         ):
             return
-        generation = _edit_generation_of(vector_id)
+        edits_seen = local_cache.vector.local_edit_count(vector_id)
         try:
             diff = api.qgis_vector.get_diff(vector_id, last_updated)
         except AppError as e:
@@ -640,7 +620,6 @@ class KumoyDataProvider(QgsVectorDataProvider):
     def _edit(self, what: str, fn) -> bool:
         """Run fn (API calls + cache update). Errors go to pushError."""
         self._in_edit = True
-        _bump_edit_generation(self._vector_id)  # odd: an edit is in flight
         try:
             fn()
             return True
@@ -650,13 +629,14 @@ class KumoyDataProvider(QgsVectorDataProvider):
             self.pushError(message)
             return False
         finally:
-            _bump_edit_generation(self._vector_id)
             self._in_edit = False
             self._schedule_reload()
             self.sync()
 
     def _write_cache(self, rows, deleted_ids=(), partial=False) -> None:
         """Mirror a saved edit into the cache so the layer shows it at once."""
+        # Before the write, so a running sync cannot write older data over it
+        local_cache.vector.note_local_edit(self._vector_id)
         cache = local_cache.vector.open_cache(self._vector_id)
         if cache is None:
             return

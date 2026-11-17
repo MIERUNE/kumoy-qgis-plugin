@@ -92,6 +92,24 @@ class TestCreateAndWrite:
         )
         assert _features(path) == {1: ("Point (5 0)", [1, "A", None, None])}
 
+    def test_write_is_skipped_after_any_number_of_noted_edits(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [_row(1, name="a")])
+        seen = cache.mod.local_edit_count("v1")
+
+        # Two edits (e.g. two layers of the vector, or a Processing tool):
+        # any change of the count means the fetched rows may be older
+        cache.mod.note_local_edit("v1")
+        cache.mod.note_local_edit("v1")
+        assert not cache.mod.write(path, [_row(1, name="stale")], edits_seen=seen)
+        assert _features(path)[1][1][1] == "a"
+
+        # Edits of another vector do not matter
+        seen = cache.mod.local_edit_count("v1")
+        cache.mod.note_local_edit("v2")
+        assert cache.mod.write(path, [_row(1, name="new")], edits_seen=seen)
+        assert _features(path)[1][1][1] == "new"
+
     def test_partial_updates_only_given_keys(self, cache):
         path = cache.mod.create(cache.detail)
         cache.mod.write(path, [_row(1, name="a", n=1)])

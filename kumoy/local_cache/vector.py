@@ -48,6 +48,12 @@ _GEOMETRY_TYPES = {
 # (a page or a diff), make it per vector if that ever shows up as contention.
 _write_lock = threading.Lock()
 
+# Edits of this QGIS session that reached the server and are written here,
+# per vector. In memory on purpose: the race it guards (a sync writing data
+# it fetched before an edit) only exists between a sync task and an edit of
+# the same process. Guarded by _write_lock.
+_local_edits: Dict[str, int] = {}
+
 
 @dataclass
 class Cache:
@@ -174,7 +180,7 @@ def write(
     vector: Optional[VectorDetail] = None,
     last_updated: Optional[str] = None,
     partial: bool = False,
-    precondition: Optional[Callable[[], bool]] = None,
+    edits_seen: Optional[int] = None,
 ) -> bool:
     """Apply rows and deletions to a cache file in one transaction.
 
@@ -187,12 +193,17 @@ def write(
     Passing `last_updated` (with `vector`) stores the sync state, which also
     marks a new version complete.
 
-    `precondition` is checked under the write lock, so no other write can
-    slip in between; when it returns False nothing is written and this
-    returns False.
+    `edits_seen` is the vector's local_edit_count() taken before the caller
+    fetched `rows`. If an edit was noted since, the rows may predate it and
+    would hide it: nothing is written and this returns False. The check and
+    the write happen under the lock that note_local_edit() takes, so no edit
+    can come in between.
     """
     with _write_lock:
-        if precondition is not None and not precondition():
+        if (
+            edits_seen is not None
+            and _local_edits.get(_vector_id_of(path), 0) != edits_seen
+        ):
             return False
         ds = ogr.Open(path, 1)
         if ds is None:
@@ -220,6 +231,27 @@ def write(
         finally:
             ds = None
     return True
+
+
+def note_local_edit(vector_id: str) -> None:
+    """Record an edit that reached the server, before writing it here.
+
+    Noting it first matters: a sync that checked before the note writes its
+    data before the edit's write, which then overwrites it; one that checks
+    after the note skips its data.
+    """
+    with _write_lock:
+        _local_edits[vector_id] = _local_edits.get(vector_id, 0) + 1
+
+
+def local_edit_count(vector_id: str) -> int:
+    with _write_lock:
+        return _local_edits.get(vector_id, 0)
+
+
+def _vector_id_of(path: str) -> str:
+    # Cache files are <root>/<vector id>/<version>.gpkg (see create())
+    return os.path.basename(os.path.dirname(path))
 
 
 def _write_row(layer, defn, names, row: Dict, partial: bool) -> None:
