@@ -76,8 +76,10 @@ def test_status_maps_to_typed_errors(client):
     with pytest.raises(ForbiddenError) as e:
         client.get("/forbidden")
     assert e.value.error == "role"
-    with pytest.raises(UnauthorizedError):
+    with pytest.raises(UnauthorizedError) as e:
         client.get("/other")
+    # The 401 handler compares it with the current login
+    assert e.value.rejected_token == "tok"
 
 
 def test_network_error(client, monkeypatch):

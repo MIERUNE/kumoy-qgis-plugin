@@ -33,6 +33,10 @@ class NotFoundError(AppError):
 class UnauthorizedError(AppError):
     """401: the session is missing, expired or revoked. Log in again."""
 
+    # The token the request was sent with ("" when there was none). Set by
+    # the client; None for errors raised elsewhere
+    rejected_token = None
+
 
 class ForbiddenError(AppError):
     """403: logged in, but the role or plan does not allow this operation.

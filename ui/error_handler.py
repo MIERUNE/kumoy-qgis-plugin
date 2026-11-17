@@ -83,9 +83,13 @@ def end_session() -> None:
         iface.reloadConnections()
 
 
-def _session_expired() -> None:
+def _session_expired(rejected_token: Optional[str] = None) -> None:
     # Several requests fail together when a session expires; notify once
     if not session.is_logged_in():
+        return
+    if rejected_token is not None and rejected_token != session.get_token():
+        # The request ran with an earlier login (e.g. a long sync that started
+        # before the user logged in again): the current one is fine
         return
     end_session()
     QgsMessageLog.logMessage(
@@ -153,7 +157,10 @@ def handle_api_error(
         # QgsProject read/write (project storage) and Browser population,
         # where a modal dialog that may clear the project or rebuild the tree
         # must not run in the middle
-        run_on_main_thread(lambda: QTimer.singleShot(0, _session_expired))
+        token = getattr(exception, "rejected_token", None)
+        run_on_main_thread(
+            lambda: QTimer.singleShot(0, lambda: _session_expired(token))
+        )
         return
 
     title = title or i18n.tr("Kumoy")
