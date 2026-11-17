@@ -17,16 +17,10 @@ from qgis.core import (
 )
 
 from ... import i18n
-from ...kumoy import constants, vector_layer
-from ...kumoy.api.models import Vector
+from ...kumoy import api, constants, vector_layer
+from ...kumoy.tasks import run_task
 
 _ALGORITHM_ID = "kumoy:uploadvector"
-
-_GEOMETRY_TYPES = {
-    Qgis.GeometryType.Point: "POINT",
-    Qgis.GeometryType.Line: "LINESTRING",
-    Qgis.GeometryType.Polygon: "POLYGON",
-}
 
 # QgsTaskManager does not keep Python wrappers (or their feedback/context)
 # alive; hold them until the task reports back
@@ -65,7 +59,6 @@ def upload(
         raise RuntimeError(i18n.tr("Upload algorithm is not available"))
 
     name = vector_name or layer.name()[: constants.MAX_CHARACTERS_VECTOR_NAME]
-    geometry_type = _GEOMETRY_TYPES.get(layer.geometryType(), "")
     params = {"INPUT": layer, "PROJECT_ID": project_id, "VECTOR_NAME": name}
     # Without project: the tool then leaves the Browser alone, which callers
     # holding Browser items rely on (processing.base.is_gui_run)
@@ -83,23 +76,40 @@ def upload(
             if on_done is not None:
                 on_done(None)
             return
-        try:
-            vector_id = results.get("VECTOR_ID") if ok else None
-            if not vector_id:
-                raise RuntimeError(
-                    feedback.errors[-1] if feedback.errors else i18n.tr("Upload failed")
+        vector_id = results.get("VECTOR_ID") if ok else None
+        if not vector_id:
+            if on_error is not None:
+                on_error(
+                    RuntimeError(
+                        feedback.errors[-1]
+                        if feedback.errors
+                        else i18n.tr("Upload failed")
+                    )
                 )
-            # Built locally: fetching the vector would be a blocking request
-            vector = Vector(
-                id=vector_id, name=name, type=geometry_type, projectId=project_id
-            )
-            kumoy_layer = vector_layer.create_vector_layer(vector)
-        except Exception as e:
+            return
+
+        def build(detail) -> None:
+            try:
+                # With the detail the provider needs no request of its own,
+                # which would block the main thread (there is no cache yet)
+                kumoy_layer = vector_layer.create_vector_layer(detail)
+            except Exception as e:
+                if on_error is not None:
+                    on_error(e)
+                return
+            if on_done is not None:
+                on_done(kumoy_layer)
+
+        def no_detail(e: Exception) -> None:
             if on_error is not None:
                 on_error(e)
-            return
-        if on_done is not None:
-            on_done(kumoy_layer)
+
+        run_task(
+            i18n.tr("Loading vector: {}").format(name),
+            lambda _task: api.vector.get_vector(vector_id),
+            build,
+            no_detail,
+        )
 
     task.executed.connect(executed)
     _running.append(keep)

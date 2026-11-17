@@ -367,6 +367,15 @@ def test_layer_conversion_runs_the_registered_tool_in_a_worker(monkeypatch):
     fake_add = lambda *a: threads.append(QThread.currentThread()) or original(*a)  # noqa: E731
     monkeypatch.setattr(api.qgis_vector, "add_features", fake_add)
     monkeypatch.setattr(_upload_vector.vector_layer, "create_vector_layer", lambda v: v)
+    detail_threads = []
+
+    def get_vector(vector_id):
+        detail_threads.append(QThread.currentThread())
+        return api.models.VectorDetail(
+            id=vector_id, name="name", type="POINT", projectId="p1"
+        )
+
+    monkeypatch.setattr(api.vector, "get_vector", get_vector)
     layer = _layer("Point?crs=EPSG:4326", [("Point(1 1)", [])])
     loop = QEventLoop()
     outcome = []
@@ -386,4 +395,8 @@ def test_layer_conversion_runs_the_registered_tool_in_a_worker(monkeypatch):
         "p1",
     )
     assert threads and threads[0] != QThread.currentThread()
+    # The layer is built from the fetched detail, fetched off the main thread:
+    # with only an ID the provider would block the main thread to fetch it
+    assert isinstance(vector, api.models.VectorDetail)
+    assert detail_threads and detail_threads[0] != QThread.currentThread()
     assert fake.calls[0] == ("create", "p1", "name", "POINT")

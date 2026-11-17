@@ -15,6 +15,7 @@ from .. import i18n
 from ..pyqt_version import Q_IODEVICE_OPEN_MODE, Q_NETWORK_REQUEST_ATTRIBUTE
 from . import api, local_cache
 from .tasks import Canceled, run_task
+from .shared import shared
 from .upload.presigned import (
     IsCanceledCallback,
     ProgressCallback,
@@ -139,7 +140,7 @@ class RasterFetcher(QObject):
         task.taskTerminated.connect(lambda: self._waiting.pop(raster_id, None))
 
 
-fetcher = RasterFetcher()
+fetcher = shared("raster_fetcher", RasterFetcher)
 
 
 def fetch_raster(

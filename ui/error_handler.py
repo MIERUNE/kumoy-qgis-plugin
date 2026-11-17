@@ -6,7 +6,7 @@ Usable from any thread: the UI part is dispatched to the main thread.
 from typing import Callable, Optional
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog
-from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
+from qgis.PyQt.QtCore import QObject, QThread, QTimer, pyqtSignal, pyqtSlot
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 from qgis.utils import iface
 
@@ -30,23 +30,37 @@ class _MainThreadDispatcher(QObject):
 
     def __init__(self):
         super().__init__()
-        self.call.connect(lambda fn: fn())
+        # A bound method, not a lambda: PyQt puts a lambda's slot proxy in the
+        # thread that connects, and moveToThread() does not move it
+        self.call.connect(self._run)
+
+    @pyqtSlot(object)
+    def _run(self, fn: Callable[[], None]) -> None:
+        fn()
 
 
 _dispatcher: Optional[_MainThreadDispatcher] = None
 
 
+def init_main_thread_dispatch() -> None:
+    """Create the dispatcher. Must run on the main thread (plugin load).
+
+    Creating it lazily inside run_on_main_thread() would create it on the
+    first worker thread that calls, and queued calls would then run there.
+    """
+    global _dispatcher
+    if _dispatcher is None:
+        _dispatcher = _MainThreadDispatcher()
+
+
 def run_on_main_thread(fn: Callable[[], None]) -> None:
     """Run fn on the main thread: now if already there, else queued."""
-    global _dispatcher
     app = QgsApplication.instance()
     if app is None or QThread.currentThread() == app.thread():
         fn()
         return
     if _dispatcher is None:
-        # Created lazily but must live in the main thread to receive queued calls
-        _dispatcher = _MainThreadDispatcher()
-        _dispatcher.moveToThread(app.thread())
+        raise RuntimeError("init_main_thread_dispatch() was not called")
     _dispatcher.call.emit(fn)
 
 
@@ -135,7 +149,11 @@ def handle_api_error(
     if isinstance(exception, Canceled):
         return
     if isinstance(exception, UnauthorizedError):
-        run_on_main_thread(_session_expired)
+        # Always from the event loop, never inline: callers include
+        # QgsProject read/write (project storage) and Browser population,
+        # where a modal dialog that may clear the project or rebuild the tree
+        # must not run in the middle
+        run_on_main_thread(lambda: QTimer.singleShot(0, _session_expired))
         return
 
     title = title or i18n.tr("Kumoy")
@@ -158,3 +176,10 @@ def push_success(message: str, title: str = "") -> None:
         iface.messageBar().pushMessage(
             title or i18n.tr("Kumoy"), message, Qgis.Success, 5
         )
+
+
+# The module is first imported while the plugin loads, on the main thread
+if QgsApplication.instance() is not None and (
+    QThread.currentThread() == QgsApplication.instance().thread()
+):
+    init_main_thread_dispatch()

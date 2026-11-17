@@ -21,7 +21,7 @@ from .kumoy.provider.raster_dataprovider_metadata import KumoyRasterProviderMeta
 from .processing.close_all_processing_dialogs import close_all_processing_dialogs
 from .processing.base import forget_project_choices, refresh_project_choices
 from .processing.provider import KumoyProcessingProvider
-from .ui import account_actions, project_storage
+from .ui import account_actions, error_handler, project_storage
 from .ui.browser.gui_provider import KumoyDataItemGuiProvider
 from .ui.browser.root import DataItemProvider, current_project
 from .ui.dialog_login import open_login_dialog
@@ -58,6 +58,7 @@ class KumoyPlugin:
         self.logout_action = None
 
     def initGui(self):
+        error_handler.init_main_thread_dispatch()
         # No network and no dialog here: QGIS is still starting up
         self.dip = DataItemProvider()
         QgsApplication.instance().dataItemProviderRegistry().addProvider(self.dip)

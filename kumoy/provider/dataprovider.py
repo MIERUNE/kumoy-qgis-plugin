@@ -55,6 +55,7 @@ from ..api.qgis_vector import (
     MAX_WKB_BASE64_LENGTH,
 )
 from ..tasks import Canceled, FunctionTask, run_task
+from ..shared import shared
 from .feature_source import KumoyFeatureSource
 
 # get-diff compares against kumoy_updatedat, the database's transaction start
@@ -125,7 +126,7 @@ class SyncEvents(QObject):
     sync_failed = pyqtSignal(str, str, object)  # vector_id, message, exception
 
 
-sync_events = SyncEvents()
+sync_events = shared("vector_sync_events", SyncEvents)
 
 _running: Dict[str, FunctionTask] = {}  # main thread only
 _rerun: Set[str] = set()

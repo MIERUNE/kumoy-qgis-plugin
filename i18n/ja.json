@@ -229,6 +229,7 @@
   "Loading Kumoy organizations": "Kumoyの組織を読み込み中",
   "Loading Kumoy projects": "Kumoyのプロジェクトを読み込み中",
   "Loading map from Kumoy": "Kumoyからマップを読み込み中",
+  "Loading vector: {}": "ベクターを読み込み中: {}",
   "Loading...": "処理中...",
   "Local layers in the project file are not converted to Kumoy layers. They are converted the next time the map is saved from QGIS.": "プロジェクトファイル内のローカルレイヤーはKumoyレイヤーに変換されません。次回QGISからマップを保存したときに変換されます。",
   "Log In": "ログイン",

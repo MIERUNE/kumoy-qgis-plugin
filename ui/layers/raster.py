@@ -6,24 +6,26 @@ runs in the background. register() hooks the downloads so those layers come
 alive by themselves once the file is there.
 """
 
-from qgis.core import Qgis, QgsDataProvider, QgsProject, QgsReadWriteContext
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsProject
 from qgis.utils import iface
 
 from ... import i18n
-from ...kumoy import constants, download, raster_layer
+from ...kumoy import constants, download, raster_layer, session
 from ...kumoy.api.error import NotFoundError
 from ...kumoy.api.models import Raster
 from ...kumoy.provider.raster_dataprovider import parse_uri
 from ..error_handler import handle_api_error
+from ..utils import reload_layer
 
 
 def register() -> None:
     download.fetcher.ready.connect(reload_layers)
     download.fetcher.failed.connect(_report_failure)
+    session.add_listener(_on_session_changed)
 
 
 def unregister() -> None:
+    session.remove_listener(_on_session_changed)
     for signal, slot in (
         (download.fetcher.ready, reload_layers),
         (download.fetcher.failed, _report_failure),
@@ -51,8 +53,8 @@ def add_raster_to_map(raster: Raster) -> None:
     download.fetch_raster(raster.id, raster.name, on_ready=add)
 
 
-def reload_layers(raster_id: str) -> None:
-    """Reload the project's placeholder layers of `raster_id` from the cache."""
+def _placeholders():
+    """(layer, raster_id, raster_name) of the project's not-yet-loaded rasters."""
     for layer in QgsProject.instance().mapLayers().values():
         if layer.providerType() != constants.RASTER_DATA_PROVIDER_KEY:
             continue
@@ -62,34 +64,25 @@ def reload_layers(raster_id: str) -> None:
         if provider is None or provider.xSize() != 0:
             continue
         try:
-            if parse_uri(layer.source())[1] != raster_id:
-                continue
+            _, raster_id, raster_name = parse_uri(layer.source())
         except ValueError:
             continue
-        _reload(layer)
+        yield layer, raster_id, raster_name
 
 
-def _reload(layer) -> None:
-    saved_xml = layer.originalXmlProperties()
-    if saved_xml:
-        # Loaded from a project: re-read the saved definition. setDataSource()
-        # would keep the renderer but drop provider settings like user nodata
-        doc = QDomDocument()
-        doc.setContent(saved_xml)
-        context = QgsReadWriteContext()
-        context.setPathResolver(QgsProject.instance().pathResolver())
-        layer.readLayerXml(doc.documentElement(), context)
-    else:
-        # Added before the download finished: its style was derived from the
-        # placeholder, so derive the default one from the real bands
-        layer.setDataSource(
-            layer.source(),
-            layer.name(),
-            constants.RASTER_DATA_PROVIDER_KEY,
-            QgsDataProvider.ProviderOptions(),
-            True,
-        )
-    layer.triggerRepaint()
+def _on_session_changed() -> None:
+    # A project opened before login (e.g. at QGIS startup, before the session
+    # is loaded) could not download its rasters; retry now
+    if session.is_logged_in():
+        for _, raster_id, raster_name in _placeholders():
+            download.fetch_raster(raster_id, raster_name)
+
+
+def reload_layers(raster_id: str) -> None:
+    """Reload the project's placeholder layers of `raster_id` from the cache."""
+    for layer, layer_raster_id, _ in list(_placeholders()):
+        if layer_raster_id == raster_id:
+            reload_layer(layer, constants.RASTER_DATA_PROVIDER_KEY)
 
 
 def _report_failure(raster_id: str, raster_name: str, error: Exception) -> None:

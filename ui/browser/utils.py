@@ -449,10 +449,10 @@ class ResourceRoot(QgsDataItem):
         return actions
 
     def upload(self) -> None:
+        # The tool refreshes the Kumoy Browser itself after a GUI run (see
+        # processing/base.py CHANGES_RESOURCES). Refreshing here as well would
+        # touch this item after that rebuild has deleted it
         processing.execAlgorithmDialog(self.UPLOAD_ALGORITHM)
-        # Refresh even when the dialog was closed without a result: the
-        # upload may have finished before the user closed it
-        self.refresh()
 
     def createChildren(self) -> List[QgsDataItem]:
         # Worker thread: no widgets, no iface

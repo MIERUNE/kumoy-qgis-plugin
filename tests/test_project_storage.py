@@ -553,3 +553,28 @@ class TestLegacyCacheFile:
 
         assert QgsProject.instance().fileName() == str(path)
         assert opened == []
+
+
+def test_write_xml_keeps_local_paths_absolute(qgis_app, tmp_path, monkeypatch):
+    """Data that shares a prefix with the temp dir (always the case on Windows,
+    both under C:\\Users) must not be saved relative to the temp file."""
+    import tempfile
+
+    from qgis.core import Qgis, QgsProject, QgsVectorLayer
+
+    from plugin_dir.kumoy import map_project
+
+    # The temp dir and the data share a parent, as %TEMP% and Documents do
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "temp"))
+    (tmp_path / "temp").mkdir()
+    data = tmp_path / "docs" / "points.geojson"
+    data.parent.mkdir()
+    data.write_text('{"type":"FeatureCollection","features":[]}')
+
+    project = QgsProject()
+    project.setFilePathStorage(Qgis.FilePathType.Relative)
+    project.addMapLayer(QgsVectorLayer(str(data), "points", "ogr"))
+    xml = map_project.write_xml(project)
+
+    assert f"<datasource>{data}</datasource>" in xml
+    assert project.filePathStorage() == Qgis.FilePathType.Relative

@@ -1,15 +1,18 @@
 from typing import List, Optional
 
 from qgis.core import (
+    QgsDataProvider,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
     QgsLayerTreeNode,
     QgsMapLayer,
     QgsProject,
     QgsRasterLayer,
+    QgsReadWriteContext,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
+from qgis.PyQt.QtXml import QDomDocument
 
 from ..kumoy import constants, map_project
 from ..pyqt_version import Q_MESSAGEBOX_STD_BUTTON, QT_TEXT_FORMAT_PLAIN, exec_dialog
@@ -89,3 +92,29 @@ def confirm(parent: Optional[QWidget], title: str, text: str) -> bool:
     exec_dialog(box)
     # exec() returns a plain int under PyQt6, which never equals the enum
     return box.standardButton(box.clickedButton()) == Q_MESSAGEBOX_STD_BUTTON.Yes
+
+
+def reload_layer(layer: QgsMapLayer, provider_key: str) -> None:
+    """Recreate the layer's data provider, keeping what the project saved.
+
+    For layers loaded from a project the saved definition is re-read:
+    setDataSource() would keep the renderer but drop provider settings such
+    as a raster's user nodata. Layers added in this session get the default
+    style of the real data instead.
+    """
+    saved_xml = layer.originalXmlProperties()
+    if saved_xml:
+        doc = QDomDocument()
+        doc.setContent(saved_xml)
+        context = QgsReadWriteContext()
+        context.setPathResolver(QgsProject.instance().pathResolver())
+        layer.readLayerXml(doc.documentElement(), context)
+    else:
+        layer.setDataSource(
+            layer.source(),
+            layer.name(),
+            provider_key,
+            QgsDataProvider.ProviderOptions(),
+            True,
+        )
+    layer.triggerRepaint()

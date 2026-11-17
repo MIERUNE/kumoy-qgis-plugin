@@ -277,6 +277,9 @@ class KumoyApiAlgorithm(QgsProcessingAlgorithm):
 _project_choices: List[Tuple[str, str]] = []
 _refreshing = False
 _last_refresh = 0.0
+# Bumped when the login changes: a fetch started for the previous login must
+# not store its result (it may even mix two users' tokens)
+_generation = 0
 # Dialogs open in quick succession (and scripts loop); one fetch serves them
 _REFRESH_INTERVAL_SECONDS = 10.0
 
@@ -286,9 +289,11 @@ def project_choices() -> List[Tuple[str, str]]:
 
 
 def forget_project_choices() -> None:
-    global _last_refresh
+    global _last_refresh, _refreshing, _generation
     _project_choices.clear()
     _last_refresh = 0.0
+    _refreshing = False
+    _generation += 1
 
 
 def refresh_project_choices() -> None:
@@ -304,6 +309,7 @@ def refresh_project_choices() -> None:
     if _refreshing or time.monotonic() - _last_refresh < _REFRESH_INTERVAL_SECONDS:
         return
     _refreshing = True
+    generation = _generation
 
     def fetch(_task) -> List[Tuple[str, str]]:
         choices = []
@@ -325,6 +331,8 @@ def refresh_project_choices() -> None:
 
     def done(choices: List[Tuple[str, str]]) -> None:
         global _refreshing, _last_refresh
+        if generation != _generation:
+            return  # superseded by a login change
         _refreshing = False
         _last_refresh = time.monotonic()
         # Logged out while loading: keep it empty
@@ -332,6 +340,8 @@ def refresh_project_choices() -> None:
 
     def failed(e: Exception) -> None:
         global _refreshing
+        if generation != _generation:
+            return
         _refreshing = False
         # Background work: the user meets the error when they act
         QgsMessageLog.logMessage(

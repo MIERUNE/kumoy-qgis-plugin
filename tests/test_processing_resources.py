@@ -686,6 +686,55 @@ class TestRefreshProjectChoices:
         assert base.project_choices() == []
         assert tasks == []
 
+    def test_fetch_for_a_previous_login_is_dropped(self, api, base, monkeypatch):
+        """Real QgsTask: log out and back in while the first fetch runs."""
+        import threading
+        import time
+
+        from qgis.PyQt.QtCore import QCoreApplication
+
+        from plugin_dir.kumoy import session, tasks
+
+        monkeypatch.setattr(base, "run_task", tasks.run_task)  # the real one
+        monkeypatch.setattr(session, "_token", "first-user")
+        monkeypatch.setattr(base, "_project_choices", [])
+        monkeypatch.setattr(base, "_refreshing", False)
+        monkeypatch.setattr(base, "_last_refresh", 0.0)
+        release = threading.Event()
+        finished = []
+
+        def get_organizations():
+            release.wait(10)
+            finished.append(1)
+            return [SimpleNamespace(id="o1", name="Old", scheduledDeletionAt=None)]
+
+        monkeypatch.setattr(api.organization, "get_organizations", get_organizations)
+        monkeypatch.setattr(
+            api.organization,
+            "get_my_teams",
+            lambda _: [SimpleNamespace(id="t1", role="ADMIN")],
+        )
+        monkeypatch.setattr(
+            api.organization,
+            "get_projects",
+            lambda _: [SimpleNamespace(id="p-old", name="A", teamId="t1")],
+        )
+
+        base.refresh_project_choices()
+        base.forget_project_choices()  # login changed while it runs
+        monkeypatch.setattr(session, "_token", "second-user")
+        release.set()
+
+        deadline = time.monotonic() + 10
+        while not finished:
+            assert time.monotonic() < deadline
+            QCoreApplication.processEvents()
+            time.sleep(0.01)
+        for _ in range(50):  # let the task's finished() callback run
+            QCoreApplication.processEvents()
+            time.sleep(0.01)
+        assert base.project_choices() == []
+
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestSelectedProject:

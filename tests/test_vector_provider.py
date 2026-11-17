@@ -302,6 +302,26 @@ class TestOpen:
         assert "offline" in layer.dataProvider().error().message()
         assert env.events[-1][0] == "failed"
 
+    def test_login_recreates_layers_that_failed_while_logged_out(
+        self, env, monkeypatch
+    ):
+        from plugin_dir.kumoy import constants
+        from plugin_dir.kumoy.api.error import UnauthorizedError
+        from plugin_dir.ui.layers import vector as vector_layers
+
+        monkeypatch.setattr(constants, "DATA_PROVIDER_KEY", TEST_KEY)
+        env.server.add_row(1, name="a")
+        env.server.error = UnauthorizedError("Unauthorized", "Not logged in")
+        layer = env.open_layer()
+        assert not layer.isValid()
+
+        env.server.error = None  # logged in now
+        vector_layers.sync_open_layers()
+        env.wait()
+
+        assert layer.isValid()
+        assert _names(layer) == {1: "a"}
+
     def test_create_vector_layer_raises_translated_error(self, env, monkeypatch):
         from plugin_dir.kumoy import constants, vector_layer
         from plugin_dir.kumoy.api.error import NotFoundError

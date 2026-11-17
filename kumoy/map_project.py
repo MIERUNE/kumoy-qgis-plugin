@@ -9,7 +9,7 @@ import re
 import tempfile
 from typing import List, Optional
 
-from qgis.core import QgsProject, QgsVectorLayer
+from qgis.core import Qgis, QgsProject, QgsVectorLayer
 
 from .. import i18n
 from .api.styledmap import MAX_QGISPROJECT_LENGTH
@@ -69,27 +69,34 @@ def prepare(project: QgsProject) -> None:
 def write_xml(project: QgsProject) -> str:
     """Write the project as .qgs XML via a temporary file and return it.
 
+    Paths are always written absolute: relative ones would be relative to the
+    temporary file, which means nothing to whoever opens the map. (QGIS only
+    falls back to absolute when the paths share no prefix with the temporary
+    directory, which on Windows they usually do: both are under C:\\Users.)
+
     QgsProject.write() points the project at the temporary file and marks it
     clean: callers serializing the open project must restore both.
     """
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        path = os.path.join(tmp_dir, "project.qgs")  # .qgs: plain XML, not zipped
-        if not project.write(path):
-            raise RuntimeError(
-                i18n.tr("Failed to serialize the project: {}").format(project.error())
-            )
-        with open(path, encoding="utf-8") as f:
-            return f.read()
+    previous = project.filePathStorage()
+    project.setFilePathStorage(Qgis.FilePathType.Absolute)
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = os.path.join(tmp_dir, "project.qgs")  # .qgs: plain XML, not zipped
+            if not project.write(path):
+                raise RuntimeError(
+                    i18n.tr("Failed to serialize the project: {}").format(
+                        project.error()
+                    )
+                )
+            with open(path, encoding="utf-8") as f:
+                return f.read()
+    finally:
+        project.setFilePathStorage(previous)
 
 
 def serialize_detached(project: QgsProject) -> str:
-    """Serialize a project that is not the one open in QGIS.
-
-    Paths are written absolute: relative ones would be relative to the
-    temporary file, which means nothing to whoever opens the map.
-    """
+    """Serialize a project that is not the one open in QGIS."""
     prepare(project)
-    project.writeEntry("Paths", "/Absolute", True)
     return write_xml(project)
 
 

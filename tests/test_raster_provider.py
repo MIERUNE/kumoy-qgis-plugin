@@ -229,3 +229,25 @@ class TestAddRasterToMap:
         [layer] = QgsProject.instance().mapLayers().values()
         assert layer.name() == "dem"
         assert layer.renderer().type() == "multibandcolor"
+
+
+class TestLoginRetry:
+    def test_login_refetches_placeholders_opened_while_logged_out(
+        self, env, monkeypatch
+    ):
+        from qgis.core import QgsProject
+
+        from plugin_dir.kumoy import session
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        layer = _layer()
+        QgsProject.instance().addMapLayer(layer)
+        env.fetches.clear()  # the constructor's attempt failed: not logged in
+
+        monkeypatch.setattr(session, "is_logged_in", lambda: False)
+        raster_layers._on_session_changed()
+        assert env.fetches == []
+
+        monkeypatch.setattr(session, "is_logged_in", lambda: True)
+        raster_layers._on_session_changed()
+        assert [f[:2] for f in env.fetches] == [("r-2", "dem")]
