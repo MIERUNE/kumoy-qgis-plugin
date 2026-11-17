@@ -1,10 +1,11 @@
-"""任意ラスタを COG (Cloud Optimized GeoTIFF) に変換する。
+"""Convert any GDAL-readable raster to a COG (Cloud Optimized GeoTIFF).
 
-再投影はしない。元データの破壊を避けるため、ピクセル値・データ型はそのまま
-保持する。呼び出し側が CRS を指定した場合はそれをヘッダへ割り当てる
-（``-a_srs`` 相当。既存の CRS も上書きされるが、ピクセルは触らない）。
-GeoTransform が未設定のラスタには identity を割り当て、地理参照を欠いた
-COG が出力されるのを防ぐ。
+No reprojection and no change of pixel values or data type: the upload must
+not alter the user's data. A CRS given by the caller is only assigned
+(`-a_srs`).
+
+GDAL's exception mode is process-global and other plugins flip it, so this
+code works in both modes instead of calling gdal.UseExceptions().
 """
 
 from typing import Callable, Optional, Union
@@ -12,48 +13,46 @@ from typing import Callable, Optional, Union
 from osgeo import gdal
 
 from .... import i18n
+from ....kumoy.tasks import Canceled
 
 
-class CogConversionCanceled(Exception):
-    """進捗コールバックが変換の中断を要求した。"""
+class CogConversionCanceled(Canceled):
+    """The `is_canceled` callback asked to stop."""
 
 
 SOURCE_UNREADABLE: object = object()
-"""``read_source_crs_wkt`` の返り値: ソースが開けず CRS を判定できなかった。"""
+"""read_source_crs_wkt(): the file could not be opened, so the CRS is unknown."""
+
+
+def _open(path: str):
+    try:
+        return gdal.Open(path)
+    except RuntimeError:
+        return None
 
 
 def read_source_crs_wkt(src_path: str) -> Union[Optional[str], object]:
-    """``src_path`` のラスタファイルに埋め込まれた CRS を WKT で返す。
+    """The CRS embedded in the file as WKT; None when it has none.
 
-    CRS が無ければ None。QGIS 上で手動設定したレイヤ CRS はファイルには
-    存在しないため、``layer.crs()`` ではなく GDAL が実際に読む CRS を見る。
-    開けないファイルは ``SOURCE_UNREADABLE`` を返して判定を保留し、
-    エラー報告は同じパスを開く ``convert_to_cog`` に任せる。
+    A CRS set on the layer in QGIS is not in the file, which is why callers
+    compare the two. Unopenable files return SOURCE_UNREADABLE and leave the
+    error report to convert_to_cog(), which opens the same path.
     """
-    gdal.UseExceptions()
-    try:
-        ds = gdal.Open(src_path)
-    except Exception:
-        return SOURCE_UNREADABLE
+    ds = _open(src_path)
     if ds is None:
         return SOURCE_UNREADABLE
-    try:
-        srs = ds.GetSpatialRef()
-        return srs.ExportToWkt() if srs is not None else None
-    finally:
-        ds.Close()
+    srs = ds.GetSpatialRef()
+    return srs.ExportToWkt() if srs is not None else None
 
 
 def _cog_supports_band_interleave() -> bool:
-    """COG ドライバが INTERLEAVE 作成オプション（=BAND 格納）に対応するか。
+    """Whether the COG driver has the INTERLEAVE creation option (GDAL 3.11+).
 
-    GDAL のバージョン番号ではなくドライバの能力を直接見る。COG の INTERLEAVE
-    作成オプションは GDAL 3.11 で追加されたが、実環境の GDAL は QGIS のバージョンと
-    無関係にばらつく（同じ QGIS 3.44 でも 3.10〜3.12）ため、能力検出が唯一堅牢。
+    Checked as a capability: the GDAL bundled with one QGIS version varies
+    (3.10 to 3.12 for QGIS 3.44).
     """
-    driver = gdal.GetDriverByName("COG")
-    option_list = driver.GetMetadataItem("DMD_CREATIONOPTIONLIST") or ""
-    return "INTERLEAVE" in option_list
+    options = gdal.GetDriverByName("COG").GetMetadataItem("DMD_CREATIONOPTIONLIST")
+    return "INTERLEAVE" in (options or "")
 
 
 def convert_to_cog(
@@ -63,87 +62,71 @@ def convert_to_cog(
     progress_callback: Optional[Callable[[float], None]] = None,
     is_canceled: Optional[Callable[[], bool]] = None,
 ) -> None:
-    """``src_path`` のラスタを COG として ``dst_path`` に書き出す。
+    """Write `src_path` as a COG to `dst_path` (any thread).
 
-    Args:
-        assign_crs_wkt: 出力へ割り当てる CRS（WKT）。元ラスタに CRS があっても
-            上書きする（``-a_srs`` 相当、再投影はしない）。None の場合は元の
-            CRS をそのまま保持する。
-        progress_callback: 進捗(0-100)を受け取る。
-        is_canceled: True を返すと変換を中断し ``CogConversionCanceled`` を送出。
-
-    Raises:
-        CogConversionCanceled: ``is_canceled`` が True を返した場合。
-        Exception: GDAL が変換に失敗した場合。
+    `assign_crs_wkt` replaces the CRS without reprojecting; None keeps the
+    source's. Raises CogConversionCanceled, or Exception when GDAL fails.
+    `dst_path` is the caller's to delete on failure.
     """
-    gdal.UseExceptions()
-    gdal.SetConfigOption("GDAL_CACHEMAX", "1024MB")
-
-    canceled = {"value": False}
-
-    def _gdal_callback(complete: float, _message: str, _data: object) -> int:
-        # 戻り値 0 で GDAL は処理を中断する。
-        if is_canceled is not None and is_canceled():
-            canceled["value"] = True
-            return 0
-        if progress_callback is not None:
-            progress_callback(complete * 100.0)
-        return 1
-
-    src_ds = gdal.Open(src_path)
+    src_ds = _open(src_path)
     if src_ds is None:
         raise Exception(f"GDAL failed to open raster: {src_path}")
 
-    # 元データに GeoTransform が無いと COG ドライバが地理参照タグを欠いた出力を
-    # 作り、下流の gdal ラッパー(kumoyraster)で扱えなくなる。位置情報が無くても
-    # 変換・表示を通すため、恣意的な identity を割り当てる（画素は触らない）。
-    # can_return_null=True にしないと未設定でも既定 (0,1,0,0,0,1) が返り判定できない。
-    if src_ds.GetGeoTransform(can_return_null=True) is None:
-        # 北上画像になるよう y 方向は -1。原点・スケールは便宜上のピクセル空間。
-        src_ds.SetGeoTransform([0.0, 1.0, 0.0, 0.0, 0.0, -1.0])
-
-    # COG ドライバ既定のタイル化に DEFLATE 圧縮を足す。データ型は原典のまま。
-    # NUM_THREADS=ALL_CPUS でタイル圧縮とオーバービュー生成を全コアに並列化する。
-    # BIGTIFF は付けない。4GiB を超える出力は classic TIFF に収まらず書き込みが
-    # 失敗するが、それがそのままアップロード上限（4GB, MAX_RASTER_UPLOAD_BYTES）
-    # の物理的な天井として働く。上限手前の超過は呼び出し側がバイト数で弾く。
     creation_options = ["COMPRESS=DEFLATE", "NUM_THREADS=ALL_CPUS"]
+    # No BIGTIFF: a COG over 4 GiB fails to write, which doubles as the 4 GB
+    # upload limit; the caller checks the size below that by bytes.
 
-    # INTERLEAVE=BAND: バンドごとに連続配置し、単一バンドの読み出し（DEFLATE 展開）を
-    # 局所化する。このオプションは GDAL 3.11+ の COG ドライバでしか使えない。非対応の
-    # GDAL では多バンドが PIXEL 格納になり単一バンド読み出しが遅くなる。COG は immutable
-    # で後から作り直せないため、多バンドはこの能力の無い GDAL では拒否する。単バンドは
-    # PIXEL / BAND が同義で無害なので、古い GDAL でもそのまま通す。
+    # BAND interleave keeps one band's tiles together so reading a single band
+    # decompresses only that band. COGs are immutable, so rather than upload a
+    # slow PIXEL-interleaved multi-band COG, refuse on GDAL without the option.
+    # Single-band COGs are the same either way.
     if _cog_supports_band_interleave():
         creation_options.append("INTERLEAVE=BAND")
     elif src_ds.RasterCount > 1:
+        band_count, src_ds = src_ds.RasterCount, None  # close (see below)
         raise Exception(
             i18n.tr(
                 "This raster has {} bands, but your GDAL version is too old to create "
                 "a multi-band Cloud Optimized GeoTIFF for upload (GDAL 3.11 or newer is "
                 "required). Please update QGIS/GDAL and try again."
-            ).format(src_ds.RasterCount)
+            ).format(band_count)
         )
+
+    # Without a geotransform the COG lacks georeferencing tags and the gdal
+    # provider cannot place it. Assign a pixel-space one (north up) to the
+    # output; setting it on the source would write a .aux.xml next to the
+    # user's file.
+    output_bounds = None
+    if src_ds.GetGeoTransform(can_return_null=True) is None:
+        output_bounds = [0, 0, src_ds.RasterXSize, -src_ds.RasterYSize]
+
+    canceled = []
+
+    def on_progress(complete: float, _message, _data) -> int:
+        if is_canceled is not None and is_canceled():
+            canceled.append(True)
+            return 0  # tells GDAL to stop
+        if progress_callback is not None:
+            progress_callback(complete * 100.0)
+        return 1
 
     options = gdal.TranslateOptions(
         options=["-approx_stats"],
         format="COG",
         creationOptions=creation_options,
-        # outputSRS は -a_srs 相当（割り当てのみ、再投影しない）。
-        outputSRS=assign_crs_wkt if assign_crs_wkt else None,
-        callback=_gdal_callback,
+        outputSRS=assign_crs_wkt or None,
+        outputBounds=output_bounds,
+        callback=on_progress,
     )
-
-    # GDAL は中断時に「例外を送出」または「None を返す」のどちらにもなり得るため、
-    # canceled フラグを正にして両方の経路で CogConversionCanceled に正規化する。
     try:
-        result = gdal.Translate(dst_path, src_ds, options=options)
-    except Exception:
-        if canceled["value"]:
-            raise CogConversionCanceled()
-        raise
-
-    if canceled["value"]:
+        written = gdal.Translate(dst_path, src_ds, options=options) is not None
+        error = gdal.GetLastErrorMsg()
+    except RuntimeError as e:
+        written, error = False, str(e)
+    # Close both files before raising: a traceback kept alive (Processing,
+    # tests) would hold them open, and Windows cannot delete open temp files
+    src_ds = None
+    if canceled:
         raise CogConversionCanceled()
-    if result is None:
-        raise Exception("GDAL failed to convert raster to COG")
+    if not written:
+        raise Exception(f"GDAL failed to convert raster to COG: {error}")

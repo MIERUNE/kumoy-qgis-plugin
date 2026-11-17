@@ -1,4 +1,4 @@
-"""materialize_to_geotiff のユニットテスト（QGIS + GDAL が必要）"""
+"""processing/raster/upload/materialize.py (needs QGIS and GDAL)."""
 
 import gc
 import os
@@ -21,10 +21,10 @@ def _make_geotiff(path: str, fill: int = 21) -> None:
 
 
 def _virtualraster_layer(base_tif: str, formula: str) -> QgsRasterLayer:
-    """base_tif を参照する QGIS 仮想ラスタ（virtualraster プロバイダ）を作る。
+    """A QGIS virtual raster (provider virtualraster) reading base_tif.
 
-    プロジェクトには追加しない。virtualraster レイヤーを QgsProject に残したまま
-    QGIS を終了すると teardown で segfault する既知の挙動を避けるため。
+    Not added to the project: a virtualraster layer left in QgsProject makes
+    QGIS segfault on teardown.
     """
     q = QUrlQuery()
     for key, value in [
@@ -50,7 +50,7 @@ class TestMaterializeToGeotiff:
         return materialize_to_geotiff
 
     def test_virtualraster_materialized(self, tmp_path):
-        """virtualraster が gdal.Open 可能な GeoTIFF として書き出される。"""
+        """The virtual raster becomes a GeoTIFF that gdal.Open reads."""
         base = str(tmp_path / "base.tif")
         dst = str(tmp_path / "out.tif")
         _make_geotiff(base, fill=21)
@@ -63,7 +63,7 @@ class TestMaterializeToGeotiff:
             ds = gdal.Open(dst)
             assert ds is not None
             assert (ds.RasterXSize, ds.RasterYSize) == (8, 8)
-            # 式 band1@1 * 2 が適用され、21 -> 42 になる（再投影・改変はしない）。
+            # The formula band1@1 * 2 applies: 21 -> 42 (no reprojection)
             assert ds.GetRasterBand(1).ReadAsArray()[0][0] == 42
             srs = osr.SpatialReference(wkt=ds.GetProjection())
             assert srs.GetAuthorityCode(None) == "4326"
@@ -73,8 +73,8 @@ class TestMaterializeToGeotiff:
             gc.collect()
 
     def test_unsupported_provider_rejected(self, tmp_path):
-        """virtualraster 以外（WMS 等）は明確なエラーで弾く。"""
-        # 無効な WMS レイヤーでも providerType() は 'wms' を返すので判定できる。
+        """Other providers (WMS, ...) are refused with a clear error."""
+        # Even an invalid WMS layer reports providerType() 'wms'
         layer = QgsRasterLayer("crs=EPSG:3857&url=http://example.com/wms", "wms", "wms")
         assert layer.providerType() == "wms"
 
@@ -82,7 +82,8 @@ class TestMaterializeToGeotiff:
             self._fn()(layer, str(tmp_path / "out.tif"))
 
     def test_cancellation_raises(self, tmp_path):
-        """中断済みなら例外を送出し、出力ファイルを作らない。"""
+        """Canceled up front: raises a task cancel and writes nothing."""
+        from plugin_dir.kumoy.tasks import Canceled
         from plugin_dir.processing.raster.upload.materialize import (
             RasterMaterializeCanceled,
         )
@@ -92,8 +93,11 @@ class TestMaterializeToGeotiff:
         _make_geotiff(base)
         layer = _virtualraster_layer(base, "band1@1")
 
+        # No `as info`: its traceback would keep the virtual raster alive
+        # past QGIS's teardown (segfault)
         with pytest.raises(RasterMaterializeCanceled):
             self._fn()(layer, dst, is_canceled=lambda: True)
+        assert issubclass(RasterMaterializeCanceled, Canceled)
 
         assert not os.path.exists(dst)
         del layer

@@ -1,17 +1,20 @@
-"""kumoy/provider raster のテスト
+"""Kumoy raster provider, its placeholder and the reload after download.
 
-URI 解析と、内部 gdal プロバイダへの委譲（描画に必要な read 系が機能すること）を
-検証する。ダウンロードは行わず、キャッシュ済みの GeoTIFF を指すよう差し替える。
+Downloads are replaced by a recorder; "the download finished" is simulated by
+writing the GeoTIFF into the (temporary) cache.
 """
 
+import os
+
 import pytest
+
+URI = "project_id=p-1;raster_id=r-2;raster_name=dem;"
 
 
 def _make_geotiff(path: str):
     from osgeo import gdal, osr
 
-    drv = gdal.GetDriverByName("GTiff")
-    ds = drv.Create(path, 64, 48, 3, gdal.GDT_Byte)
+    ds = gdal.GetDriverByName("GTiff").Create(path, 64, 48, 3, gdal.GDT_Byte)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     ds.SetProjection(srs.ExportToWkt())
@@ -19,6 +22,27 @@ def _make_geotiff(path: str):
     for b in range(1, 4):
         ds.GetRasterBand(b).Fill(b * 40)
     ds.Close()
+
+
+def _render(layer):
+    from qgis.core import (
+        QgsCoordinateReferenceSystem,
+        QgsMapRendererSequentialJob,
+        QgsMapSettings,
+        QgsRectangle,
+    )
+    from qgis.PyQt.QtCore import QSize
+
+    settings = QgsMapSettings()
+    settings.setLayers([layer])
+    settings.setExtent(QgsRectangle(10, 45.2, 16.4, 50))  # the test raster's
+    settings.setOutputSize(QSize(128, 96))
+    settings.setDestinationCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+    job = QgsMapRendererSequentialJob(settings)
+    job.start()
+    job.waitForFinished()
+    px = job.renderedImage().pixel(64, 48)
+    return (px >> 16) & 0xFF, (px >> 8) & 0xFF, px & 0xFF
 
 
 @pytest.fixture(scope="module")
@@ -29,154 +53,179 @@ def registered_metadata(qgis_app):
         KumoyRasterProviderMetadata,
     )
 
-    # 同一キーの二重登録は False になるだけで無害（他テストとの実行順に依存しない）。
+    # Registering a key twice just returns False
     QgsProviderRegistry.instance().registerProvider(KumoyRasterProviderMetadata())
 
 
-@pytest.mark.usefixtures("qgis_plugin_path", "registered_metadata")
+@pytest.fixture
+def env(registered_metadata, tmp_path, monkeypatch):
+    """Temporary cache, recorded fetches, and a clean project afterwards."""
+    from types import SimpleNamespace
+
+    from qgis.core import QgsProject
+
+    from plugin_dir.kumoy import download
+    from plugin_dir.kumoy.local_cache import raster
+
+    cache_dir = tmp_path / "rasters"
+    cache_dir.mkdir()
+    monkeypatch.setattr(raster, "_get_cache_dir", lambda: str(cache_dir))
+    fetches = []
+    monkeypatch.setattr(
+        download,
+        "fetch_raster",
+        lambda rid, name, on_ready=None: fetches.append((rid, name, on_ready)),
+    )
+    yield SimpleNamespace(
+        fetches=fetches,
+        tif=str(cache_dir / "r-2.tif"),
+        project_file=str(tmp_path / "map.qgs"),
+    )
+    QgsProject.instance().clear()
+
+
+def _layer(name="dem"):
+    from qgis.core import QgsRasterLayer
+
+    from plugin_dir.kumoy import constants
+
+    return QgsRasterLayer(URI, name, constants.RASTER_DATA_PROVIDER_KEY)
+
+
 class TestParseUri:
-    def _fn(self):
+    def test_parses_all_parts(self, registered_metadata):
         from plugin_dir.kumoy.provider.raster_dataprovider import parse_uri
 
-        return parse_uri
+        assert parse_uri(URI) == ("p-1", "r-2", "dem")
 
-    def test_parses_all_parts(self):
-        project_id, raster_id, raster_name = self._fn()(
-            "project_id=p-1;raster_id=r-2;raster_name=dem;"
-        )
-        assert project_id == "p-1"
-        assert raster_id == "r-2"
-        assert raster_name == "dem"
+    def test_requires_ids(self, registered_metadata):
+        from plugin_dir.kumoy.provider.raster_dataprovider import parse_uri
 
-    def test_raises_without_required(self):
         with pytest.raises(ValueError):
-            self._fn()("raster_name=dem;")
+            parse_uri("raster_name=dem;")
 
 
-@pytest.mark.usefixtures("qgis_plugin_path", "registered_metadata")
-class TestRasterDataProvider:
-    @pytest.fixture
-    def tif(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy.provider import raster_dataprovider as rp
-
-        path = str(tmp_path / "r-2.tif")
-        _make_geotiff(path)
-
-        # ダウンロードを発生させず、キャッシュ済みファイルを指すよう差し替える。
-        monkeypatch.setattr(rp.local_cache.raster, "is_cached", lambda rid: True)
-        monkeypatch.setattr(rp.local_cache.raster, "get_cache_path", lambda rid: path)
-        return path
-
-    def test_layer_is_valid_and_renders(self, tif):
-        from qgis.core import QgsRasterLayer
-
-        from plugin_dir.kumoy import constants
-
-        uri = "project_id=p-1;raster_id=r-2;raster_name=dem;"
-        layer = QgsRasterLayer(uri, "dem", constants.RASTER_DATA_PROVIDER_KEY)
+class TestCached:
+    def test_reads_the_cached_cog_without_network(self, env):
+        _make_geotiff(env.tif)
+        layer = _layer()
 
         assert layer.isValid()
+        assert env.fetches == []
         assert layer.crs().authid() == "EPSG:4326"
-        assert layer.bandCount() == 3
-        assert layer.width() == 64
-        assert layer.height() == 48
-
-        provider = layer.dataProvider()
-        assert provider.raster_id == "r-2"
-
-        block = provider.block(1, layer.extent(), layer.width(), layer.height())
-        assert block is not None and block.isValid()
+        assert (layer.bandCount(), layer.width(), layer.height()) == (3, 64, 48)
+        block = layer.dataProvider().block(1, layer.extent(), 64, 48)
         assert block.value(0, 0) == 40.0
 
-    def test_renders_through_map_job(self, tif):
-        """描画パイプラインは QgsRasterPipe をコピーしプロバイダを clone する。
+    def test_renders_through_map_job(self, env):
+        """The render pipeline clones the provider; a clone that loses the
+        Python overrides renders blank (or crashes on a pure virtual)."""
+        _make_geotiff(env.tif)
+        assert _render(_layer()) == (40, 80, 120)
 
-        この経路を block() 直叩きテストは通らない。ここで実際にマップジョブで
-        描画し、ピクセルが出る（背景の白ではない）ことまで確認して以下を防ぐ:
-        - clone が自分自身（Python サブクラス）を返すと、GC でオーバーライドが
-          失われ block() が空ブロックにフォールバック → 真っ白で何も描画されない。
-        - 所有権の扱いを誤ると "pure virtual method called" で segfault する。
-        """
-        from qgis.core import (
-            QgsCoordinateReferenceSystem,
-            QgsMapRendererSequentialJob,
-            QgsMapSettings,
-            QgsRasterLayer,
-        )
-        from qgis.PyQt.QtCore import QSize
 
-        from plugin_dir.kumoy import constants
+class TestPlaceholder:
+    def test_uncached_layer_is_valid_empty_and_fetches(self, env):
+        layer = _layer()
 
-        uri = "project_id=p-1;raster_id=r-2;raster_name=dem;"
-        layer = QgsRasterLayer(uri, "dem", constants.RASTER_DATA_PROVIDER_KEY)
-        assert layer.isValid()
+        assert layer.isValid()  # an invalid layer triggers QGIS's bad-layer dialog
+        assert layer.extent().isNull()
+        assert layer.dataProvider().xSize() == 0
+        assert [f[:2] for f in env.fetches] == [("r-2", "dem")]
 
-        ms = QgsMapSettings()
-        ms.setLayers([layer])
-        ms.setExtent(layer.extent())
-        ms.setOutputSize(QSize(128, 96))
-        ms.setDestinationCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+    def test_renders_nothing_without_crashing(self, env):
+        layer = _layer()
+        assert _render(layer) == (255, 255, 255)
+        # Clones made by the renderer do not start more downloads
+        assert len(env.fetches) == 1
 
-        job = QgsMapRendererSequentialJob(ms)
-        job.start()
-        job.waitForFinished()
-        image = job.renderedImage()
 
-        assert image.width() == 128
-        assert image.height() == 96
+class TestReload:
+    def _save_project_with_styled_layer(self, env):
+        from qgis.core import QgsProject, QgsRasterRange
 
-        # 中央ピクセルがラスタの実値（band値 40/80/120）であること。
-        # 各バンド一様値なのでコントラスト強調なし＝生値が出る。背景白(255,255,255)
-        # のまま＝「描画されていない」を確実に弾く。
-        px = image.pixel(64, 48)
-        r, g, b = (px >> 16) & 0xFF, (px >> 8) & 0xFF, px & 0xFF
-        assert (r, g, b) == (40, 80, 120)
+        _make_geotiff(env.tif)
+        layer = _layer()
+        layer.renderer().setOpacity(0.5)
+        layer.dataProvider().setUserNoDataValue(3, [QgsRasterRange(7, 7)])
+        QgsProject.instance().addMapLayer(layer)
+        assert QgsProject.instance().write(env.project_file)
+        QgsProject.instance().clear()
 
-    def test_download_branch_constructs_and_leaves_no_dialog(
-        self, tmp_path, monkeypatch
-    ):
-        """未キャッシュ＝ダウンロード経路（進捗ダイアログ付き）の唯一のカバレッジ。
+    def test_project_layer_comes_alive_with_its_saved_style(self, env):
+        from qgis.core import QgsProject
 
-        他テストは is_cached=True でこの分岐を通らない。ここでは sync をモックして
-        ダウンロード完了を模し、(1) その経路でも valid なプロバイダになること、
-        (2) 構築後イベントを回しても可視の QProgressDialog が残らないことを確認する。
+        from plugin_dir.ui.layers import raster as raster_layers
 
-        注: 実機(macOS)で稀に起きる「100%のまま閉じない」は QProgressDialog の
-        自動表示タイマーが close() 後に発火して再表示される競合が原因で、finally の
-        reset() でタイマーを止めて対処している。この競合は headless では再現しない
-        ため、本テストはダイアログ後始末の意図ドキュメント＋経路カバレッジに留まる。
-        """
-        from qgis.PyQt.QtWidgets import QApplication, QProgressDialog
+        self._save_project_with_styled_layer(env)
+        os.rename(env.tif, env.tif + ".away")  # opened on a machine without cache
 
-        from plugin_dir.kumoy import constants
-        from plugin_dir.kumoy.provider import raster_dataprovider as rp
+        assert QgsProject.instance().read(env.project_file)
+        [layer] = QgsProject.instance().mapLayers().values()
+        assert layer.isValid() and layer.extent().isNull()
+        assert env.fetches
 
-        path = str(tmp_path / "r-dl.tif")
-        _make_geotiff(path)
+        os.rename(env.tif + ".away", env.tif)  # the download finished
+        raster_layers.reload_layers("r-2")
 
-        monkeypatch.setattr(rp.local_cache.raster, "is_cached", lambda rid: False)
-        monkeypatch.setattr(rp.local_cache.raster, "get_cache_path", lambda rid: path)
+        assert layer.width() == 64
+        assert layer.renderer().type() == "multibandcolor"
+        assert layer.renderer().opacity() == 0.5
+        [nodata] = layer.dataProvider().userNoDataValues(3)
+        assert (nodata.min(), nodata.max()) == (7, 7)
+        assert _render(layer) != (255, 255, 255)
 
-        def fake_sync(raster_id, progress_callback=None, is_canceled=None):
-            # 実ダウンロードの進捗更新を模して自動表示タイマーを arm させる。
-            if progress_callback:
-                progress_callback(0)
-                progress_callback(100)
-            return path
+    def test_new_layer_gets_default_style_of_the_real_bands(self, env):
+        from qgis.core import QgsProject
 
-        monkeypatch.setattr(rp.local_cache.raster, "sync_local_cache", fake_sync)
+        from plugin_dir.ui.layers import raster as raster_layers
 
-        uri = "project_id=p-1;raster_id=r-dl;raster_name=dem;"
-        provider = rp.KumoyRasterDataProvider(uri)
-        assert provider.isValid()
+        layer = _layer()
+        assert layer.renderer().type() == "singlebandgray"  # from the placeholder
+        QgsProject.instance().addMapLayer(layer)
 
-        # queue された自動表示タイマーを発火させる。
-        for _ in range(3):
-            QApplication.processEvents()
+        _make_geotiff(env.tif)
+        raster_layers.reload_layers("r-2")
 
-        visible = [
-            w
-            for w in QApplication.topLevelWidgets()
-            if isinstance(w, QProgressDialog) and w.isVisible()
-        ]
-        assert visible == []
+        assert layer.renderer().type() == "multibandcolor"
+        assert _render(layer) == (40, 80, 120)
+
+    def test_skips_layers_already_reading_the_cog(self, env):
+        from qgis.core import QgsProject
+
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        _make_geotiff(env.tif)
+        layer = _layer()
+        QgsProject.instance().addMapLayer(layer)
+        layer.renderer().setOpacity(0.25)  # an edit a reload would undo
+        provider = layer.dataProvider()
+
+        raster_layers.reload_layers("r-2")
+
+        assert layer.dataProvider() is provider
+        assert layer.renderer().opacity() == 0.25
+
+
+class TestAddRasterToMap:
+    def _raster(self):
+        from plugin_dir.kumoy.api.models import Raster
+
+        return Raster(id="r-2", name="dem", projectId="p-1")
+
+    def test_adds_once_cached(self, env):
+        from qgis.core import QgsProject
+
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        raster_layers.add_raster_to_map(self._raster())
+        [(rid, _name, on_ready)] = env.fetches
+        assert rid == "r-2"
+        assert QgsProject.instance().mapLayers() == {}
+
+        _make_geotiff(env.tif)
+        on_ready()
+
+        [layer] = QgsProject.instance().mapLayers().values()
+        assert layer.name() == "dem"
+        assert layer.renderer().type() == "multibandcolor"
