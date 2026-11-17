@@ -9,7 +9,7 @@ import json
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
-from qgis.core import Qgis, QgsBlockingNetworkRequest
+from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
@@ -21,13 +21,6 @@ from .error import UnauthorizedError, error_from_response
 
 def server_url() -> str:
     return config.get_api_config().SERVER_URL
-
-
-def _user_agent() -> str:
-    # The audit log records the User-Agent; make plugin traffic identifiable
-    from ...plugin_version import read_plugin_version
-
-    return f"kumoy-qgis-plugin/{read_plugin_version()} QGIS/{Qgis.version()}"
 
 
 def _decode(content: QByteArray) -> Any:
@@ -62,7 +55,6 @@ def request(
     if params:
         url = f"{url}?{urlencode(params)}"
     req = QNetworkRequest(QUrl(url))
-    req.setRawHeader(b"User-Agent", _user_agent().encode("utf-8"))
     for key, value in (headers or {}).items():
         req.setRawHeader(key.encode("utf-8"), value.encode("utf-8"))
     if auth:
@@ -90,9 +82,10 @@ def request(
 
     reply = blocking.reply()
     if response_headers is not None:
-        for name, value in reply.rawHeaderPairs():
+        # QgsNetworkReplyContent has no rawHeaderPairs() (QNetworkReply does)
+        for name in reply.rawHeaderList():
             key = bytes(name).decode("latin-1").lower()
-            response_headers[key] = bytes(value).decode("latin-1")
+            response_headers[key] = bytes(reply.rawHeader(name)).decode("latin-1")
     status = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
     status = int(status) if status is not None else None
     content = _decode(reply.content())
