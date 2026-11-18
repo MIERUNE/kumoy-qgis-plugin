@@ -837,6 +837,14 @@ class TestDownloadIndicator:
         yield types.SimpleNamespace(view=view, model=model, module=vector_layers)
         vector_layers.unregister()
 
+    def _icons(self, panel, layer):
+        node = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
+        return [
+            i.icon()
+            for i in panel.view.indicators(node)
+            if i.property("kumoyDownloadIndicator")
+        ]
+
     def _tooltips(self, panel, layer):
         node = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
         return [
@@ -856,11 +864,15 @@ class TestDownloadIndicator:
         layer = env.open_layer()
         _pump_until(lambda: self._tooltips(panel, layer))
         assert "Downloading from Kumoy: 0%" in self._tooltips(panel, layer)[0]
+        empty_gauge = self._icons(panel, layer)[0].pixmap(48, 48).toImage()
 
         seen = set()
 
+        gauges = []
+
         def progressed():
             seen.update(self._tooltips(panel, layer))
+            gauges.extend(i.pixmap(48, 48).toImage() for i in self._icons(panel, layer))
             return any("Downloading from Kumoy: 7" in t for t in seen)
 
         env.server.gate.set()
@@ -868,6 +880,7 @@ class TestDownloadIndicator:
         env.wait()
 
         assert any("%" in t and "0%" not in t for t in seen)  # it moved
+        assert any(g != empty_gauge for g in gauges)  # and the gauge with it
         assert self._tooltips(panel, layer) == []  # gone once the data is there
         assert _names(layer)
 

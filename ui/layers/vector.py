@@ -23,7 +23,7 @@ from ...kumoy.api.error import format_api_error
 from ...kumoy.provider.dataprovider import running_sync, sync_events
 from ...kumoy.tasks import Canceled
 from ..error_handler import handle_api_error
-from ..icons import RELOAD_ICON, WARNING_ICON
+from ..icons import WARNING_ICON, progress_icon
 from ..utils import reload_layer
 
 # Marks our indicators; the tooltip is translated and cannot identify them
@@ -189,5 +189,8 @@ def _update_indicators(vector_id: str) -> None:
             indicator = QgsLayerTreeViewIndicator(view)
             indicator.setProperty(_INDICATOR_PROPERTY, True)
             view.addIndicator(node, indicator)
-        indicator.setIcon(WARNING_ICON if failed else RELOAD_ICON)
+        if failed:
+            indicator.setIcon(WARNING_ICON)
+        else:
+            indicator.setIcon(progress_icon(float(_state[vector_id]["progress"])))
         indicator.setToolTip(text)
