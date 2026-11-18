@@ -179,3 +179,25 @@ class TestRoot:
         assert asked == ["p1"]
         assert child.styled_map.id == "m1"
         assert child.role == "MEMBER"
+
+    def test_long_lists_are_paged(self, browser, monkeypatch):
+        maps = [
+            browser.api.models.StyledMap(id=f"m{i}", name=f"M{i}") for i in range(23)
+        ]
+        monkeypatch.setattr(browser.api.styledmap, "get_styled_maps", lambda _: maps)
+        project = browser.api.models.ProjectDetail(id="p1", name="P", role="MEMBER")
+        root = browser.module.StyledMapRoot(None, "Maps", "/maps", None, project)
+
+        # root.children() would wrap the items anew: record them instead
+        shown = root.createChildren()
+        monkeypatch.setattr(
+            root, "addChildItem", lambda item, refresh: shown.append(item)
+        )
+        monkeypatch.setattr(root, "deleteChildItem", shown.remove)
+
+        assert [c.styled_map.id for c in shown[:-1]] == [f"m{i}" for i in range(10)]
+        assert "13" in shown[-1].name()
+        shown[-1].handleDoubleClick()
+        shown[-1].handleDoubleClick()
+
+        assert [c.styled_map.id for c in shown] == [f"m{i}" for i in range(23)]

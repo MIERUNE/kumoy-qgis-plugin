@@ -510,11 +510,10 @@ class TestProjectDialog:
     def _project_ids(self, dialog):
         from plugin_dir.pyqt_version import QT_USER_ROLE
 
-        project_list = dialog.project_section["project_list"]
-        items = [
-            project_list.item(i).data(QT_USER_ROLE) for i in range(project_list.count())
+        proxy = dialog.project_section["proxy"]
+        return [
+            proxy.index(i, 0).data(QT_USER_ROLE).id for i in range(proxy.rowCount())
         ]
-        return [p.id for p in items if p is not None]
 
     def test_shows_before_loading_then_loads_once(self, shell, org_api, monkeypatch):
         log_in(shell, monkeypatch, project=False)
@@ -594,11 +593,32 @@ class TestProjectDialog:
         log_in(shell, monkeypatch, project=False)
         dialog = shell.dialog_project_select.ProjectSelectDialog()
         shell.tasks.flush()
-        project_list = dialog.project_section["project_list"]
-        project_list.itemDoubleClicked.emit(project_list.item(1))
+        proxy = dialog.project_section["proxy"]
+        dialog.project_section["grid"].doubleClicked.emit(proxy.index(1, 3))
         assert dialog.result() == 1
         assert dialog.selected_organization_id == "o1"
         assert dialog.selected_project.id == "o1-b"
+
+    def test_filter_and_view_switch_keep_the_selection(
+        self, shell, org_api, monkeypatch
+    ):
+        log_in(shell, monkeypatch, project=False)
+        shell.settings.select_project("o1", "o1-b")
+        dialog = shell.dialog_project_select.ProjectSelectDialog()
+        shell.tasks.flush()
+        section = dialog.project_section
+
+        section["view_buttons"].button(1).click()  # table
+        assert section["stack"].currentWidget() is section["table"]
+        assert shell.settings.get("project_view") == "table"
+        assert dialog.selected_project.id == "o1-b"
+
+        section["team_combo"].setCurrentIndex(section["team_combo"].findData("t1"))
+        assert self._project_ids(dialog) == ["o1-a"]
+        assert dialog.selected_project is None  # o1-b is filtered out
+        section["team_combo"].setCurrentIndex(0)
+        section["search_input"].setText("-B")
+        assert self._project_ids(dialog) == ["o1-b"]
 
     def test_deleting_selected_project_resets_selection(
         self, shell, org_api, api, monkeypatch

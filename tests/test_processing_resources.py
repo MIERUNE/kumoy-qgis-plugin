@@ -110,11 +110,12 @@ class TestProject:
             _alg("organization.list_organizations", "ListOrganizationsAlgorithm"), {}
         )
 
-        # The keys scripts got before the rewrite
+        # The keys scripts got before the rewrite, plus iconImage
         assert result["ORGANIZATIONS"] == [
             {
                 "id": "o1",
                 "name": "Org",
+                "iconImage": None,
                 "stripeCustomerId": None,
                 "subscriptionPlan": "FREE",
                 "storageUnits": 1,
