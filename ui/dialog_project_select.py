@@ -380,26 +380,6 @@ class _ProjectCardDelegate(QStyledItemDelegate):
     def sizeHint(self, option, index) -> QSize:  # noqa: N802
         return QSize(self.width, self.height(option.fontMetrics))
 
-
-class _ProjectGrid(QListView):
-    """Cards in three columns that grow with the view up to MAX_WIDTH."""
-
-    COLUMNS = 3
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._cards = _ProjectCardDelegate(self)
-        self.setItemDelegate(self._cards)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        # -1: a row that fills the width exactly wraps its last card.
-        # Past MAX_WIDTH the cells keep widening (Qt centers the card in its
-        # cell), so a fourth column never fits.
-        cell = (self.viewport().width() - 1) // self.COLUMNS
-        self._cards.width = min(cell, self._cards.MAX_WIDTH)
-        self.setGridSize(QSize(cell, self._cards.height(self.fontMetrics())))
-        super().resizeEvent(event)
-
     def paint(self, painter: QPainter, option, index) -> None:
         project: ProjectInOrganization = index.data(QT_USER_ROLE)
         palette = option.palette
@@ -509,6 +489,26 @@ class _ProjectGrid(QListView):
             ),
         )
         painter.restore()
+
+
+class _ProjectGrid(QListView):
+    """Cards in three columns that grow with the view up to MAX_WIDTH."""
+
+    COLUMNS = 3
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._cards = _ProjectCardDelegate(self)
+        self.setItemDelegate(self._cards)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        # -1: a row that fills the width exactly wraps its last card.
+        # Past MAX_WIDTH the cells keep widening (Qt centers the card in its
+        # cell), so a fourth column never fits.
+        cell = (self.viewport().width() - 1) // self.COLUMNS
+        self._cards.width = min(cell, self._cards.MAX_WIDTH)
+        self.setGridSize(QSize(cell, self._cards.height(self.fontMetrics())))
+        super().resizeEvent(event)
 
 
 class ProjectSelectDialog(QDialog):
