@@ -90,6 +90,10 @@ def download_raster(
     return local_cache.raster.commit(raster_id, part_path)
 
 
+# Set on download tasks: the ID of the raster they download
+TASK_RASTER_ID_PROPERTY = "kumoyRasterId"
+
+
 class RasterFetcher(QObject):
     """Background downloads into the cache, at most one task per raster."""
 
@@ -134,6 +138,9 @@ class RasterFetcher(QObject):
             succeeded,
             lambda e: self.failed.emit(raster_id, name, e),
             can_cancel=True,
+            # Lets the UI follow the download (ui/layers/raster.py) without
+            # a signal here: this object is shared across plugin reloads
+            properties={TASK_RASTER_ID_PROPERTY: raster_id},
         )
         # Canceled and failed tasks never call succeeded(); forget them so the
         # next request starts a new download

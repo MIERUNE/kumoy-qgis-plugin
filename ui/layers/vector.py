@@ -13,9 +13,7 @@ an indicator with the progress, or with the error when the download failed.
 
 from typing import Dict, List, Optional, Set
 
-from qgis.core import QgsLayerTreeLayer, QgsProject, QgsVectorLayer
-from qgis.gui import QgsLayerTreeViewIndicator
-from qgis.utils import iface
+from qgis.core import QgsProject, QgsVectorLayer
 
 from ... import i18n
 from ...kumoy import constants, local_cache, session
@@ -23,11 +21,8 @@ from ...kumoy.api.error import format_api_error
 from ...kumoy.provider.dataprovider import running_sync, sync_events
 from ...kumoy.tasks import Canceled
 from ..error_handler import handle_api_error
-from ..icons import WARNING_ICON, progress_icon
 from ..utils import reload_layer
-
-# Marks our indicators; the tooltip is translated and cannot identify them
-_INDICATOR_PROPERTY = "kumoyDownloadIndicator"
+from . import download_indicator
 
 # Per vector: download progress (0-100) while its first download runs, or the
 # error message when it failed. Vectors with data have no entry
@@ -155,7 +150,7 @@ def tooltip(vector_id: str) -> Optional[str]:
     if "error" in state:
         return i18n.tr(
             "The download from Kumoy failed, so this layer is empty: {}\n"
-            "Retry with Sync Data in the layer's context menu."
+            "Click this icon or use Sync Data to retry."
         ).format(state["error"])
     return i18n.tr(
         "Downloading from Kumoy: {}%\n"
@@ -165,32 +160,20 @@ def tooltip(vector_id: str) -> Optional[str]:
 
 def _update_indicators(vector_id: str) -> None:
     """Show, update or remove the indicator on every layer of the vector."""
-    view = iface.layerTreeView() if iface is not None else None
-    if view is None:
-        return
-    text = tooltip(vector_id)
-    failed = text is not None and "error" in _state[vector_id]
-    root = QgsProject.instance().layerTreeRoot()
-    for layer in _kumoy_vector_layers():
-        if layer.dataProvider().vector_id() != vector_id:
-            continue
-        node: Optional[QgsLayerTreeLayer] = root.findLayer(layer.id())
-        if node is None:
-            continue
-        existing = [i for i in view.indicators(node) if i.property(_INDICATOR_PROPERTY)]
-        if text is None or layer.dataProvider().has_data():
-            for indicator in existing:
-                view.removeIndicator(node, indicator)
-                indicator.deleteLater()
-            continue
-        if existing:
-            indicator = existing[0]
-        else:
-            indicator = QgsLayerTreeViewIndicator(view)
-            indicator.setProperty(_INDICATOR_PROPERTY, True)
-            view.addIndicator(node, indicator)
-        if failed:
-            indicator.setIcon(WARNING_ICON)
-        else:
-            indicator.setIcon(progress_icon(float(_state[vector_id]["progress"])))
-        indicator.setToolTip(text)
+    layers = [
+        layer
+        for layer in _kumoy_vector_layers()
+        if layer.dataProvider().vector_id() == vector_id
+    ]
+    state = _state.get(vector_id)
+    waiting = [layer for layer in layers if not layer.dataProvider().has_data()]
+    download_indicator.hide([layer for layer in layers if layer not in waiting])
+    if state is None:
+        download_indicator.hide(waiting)
+    elif "error" in state:
+        retry = waiting[0].dataProvider().sync if waiting else lambda: None
+        download_indicator.show_error(waiting, tooltip(vector_id), retry)
+    else:
+        download_indicator.show_progress(
+            waiting, float(state["progress"]), tooltip(vector_id)
+        )

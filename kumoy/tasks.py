@@ -4,7 +4,7 @@
 QgsProject. The callbacks run on the main thread once it ends.
 """
 
-from typing import Any, Callable, Optional, Set
+from typing import Any, Callable, Dict, Optional, Set
 
 from qgis.core import QgsApplication, QgsTask
 
@@ -66,13 +66,17 @@ def run_task(
     on_success: Optional[Callable[[Any], None]] = None,
     on_error: Optional[Callable[[Exception], None]] = None,
     can_cancel: bool = False,
+    properties: Optional[Dict[str, Any]] = None,
 ) -> FunctionTask:
     """Start `fn(task)` in the background and return the task.
 
     `task.setProgress(0-100)` and `task.check_canceled()` are available to fn.
-    Canceled tasks call neither callback.
+    Canceled tasks call neither callback. `properties` are set on the task
+    before it is added, so that QgsTaskManager.taskAdded listeners see them.
     """
     task = FunctionTask(description, fn, on_success, on_error, can_cancel)
+    for name, value in (properties or {}).items():
+        task.setProperty(name, value)
     _running.add(task)
     QgsApplication.taskManager().addTask(task)
     return task

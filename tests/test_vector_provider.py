@@ -821,6 +821,7 @@ class TestDownloadIndicator:
         from qgis.gui import QgsLayerTreeView
 
         from plugin_dir.kumoy import constants
+        from plugin_dir.ui.layers import download_indicator
         from plugin_dir.ui.layers import vector as vector_layers
 
         # A real layer tree view bound to the project, as in QGIS
@@ -830,7 +831,9 @@ class TestDownloadIndicator:
         model = QgsLayerTreeModel(QgsProject.instance().layerTreeRoot(), view)
         view.setModel(model)
         monkeypatch.setattr(
-            vector_layers, "iface", types.SimpleNamespace(layerTreeView=lambda: view)
+            download_indicator,
+            "iface",
+            types.SimpleNamespace(layerTreeView=lambda: view),
         )
         monkeypatch.setattr(constants, "DATA_PROVIDER_KEY", TEST_KEY)
         vector_layers.register()
@@ -901,7 +904,7 @@ class TestDownloadIndicator:
         env.wait()
 
         (text,) = self._tooltips(panel, layer)
-        assert "failed" in text and "offline" in text and "Sync Data" in text
+        assert "failed" in text and "offline" in text and "retry" in text
 
         # Retrying shows the progress again; canceling removes the indicator
         env.server.error = None

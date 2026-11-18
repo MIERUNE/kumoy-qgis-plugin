@@ -213,22 +213,35 @@ class TestAddRasterToMap:
 
         return Raster(id="r-2", name="dem", projectId="p-1")
 
-    def test_adds_once_cached(self, env):
+    def test_adds_at_once_and_fills_in_when_cached(self, env):
         from qgis.core import QgsProject
 
         from plugin_dir.ui.layers import raster as raster_layers
 
         raster_layers.add_raster_to_map(self._raster())
-        [(rid, _name, on_ready)] = env.fetches
-        assert rid == "r-2"
-        assert QgsProject.instance().mapLayers() == {}
+        # Added right away as a placeholder, which starts the download, so
+        # that the Layers panel can show its progress
+        [layer] = QgsProject.instance().mapLayers().values()
+        assert layer.dataProvider().xSize() == 0
+        assert [f[:2] for f in env.fetches] == [("r-2", "dem")]
 
         _make_geotiff(env.tif)
-        on_ready()
+        raster_layers.reload_layers("r-2")
 
-        [layer] = QgsProject.instance().mapLayers().values()
-        assert layer.name() == "dem"
+        assert layer.dataProvider().xSize() == 64
+        # The default style of the real bands, not of the placeholder
         assert layer.renderer().type() == "multibandcolor"
+
+    def test_cached_raster_is_added_complete(self, env):
+        from qgis.core import QgsProject
+
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        _make_geotiff(env.tif)
+        raster_layers.add_raster_to_map(self._raster())
+        [layer] = QgsProject.instance().mapLayers().values()
+        assert layer.dataProvider().xSize() == 64
+        assert env.fetches == []
 
 
 class TestLoginRetry:
@@ -251,3 +264,130 @@ class TestLoginRetry:
         monkeypatch.setattr(session, "is_logged_in", lambda: True)
         raster_layers._on_session_changed()
         assert [f[:2] for f in env.fetches] == [("r-2", "dem")]
+
+
+class TestDownloadIndicator:
+    """The Layers panel shows a raster download; real download tasks, only
+    the HTTP transfer is replaced."""
+
+    @pytest.fixture
+    def panel(self, registered_metadata, tmp_path, monkeypatch):
+        import threading
+        import types
+
+        from qgis.core import QgsLayerTreeModel, QgsProject
+        from qgis.gui import QgsLayerTreeView
+
+        from plugin_dir.kumoy import download
+        from plugin_dir.kumoy.local_cache import raster
+        from plugin_dir.ui.layers import download_indicator
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        cache_dir = tmp_path / "rasters"
+        cache_dir.mkdir()
+        monkeypatch.setattr(raster, "_get_cache_dir", lambda: str(cache_dir))
+        view = QgsLayerTreeView()
+        model = QgsLayerTreeModel(QgsProject.instance().layerTreeRoot(), view)
+        view.setModel(model)
+        monkeypatch.setattr(
+            download_indicator,
+            "iface",
+            types.SimpleNamespace(layerTreeView=lambda: view),
+        )
+        state = types.SimpleNamespace(
+            view=view, model=model, gate=threading.Event(), fail=None, calls=0
+        )
+
+        def fake_download(raster_id, progress, is_canceled):
+            state.calls += 1
+            progress(40)
+            while not state.gate.wait(0.01):
+                if is_canceled():
+                    from plugin_dir.kumoy.tasks import Canceled
+
+                    raise Canceled()
+            if state.fail is not None:
+                raise state.fail
+            src = str(tmp_path / f"{raster_id}-{state.calls}.tif")
+            _make_geotiff(src)
+            return raster.store(raster_id, src)
+
+        monkeypatch.setattr(download, "download_raster", fake_download)
+        monkeypatch.setattr(raster_layers, "_report_failure", lambda *a: None)
+        raster_layers.register()
+        yield state
+        state.gate.set()
+        raster_layers.unregister()
+        QgsProject.instance().clear()
+
+    @staticmethod
+    def _indicators(panel, layer):
+        from qgis.core import QgsProject
+
+        node = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
+        return [
+            i
+            for i in panel.view.indicators(node)
+            if i.property("kumoyDownloadIndicator")
+        ]
+
+    @staticmethod
+    def _pump_until(condition, timeout=10):
+        import time
+
+        from qgis.PyQt.QtCore import QCoreApplication
+
+        deadline = time.monotonic() + timeout
+        while not condition():
+            assert time.monotonic() < deadline, "timed out"
+            QCoreApplication.processEvents()
+            time.sleep(0.005)
+
+    def _add(self):
+        from qgis.core import QgsProject
+
+        from plugin_dir.kumoy.api.models import Raster
+        from plugin_dir.ui.layers import raster as raster_layers
+
+        raster_layers.add_raster_to_map(Raster(id="r-2", name="dem", projectId="p-1"))
+        [layer] = QgsProject.instance().mapLayers().values()
+        return layer
+
+    def test_progress_then_hidden_when_done(self, panel):
+        layer = self._add()
+        self._pump_until(
+            lambda: (
+                "40%" in "".join(i.toolTip() for i in self._indicators(panel, layer))
+            )
+        )
+        panel.gate.set()
+        self._pump_until(lambda: layer.dataProvider().xSize() == 64)
+        self._pump_until(lambda: not self._indicators(panel, layer))
+
+    def test_failure_shows_why_and_click_retries(self, panel):
+        from plugin_dir.kumoy.api.error import NetworkError
+
+        panel.fail = NetworkError("offline")
+        layer = self._add()
+        panel.gate.set()
+        self._pump_until(
+            lambda: (
+                "failed" in "".join(i.toolTip() for i in self._indicators(panel, layer))
+            )
+        )
+        assert "offline" in self._indicators(panel, layer)[0].toolTip()
+
+        panel.fail = None
+        self._indicators(panel, layer)[0].clicked.emit(panel.model.index(0, 0))
+        self._pump_until(lambda: layer.dataProvider().xSize() == 64)
+        self._pump_until(lambda: not self._indicators(panel, layer))
+
+    def test_cancel_removes_the_layer_it_added(self, panel):
+        from qgis.core import QgsApplication, QgsProject
+
+        added = self._add()
+        self._pump_until(lambda: self._indicators(panel, added))
+        layer_id = added.id()
+        for task in QgsApplication.taskManager().activeTasks():
+            task.cancel()
+        self._pump_until(lambda: QgsProject.instance().mapLayer(layer_id) is None)
