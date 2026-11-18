@@ -1,5 +1,7 @@
+from typing import Callable, Optional
+
 from qgis.core import QgsNetworkAccessManager
-from qgis.PyQt.QtCore import QBuffer, QByteArray, QRect, Qt, QUrl
+from qgis.PyQt.QtCore import QBuffer, QByteArray, QObject, QRect, Qt, QUrl
 from qgis.PyQt.QtGui import QImage, QImageReader, QPixmap, QRegion
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import QLabel
@@ -16,6 +18,54 @@ from .icons import PIN_ICON
 
 # icon
 placeholder_pixmap = PIN_ICON.pixmap(24, 24)
+
+
+def fetch_image(url: str, owner: QObject, on_image: Callable[[QImage], None]) -> None:
+    """Download an image without blocking; on_image runs only on success.
+
+    The reply belongs to `owner`, so nothing is called once it is deleted.
+    """
+    # QGIS's manager so proxy settings apply
+    reply = QgsNetworkAccessManager.instance().get(QNetworkRequest(QUrl(url)))
+    reply.setParent(owner)
+
+    def finished() -> None:
+        img = read_image(reply)
+        if img is not None:
+            on_image(img)
+
+    reply.finished.connect(finished)
+
+
+def read_image(reply: QNetworkReply) -> Optional[QImage]:
+    """The image of a finished reply (then freed), or None."""
+    # Qt6 exposes error codes as plain enum members, so NoError is truthy.
+    # Compare explicitly instead of relying on truthiness
+    if reply.error() != Q_NETWORK_REPLY_ERROR.NoError:
+        reply.deleteLater()
+        return None
+    data: QByteArray = reply.readAll()
+    reply.deleteLater()
+    buf = QBuffer()
+    buf.setData(data)
+    buf.open(Q_BUFFER_OPEN_MODE.ReadOnly)
+    reader = QImageReader(buf)
+    reader.setAutoTransform(True)
+    img = reader.read()
+    return None if img.isNull() else img
+
+
+def cover_image(img: QImage, width: int, height: int) -> QImage:
+    """Scale to fill width x height, cropping the overflow around the center."""
+    scaled = img.scaled(
+        width,
+        height,
+        QT_ASPECT_RATIO_MODE.KeepAspectRatioByExpanding,
+        QT_TRANSFORMATION_MODE.SmoothTransformation,
+    )
+    return scaled.copy(
+        (scaled.width() - width) // 2, (scaled.height() - height) // 2, width, height
+    )
 
 
 class RemoteImageLabel(QLabel):
@@ -35,21 +85,8 @@ class RemoteImageLabel(QLabel):
         self._reply.finished.connect(self._on_finished)
 
     def _on_finished(self):
-        # Qt6 exposes error codes as plain enum members, so NoError is truthy.
-        # Compare explicitly instead of relying on truthiness
-        if self._reply.error() != Q_NETWORK_REPLY_ERROR.NoError:
-            self.setPixmap(placeholder_pixmap)
-            self._reply.deleteLater()
-            return
-        data: QByteArray = self._reply.readAll()
-        self._reply.deleteLater()
-        buf = QBuffer()
-        buf.setData(data)
-        buf.open(Q_BUFFER_OPEN_MODE.ReadOnly)
-        reader = QImageReader(buf)
-        reader.setAutoTransform(True)
-        img = reader.read()
-        if img.isNull():
+        img = read_image(self._reply)
+        if img is None:
             self.setPixmap(placeholder_pixmap)
             return
         self._img = img

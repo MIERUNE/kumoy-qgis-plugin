@@ -77,6 +77,57 @@ class ActionItem(QgsDataItem):
         return True
 
 
+# Items per page: a long list would fill the Browser panel
+PAGE_SIZE = 10
+
+
+def paged(
+    parent: QgsDataItem,
+    resources: list,
+    make: Callable[[Any], QgsDataItem],
+    start: int = 0,
+) -> List[QgsDataItem]:
+    """Items for one page of `resources`, then "More…" when some remain.
+
+    The sort key keeps the server's order (most recently updated first).
+    """
+    end = start + PAGE_SIZE
+    items = []
+    for key in range(start, min(end, len(resources))):
+        item = make(resources[key])
+        item.setSortKey(key)
+        items.append(item)
+    if end < len(resources):
+        items.append(MoreItem(parent, resources, make, end))
+    return items
+
+
+class MoreItem(QgsDataItem):
+    """The last item of a page. Double-click shows the next page from the
+    list already loaded, without another request."""
+
+    def __init__(self, parent, resources: list, make, start: int):
+        QgsDataItem.__init__(
+            self,
+            QgsDataItem.Custom,
+            parent=parent,
+            name=i18n.tr("More… ({} remaining)").format(len(resources) - start),
+            path=f"{parent.path()}/more",
+        )
+        self.setSortKey(start)
+        self.setToolTip(i18n.tr("Double-click to show more."))
+        self._resources = resources
+        self._make = make
+        self._start = start
+
+    def handleDoubleClick(self) -> bool:
+        parent = self.parent()
+        for item in paged(parent, self._resources, self._make, self._start):
+            parent.addChildItem(item, True)
+        parent.deleteChildItem(self)
+        return True
+
+
 def error_item(parent, message: str, e: Exception) -> ErrorItem:
     """ErrorItem for a failed load, safe to call from createChildren's thread.
 
@@ -463,12 +514,9 @@ class ResourceRoot(QgsDataItem):
             return [error_item(self, t["load_failed"], e)]
         if not resources:
             return [ErrorItem(self, t["empty"])]
-        children = []
-        for key, resource in enumerate(resources):
-            child = self.new_item(f"{self.path()}/{resource.id}", resource)
-            child.setSortKey(key)  # keep the server's order
-            children.append(child)
-        return children
+        return paged(
+            self, resources, lambda r: self.new_item(f"{self.path()}/{r.id}", r)
+        )
 
     def clear_cache(self) -> None:
         item_class = self.ITEM_CLASS
