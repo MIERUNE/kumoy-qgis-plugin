@@ -43,7 +43,7 @@ from .. import project_storage
 from ..error_handler import describe_error, handle_api_error, push_success
 from ..icons import BROWSER_MAP_ICON
 from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
-from .utils import ErrorItem
+from .utils import ErrorItem, paged
 
 
 def public_url(styled_map_id: str) -> str:
@@ -255,10 +255,13 @@ class StyledMapRoot(QgsDataItem):
 
         if not styled_maps:
             return [ErrorItem(self, i18n.tr("No maps available."))]
-        return [
-            StyledMapItem(self, f"{self.path()}/{m.id}", m, self.project.role)
-            for m in styled_maps
-        ]
+        return paged(
+            self,
+            styled_maps,
+            lambda m: StyledMapItem(
+                self, f"{self.path()}/{m.id}", m, self.project.role
+            ),
+        )
 
     def add_empty_map(self) -> None:
         values = _ask_map_fields(i18n.tr("Add Map"))
