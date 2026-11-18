@@ -39,8 +39,8 @@ class RasterItem(ResourceItem):
         return raster_layer.raster_uri(raster)
 
     def create_layer(self):
-        # The COG downloads in the background first; the helper adds the layer
-        # itself once it is cached, so there is nothing to return here
+        # The helper adds the layer itself (a placeholder that fills in once
+        # the COG is downloaded), so there is nothing to return here
         add_raster_to_map(self.resource)
         return None
 
