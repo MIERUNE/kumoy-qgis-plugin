@@ -78,14 +78,12 @@ class RemoteImageLabel(QLabel):
 
     def set_circular_mask(self):
         radius = min(self.width(), self.height()) // 2
+        # palette(mid) follows light/dark themes; shows only until the image loads
         self.setStyleSheet(
             f"""
             RemoteImageLabel {{
-                background-color: #9c27b0;
-                color: white;
+                background-color: palette(mid);
                 border-radius: {radius}px;
-                font-weight: bold;
-                font-size: 14px;
                 border: none;
             }}
         """
