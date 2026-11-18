@@ -213,6 +213,14 @@ def sync_vector(vector_id: str, name: str = "", rerun: bool = True) -> None:
     sync_events.sync_started.emit(vector_id)
 
 
+def running_sync(vector_id: str) -> Optional[FunctionTask]:
+    """The background sync task of the vector, if one runs (main thread).
+
+    Its progressChanged reports a full download's progress (0-100).
+    """
+    return _running.get(vector_id)
+
+
 def sync_now(vector_id: str, task: Optional[FunctionTask] = None) -> None:
     """Bring the vector's cache up to date. Blocking; any thread."""
     with _sync_lock(vector_id):
@@ -496,6 +504,13 @@ class KumoyDataProvider(QgsVectorDataProvider):
         self.dataChanged.emit()
         for layer in layers:
             layer.triggerRepaint()
+
+    def vector_id(self) -> str:
+        return self._vector_id
+
+    def has_data(self) -> bool:
+        """False until the first download finished: the layer shows nothing."""
+        return self._cache_provider is not None
 
     def sync(self) -> None:
         """Start a background sync with the server ("Sync Data")."""

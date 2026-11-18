@@ -810,3 +810,92 @@ class TestEditDuringSync:
 
         assert race.seen and all(names == {1: "c"} for names in race.seen)
         assert _names(race.layer) == {1: "c"}
+
+
+class TestDownloadIndicator:
+    """ui/layers/vector.py: the Layers panel shows a first download."""
+
+    @pytest.fixture
+    def panel(self, env, monkeypatch):
+        from qgis.core import QgsLayerTreeModel
+        from qgis.gui import QgsLayerTreeView
+
+        from plugin_dir.kumoy import constants
+        from plugin_dir.ui.layers import vector as vector_layers
+
+        # A real layer tree view bound to the project, as in QGIS
+        view = QgsLayerTreeView()
+        # Parented to the view: a model owned by a temporary Python wrapper
+        # is freed while the view still uses it (crashes on Qt6)
+        model = QgsLayerTreeModel(QgsProject.instance().layerTreeRoot(), view)
+        view.setModel(model)
+        monkeypatch.setattr(
+            vector_layers, "iface", types.SimpleNamespace(layerTreeView=lambda: view)
+        )
+        monkeypatch.setattr(constants, "DATA_PROVIDER_KEY", TEST_KEY)
+        vector_layers.register()
+        yield types.SimpleNamespace(view=view, model=model, module=vector_layers)
+        vector_layers.unregister()
+
+    def _tooltips(self, panel, layer):
+        node = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
+        return [
+            i.toolTip()
+            for i in panel.view.indicators(node)
+            if i.property("kumoyDownloadIndicator")
+        ]
+
+    def test_first_download_shows_progress_until_done(self, env, panel, monkeypatch):
+        from plugin_dir.kumoy.provider import dataprovider
+
+        monkeypatch.setattr(dataprovider, "FEATURES_PAGE_SIZE", 1)
+        for i in range(4):
+            env.server.add_row(i, name=str(i))
+        env.server.gate = threading.Event()  # hold the download
+
+        layer = env.open_layer()
+        _pump_until(lambda: self._tooltips(panel, layer))
+        assert "Downloading from Kumoy: 0%" in self._tooltips(panel, layer)[0]
+
+        seen = set()
+
+        def progressed():
+            seen.update(self._tooltips(panel, layer))
+            return any("Downloading from Kumoy: 7" in t for t in seen)
+
+        env.server.gate.set()
+        _pump_until(lambda: progressed() or not env.dp._running)
+        env.wait()
+
+        assert any("%" in t and "0%" not in t for t in seen)  # it moved
+        assert self._tooltips(panel, layer) == []  # gone once the data is there
+        assert _names(layer)
+
+    def test_layer_with_cache_gets_none(self, env, panel):
+        env.server.add_row(1, name="a")
+        env.seed()
+        layer = env.open_layer()
+        env.wait()
+        assert self._tooltips(panel, layer) == []
+
+    def test_failed_download_tells_why_and_cancel_is_silent(self, env, panel):
+        from plugin_dir.kumoy.api.error import NetworkError
+
+        env.server.add_row(1, name="a")
+        env.dp.prime_vector(env.server.detail())  # open without a request
+        env.server.error = NetworkError("offline")
+        layer = env.open_layer()
+        env.wait()
+
+        (text,) = self._tooltips(panel, layer)
+        assert "failed" in text and "offline" in text and "Sync Data" in text
+
+        # Retrying shows the progress again; canceling removes the indicator
+        env.server.error = None
+        env.server.gate = threading.Event()
+        layer.dataProvider().sync()
+        _pump_until(lambda: "Downloading" in "".join(self._tooltips(panel, layer)))
+        env.dp.running_sync(env.dp.decode_uri(layer.source())["vector_id"]).cancel()
+        env.server.gate.set()
+        env.wait()
+        assert self._tooltips(panel, layer) == []
