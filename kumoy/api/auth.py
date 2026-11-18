@@ -1,4 +1,4 @@
-"""better-auth endpoints: OAuth device authorization and sign-out."""
+"""better-auth endpoints: OAuth device authorization, token refresh and revocation."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -6,8 +6,12 @@ from typing import Optional
 from . import client
 from .error import AppError
 
-CLIENT_ID = "kumoy-qgis-plugin"
+CLIENT_ID = "kumoy-qgis"
+# read: every GET; qgis: the writes this plugin makes; offline_access: a refresh
+# token, without which the user would log in again every hour
+SCOPE = "read qgis offline_access"
 DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
+TOKEN_PATH = "/api/auth/oauth2/token"
 
 
 def _origin() -> dict:
@@ -24,11 +28,27 @@ class DeviceCode:
     expires_in: int
 
 
+@dataclass
+class Tokens:
+    access_token: str
+    refresh_token: str
+
+
+def _tokens(data: object) -> Tokens:
+    if (
+        not isinstance(data, dict)
+        or not data.get("access_token")
+        or not data.get("refresh_token")
+    ):
+        raise AppError("Invalid response", "The server did not return tokens")
+    return Tokens(data["access_token"], data["refresh_token"])
+
+
 def request_device_code() -> DeviceCode:
     data = client.request(
         "POST",
         "/api/auth/device/code",
-        data={"client_id": CLIENT_ID},
+        data={"client_id": CLIENT_ID, "scope": SCOPE},
         auth=False,
         headers=_origin(),
     )
@@ -44,8 +64,8 @@ def request_device_code() -> DeviceCode:
     )
 
 
-def poll_device_token(device_code: str) -> Optional[str]:
-    """Return the session token, or None while approval is pending.
+def poll_device_token(device_code: str) -> Optional[Tokens]:
+    """Return the tokens, or None while approval is pending.
 
     Raises AppError whose `error` is the OAuth error code (access_denied,
     expired_token, slow_down, ...) for anything else.
@@ -53,8 +73,8 @@ def poll_device_token(device_code: str) -> Optional[str]:
     try:
         data = client.request(
             "POST",
-            "/api/auth/device/token",
-            data={
+            TOKEN_PATH,
+            form={
                 "grant_type": DEVICE_CODE_GRANT,
                 "device_code": device_code,
                 "client_id": CLIENT_ID,
@@ -66,11 +86,43 @@ def poll_device_token(device_code: str) -> Optional[str]:
         if e.error == "authorization_pending":
             return None
         raise
-    return data.get("access_token")
+    return _tokens(data)
 
 
-def sign_out(token: str) -> None:
-    """Revoke the session on the server so a leaked token stops working."""
+def refresh(refresh_token: str) -> Tokens:
+    """Exchange the refresh token. It is single use: the server revokes the
+    whole login if a used one comes back, so never run two refreshes at once."""
+    data = client.request(
+        "POST",
+        TOKEN_PATH,
+        form={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": CLIENT_ID,
+        },
+        auth=False,
+        headers=_origin(),
+    )
+    return _tokens(data)
+
+
+def sign_out(token: str, refresh_token: Optional[str]) -> None:
+    """Revoke the login on the server so a leaked token stops working."""
+    if refresh_token:
+        # Revoking the refresh token also revokes the access tokens issued from it
+        client.request(
+            "POST",
+            "/api/auth/oauth2/revoke",
+            form={
+                "token": refresh_token,
+                "token_type_hint": "refresh_token",
+                "client_id": CLIENT_ID,
+            },
+            auth=False,
+            headers=_origin(),
+        )
+        return
+    # A login made before OAuth: a better-auth session
     client.request(
         "POST",
         "/api/auth/sign-out",

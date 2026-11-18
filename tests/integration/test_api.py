@@ -235,9 +235,9 @@ def test_sign_out_revokes_token(api, pytestconfig):
     second = interactive_login(pytestconfig)
     saved = session._token
     try:
-        session._token = second
+        session._token = second.access_token
         assert api.user.get_me().id
-        api.auth.sign_out(second)
+        api.auth.sign_out(second.access_token, second.refresh_token)
         with pytest.raises(api.error.UnauthorizedError):
             api.user.get_me()
     finally:

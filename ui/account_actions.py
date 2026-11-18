@@ -115,6 +115,7 @@ def _sign_out(clear_project: bool, then: Callable[[], None] = lambda: None) -> N
     """End the session; `then` runs once the server sign-out request is done
     (it reads the server URL from the settings, so they must outlive it)."""
     token = session.get_token()
+    refresh_token = session.get_refresh_token()
     if token:
 
         def on_error(e: Exception) -> None:
@@ -125,11 +126,11 @@ def _sign_out(clear_project: bool, then: Callable[[], None] = lambda: None) -> N
             )
             then()
 
-        # Revoke the server session so a copied token stops working. Failing
+        # Revoke the login on the server so a copied token stops working. Failing
         # (e.g. offline) must not keep the user logged in locally.
         run_task(
             i18n.tr("Kumoy logout"),
-            lambda task: api.auth.sign_out(token),
+            lambda task: api.auth.sign_out(token, refresh_token),
             lambda _: then(),
             on_error,
         )

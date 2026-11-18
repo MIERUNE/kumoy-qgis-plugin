@@ -18,8 +18,8 @@ from .tasks import run_task
 class DeviceLogin(QObject):
     # user_code, verification_url: show them and open the browser
     code_received = pyqtSignal(str, str)
-    # token on success
-    succeeded = pyqtSignal(str)
+    # auth.Tokens on success
+    succeeded = pyqtSignal(object)
     # translated message; the flow is over
     failed = pyqtSignal(str)
 
@@ -82,13 +82,13 @@ class DeviceLogin(QObject):
             self._on_poll_error,
         )
 
-    def _on_poll_result(self, token: Optional[str]) -> None:
+    def _on_poll_result(self, tokens: Optional[auth.Tokens]) -> None:
         self._polling = False
         if not self._active:
             return
-        if token:
+        if tokens:
             self._active = False
-            self.succeeded.emit(token)
+            self.succeeded.emit(tokens)
         else:
             self._timer.start(self._interval_ms)
 

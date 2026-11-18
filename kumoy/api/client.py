@@ -6,6 +6,7 @@ kumoy.tasks.run_task instead of calling them on the main thread.
 """
 
 import json
+import threading
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
@@ -16,7 +17,11 @@ from qgis.PyQt.QtNetwork import QNetworkRequest
 from ...pyqt_version import Q_NETWORK_REQUEST_ATTRIBUTE, Q_NETWORK_REQUEST_HEADER
 from .. import session
 from . import config
-from .error import UnauthorizedError, error_from_response
+from .error import AppError, UnauthorizedError, error_from_response
+
+# One refresh at a time: refresh tokens are single use, and the server revokes
+# the whole login when a used one is sent again
+_refresh_lock = threading.Lock()
 
 
 def server_url() -> str:
@@ -44,12 +49,17 @@ def request(
     auth: bool = True,
     headers: Optional[Dict[str, str]] = None,
     response_headers: Optional[Dict[str, str]] = None,
+    form: Optional[Dict[str, str]] = None,
+    _refresh_on_401: bool = True,
 ) -> Any:
     """Send a request to `{server}{path}` and return the decoded JSON body.
 
-    `path` includes the `/api` prefix. Raises an AppError subclass on any
-    failure, chosen by HTTP status (see error.py). When `response_headers` is
-    given it is filled with the reply headers (lower-case names).
+    `path` includes the `/api` prefix. `form` sends a form-urlencoded body
+    instead of `data` as JSON (the OAuth endpoints require it). Raises an
+    AppError subclass on any failure, chosen by HTTP status (see error.py).
+    When `response_headers` is given it is filled with the reply headers
+    (lower-case names). On 401 the login is refreshed and the request sent once
+    more.
     """
     url = f"{server_url()}{path}"
     if params:
@@ -66,7 +76,13 @@ def request(
         req.setRawHeader(b"Authorization", f"Bearer {token}".encode("utf-8"))
 
     body = QByteArray()
-    if data is not None:
+    if form is not None:
+        req.setHeader(
+            Q_NETWORK_REQUEST_HEADER.ContentTypeHeader,
+            "application/x-www-form-urlencoded",
+        )
+        body = QByteArray(urlencode(form).encode("utf-8"))
+    elif data is not None:
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
         body = QByteArray(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
@@ -95,10 +111,50 @@ def request(
     if err == QgsBlockingNetworkRequest.NoError and status is not None and status < 400:
         return content
     error = error_from_response(status, content, blocking.errorMessage())
+    if isinstance(error, UnauthorizedError) and token and _refresh_on_401:
+        if _refreshed_token(token) is not None:
+            return request(
+                method,
+                path,
+                data,
+                params,
+                auth,
+                headers,
+                response_headers,
+                form,
+                _refresh_on_401=False,
+            )
     if isinstance(error, UnauthorizedError):
         # Lets the 401 handler tell this login from one made since
         error.rejected_token = token or ""
     raise error
+
+
+def _refreshed_token(rejected: str) -> Optional[str]:
+    """A token to retry with after `rejected` got a 401, or None when the login
+    cannot be renewed (the caller then reports the 401, which logs out)."""
+    from . import auth  # auth imports this module
+
+    with _refresh_lock:
+        current = session.get_token()
+        if current != rejected:
+            # Another request refreshed meanwhile, or the login changed
+            return current
+        refresh_token = session.get_refresh_token()
+        if not refresh_token:
+            return None  # a login made before OAuth
+        try:
+            tokens = auth.refresh(refresh_token)
+        except AppError as e:
+            if e.status in (400, 401):
+                return None  # expired or revoked: log in again
+            # Offline or a server error: report that rather than logging out
+            raise
+        if not session.replace_tokens(
+            rejected, tokens.access_token, tokens.refresh_token
+        ):
+            return session.get_token()
+        return tokens.access_token
 
 
 def get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
