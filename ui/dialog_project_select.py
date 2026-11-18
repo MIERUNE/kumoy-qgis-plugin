@@ -17,6 +17,7 @@ from qgis.PyQt.QtCore import (
 )
 from qgis.PyQt.QtGui import (
     QColor,
+    QFontMetrics,
     QIcon,
     QImage,
     QPainter,
@@ -365,14 +366,39 @@ class _ProjectCardDelegate(QStyledItemDelegate):
     """Paints a project as a card like the web app: thumbnail, name, team,
     last update and item counts."""
 
-    WIDTH = 216
+    # Thumbnails are fetched at 320 px wide; larger cards would blur them
+    MAX_WIDTH = 320
     _MARGIN = 4  # around the card
     _PAD = 8  # inside the card
 
+    width = 216  # set by _ProjectGrid from the view's width
+
+    def height(self, metrics: QFontMetrics) -> int:
+        inner = self.width - 2 * self._MARGIN
+        return inner * 9 // 16 + 3 * (metrics.height() + 4) + 2 * self._PAD
+
     def sizeHint(self, option, index) -> QSize:  # noqa: N802
-        inner = self.WIDTH - 2 * self._MARGIN
-        line = option.fontMetrics.height()
-        return QSize(self.WIDTH, inner * 9 // 16 + 3 * (line + 4) + 2 * self._PAD)
+        return QSize(self.width, self.height(option.fontMetrics))
+
+
+class _ProjectGrid(QListView):
+    """Cards in three columns that grow with the view up to MAX_WIDTH."""
+
+    COLUMNS = 3
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._cards = _ProjectCardDelegate(self)
+        self.setItemDelegate(self._cards)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        # -1: a row that fills the width exactly wraps its last card.
+        # Past MAX_WIDTH the cells keep widening (Qt centers the card in its
+        # cell), so a fourth column never fits.
+        cell = (self.viewport().width() - 1) // self.COLUMNS
+        self._cards.width = min(cell, self._cards.MAX_WIDTH)
+        self.setGridSize(QSize(cell, self._cards.height(self.fontMetrics())))
+        super().resizeEvent(event)
 
     def paint(self, painter: QPainter, option, index) -> None:
         project: ProjectInOrganization = index.data(QT_USER_ROLE)
@@ -760,13 +786,12 @@ class ProjectSelectDialog(QDialog):
         proxy = _ProjectFilter(project_frame)
         proxy.setSourceModel(model)
 
-        grid = QListView()
+        grid = _ProjectGrid()
         grid.setViewMode(QListView.ViewMode.IconMode)
         grid.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
         grid.setMovement(QListView.Movement.Static)
         grid.setUniformItemSizes(True)
         grid.setMouseTracking(True)  # hover outline of the cards
-        grid.setItemDelegate(_ProjectCardDelegate(grid))
         grid.setModel(proxy)
 
         table = QTreeView()
