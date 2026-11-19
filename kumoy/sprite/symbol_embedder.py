@@ -132,6 +132,11 @@ def _set_file_path(symbol_layer: QgsSymbolLayer, path: str) -> None:
         symbol_layer.setPath(path)
 
 
+def local_symbol_files(project: QgsProject) -> frozenset:
+    """Paths of the local files that embed_local_symbol_files() would embed."""
+    return frozenset(file_path for _, _, file_path in _local_symbol_files(project))
+
+
 def embedding_size_increase(project: QgsProject) -> int:
     """Characters that embed_local_symbol_files() would add to the serialized project.
 

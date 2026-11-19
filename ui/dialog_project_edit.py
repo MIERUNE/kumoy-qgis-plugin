@@ -12,7 +12,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from .. import i18n
-from ..kumoy.api.team import TeamDetail
+from ..kumoy.api.models import TeamWithRole
 from ..kumoy.constants import (
     MAX_CHARACTERS_PROJECT_NAME,
     MAX_CHARACTERS_PROJECT_DESCRIPTION,
@@ -26,7 +26,7 @@ class ProjectEditDialog(QDialog):
     def __init__(
         self,
         org_name: str,
-        teams: List[TeamDetail],
+        teams: List[TeamWithRole],
         parent=None,
         initial_name: str = "",
         initial_description: str = "",
@@ -36,7 +36,7 @@ class ProjectEditDialog(QDialog):
         self.teams = teams
         self.project_name = ""
         self.project_description = ""
-        self.selected_team: Optional[TeamDetail] = None
+        self.selected_team: Optional[TeamWithRole] = None
         self.initial_name = initial_name
         self.initial_description = initial_description
         self.setup_ui()

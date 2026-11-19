@@ -28,16 +28,22 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
 
 ## アーキテクチャ
 
-- `plugin.py` — プラグインエントリポイント（initGui/unload）
+- `plugin.py` — プラグインエントリポイント（initGui/unload）。initGuiではネットワーク通信もダイアログもしない
 - `kumoy/` — Kumoyドメインロジック（API・キャッシュ・プロバイダ・設定など、UI非依存の中核）
-  - `kumoy/api/` — APIクライアント。QgsBlockingNetworkRequestベースのHTTP通信、Bearer認証
-  - `kumoy/provider/` — QGISデータプロバイダ実装（QgsVectorDataProvider）
-  - `kumoy/local_cache/` — ローカルキャッシュ機構（純粋なファイル操作のみ）
-  - `kumoy/auth_manager.py` — OAuth2認証（PKCE、ローカルHTTPサーバ port 9248）
-  - `kumoy/settings_manager.py` — QSettingsラッパー（session_token等のドメイン状態を保持）
-- `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI、保存ハンドラ、共通エラーハンドラ等）
-  - `ui/error_handler.py` — 共通APIエラーハンドラ（QMessageBox表示・Browserリフレッシュを含むのでUI責務）
-- `processing/` — QGIS Processing アルゴリズム。ツールボックスの階層とディレクトリを一致させる（グループ = ディレクトリ、1ツール = 1モジュール。補助モジュールを持つツールはパッケージにする）
+  - `kumoy/api/` — APIクライアント。`client.py` は同期（QgsBlockingNetworkRequest）で、HTTPステータスから型付きエラー（`error.py`）を投げる。401だけがセッション切れ、403は権限不足。レスポンスは `models.py` のdataclassに `from_dict` で変換
+  - `kumoy/tasks.py` — `run_task()`。ブロッキング処理（API・ファイルI/O）をQgsTaskでワーカースレッドに逃がす。UI操作起点の通信はメインスレッドで直接呼ばず、必ずこれを使う
+  - `kumoy/session.py` — セッショントークン。QGIS認証DBに暗号化保存（マスターパスワード必須、保存できなければメモリのみ）。ワーカースレッドはメモリ上のコピーを読むだけ
+  - `kumoy/auth_manager.py` — OAuth Device Authorization Flow（非同期）
+  - `kumoy/settings_manager.py` — 秘密でない設定（選択中のorganization/project、カスタムサーバURL）
+  - `kumoy/provider/` — データプロバイダ。キャッシュがあれば通信せず即座に開き、同期はバックグラウンド（`sync_events` シグナルで通知）
+  - `kumoy/local_cache/` — ローカルキャッシュ（純粋なファイル操作のみ）。ベクターはGPKG内に同期状態を持ち、再構築は新ファイル＋差し替え
+  - `kumoy/map_project.py` — マップ（QGISプロジェクト）のシリアライズとURI（`kumoy:<map id>`）
+- `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI、共通エラーハンドラ等）
+  - `ui/project_storage.py` — マップの保存・読み込み。`QgsProjectStorage`（type `kumoy`）としてQGIS標準の開く/保存に乗せる
+  - `ui/account_actions.py` — セッション開始・ログアウト・設定リセット（ログアウトはここだけ）
+  - `ui/layers/` — 地図上のKumoyレイヤーの扱い（レイヤー変換、ラスターのダウンロード後リロード、ベクター同期失敗の通知）
+  - `ui/error_handler.py` — 共通APIエラーハンドラ（どのスレッドからも呼べる。表示はメインスレッドへ回す）
+- `processing/` — QGIS Processing アルゴリズム。ツールボックスの階層とディレクトリを一致させる（グループ = ディレクトリ、1ツール = 1モジュール。補助モジュールを持つツールはパッケージにする）。`initAlgorithm()` では通信しない（起動時にも呼ばれるため）
   - `processing/base.py` — リソース操作系アルゴリズムの基底クラスとグループ名
   - `processing/{organization,vector,raster,map}/` — 各グループのツール（例: `vector/update.py`、`vector/upload/`）
 - `tests/` — pytest ベースのテスト（pytest-qgis使用）
@@ -63,9 +69,9 @@ plugin.py
 具体ルール：
 
 - `kumoy/` 配下から `ui/`・`processing/` を import しない。UI対話やユーザー操作起点のフロー（QMessageBoxを出す、保存ハンドラ、レイヤー変換ダイアログ等）はすべて `ui/` か `processing/` 側に置く。
-- `kumoy/local_cache/` などのドメイン層は純粋なデータ・ファイル操作のみを担い、UI/API連携を伴うオーケストレーションは UI 層に切り出す（例: `ui/project_save_handler.py`）。
-- Kumoyドメインの状態（session_token、選択中のorganization/project、カスタムサーバURL等）は `kumoy/settings_manager.py` に集約。`ui/` や `processing/` から読み書きするのはOK、`kumoy/` 内部からの参照もsibling同士の通常import。
-- `ui/error_handler.py` は `kumoy.settings_manager`・`kumoy.api.error`・`kumoy.basemap` のみに依存し、QGISの公開API（`dataItemProviderRegistry`）を介してBrowserをリフレッシュする。`plugin.py` への callback 登録などの「隠れた逆向き依存」は持たない。
+- `kumoy/local_cache/` などのドメイン層は純粋なデータ・ファイル操作のみを担い、UI/API連携を伴うオーケストレーションは UI 層に切り出す（例: `ui/project_storage.py`）。
+- Kumoyドメインの状態は `kumoy/session.py`（トークン）と `kumoy/settings_manager.py`（選択中のorganization/project、カスタムサーバURL等）に集約。`ui/` や `processing/` から読み書きするのはOK、`kumoy/` 内部からの参照もsibling同士の通常import。
+- `ui/error_handler.py` は `kumoy/` 配下のみに依存し、QGISの公開API（`dataItemProviderRegistry`）を介してBrowserをリフレッシュする。`plugin.py` への callback 登録などの「隠れた逆向き依存」は持たない。
 - `processing/` → `ui/error_handler` は横方向の例外依存。`error_handler` はUI責務（QMessageBox表示）を持つため `ui/` 配下に置く一方、`processing/` からも共通利用したいので許可。それ以外の `processing/` ↔ `ui/` の横断 import は避ける。
 - レイヤー間で何かを呼びたくなったら、まず依存方向を確認すること。逆向きの import が必要に思えたら設計を見直すサイン。
 

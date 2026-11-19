@@ -4,52 +4,146 @@ import webbrowser
 from datetime import datetime
 from typing import List, Optional, Set
 
-from qgis.core import Qgis, QgsMessageLog
+from qgis.core import QgsProject
+from qgis.PyQt.QtCore import (
+    QItemSelectionModel,
+    QModelIndex,
+    QPersistentModelIndex,
+    QRect,
+    QRectF,
+    QSize,
+    QSortFilterProxyModel,
+    Qt,
+)
+from qgis.PyQt.QtGui import (
+    QColor,
+    QFontMetrics,
+    QIcon,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QStandardItem,
+    QStandardItemModel,
+)
 from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
+    QButtonGroup,
     QComboBox,
     QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QListView,
     QMenu,
-    QMessageBox,
     QProgressBar,
     QPushButton,
+    QStackedWidget,
+    QStyle,
+    QStyledItemDelegate,
+    QToolButton,
+    QTreeView,
     QVBoxLayout,
     QWidget,
 )
+from qgis.utils import iface
 
 from .. import i18n
-from ..kumoy import api
-from ..kumoy.api.error import format_api_error
-from ..kumoy.api.team import TeamDetail
-from ..kumoy.constants import (
-    DOCUMENTATION_URL,
-    LOG_CATEGORY,
+from ..kumoy import api, settings_manager
+from ..kumoy.api.models import (
+    OrganizationDetail,
+    OrganizationWithRole,
+    ProjectInOrganization,
+    Team,
+    TeamWithRole,
+    is_editor,
 )
-from ..kumoy.settings_manager import get_settings, store_setting
+from ..kumoy.constants import DOCUMENTATION_URL
+from ..kumoy.tasks import run_task
 from ..pyqt_version import (
     Q_LIST_VIEW_RESIZE_MODE,
-    Q_MESSAGEBOX_STD_BUTTON,
-    QDIALOG_CODE,
+    Q_PAINTER_RENDER_HINT,
     QT_ALIGN,
     QT_CUSTOM_CONTEXT_MENU,
     QT_LINEEDIT_ACTION_POSITION,
-    QT_NO_ITEM_FLAGS,
-    QT_TEXT_FORMAT_PLAIN,
+    QT_TEXT_ELIDE_MODE,
     QT_USER_ROLE,
     exec_dialog,
     exec_menu,
 )
 from .dialog_project_edit import ProjectEditDialog
-from .error_handler import handle_api_error
-from .icons import MAP_ICON, RASTER_ICON, RELOAD_ICON, SEARCH_ICON, VECTOR_ICON
-from .remote_image_label import RemoteImageLabel
-from .utils import show_plain_text_message
+from .error_handler import handle_api_error, push_success, refresh_kumoy_browser
+from .icons import (
+    GRID_ICON,
+    LIST_ICON,
+    MAP_ICON,
+    ORGANIZATION_ICON,
+    PIN_ICON,
+    RASTER_ICON,
+    RELOAD_ICON,
+    SEARCH_ICON,
+    TEAM_ICON,
+    VECTOR_ICON,
+    badge_pixmap,
+)
+from .remote_image_label import RemoteImageLabel, cover_image, fetch_image
+from .utils import confirm, kumoy_map_open
+
+# The organization shown when the dialog was last used
+LAST_ORGANIZATION_KEY = "last_organization_id"
+# "grid" or "table", as last chosen
+PROJECT_VIEW_KEY = "project_view"
+
+# Columns of the project model. The table shows them all; the grid paints a
+# card per row from the project kept in the first column
+(
+    _COL_NAME,
+    _COL_TEAM,
+    _COL_UPDATED,
+    _COL_CREATED,
+    _COL_MAPS,
+    _COL_VECTORS,
+    _COL_RASTERS,
+    _COL_STORAGE,
+) = range(8)
+# Raw values to sort by: the displayed text ("3 days ago", "12") sorts wrong
+_SORT_ROLE = QT_USER_ROLE + 1
+_DECORATION_ROLE = Qt.ItemDataRole.DecorationRole
+_THUMBNAIL_SIZE = QSize(320, 180)
+# The web app's color for a team without a valid one
+_DEFAULT_TEAM_COLOR = "3b82f6"
+
+
+def open_project_dialog() -> None:
+    """Let the user pick a project, then switch the Browser to it."""
+    dialog = ProjectSelectDialog()
+    # exec() returns 1 when accepted (a plain int under PyQt6)
+    if not exec_dialog(dialog) or dialog.selected_project is None:
+        return
+    project_id = dialog.selected_project.id
+    if project_id != settings_manager.selected_project_id() and kumoy_map_open():
+        # The open map belongs to the previous project
+        if QgsProject.instance().isDirty() and not confirm(
+            None,
+            i18n.tr("Change Project"),
+            i18n.tr("Switching projects will discard the current map state. Continue?"),
+        ):
+            return
+        QgsProject.instance().clear()
+        if iface is not None:
+            iface.messageBar().pushInfo(
+                i18n.tr("Project Changed"),
+                i18n.tr(
+                    "Your QGIS project was cleared because the active project changed."
+                ),
+            )
+    settings_manager.select_project(dialog.selected_organization_id, project_id)
+    # Always rebuild: after logging in again the same project needs it too
+    refresh_kumoy_browser()
 
 
 # subscriptionPlan is a system identifier that differs from the plan name
@@ -124,23 +218,326 @@ def _scheduled_deletion_message(iso_string: str) -> str:
     ).format(year=dt.year, month=dt.month, day=dt.day)
 
 
-class ProjectSelectDialog(QDialog):
-    """Dialog for selecting projects from organizations"""
+def _parse_timestamp(date_string: str) -> Optional[datetime]:
+    """Parse the API's timestamps, e.g. 2026-01-21 07:08:26.970209+00."""
+    # Pad fractional seconds to 6 digits (Python 3.9 requires 0, 3 or 6)
+    normalized = re.sub(
+        r"\.(\d+)(?=[+-Z]|$)",
+        lambda m: "." + (m.group(1) + "000000")[:6],
+        date_string or "",
+    )
+    # +00 -> +00:00 for datetime.fromisoformat
+    normalized = re.sub(r"([+-]\d{2})$", r"\1:00", normalized)
+    normalized = normalized.replace("Z", "+00:00")
+    if not re.match(
+        r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{6})?[+-]\d{2}:\d{2}$",
+        normalized,
+    ):
+        return None
+    return datetime.fromisoformat(normalized)
 
-    def __init__(self):
+
+def _relative_time(dt: datetime) -> str:
+    """'3 days ago' and the like."""
+    delta = datetime.now(dt.tzinfo) - dt
+    if delta.total_seconds() < 60:
+        return i18n.tr("Just now")
+    if delta.days == 0:
+        if delta.seconds < 3600:
+            return i18n.tr("{} minutes ago").format(delta.seconds // 60)
+        return i18n.tr("{} hours ago").format(delta.seconds // 3600)
+    if delta.days == 1:
+        return i18n.tr("1 day ago")
+    if delta.days < 30:
+        return i18n.tr("{} days ago").format(delta.days)
+    if delta.days < 365:
+        return i18n.tr("{} months ago").format(delta.days // 30)
+    return i18n.tr("{} years ago").format(delta.days // 365)
+
+
+def _team_icon(team: Optional[Team]) -> QIcon:
+    """The team's badge in its color, as on the web app."""
+    color = ((team.color if team else "") or "").strip().lstrip("#")
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+        color = _DEFAULT_TEAM_COLOR
+    return QIcon(badge_pixmap(f"#{color}", TEAM_ICON, 32))
+
+
+def _rounded(img: QImage) -> QPixmap:
+    """The image with rounded corners (organization icons)."""
+    pixmap = QPixmap(img.size())
+    pixmap.fill(QColor(0, 0, 0, 0))
+    path = QPainterPath()
+    radius = img.width() / 4
+    path.addRoundedRect(QRectF(0, 0, img.width(), img.height()), radius, radius)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
+    painter.setClipPath(path)
+    painter.drawImage(0, 0, img)
+    painter.end()
+    return pixmap
+
+
+def _placeholder_thumbnail() -> QIcon:
+    pixmap = QPixmap(_THUMBNAIL_SIZE)
+    pixmap.fill(QColor(128, 128, 128, 40))
+    painter = QPainter(pixmap)
+    pin = 48
+    PIN_ICON.paint(
+        painter,
+        QRect(
+            (_THUMBNAIL_SIZE.width() - pin) // 2,
+            (_THUMBNAIL_SIZE.height() - pin) // 2,
+            pin,
+            pin,
+        ),
+    )
+    painter.end()
+    return QIcon(pixmap)
+
+
+def _project_row(
+    project: ProjectInOrganization, thumbnail: QIcon
+) -> List[QStandardItem]:
+    """The model row of a project, one item per _COL_* column."""
+    team_name = project.team.name if project.team else ""
+    updated = _parse_timestamp(project.updatedAt)
+    created = _parse_timestamp(project.createdAt)
+    cells = [
+        (project.name, project.name.casefold()),
+        (team_name, team_name.casefold()),
+        (
+            _relative_time(updated) if updated else project.updatedAt,
+            updated.timestamp() if updated else 0.0,
+        ),
+        (
+            created.astimezone().strftime("%Y-%m-%d") if created else project.createdAt,
+            created.timestamp() if created else 0.0,
+        ),
+        (str(project.mapCount), project.mapCount),
+        (str(project.vectorCount), project.vectorCount),
+        (str(project.rasterCount), project.rasterCount),
+        (f"{project.storageUnitsSum:g} SU", project.storageUnitsSum),
+    ]
+    items = []
+    for text, sort_key in cells:
+        item = QStandardItem(text)
+        item.setData(sort_key, _SORT_ROLE)
+        item.setEditable(False)
+        items.append(item)
+    items[_COL_NAME].setData(project, QT_USER_ROLE)
+    items[_COL_NAME].setIcon(thumbnail)
+    items[_COL_NAME].setToolTip(project.name)
+    if project.team:
+        items[_COL_TEAM].setIcon(_team_icon(project.team))
+    if updated:
+        items[_COL_UPDATED].setToolTip(updated.astimezone().strftime("%Y-%m-%d %H:%M"))
+    for column in (_COL_MAPS, _COL_VECTORS, _COL_RASTERS, _COL_STORAGE):
+        items[column].setTextAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignVCenter)
+    return items
+
+
+class _ProjectFilter(QSortFilterProxyModel):
+    """Name search and team filter, shared by the grid and the table."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.text = ""
+        self.team_id: Optional[str] = None
+        self.setSortRole(_SORT_ROLE)
+
+    def filterAcceptsRow(self, source_row: int, source_parent) -> bool:  # noqa: N802
+        index = self.sourceModel().index(source_row, _COL_NAME, source_parent)
+        project = index.data(QT_USER_ROLE)
+        return self.text in project.name.lower() and (
+            self.team_id is None or project.teamId == self.team_id
+        )
+
+
+class _SmallIconDelegate(QStyledItemDelegate):
+    """Team badges at text size: the table's icon size fits thumbnails."""
+
+    def initStyleOption(self, option, index) -> None:  # noqa: N802
+        super().initStyleOption(option, index)
+        option.decorationSize = QSize(16, 16)
+
+
+class _ProjectCardDelegate(QStyledItemDelegate):
+    """Paints a project as a card like the web app: thumbnail, name, team,
+    last update and item counts."""
+
+    # Thumbnails are fetched at 320 px wide; larger cards would blur them
+    MAX_WIDTH = 320
+    _MARGIN = 4  # around the card
+    _PAD = 8  # inside the card
+
+    width = 216  # set by _ProjectGrid from the view's width
+
+    def height(self, metrics: QFontMetrics) -> int:
+        inner = self.width - 2 * self._MARGIN
+        return inner * 9 // 16 + 3 * (metrics.height() + 4) + 2 * self._PAD
+
+    def sizeHint(self, option, index) -> QSize:  # noqa: N802
+        return QSize(self.width, self.height(option.fontMetrics))
+
+    def paint(self, painter: QPainter, option, index) -> None:
+        project: ProjectInOrganization = index.data(QT_USER_ROLE)
+        palette = option.palette
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
+        card = QRectF(option.rect).adjusted(
+            self._MARGIN, self._MARGIN, -self._MARGIN, -self._MARGIN
+        )
+        painter.save()
+        painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
+
+        path = QPainterPath()
+        path.addRoundedRect(card, 6, 6)
+        painter.fillPath(path, palette.base())
+        painter.save()
+        painter.setClipPath(path)  # rounds the thumbnail's top corners
+        thumbnail = QRect(
+            int(card.left()),
+            int(card.top()),
+            int(card.width()),
+            int(card.width()) * 9 // 16,
+        )
+        icon = index.data(_DECORATION_ROLE)
+        if isinstance(icon, QIcon):
+            icon.paint(painter, thumbnail)
+        painter.restore()
+
+        if selected:
+            pen = QPen(palette.highlight().color(), 2)
+        else:
+            border = palette.text().color()
+            border.setAlpha(110 if hovered else 50)
+            pen = QPen(border, 1)
+        painter.setPen(pen)
+        painter.drawPath(path)
+
+        metrics = option.fontMetrics
+        line = metrics.height() + 4
+        left = int(card.left()) + self._PAD
+        width = int(card.width()) - 2 * self._PAD
+        top = thumbnail.bottom() + self._PAD
+        text_color = palette.text().color()
+        secondary = QColor(text_color)
+        secondary.setAlpha(160)
+
+        # Name
+        font = painter.font()
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(text_color)
+        bold = painter.fontMetrics()
+        painter.drawText(
+            QRect(left, top, width, line),
+            QT_ALIGN.AlignLeft | QT_ALIGN.AlignVCenter,
+            bold.elidedText(project.name, QT_TEXT_ELIDE_MODE.ElideRight, width),
+        )
+        font.setBold(False)
+        painter.setFont(font)
+
+        # Team
+        top += line
+        icon_size = metrics.height()
+        icon_top = top + (line - icon_size) // 2
+        if project.team:
+            _team_icon(project.team).paint(
+                painter, QRect(left, icon_top, icon_size, icon_size)
+            )
+            painter.setPen(secondary)
+            painter.drawText(
+                QRect(left + icon_size + 4, top, width - icon_size - 4, line),
+                QT_ALIGN.AlignLeft | QT_ALIGN.AlignVCenter,
+                metrics.elidedText(
+                    project.team.name,
+                    QT_TEXT_ELIDE_MODE.ElideRight,
+                    width - icon_size - 4,
+                ),
+            )
+
+        # Last update, then the counts right-aligned
+        top += line
+        icon_top = top + (line - icon_size) // 2
+        painter.setPen(secondary)
+        right = left + width
+        for count_icon, count in (
+            (RASTER_ICON, project.rasterCount),
+            (VECTOR_ICON, project.vectorCount),
+            (MAP_ICON, project.mapCount),
+        ):
+            text = str(count)
+            text_width = metrics.horizontalAdvance(text)
+            painter.drawText(
+                QRect(right - text_width, top, text_width, line),
+                QT_ALIGN.AlignRight | QT_ALIGN.AlignVCenter,
+                text,
+            )
+            right -= text_width + 2 + icon_size
+            count_icon.paint(painter, QRect(right, icon_top, icon_size, icon_size))
+            right -= 8
+        updated = _parse_timestamp(project.updatedAt)
+        painter.drawText(
+            QRect(left, top, right - left, line),
+            QT_ALIGN.AlignLeft | QT_ALIGN.AlignVCenter,
+            metrics.elidedText(
+                _relative_time(updated) if updated else "",
+                QT_TEXT_ELIDE_MODE.ElideRight,
+                right - left,
+            ),
+        )
+        painter.restore()
+
+
+class _ProjectGrid(QListView):
+    """Cards in three columns that grow with the view up to MAX_WIDTH."""
+
+    COLUMNS = 3
+
+    def __init__(self) -> None:
         super().__init__()
+        self._cards = _ProjectCardDelegate(self)
+        self.setItemDelegate(self._cards)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        # -1: a row that fills the width exactly wraps its last card.
+        # Past MAX_WIDTH the cells keep widening (Qt centers the card in its
+        # cell), so a fourth column never fits.
+        cell = (self.viewport().width() - 1) // self.COLUMNS
+        self._cards.width = min(cell, self._cards.MAX_WIDTH)
+        self.setGridSize(QSize(cell, self._cards.height(self.fontMetrics())))
+        super().resizeEvent(event)
+
+
+class ProjectSelectDialog(QDialog):
+    """Pick a project of one of the user's organizations.
+
+    Shows immediately; the user, the organizations and then the selected
+    organization's projects/teams/usage load in the background. Results of
+    an organization the user already left are dropped (see _org_seq).
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setWindowTitle(i18n.tr("Select Project"))
-        self.resize(550, 600)
+        self.resize(760, 640)
         self.setMinimumWidth(500)
-        self.selected_project = None
-        self.current_org_id = None
+        self.selected_project: Optional[ProjectInOrganization] = None
+        self.selected_organization_id = ""
+        self.current_org_id: Optional[str] = None
         self.details_visible = False
-        self.myteams: List[TeamDetail] = []
+        self.myteams: List[TeamWithRole] = []
         self.admin_team_ids: Set[str] = set()
+        # Bumped per organization load; stale results are ignored
+        self._org_seq = 0
+        # Project to select once the list arrives
+        self._wanted_project_id = settings_manager.selected_project_id()
+        self._placeholder_thumbnail = _placeholder_thumbnail()
         self.setup_ui()
         self.load_user_info()
         self.load_organizations()
-        self.load_saved_selection()
 
     def setup_ui(self):
         """Set up the dialog UI"""
@@ -205,6 +602,7 @@ class ProjectSelectDialog(QDialog):
             }
         """
         )
+        org_combo.setIconSize(QSize(20, 20))
         org_combo.currentIndexChanged.connect(self.on_organization_changed)
 
         refresh_button = QPushButton(RELOAD_ICON, "")
@@ -309,25 +707,15 @@ class ProjectSelectDialog(QDialog):
         }
 
     def _create_project_section(self):
-        """Create project list section with search and team filter"""
-        # Container frame
+        """Search, team filter and the projects as a grid or a table"""
         project_frame = QFrame()
-        project_frame.setStyleSheet(
-            """
-            QFrame {
-                border-radius: 6px;
-            }
-        """
-        )
         frame_layout = QVBoxLayout()
-        frame_layout.setContentsMargins(8, 8, 8, 8)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
         frame_layout.setSpacing(6)
 
-        # Search and team filter
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(8)
 
-        # Search box (left)
         search_input = QLineEdit()
         search_input.setPlaceholderText(i18n.tr("Search..."))
         search_input.setClearButtonEnabled(True)
@@ -345,9 +733,9 @@ class ProjectSelectDialog(QDialog):
         search_input.textChanged.connect(self.filter_projects)
         filter_layout.addWidget(search_input, 1)
 
-        # Team filter combo (right)
         team_combo = QComboBox()
         team_combo.setMinimumHeight(32)
+        team_combo.setIconSize(QSize(16, 16))
         team_combo.setStyleSheet(
             """
             QComboBox {
@@ -361,41 +749,114 @@ class ProjectSelectDialog(QDialog):
         team_combo.currentIndexChanged.connect(self.filter_projects)
         filter_layout.addWidget(team_combo, 1)
 
+        # Grid / table switch
+        view_buttons = QButtonGroup(project_frame)
+        for view_id, (icon, tooltip) in enumerate(
+            ((GRID_ICON, i18n.tr("Grid")), (LIST_ICON, i18n.tr("Table")))
+        ):
+            button = QToolButton()
+            button.setIcon(icon)
+            button.setToolTip(tooltip)
+            button.setCheckable(True)
+            button.setAutoRaise(True)
+            button.setFixedSize(32, 32)
+            view_buttons.addButton(button, view_id)
+            filter_layout.addWidget(button)
         frame_layout.addLayout(filter_layout)
 
-        # Project list
-        project_list = QListWidget()
-        project_list.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
-        project_list.setSpacing(6)
-        project_list.setStyleSheet(
-            """
-            QListWidget {
-                border: 1px solid #ced4da;
-                border-radius: 4px;
-                padding: 0px;
-            }
-            QListWidget::item {
-                border-radius: 6px;
-                margin: 3px;
-            }
-            QListWidget::item:selected {
-                background-color: rgba(255, 255, 255, 0.1);
-                border: 1px solid #1976d2;
-            }
-            QListWidget::item:hover {
-                background-color: rgba(255, 255, 255, 0.2);
-            }
-        """
-        )
-        project_list.itemSelectionChanged.connect(self.on_project_selected)
-        frame_layout.addWidget(project_list)
+        model = QStandardItemModel(0, 8, project_frame)
+        for column, (label, icon, icon_only) in enumerate(
+            (
+                (i18n.tr("Name"), None, False),
+                (i18n.tr("Team"), None, False),
+                (i18n.tr("Updated"), RELOAD_ICON, False),
+                (i18n.tr("Created"), None, False),
+                # Icons only, as on the cards: the table stays narrow
+                (i18n.tr("Maps"), MAP_ICON, True),
+                (i18n.tr("Vectors"), VECTOR_ICON, True),
+                (i18n.tr("Rasters"), RASTER_ICON, True),
+                (i18n.tr("Storage"), None, False),
+            )
+        ):
+            header = QStandardItem("" if icon_only else label)
+            header.setToolTip(label)
+            if icon is not None:
+                header.setIcon(icon)
+            model.setHorizontalHeaderItem(column, header)
+        proxy = _ProjectFilter(project_frame)
+        proxy.setSourceModel(model)
+
+        grid = _ProjectGrid()
+        grid.setViewMode(QListView.ViewMode.IconMode)
+        grid.setResizeMode(Q_LIST_VIEW_RESIZE_MODE.Adjust)
+        grid.setMovement(QListView.Movement.Static)
+        grid.setUniformItemSizes(True)
+        grid.setMouseTracking(True)  # hover outline of the cards
+        grid.setModel(proxy)
+
+        table = QTreeView()
+        table.setRootIsDecorated(False)
+        table.setUniformRowHeights(True)
+        table.setAlternatingRowColors(True)
+        table.setIconSize(QSize(48, 27))
+        table.setItemDelegateForColumn(_COL_TEAM, _SmallIconDelegate(table))
+        table.setModel(proxy)
+        table.setSortingEnabled(True)
+        table.sortByColumn(_COL_UPDATED, Qt.SortOrder.DescendingOrder)
+        header = table.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(_COL_NAME, QHeaderView.ResizeMode.Stretch)
+        # One selection for both views: switching keeps the chosen project
+        table.setSelectionModel(grid.selectionModel())
+
+        for view in (grid, table):
+            view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+            view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+            view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+            view.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
+            view.customContextMenuRequested.connect(
+                lambda pos, v=view: self._show_context_menu(v, pos)
+            )
+            view.doubleClicked.connect(self._on_project_double_clicked)
+        grid.selectionModel().selectionChanged.connect(self.on_project_selected)
+
+        # Shown instead of the projects while loading, or when there are none
+        message_page = QWidget()
+        message_layout = QVBoxLayout(message_page)
+        message_layout.addStretch()
+        message_label = QLabel()
+        message_label.setWordWrap(True)
+        message_label.setAlignment(QT_ALIGN.AlignCenter)
+        message_layout.addWidget(message_label)
+        message_button_layout = QHBoxLayout()
+        message_layout.addLayout(message_button_layout)
+        message_layout.addStretch()
+
+        stack = QStackedWidget()
+        stack.addWidget(grid)
+        stack.addWidget(table)
+        stack.addWidget(message_page)
+        frame_layout.addWidget(stack)
 
         project_frame.setLayout(frame_layout)
+
+        table_view = settings_manager.get(PROJECT_VIEW_KEY) == "table"
+        view_buttons.button(1 if table_view else 0).setChecked(True)
+        view_buttons.idClicked.connect(self._on_view_changed)
+
         return {
             "project_frame": project_frame,
             "team_combo": team_combo,
             "search_input": search_input,
-            "project_list": project_list,
+            "model": model,
+            "proxy": proxy,
+            "grid": grid,
+            "table": table,
+            "stack": stack,
+            "view_buttons": view_buttons,
+            "message_label": message_label,
+            "message_button_layout": message_button_layout,
         }
 
     def _create_button_panel(self):
@@ -432,46 +893,125 @@ class ProjectSelectDialog(QDialog):
             "new_project_btn": new_project_button,
         }
 
+    # --- Loading ---------------------------------------------------------
+
+    def _set_list_message(self, text: str, button: Optional[QPushButton] = None):
+        """Show a message instead of the projects."""
+        self._clear_list()
+        section = self.project_section
+        section["message_label"].setText(text)
+        button_layout = section["message_button_layout"]
+        while button_layout.count():
+            old = button_layout.takeAt(0).widget()
+            if old is not None:
+                old.deleteLater()
+        if button is not None:
+            button_layout.addWidget(button, alignment=QT_ALIGN.AlignCenter)
+        section["stack"].setCurrentIndex(2)
+
+    def _show_projects(self) -> None:
+        """Show the projects in the chosen view (0 grid, 1 table)."""
+        section = self.project_section
+        view_id = section["view_buttons"].checkedId()
+        section["stack"].setCurrentIndex(view_id)
+        current = section["grid"].selectionModel().currentIndex()
+        if current.isValid():
+            section["stack"].currentWidget().scrollTo(current)
+
+    def _on_view_changed(self, view_id: int) -> None:
+        settings_manager.store(PROJECT_VIEW_KEY, "table" if view_id else "grid")
+        if self.project_section["model"].rowCount():
+            self._show_projects()
+
+    def load_user_info(self):
+        def on_success(user: api.models.User) -> None:
+            name = user.name or user.email or ""
+            self.account_org_panel["user_name_label"].setText(name)
+            if user.avatarImage:
+                self.account_org_panel["avatar_label"].load(
+                    api.user.resolve_avatar_url(user.avatarImage)
+                )
+            elif name:
+                self.account_org_panel["avatar_label"].setText(name[0].upper())
+
+        def on_error(e: Exception) -> None:
+            # The organization load reports the same problem; stay quiet here
+            self.account_org_panel["user_name_label"].setText("")
+
+        run_task(
+            i18n.tr("Loading Kumoy account"),
+            lambda t: api.user.get_me(),
+            on_success,
+            on_error,
+        )
+
     def load_organizations(self):
-        """Load organizations into the combo box"""
+        org_combo = self.account_org_panel["org_combo"]
+        org_combo.blockSignals(True)
+        org_combo.clear()
+        org_combo.addItem(i18n.tr("Loading..."), None)
+        org_combo.blockSignals(False)
+        org_combo.setEnabled(False)
+        self._org_seq += 1  # results of a previous organization are stale now
+        self._clear_org_details()
+        self._set_list_message(i18n.tr("Loading..."))
+        run_task(
+            i18n.tr("Loading Kumoy organizations"),
+            lambda t: api.organization.get_organizations(),
+            self._on_organizations,
+            self._on_organizations_error,
+        )
+
+    def _on_organizations_error(self, e: Exception) -> None:
         self.account_org_panel["org_combo"].clear()
-        organizations = api.organization.get_organizations()
+        self._set_list_message(i18n.tr("Could not load your organizations."))
+        handle_api_error(e, parent=self, title=i18n.tr("Failed to load organizations"))
+
+    def _on_organizations(self, organizations: List[OrganizationWithRole]) -> None:
+        org_combo = self.account_org_panel["org_combo"]
+        org_combo.blockSignals(True)
+        org_combo.clear()
+        fallback_icon = QIcon(badge_pixmap("#9ca3af", ORGANIZATION_ICON, 32))
+        for org in organizations:
+            org_combo.addItem(fallback_icon, org.name, org)
+            if org.iconImage:
+                fetch_image(
+                    api.user.resolve_avatar_url(org.iconImage),
+                    org_combo,
+                    lambda img, org_id=org.id: self._set_organization_icon(org_id, img),
+                )
+        preferred = (
+            self.current_org_id
+            or settings_manager.get(LAST_ORGANIZATION_KEY)
+            or settings_manager.selected_organization_id()
+        )
+        index = next((i for i, o in enumerate(organizations) if o.id == preferred), 0)
+        org_combo.setCurrentIndex(index)
+        org_combo.blockSignals(False)
+        org_combo.setEnabled(bool(organizations))
 
         if not organizations:
             self._handle_no_organization()
             return
-        for org in organizations:
-            self.account_org_panel["org_combo"].addItem(org.name, org)
+        # Signals were blocked while filling, so this is the only load
+        self.on_organization_changed(index)
+
+    def _set_organization_icon(self, org_id: str, img: QImage) -> None:
+        # The combo may have been refilled meanwhile: find the org by id
+        combo = self.account_org_panel["org_combo"]
+        for i in range(combo.count()):
+            org = combo.itemData(i)
+            if org is not None and org.id == org_id:
+                combo.setItemIcon(i, QIcon(_rounded(cover_image(img, 64, 64))))
 
     def _handle_no_organization(self):
-        """Handle case when no organization is available"""
-        # Clear project list
-        self.project_section["project_list"].clear()
-
-        # Add message + button inviting to create an organization instead project list
-        no_org_widget = QWidget()
-        no_org_layout = QVBoxLayout(no_org_widget)
-        no_org_layout.setContentsMargins(12, 12, 12, 12)
-        no_org_layout.setSpacing(8)
-
-        msg_label = QLabel(
-            i18n.tr("No organization available. Please create one to get started.")
-        )
-        msg_label.setAlignment(QT_ALIGN.AlignCenter)
-        no_org_layout.addWidget(msg_label)
-
         create_org_btn = QPushButton(i18n.tr("Create Organization"))
-        create_org_url = f"{api.config.get_api_config().SERVER_URL}/organization"
+        create_org_url = f"{api.client.server_url()}/organization"
         create_org_btn.clicked.connect(lambda: webbrowser.open(create_org_url))
-        no_org_layout.addWidget(create_org_btn, alignment=QT_ALIGN.AlignCenter)
-
-        no_org_item = QListWidgetItem(self.project_section["project_list"])
-        no_org_item.setFlags(QT_NO_ITEM_FLAGS)  # Make it non-selectable
-        no_org_item.setSizeHint(no_org_widget.sizeHint())
-        self.project_section["project_list"].addItem(no_org_item)
-        self.project_section["project_list"].setItemWidget(no_org_item, no_org_widget)
-
-        # Clear organization details
+        self._set_list_message(
+            i18n.tr("No organization available. Please create one to get started."),
+            create_org_btn,
+        )
         self.org_details_panel["plan_role_label"].setText(
             i18n.tr("<div><span>No organization available</span></div>")
         )
@@ -479,93 +1019,80 @@ class ProjectSelectDialog(QDialog):
 
     def _clear_org_details(self):
         """Reset usage widgets and disable organization-scoped actions"""
-        keys = [
-            "projects",
-            "maps",
-            "vectors",
-            "rasters",
-            "members",
-            "editors",
-            "storage",
-        ]
-        for key in keys:
-            widgets = self.org_details_panel["usage_widgets"][key]
+        for widgets in self.org_details_panel["usage_widgets"].values():
             widgets["label"].setText("")
             widgets["progress"].setMaximum(1)
             widgets["progress"].setValue(0)
             self._set_progress_color(widgets["progress"], 0, 1)
-
         self.button_panel["new_project_btn"].setEnabled(False)
         self.org_details_panel["org_settings_button"].setEnabled(False)
 
-    def _show_scheduled_deletion_notice(
-        self, org: api.organization.OrganizationWithRole
-    ):
-        """Replace the project list with a notice that the organization is
-        scheduled for deletion"""
+    def on_organization_changed(self, index):
+        self.project_section["search_input"].clear()
+        self.selected_project = None
+        self.button_panel["ok_btn"].setEnabled(False)
+        org = self.account_org_panel["org_combo"].itemData(index)
+        if not org:
+            return
         self.current_org_id = org.id
+        settings_manager.store(LAST_ORGANIZATION_KEY, org.id)
+        self._org_seq += 1
         self.myteams = []
         self.admin_team_ids = set()
         self._update_team_filter_combo()
+        self._clear_org_details()
+        if org.scheduledDeletionAt:
+            # Deactivated on the web app: its detail/project APIs answer not
+            # found, so show a notice instead of the project list
+            self._show_scheduled_deletion_notice(org)
+            return
         self.button_panel["new_project_btn"].setVisible(False)
+        self._set_list_message(i18n.tr("Loading..."))
+        self._load_organization(org)
 
-        project_list = self.project_section["project_list"]
-        project_list.clear()
-
-        notice_widget = QWidget()
-        notice_layout = QVBoxLayout(notice_widget)
-        notice_layout.setContentsMargins(12, 12, 12, 12)
-        msg_label = QLabel(_scheduled_deletion_message(org.scheduledDeletionAt))
-        msg_label.setWordWrap(True)
-        msg_label.setAlignment(QT_ALIGN.AlignCenter)
-        notice_layout.addWidget(msg_label)
-
-        notice_item = QListWidgetItem(project_list)
-        notice_item.setFlags(QT_NO_ITEM_FLAGS)  # Make it non-selectable
-        notice_item.setSizeHint(notice_widget.sizeHint())
-        project_list.addItem(notice_item)
-        project_list.setItemWidget(notice_item, notice_widget)
-
+    def _show_scheduled_deletion_notice(self, org: OrganizationWithRole):
+        self.button_panel["new_project_btn"].setVisible(False)
+        self._set_list_message(_scheduled_deletion_message(org.scheduledDeletionAt))
         self.org_details_panel["plan_role_label"].setText(
             i18n.tr("<div><span>Scheduled for deletion</span></div>")
         )
-        self._clear_org_details()
 
-    def on_organization_changed(self, index):
-        """Reset project selection when organization changes"""
-        self.project_section["project_list"].setCurrentItem(None)
-        self.project_section["search_input"].clear()
-        org_data = self.account_org_panel["org_combo"].itemData(index)
-        if not org_data:
-            return
-        if org_data.scheduledDeletionAt:
-            # Deactivated on the web app: its detail/project APIs return not
-            # found, so show a notice instead of the project list
-            self._show_scheduled_deletion_notice(org_data)
-            return
-        self.load_myteams(org_data)
-        self.load_organization_detail(org_data)
-        self.load_projects(org_data)
+    def _load_organization(self, org: OrganizationWithRole) -> None:
+        """Projects, teams and usage of `org` in one background task."""
+        seq = self._org_seq
+        org_id = org.id
 
-    def load_myteams(self, org: api.organization.Organization):
-        """Load teams the current user belongs to in the organization"""
-        try:
-            self.myteams = api.team.get_organization_myteams(org.id)
-            self.admin_team_ids = {
-                t.id for t in self.myteams if t.role in ("OWNER", "ADMIN")
-            }
-        except Exception as e:
-            self.myteams = []
-            self.admin_team_ids = set()
-            handle_api_error(e, parent=self, log_prefix=i18n.tr("Failed to load teams"))
+        def work(task):
+            projects = api.organization.get_projects(org_id)
+            teams = api.organization.get_my_teams(org_id)
+            try:
+                detail = api.organization.get_organization(org_id)
+            except Exception:
+                detail = None  # only the usage panel needs it
+            return projects, teams, detail
 
-        # Handle "New Project" button based on admin teams
-        has_admin = bool(self.admin_team_ids)
-        self.button_panel["new_project_btn"].setVisible(has_admin)
-        self.button_panel["new_project_btn"].setEnabled(has_admin)
+        def on_success(result) -> None:
+            if seq != self._org_seq:
+                return
+            projects, teams, detail = result
+            self.myteams = teams
+            self.admin_team_ids = {t.id for t in teams if is_editor(t.role)}
+            has_admin = bool(self.admin_team_ids)
+            self.button_panel["new_project_btn"].setVisible(has_admin)
+            self.button_panel["new_project_btn"].setEnabled(has_admin)
+            self._update_team_filter_combo()
+            if detail is not None:
+                self.update_usage_display(detail)
+                self.org_details_panel["org_settings_button"].setEnabled(True)
+            self._fill_projects(projects)
 
-        # Update team filter combo
-        self._update_team_filter_combo()
+        def on_error(e: Exception) -> None:
+            if seq != self._org_seq:
+                return
+            self._set_list_message(i18n.tr("Could not load the projects."))
+            handle_api_error(e, parent=self, title=i18n.tr("Failed to load projects"))
+
+        run_task(i18n.tr("Loading Kumoy projects"), work, on_success, on_error)
 
     def _update_team_filter_combo(self):
         """Rebuild team filter combo from current myteams"""
@@ -575,74 +1102,281 @@ class ProjectSelectDialog(QDialog):
         combo.addItem(i18n.tr("All teams"), None)
         combo.insertSeparator(1)
         for team in self.myteams:
-            combo.addItem(team.name, team.id)
+            combo.addItem(_team_icon(team), team.name, team.id)
         combo.setCurrentIndex(0)
         combo.blockSignals(False)
 
-    def load_organization_detail(self, org: api.organization.Organization):
-        """Load and display organization detail including usage"""
-        try:
-            # Store current organization ID
-            self.current_org_id = org.id
-            # Fetch organization details
-            org_detail = api.organization.get_organization(org.id)
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=self,
-                log_prefix=i18n.tr("Failed to load organization details"),
-            )
+    def _clear_list(self) -> None:
+        self.project_section["model"].setRowCount(0)
+        self.on_project_selected()
+
+    def _fill_projects(self, projects: List[ProjectInOrganization]) -> None:
+        self._clear_list()
+        if not projects:
+            self._set_list_message(i18n.tr("No projects in this organization."))
             return
+        model = self.project_section["model"]
+        for project in projects:
+            row = _project_row(project, self._placeholder_thumbnail)
+            model.appendRow(row)
+            if project.thumbnailImageUrl:
+                cell = QPersistentModelIndex(row[_COL_NAME].index())
+                fetch_image(
+                    f"{project.thumbnailImageUrl}&w=320&h=180",
+                    self,
+                    lambda img, cell=cell: self._set_thumbnail(cell, img),
+                )
+        self.filter_projects()
+        self._show_projects()
+        self._select_project_by_id(self._wanted_project_id)
 
-        # Update usage display
-        self.update_usage_display(org_detail)
-        self.org_details_panel["org_settings_button"].setEnabled(True)
-
-    def load_user_info(self):
-        """Load current user information"""
-        user = api.user.get_me()
-
-        self.account_org_panel["user_name_label"].setText(user.name)
-
-        # Set avatar image if available
-        if user.avatarImage:
-            self.account_org_panel["avatar_label"].load(
-                api.user.resolve_avatar_url(user.avatarImage)
+    def _set_thumbnail(self, cell: QPersistentModelIndex, img: QImage) -> None:
+        if not cell.isValid():
+            return  # the list was reloaded meanwhile
+        model = self.project_section["model"]
+        icon = QIcon(
+            QPixmap.fromImage(
+                cover_image(img, _THUMBNAIL_SIZE.width(), _THUMBNAIL_SIZE.height())
             )
-        # if no image, set avatar initial
-        elif len(user.name) > 0:
-            initial = user.name[0].upper()
-            self.account_org_panel["avatar_label"].setText(initial)
+        )
+        model.setData(model.index(cell.row(), cell.column()), icon, _DECORATION_ROLE)
+
+    # --- Interaction -----------------------------------------------------
 
     def toggle_details(self):
-        """Toggle visibility of usage details panel"""
         self.details_visible = not self.details_visible
         self.org_details_panel["usage_frame"].setVisible(self.details_visible)
-
-        if self.details_visible:
-            self.account_org_panel["details_toggle"].setText(
-                i18n.tr("<a href='#'>Hide details &#9650;</a>")
-            )
-        else:
-            self.account_org_panel["details_toggle"].setText(
-                i18n.tr("<a href='#'>Show details &#9660;</a>")
-            )
+        self.account_org_panel["details_toggle"].setText(
+            i18n.tr("<a href='#'>Hide details &#9650;</a>")
+            if self.details_visible
+            else i18n.tr("<a href='#'>Show details &#9660;</a>")
+        )
 
     def open_organization_settings(self):
-        """Open organization settings in web browser"""
-        if not self.current_org_id:
+        if self.current_org_id:
+            webbrowser.open(
+                f"{api.client.server_url()}/organization/{self.current_org_id}/setting"
+            )
+
+    @staticmethod
+    def _project_at(index: QModelIndex) -> Optional[ProjectInOrganization]:
+        if not index.isValid():
+            return None
+        return index.siblingAtColumn(_COL_NAME).data(QT_USER_ROLE)
+
+    def on_project_selected(self, *_):
+        selected = self.project_section["grid"].selectionModel().selectedIndexes()
+        self.selected_project = self._project_at(selected[0]) if selected else None
+        self.button_panel["ok_btn"].setEnabled(self.selected_project is not None)
+
+    def _select_index(self, index: QModelIndex) -> None:
+        flags = QItemSelectionModel.SelectionFlag
+        self.project_section["grid"].selectionModel().setCurrentIndex(
+            index, flags.ClearAndSelect | flags.Rows
+        )
+
+    def _on_project_double_clicked(self, index: QModelIndex) -> None:
+        if self._project_at(index) is not None:
+            self._select_index(index)
+            self.accept()
+
+    def _show_context_menu(self, view: QAbstractItemView, position) -> None:
+        index = view.indexAt(position)
+        project = self._project_at(index)
+        if project is None:
+            return
+        self._select_index(index)
+        menu = QMenu(self)
+        open_web_action = menu.addAction(i18n.tr("Open in Web App"))
+        open_web_action.triggered.connect(lambda: self.open_in_web(project))
+        if project.teamId in self.admin_team_ids:
+            edit_action = menu.addAction(i18n.tr("Edit Project"))
+            edit_action.triggered.connect(lambda: self.edit_project(project))
+            menu.addSeparator()
+            delete_action = menu.addAction(i18n.tr("Delete Project"))
+            delete_action.triggered.connect(lambda: self.delete_project(project))
+        exec_menu(menu, view.viewport().mapToGlobal(position))
+
+    def open_in_web(self, project: ProjectInOrganization) -> None:
+        webbrowser.open(
+            f"{api.client.server_url()}/organization/{self.current_org_id}"
+            f"/team/{project.teamId}/project/{project.id}"
+        )
+
+    def filter_projects(self, *_):
+        """Filter the projects by name and team"""
+        proxy = self.project_section["proxy"]
+        proxy.text = self.project_section["search_input"].text().lower()
+        proxy.team_id = self.project_section["team_combo"].currentData()
+        before = self.selected_project
+        proxy.invalidateFilter()
+        if before is not None and self.selected_project is not before:
+            # Qt moves the selection to a neighbor when the selected project
+            # is filtered out: do not pick a project the user did not choose
+            self.project_section["grid"].selectionModel().clear()
+        self.on_project_selected()
+
+    def get_selected_organization(self) -> Optional[OrganizationWithRole]:
+        return self.account_org_panel["org_combo"].currentData()
+
+    def accept(self):
+        org = self.get_selected_organization()
+        if org is None or self.selected_project is None:
+            return
+        self.selected_organization_id = org.id
+        super().accept()
+
+    def reload_dialog(self):
+        if self.selected_project is not None:
+            self._wanted_project_id = self.selected_project.id
+        self.load_user_info()
+        self.load_organizations()
+
+    def reload_projects(self, select_project_id: Optional[str] = None) -> None:
+        """Reload the current organization, e.g. after a change."""
+        if select_project_id is not None:
+            self._wanted_project_id = select_project_id
+        elif self.selected_project is not None:
+            self._wanted_project_id = self.selected_project.id
+        org = self.get_selected_organization()
+        if org is not None:
+            self._org_seq += 1
+            self._load_organization(org)
+
+    def _select_project_by_id(self, project_id: str):
+        proxy = self.project_section["proxy"]
+        for row in range(proxy.rowCount()):
+            index = proxy.index(row, _COL_NAME)
+            project = index.data(QT_USER_ROLE)
+            if project is not None and project.id == project_id:
+                self._select_index(index)
+                self.project_section["stack"].currentWidget().scrollTo(index)
+                return
+
+    # --- Project create / edit / delete ----------------------------------
+
+    def _set_busy(self, busy: bool) -> None:
+        self.button_panel["ok_btn"].setEnabled(
+            not busy and self.selected_project is not None
+        )
+        self.button_panel["new_project_btn"].setEnabled(
+            not busy and bool(self.admin_team_ids)
+        )
+        self.project_section["stack"].setEnabled(not busy)
+
+    def _run(self, description: str, fn, on_success, error_title: str) -> None:
+        """Run a project change with the dialog marked busy meanwhile."""
+        self._set_busy(True)
+
+        def done(result) -> None:
+            self._set_busy(False)
+            on_success(result)
+
+        def failed(e: Exception) -> None:
+            self._set_busy(False)
+            handle_api_error(e, parent=self, title=error_title)
+
+        run_task(description, lambda t: fn(), done, failed)
+
+    def create_new_project(self):
+        org = self.get_selected_organization()
+        if org is None:
+            return
+        admin_teams = [t for t in self.myteams if t.id in self.admin_team_ids]
+        dialog = ProjectEditDialog(org.name, admin_teams, self)
+        if not exec_dialog(dialog):
+            return
+        name = dialog.project_name
+        description = dialog.project_description
+        team_id = dialog.selected_team.id
+
+        def on_success(project) -> None:
+            push_success(
+                i18n.tr("Project '{}' has been created successfully.").format(name)
+            )
+            self.reload_projects(project.id)
+
+        self._run(
+            i18n.tr("Creating project"),
+            lambda: api.project.create_project(team_id, name, description),
+            on_success,
+            i18n.tr("Failed to create project"),
+        )
+
+    def edit_project(self, project: ProjectInOrganization) -> None:
+        org = self.get_selected_organization()
+        if org is None:
+            return
+        dialog = ProjectEditDialog(
+            org.name,
+            [],
+            self,
+            initial_name=project.name,
+            initial_description=project.description or "",
+        )
+        dialog.setWindowTitle(i18n.tr("Edit Project"))
+        if not exec_dialog(dialog):
+            return
+        name = dialog.project_name
+        description = dialog.project_description
+        if name == project.name and description == (project.description or ""):
             return
 
-        settings_url = f"{api.config.get_api_config().SERVER_URL}/organization/{self.current_org_id}/setting"
+        def on_success(_) -> None:
+            push_success(
+                i18n.tr("Project '{}' has been updated successfully.").format(name)
+            )
+            if project.id == settings_manager.selected_project_id():
+                refresh_kumoy_browser()  # the Browser root shows the name
+            self.reload_projects(project.id)
 
-        try:
-            webbrowser.open(settings_url)
-        except Exception as e:
-            msg = i18n.tr("Error opening web browser: {}").format(format_api_error(e))
-            QgsMessageLog.logMessage(msg, LOG_CATEGORY, Qgis.Critical)
-            QMessageBox.critical(self, i18n.tr("Error"), msg)
+        self._run(
+            i18n.tr("Updating project"),
+            lambda: api.project.update_project(
+                project.id, name=name, description=description
+            ),
+            on_success,
+            i18n.tr("Failed to update project"),
+        )
 
-    def update_usage_display(self, org_detail: api.organization.OrganizationDetail):
+    def delete_project(self, project: ProjectInOrganization) -> None:
+        if not confirm(
+            self,
+            i18n.tr("Delete Project"),
+            i18n.tr(
+                "Are you sure you want to delete project '{}'?\n"
+                "This action can't be undone."
+            ).format(project.name),
+        ):
+            return
+
+        def on_success(_) -> None:
+            push_success(
+                i18n.tr("Project '{}' has been deleted successfully.").format(
+                    project.name
+                )
+            )
+            if project.id == settings_manager.selected_project_id():
+                # The Browser must not keep showing a project that is gone
+                settings_manager.clear_selection()
+                refresh_kumoy_browser()
+            if self._wanted_project_id == project.id:
+                self._wanted_project_id = ""
+            if (
+                self.selected_project is not None
+                and self.selected_project.id == project.id
+            ):
+                self.selected_project = None
+            self.reload_projects()
+
+        self._run(
+            i18n.tr("Deleting project"),
+            lambda: api.project.delete_project(project.id),
+            on_success,
+            i18n.tr("Failed to delete project"),
+        )
+
+    def update_usage_display(self, org_detail: OrganizationDetail):
         """Update the usage display with organization details"""
         # Update plan label
         self.org_details_panel["plan_role_label"].setText(
@@ -711,7 +1445,7 @@ class ProjectSelectDialog(QDialog):
             if total > 0:
                 self.org_details_panel["usage_widgets"]["storage"][
                     "progress"
-                ].setMaximum(total)
+                ].setMaximum(math.ceil(total))  # SU may be fractional; Qt wants int
                 self.org_details_panel["usage_widgets"]["storage"]["progress"].setValue(
                     math.ceil(used)
                 )
@@ -756,497 +1490,3 @@ class ProjectSelectDialog(QDialog):
             }}
         """
         )
-
-    def load_projects(self, org: api.organization.Organization):
-        """Load projects for the selected organization"""
-        try:
-            self.project_section["project_list"].clear()
-            projects = api.project.get_projects_by_organization(org.id)
-
-            for project_item in projects:
-                # Create custom widget
-                item_widget = ProjectItemWidget(
-                    project_item, self.current_org_id, self, self.admin_team_ids
-                )
-
-                # Create list item
-                list_item = QListWidgetItem(self.project_section["project_list"])
-                list_item.setSizeHint(item_widget.sizeHint())
-                list_item.setData(QT_USER_ROLE, project_item)
-
-                # Set the custom widget
-                self.project_section["project_list"].addItem(list_item)
-                self.project_section["project_list"].setItemWidget(
-                    list_item, item_widget
-                )
-
-        except Exception as e:
-            handle_api_error(
-                e, parent=self, log_prefix=i18n.tr("Failed to load projects")
-            )
-
-        self.filter_projects()
-
-    def handle_project_deleted(self):
-        """Handle cleanup after a project has been deleted"""
-        self.project_section["project_list"].setCurrentItem(None)
-
-    def on_project_selected(self):
-        """Handle project selection"""
-        current_item = self.project_section["project_list"].currentItem()
-        self.selected_project = (
-            current_item.data(QT_USER_ROLE) if current_item else None
-        )
-        self.button_panel["ok_btn"].setEnabled(bool(self.selected_project))
-
-    def filter_projects(self):
-        """Filter project list by name and team"""
-        search_text = self.project_section["search_input"].text().lower()
-        selected_team_id = self.project_section["team_combo"].currentData()
-        project_list = self.project_section["project_list"]
-        for i in range(project_list.count()):
-            item = project_list.item(i)
-            project = item.data(QT_USER_ROLE)
-            if project is None:
-                continue
-            name_match = search_text in project.name.lower()
-            team_match = selected_team_id is None or project.teamId == selected_team_id
-            item.setHidden(not (name_match and team_match))
-
-        current = project_list.currentItem()
-        if current and current.isHidden():
-            project_list.setCurrentItem(None)
-
-    def get_selected_organization(self) -> Optional[api.organization.Organization]:
-        """Get the selected organization"""
-        return (
-            self.account_org_panel["org_combo"].currentData()
-            if self.account_org_panel["org_combo"].currentIndex() >= 0
-            else None
-        )
-
-    def accept(self):
-        """Handle dialog acceptance"""
-        org = self.get_selected_organization()
-        if org and self.selected_project:
-            store_setting("selected_organization_id", org.id)
-            store_setting("selected_project_id", self.selected_project.id)
-        super().accept()
-
-    def load_saved_selection(self):
-        """Load previously saved selection"""
-        org_id = get_settings().selected_organization_id
-        project_id = get_settings().selected_project_id
-        if not org_id or not project_id:
-            return
-        self._select_organization_by_id(org_id)
-        self._select_project_by_id(project_id)
-
-    def reload_dialog(self):
-        """Reload the dialog content"""
-        settings = get_settings()
-        org_id = settings.selected_organization_id
-        project_id = settings.selected_project_id
-        org_combo: QComboBox = self.account_org_panel["org_combo"]
-
-        org_combo.blockSignals(True)
-        try:
-            self.load_user_info()
-            self.load_organizations()
-            if org_id:
-                self._select_organization_by_id(org_id)
-        except Exception as e:
-            handle_api_error(
-                e, parent=self, log_prefix=i18n.tr("Failed to reload dialog")
-            )
-            return
-        finally:
-            org_combo.blockSignals(False)
-
-        # Reselect project after reloading organizations
-        current_index = org_combo.currentIndex()
-        if current_index >= 0:
-            self.on_organization_changed(current_index)
-        if project_id:
-            self._select_project_by_id(project_id)
-
-    def create_new_project(self):
-        """Create a new project in the selected organization"""
-        if not (org := self.get_selected_organization()):
-            QMessageBox.warning(
-                self,
-                i18n.tr("No Organization Selected"),
-                i18n.tr("Please select an organization first."),
-            )
-            return
-
-        admin_teams = [t for t in self.myteams if t.id in self.admin_team_ids]
-        new_project_dialog = ProjectEditDialog(org.name, admin_teams, self)
-        if exec_dialog(new_project_dialog) != QDIALOG_CODE.Accepted:
-            return
-
-        project_name = new_project_dialog.project_name
-        project_description = new_project_dialog.project_description
-        selected_team = new_project_dialog.selected_team
-
-        try:
-            new_project = api.project.create_project(
-                team_id=selected_team.id,
-                name=project_name,
-                description=project_description,
-            )
-            QgsMessageLog.logMessage(
-                i18n.tr("Project '{}' created successfully").format(project_name),
-                LOG_CATEGORY,
-                Qgis.Info,
-            )
-            # refresh project list and select the new project
-            self.load_organization_detail(org)
-            self.load_projects(org)
-            self._select_project_by_id(new_project.id)
-
-            show_plain_text_message(
-                self,
-                i18n.tr("Project Created"),
-                i18n.tr("Project '{}' has been created successfully.").format(
-                    project_name
-                ),
-            )
-        except Exception as e:
-            handle_api_error(
-                e, parent=self, log_prefix=i18n.tr("Failed to create project")
-            )
-
-    def _select_organization_by_id(self, org_id: str):
-        """Select organization by ID in combo box"""
-        for i in range(self.account_org_panel["org_combo"].count()):
-            if (
-                org := self.account_org_panel["org_combo"].itemData(i)
-            ) and org.id == org_id:
-                self.account_org_panel["org_combo"].setCurrentIndex(i)
-                break
-
-    def _select_project_by_id(self, project_id: str):
-        """Select project by ID in list"""
-        for i in range(self.project_section["project_list"].count()):
-            item = self.project_section["project_list"].item(i)
-            if (
-                item
-                and (project := item.data(QT_USER_ROLE))
-                and project.id == project_id
-            ):
-                self.project_section["project_list"].setCurrentItem(item)
-                break
-
-
-class ProjectItemWidget(QWidget):
-    """Custom widget for displaying project information in a card-like layout"""
-
-    def __init__(
-        self,
-        project: api.project.ProjectsInOrganization,
-        organization_id: str,
-        parent_dialog: ProjectSelectDialog,
-        admin_team_ids: Set[str],
-    ):
-        super().__init__()
-        self.project = project
-        self.organization_id = organization_id
-        self.parent_dialog = parent_dialog
-        self.is_admin = project.teamId in admin_team_ids
-        self.setContextMenuPolicy(QT_CUSTOM_CONTEXT_MENU)
-        self.customContextMenuRequested.connect(self.show_context_menu)
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Set up the project item UI"""
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(12)
-
-        # Thumbnail placeholder - map preview style
-        thumbnail_label = RemoteImageLabel(size=(100, 60))
-        # load thumbnail image if available
-        thumbnail_label.load(f"{self.project.thumbnailImageUrl}&w=320&h=180")
-        thumbnail_label.setStyleSheet(
-            """
-            QLabel {
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-            }
-        """
-        )
-        main_layout.addWidget(thumbnail_label)
-
-        # Project info layout
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(2)
-        # Project name
-        name_label = QLabel(self.project.name)
-        name_label.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-        info_layout.addWidget(name_label)
-        # Last updated with icon
-        updated_hlayout = QHBoxLayout()
-        updated_hlayout.setSpacing(4)
-        updated_hlayout.setContentsMargins(0, 0, 0, 0)
-        updated_icon_label = QLabel()
-        updated_icon_label.setFixedSize(16, 16)
-        updated_icon_label.setPixmap(RELOAD_ICON.pixmap(16, 16))
-        updated_hlayout.addWidget(updated_icon_label)
-        updated_label = QLabel(self._format_relative_date(self.project.updatedAt))
-        updated_hlayout.addWidget(updated_label)
-        info_layout.addLayout(updated_hlayout)
-
-        main_layout.addLayout(info_layout)
-        main_layout.addStretch()
-
-        # Right side icons and size
-        right_layout = QVBoxLayout()
-        right_layout.setAlignment(QT_ALIGN.AlignRight | QT_ALIGN.AlignTop)
-
-        # Icons row
-        icons_layout = QHBoxLayout()
-        icons_layout.setSpacing(4)
-
-        # Maps icon with count
-        maps_hlayout = QHBoxLayout()
-        maps_icon_label = QLabel()
-        maps_icon_label.setPixmap(MAP_ICON.pixmap(16, 16))
-        maps_hlayout.addWidget(maps_icon_label)
-        maps_label = QLabel(str(self.project.mapCount))
-        maps_hlayout.addWidget(maps_label)
-        icons_layout.addLayout(maps_hlayout)
-
-        # Vector icon with count
-        vector_hlayout = QHBoxLayout()
-        vector_icon_label = QLabel()
-        vector_icon_label.setPixmap(VECTOR_ICON.pixmap(16, 16))
-        vector_hlayout.addWidget(vector_icon_label)
-        vector_label = QLabel(str(self.project.vectorCount))
-        vector_hlayout.addWidget(vector_label)
-        icons_layout.addLayout(vector_hlayout)
-
-        # Raster icon with count
-        raster_hlayout = QHBoxLayout()
-        raster_icon_label = QLabel()
-        raster_icon_label.setPixmap(RASTER_ICON.pixmap(16, 16))
-        raster_hlayout.addWidget(raster_icon_label)
-        raster_label = QLabel(str(self.project.rasterCount))
-        raster_hlayout.addWidget(raster_label)
-        icons_layout.addLayout(raster_hlayout)
-
-        right_layout.addLayout(icons_layout)
-        main_layout.addLayout(right_layout)
-
-        self.setLayout(main_layout)
-
-    def _format_relative_date(self, date_string: str) -> str:
-        """Format date as relative time (e.g., '1 day ago')
-        Input: 2026-01-21 07:08:26.970209+00
-        Output: "3 days ago"
-        """
-        # PostgreSQL timestamptz format: YYYY-MM-DD HH:MM:SS[.fractional]+00
-        # Pad fractional seconds to 6 digits (Python 3.9 requires 0, 3 or 6)
-        normalized = re.sub(
-            r"\.(\d+)(?=[+-Z]|$)",
-            lambda m: "." + (m.group(1) + "000000")[:6],
-            date_string,
-        )
-        # +00 -> +00:00 for datetime.fromisoformat
-        normalized = re.sub(r"([+-]\d{2})$", r"\1:00", normalized)
-        normalized = normalized.replace("Z", "+00:00")
-
-        if not re.match(
-            r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{6})?[+-]\d{2}:\d{2}$",
-            normalized,
-        ):
-            return date_string
-
-        dt = datetime.fromisoformat(normalized)
-        now = datetime.now(dt.tzinfo)
-        delta = now - dt
-
-        if delta.total_seconds() < 60:
-            return i18n.tr("Just now")
-
-        if delta.days == 0:
-            if delta.seconds < 3600:
-                return i18n.tr("{} minutes ago").format(delta.seconds // 60)
-            else:
-                return i18n.tr("{} hours ago").format(delta.seconds // 3600)
-        elif delta.days == 1:
-            return i18n.tr("1 day ago")
-        elif delta.days < 30:
-            return i18n.tr("{} days ago").format(delta.days)
-        elif delta.days < 365:
-            return i18n.tr("{} months ago").format(delta.days // 30)
-        else:
-            return i18n.tr("{} years ago").format(delta.days // 365)
-
-    def show_context_menu(self, position):
-        """Show context menu for project item"""
-        menu = QMenu(self)
-
-        # Open in Web action
-        open_web_action = menu.addAction(i18n.tr("Open in Web App"))
-        open_web_action.triggered.connect(self.open_in_web)
-
-        if self.is_admin:
-            # Edit action
-            edit_action = menu.addAction(i18n.tr("Edit Project"))
-            edit_action.triggered.connect(self.edit_project)
-
-            menu.addSeparator()
-
-            # Delete action
-            delete_action = menu.addAction(i18n.tr("Delete Project"))
-            delete_action.triggered.connect(self.delete_project)
-
-        exec_menu(menu, self.mapToGlobal(position))
-
-    def open_in_web(self):
-        """Open project in web browser"""
-        if not self.project:
-            return
-
-        config = api.config.get_api_config()
-        base_url = config.SERVER_URL.rstrip("/")
-        project_url = f"{base_url}/organization/{self.organization_id}/team/{self.project.teamId}/project/{self.project.id}"
-
-        try:
-            webbrowser.open(project_url)
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                i18n.tr("Error opening web browser: {}").format(format_api_error(e)),
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-
-    def delete_project(self):
-        """Delete project with confirmation"""
-        if not self.project or not self.parent_dialog:
-            return
-
-        # Show confirmation dialog
-        msg_box = QMessageBox(self.parent_dialog)
-        msg_box.setWindowTitle(i18n.tr("Delete Project"))
-        msg_box.setText(
-            i18n.tr(
-                "Are you sure you want to delete project '{}'?\n"
-                "This action can't be undone."
-            ).format(self.project.name)
-        )
-        msg_box.setTextFormat(QT_TEXT_FORMAT_PLAIN)
-        msg_box.setStandardButtons(
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No
-        )
-        msg_box.setDefaultButton(Q_MESSAGEBOX_STD_BUTTON.No)
-        reply = exec_dialog(msg_box)
-
-        if reply == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            try:
-                # Call API to delete project
-                api.project.delete_project(self.project.id)
-
-                QgsMessageLog.logMessage(
-                    i18n.tr("Project '{}' deleted successfully.").format(
-                        self.project.name
-                    ),
-                    LOG_CATEGORY,
-                    Qgis.Info,
-                )
-
-                self.parent_dialog.handle_project_deleted()
-                # Refresh the project list
-                org = self.parent_dialog.get_selected_organization()
-                if org:
-                    self.parent_dialog.load_organization_detail(org)
-                    self.parent_dialog.load_projects(org)
-
-                show_plain_text_message(
-                    self.parent_dialog,
-                    i18n.tr("Project Deleted"),
-                    i18n.tr("Project '{}' has been deleted successfully.").format(
-                        self.project.name
-                    ),
-                )
-            except Exception as e:
-                handle_api_error(
-                    e,
-                    parent=self.parent_dialog,
-                    log_prefix=i18n.tr("Failed to delete project"),
-                )
-
-    def edit_project(self):
-        """Edit project metadata"""
-        if not self.project or not self.parent_dialog:
-            return
-
-        # Get organization name for the dialog
-        org = self.parent_dialog.get_selected_organization()
-        if not org:
-            return
-
-        try:
-            # Fetch full project details to get the description
-            project_detail = api.project.get_project(self.project.id)
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=self.parent_dialog,
-                log_prefix=i18n.tr("Failed to load project details"),
-            )
-            return
-
-        # Show edit dialog with current project data
-        edit_dialog = ProjectEditDialog(
-            org.name,
-            [],
-            self.parent_dialog,
-            initial_name=project_detail.name,
-            initial_description=project_detail.description,
-        )
-        edit_dialog.setWindowTitle(i18n.tr("Edit Project"))
-
-        if exec_dialog(edit_dialog) != QDIALOG_CODE.Accepted:
-            return
-
-        new_name = edit_dialog.project_name
-        new_description = edit_dialog.project_description
-
-        # Check if anything changed
-        if (
-            new_name == project_detail.name
-            and new_description == project_detail.description
-        ):
-            return
-
-        try:
-            # Call API to update project
-            updated_project = api.project.update_project(
-                project_id=self.project.id, name=new_name, description=new_description
-            )
-
-            QgsMessageLog.logMessage(
-                i18n.tr("Project '{}' updated successfully").format(self.project.name),
-                LOG_CATEGORY,
-                Qgis.Info,
-            )
-
-            # Update the current project data
-            self.project = updated_project
-
-            # Refresh the project list
-            self.parent_dialog.load_projects(org)
-            self.parent_dialog._select_project_by_id(self.project.id)
-
-            show_plain_text_message(
-                self.parent_dialog,
-                i18n.tr("Project Updated"),
-                i18n.tr("Project '{}' has been updated successfully.").format(new_name),
-            )
-        except Exception as e:
-            handle_api_error(
-                e,
-                parent=self.parent_dialog,
-                log_prefix=i18n.tr("Failed to update project"),
-            )

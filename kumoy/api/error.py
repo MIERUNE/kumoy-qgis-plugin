@@ -1,122 +1,101 @@
+"""Typed errors raised by the Kumoy API client.
+
+The class is chosen from the HTTP status, not from the response text: the
+backend's `message` strings are categories that may change, while the status
+codes are its contract.
+"""
+
+from typing import Optional
+
+
 class AppError(Exception):
-    """Custom exception for API errors"""
+    """Base class of every error the API client raises."""
 
-    def __init__(self, message: str, error: str = ""):
+    def __init__(self, message: str, error: str = "", status: Optional[int] = None):
         self.message = message
         self.error = error
-        super().__init__(f"{message} : {error}")
+        self.status = status
+        super().__init__(f"{message} : {error}" if error else message)
 
 
-class ValidateError(Exception):
-    """Exception for validation errors"""
-
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(f"{message} : {error}")
+class NetworkError(AppError):
+    """No HTTP response: offline, DNS, TLS, proxy or timeout."""
 
 
-class NotFoundError(Exception):
-    """Exception for not found errors"""
-
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(f"{message} : {error}")
+class ValidateError(AppError):
+    pass
 
 
-class UnauthorizedError(Exception):
-    """Exception for unauthorized errors"""
-
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(f"{message} : {error}")
+class NotFoundError(AppError):
+    pass
 
 
-class QuotaExceededError(Exception):
-    """Exception for quota exceeded errors"""
+class UnauthorizedError(AppError):
+    """401: the session is missing, expired or revoked. Log in again."""
 
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(f"{message} : {error}")
-
-
-class ConflictError(Exception):
-    """Exception for conflict errors"""
-
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(f"{message} : {error}")
+    # The token the request was sent with ("" when there was none). Set by
+    # the client; None for errors raised elsewhere
+    rejected_token = None
 
 
-class UnderMaintenanceError(Exception):
-    """Exception for under maintenance errors"""
+class ForbiddenError(AppError):
+    """403: logged in, but the role or plan does not allow this operation.
 
-    def __init__(self, message: str, error: str = ""):
-        self.message = message
-        self.error = error
-        super().__init__(message)
-
-
-def raise_error(error: dict):
-    """
-    APIのエラーレスポンスを受け取り、適切な例外を発生させる
-
-    Args:
-        error (dict): {"message": str, "error": str}
-
-    Raises:
-        AppError: _description_
-        ValidateError: _description_
-        NotFoundError: _description_
-        UnauthorizedError: _description_
-        QuotaExceededError: _description_
-        ConflictError: _description_
-        UnderMaintenanceError: _description_
-        Exception: _description_
+    Kept separate from UnauthorizedError so that a permission problem never
+    logs the user out.
     """
 
-    message = error.get("message", "")
 
-    if message == "Application Error":
-        raise AppError(message, error.get("error", ""))
-    elif message == "Validation Error":
-        raise ValidateError(message, error.get("error", ""))
-    elif message == "Not Found":
-        raise NotFoundError(message, error.get("error", ""))
-    elif message == "Unauthorized":
-        raise UnauthorizedError(message, error.get("error", ""))
-    elif message == "Quota exceeded":
-        raise QuotaExceededError(message, error.get("error", ""))
-    elif message == "Conflict":
-        raise ConflictError(message, error.get("error", ""))
-    elif message == "Under Maintenance":
-        raise UnderMaintenanceError(message, error.get("error", ""))
-    elif message:
-        raise Exception(f"{message}. {error.get('error', '')}")
-    else:
-        raise Exception(error)
+class ConflictError(AppError):
+    pass
+
+
+class QuotaExceededError(AppError):
+    """429 outside /api/auth: a plan limit (storage, counts) was reached."""
+
+
+class UnderMaintenanceError(AppError):
+    pass
+
+
+_BY_STATUS = {
+    401: UnauthorizedError,
+    403: ForbiddenError,
+    404: NotFoundError,
+    409: ConflictError,
+    422: ValidateError,
+    429: QuotaExceededError,
+    503: UnderMaintenanceError,
+}
+
+
+def error_from_response(status: Optional[int], body: object, fallback: str) -> AppError:
+    """Build the error for a failed response.
+
+    `body` is the decoded JSON, if any. The backend answers
+    {"message", "error"}, but zod validation failures and better-auth use other
+    shapes, so anything unexpected degrades to `fallback` instead of raising.
+    """
+    message, detail = "", ""
+    if isinstance(body, dict):
+        message = str(body.get("message") or "")
+        raw = body.get("error")
+        detail = raw if isinstance(raw, str) else ""
+        if not detail:
+            detail = str(body.get("error_description") or "")
+    if status is None:
+        return NetworkError(fallback, detail, status)
+    cls = _BY_STATUS.get(status, AppError)
+    return cls(message or fallback or f"HTTP {status}", detail, status)
 
 
 def format_api_error(exception: Exception) -> str:
-    """Return a readable string that prefers custom API error details."""
-
-    parts = []
-
-    message = getattr(exception, "message", None)
-    if message:
-        parts.append(str(message))
-
-    detail = getattr(exception, "error", None)
-    if detail:
-        detail_str = str(detail)
-        if detail_str not in parts:
-            parts.append(detail_str)
-
-    if parts:
-        return " - ".join(parts)
-
+    """Return a readable one-line description of an exception."""
+    if isinstance(exception, AppError):
+        parts = [p for p in (exception.message, exception.error) if p]
+        # Avoid "X - X" when the server repeats itself
+        if len(parts) == 2 and parts[0] == parts[1]:
+            parts = parts[:1]
+        if parts:
+            return " - ".join(parts)
     return str(exception)

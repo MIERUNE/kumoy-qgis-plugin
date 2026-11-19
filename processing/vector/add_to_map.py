@@ -15,7 +15,9 @@ class AddVectorToMapAlgorithm(KumoyApiAlgorithm):
     GROUP_ID = "vector"
     VECTOR_ID = "VECTOR_ID"
     OUTPUT = "OUTPUT"
-    # The data provider shows a progress dialog while syncing its local cache
+    # The layer, its data provider and the provider's background sync belong
+    # to the main thread; the provider may also download synchronously when
+    # nothing is cached yet
     REQUIRES_MAIN_THREAD = True
 
     def name(self) -> str:

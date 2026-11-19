@@ -3,20 +3,10 @@ from qgis.gui import QgsDataItemGuiContext, QgsDataItemGuiProvider
 from qgis.PyQt.QtWidgets import QAction, QMenu
 
 from ... import i18n
-from .raster import (
-    RasterItem,
-    add_multiple_rasters,
-    clear_cache_multiple_rasters,
-    delete_multiple_rasters,
-)
-from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
+from ...kumoy.api.models import is_editor
 from .cache_size import combined_cache_size, make_clear_cache_action
-from .vector import (
-    VectorItem,
-    add_multiple_vectors,
-    clear_cache_multiple_vectors,
-    delete_multiple_vectors,
-)
+from .styledmap import StyledMapItem, clear_cache_multiple_maps, delete_multiple_maps
+from .utils import ResourceItem, multi_actions
 
 
 class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
@@ -27,132 +17,39 @@ class KumoyDataItemGuiProvider(QgsDataItemGuiProvider):
         self,
         item: QgsDataItem,
         menu: QMenu,
-        selectedItems: list[QgsDataItem],
+        selectedItems: list,
         context: QgsDataItemGuiContext,
     ) -> None:
-
-        if isinstance(item, StyledMapItem):
-            styledmap_items: list[StyledMapItem] = [
-                i for i in selectedItems if isinstance(i, StyledMapItem)
-            ]
-            self._populate_styled_map_menu(menu, styledmap_items)
-        elif isinstance(item, VectorItem):
-            vector_items: list[VectorItem] = [
-                i for i in selectedItems if isinstance(i, VectorItem)
-            ]
-            self._populate_vector_menu(menu, vector_items)
-        elif isinstance(item, RasterItem):
-            raster_items: list[RasterItem] = [
-                i for i in selectedItems if isinstance(i, RasterItem)
-            ]
-            self._populate_raster_menu(menu, raster_items)
-
-    def _populate_styled_map_menu(
-        self, menu: QMenu, styledmap_items: list[StyledMapItem]
-    ) -> None:
-        if len(styledmap_items) == 1:
-            for action in styledmap_items[0].build_actions(menu):
-                menu.addAction(action)
+        # Only items of the clicked item's kind take part in a multi-selection
+        same_kind = [i for i in selectedItems if type(i) is type(item)] or [item]
+        if isinstance(item, ResourceItem):
+            if len(same_kind) == 1:
+                actions = item.build_actions(menu)
+            else:
+                actions = multi_actions(menu, same_kind)
+        elif isinstance(item, StyledMapItem):
+            actions = self._styled_map_actions(menu, same_kind)
         else:
-            # Multi-selection
-            clear_action = make_clear_cache_action(
+            return
+        for action in actions:
+            menu.addAction(action)
+
+    def _styled_map_actions(self, menu: QMenu, items: list) -> list:
+        if len(items) == 1:
+            return items[0].build_actions(menu)
+        n = len(items)
+        actions = [
+            make_clear_cache_action(
                 menu,
-                i18n.tr("Clear Cache for {} Maps").format(len(styledmap_items)),
-                lambda: combined_cache_size(styledmap_items),
-                lambda checked=False, items=list(styledmap_items): (
-                    clear_cache_multiple_maps(items)
-                ),
+                i18n.tr("Clear Cache for {} Maps").format(n),
+                lambda: combined_cache_size(items),
+                lambda checked=False: clear_cache_multiple_maps(items),
             )
-            menu.addAction(clear_action)
-
-            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in styledmap_items)
-            if can_delete:
-                delete_action = QAction(
-                    i18n.tr("Delete {} Maps").format(len(styledmap_items)), menu
-                )
-                delete_action.triggered.connect(
-                    lambda checked=False, items=list(styledmap_items): (
-                        delete_multiple_maps(items)
-                    )
-                )
-                menu.addAction(delete_action)
-
-    def _populate_raster_menu(
-        self, menu: QMenu, raster_items: list[RasterItem]
-    ) -> None:
-        if len(raster_items) == 1:
-            for action in raster_items[0].build_actions(menu):
-                menu.addAction(action)
-        else:
-            # Multi-selection
-            add_action = QAction(
-                i18n.tr("Add {} Rasters to Map").format(len(raster_items)), menu
+        ]
+        if all(is_editor(i.role) for i in items):
+            delete_action = QAction(i18n.tr("Delete {} Maps").format(n), menu)
+            delete_action.triggered.connect(
+                lambda checked=False: delete_multiple_maps(items)
             )
-            add_action.triggered.connect(
-                lambda checked=False, items=list(raster_items): add_multiple_rasters(
-                    items
-                )
-            )
-            menu.addAction(add_action)
-
-            clear_action = make_clear_cache_action(
-                menu,
-                i18n.tr("Clear Cache for {} Rasters").format(len(raster_items)),
-                lambda: combined_cache_size(raster_items),
-                lambda checked=False, items=list(raster_items): (
-                    clear_cache_multiple_rasters(items)
-                ),
-            )
-            menu.addAction(clear_action)
-
-            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in raster_items)
-            if can_delete:
-                delete_action = QAction(
-                    i18n.tr("Delete {} Rasters").format(len(raster_items)), menu
-                )
-                delete_action.triggered.connect(
-                    lambda checked=False, items=list(raster_items): (
-                        delete_multiple_rasters(items)
-                    )
-                )
-                menu.addAction(delete_action)
-
-    def _populate_vector_menu(
-        self, menu: QMenu, vector_items: list[VectorItem]
-    ) -> None:
-        if len(vector_items) == 1:
-            for action in vector_items[0].build_actions(menu):
-                menu.addAction(action)
-        else:
-            # Multi-selection
-            add_action = QAction(
-                i18n.tr("Add {} Vectors to Map").format(len(vector_items)), menu
-            )
-            add_action.triggered.connect(
-                lambda checked=False, items=list(vector_items): add_multiple_vectors(
-                    items
-                )
-            )
-            menu.addAction(add_action)
-
-            clear_action = make_clear_cache_action(
-                menu,
-                i18n.tr("Clear Cache for {} Vectors").format(len(vector_items)),
-                lambda: combined_cache_size(vector_items),
-                lambda checked=False, items=list(vector_items): (
-                    clear_cache_multiple_vectors(items)
-                ),
-            )
-            menu.addAction(clear_action)
-
-            can_delete = all(i.role in ["ADMIN", "OWNER"] for i in vector_items)
-            if can_delete:
-                delete_action = QAction(
-                    i18n.tr("Delete {} Vectors").format(len(vector_items)), menu
-                )
-                delete_action.triggered.connect(
-                    lambda checked=False, items=list(vector_items): (
-                        delete_multiple_vectors(items)
-                    )
-                )
-                menu.addAction(delete_action)
+            actions.append(delete_action)
+        return actions

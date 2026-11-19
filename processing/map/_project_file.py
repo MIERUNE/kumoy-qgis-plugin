@@ -6,7 +6,8 @@ from qgis.gui import QgsMapCanvas
 from qgis.PyQt import sip
 
 from ... import i18n
-from ...kumoy import local_cache
+from ...kumoy import map_project
+from ...kumoy.api.styledmap import MAX_QGISPROJECT_LENGTH
 from ...kumoy.sprite import SpriteData, generate_sprite
 
 PROJECT_FILE_FILTER = "QGIS files (*.qgs *.qgz *.QGS *.QGZ)"
@@ -27,7 +28,7 @@ class ProjectFile:
 
 
 def load_project_file(path: str) -> ProjectFile:
-    project = local_cache.map.read_project_file(path)
+    project = map_project.read_project_file(path)
     qgisproject = _serialize_with_map_canvas(project, path)
     validate_size(qgisproject)
     return ProjectFile(qgisproject=qgisproject, sprite=generate_sprite(project))
@@ -59,15 +60,15 @@ def _serialize_with_map_canvas(project: QgsProject, path: str) -> str:
         # An empty project has no extent; writing it would put ±1.8e308 in the XML
         if not canvas.extent().isEmpty():
             project.writeProject.connect(canvas.writeProject)
-        return local_cache.map.serialize_detached_project(project)
+        return map_project.serialize_detached(project)
     finally:
         sip.delete(canvas)
 
 
 def validate_size(qgisproject: str) -> None:
-    size_error = local_cache.map.size_limit_error(qgisproject)
-    if size_error:
-        raise QgsProcessingException(size_error)
+    error = map_project.size_error(qgisproject)
+    if error:
+        raise QgsProcessingException(error)
 
 
 def project_file_help() -> str:
@@ -94,5 +95,5 @@ def project_file_help() -> str:
         )
         + i18n.tr(
             "\n\nThe project file must be {:,} characters or less when saved as .qgs."
-        ).format(local_cache.map.LENGTH_LIMIT)
+        ).format(MAX_QGISPROJECT_LENGTH)
     )

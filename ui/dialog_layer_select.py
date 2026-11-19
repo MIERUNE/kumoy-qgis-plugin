@@ -186,6 +186,16 @@ class LayerSelectDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
+        explanation = QLabel(
+            i18n.tr(
+                "Checked layers are uploaded to Kumoy and replace the local layers "
+                "in the map. Unchecked layers stay local, so other users will not "
+                "see them."
+            )
+        )
+        explanation.setWordWrap(True)
+        layout.addWidget(explanation)
+
         # Scrollable checkbox list
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -195,7 +205,7 @@ class LayerSelectDialog(QDialog):
 
         for layer in self._layers:
             cb = QCheckBox(layer.name())
-            # レイヤーパネルと同じQGISテーマアイコンでVector/Rasterを区別する
+            # Same theme icons as the Layers panel tell vectors from rasters
             cb.setIcon(
                 QgsApplication.getThemeIcon(
                     "/mIconVector.svg"

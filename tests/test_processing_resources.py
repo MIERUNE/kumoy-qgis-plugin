@@ -1,5 +1,10 @@
-"""Kumoy リソースを操作する Processing アルゴリズムのテスト（API 関数をモックする）"""
+"""Processing tools that operate on Kumoy resources (API functions are mocked).
 
+Tool IDs, parameters and outputs are a public scripting API; these tests pin
+them. Map tools are tested in test_processing_map.py.
+"""
+
+import importlib
 from types import SimpleNamespace
 
 import pytest
@@ -8,17 +13,22 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingException,
     QgsProcessingFeedback,
+    QgsProject,
     QgsRasterLayer,
     QgsVectorLayer,
 )
 
 
-def _run(alg, parameters):
+def _run(alg, parameters, context=None):
     """Run like processing.run() does, but in-process so monkeypatches apply."""
     alg.initAlgorithm()
     return alg.processAlgorithm(
-        parameters, QgsProcessingContext(), QgsProcessingFeedback()
+        parameters, context or QgsProcessingContext(), QgsProcessingFeedback()
     )
+
+
+def _alg(module, name):
+    return getattr(importlib.import_module(f"plugin_dir.processing.{module}"), name)()
 
 
 @pytest.fixture
@@ -35,27 +45,34 @@ def local_cache(qgis_plugin_path):
     return local_cache
 
 
-def _select_project(monkeypatch, project_id):
+@pytest.fixture
+def base(qgis_plugin_path):
     from plugin_dir.processing import base
 
-    monkeypatch.setattr(
-        base,
-        "get_settings",
-        lambda: SimpleNamespace(selected_project_id=project_id),
-    )
+    return base
+
+
+def _select_project(monkeypatch, project_id):
+    from plugin_dir.kumoy import settings_manager
+
+    monkeypatch.setattr(settings_manager, "selected_project_id", lambda: project_id)
 
 
 @pytest.fixture(autouse=True)
-def selected_project(qgis_plugin_path, api, monkeypatch):
-    """Log in, select p1 and make every vector/raster/map belong to it unless overridden."""
-    from plugin_dir.processing import base
+def logged_in(qgis_plugin_path, api, base, monkeypatch):
+    """Log in, select p1 and make every vector/raster belong to it unless overridden."""
+    from plugin_dir.kumoy import session
 
-    monkeypatch.setattr(base, "get_token", lambda: "token")
+    monkeypatch.setattr(session, "_token", "token")
     _select_project(monkeypatch, "p1")
     in_p1 = lambda _: SimpleNamespace(projectId="p1")  # noqa: E731
     monkeypatch.setattr(api.vector, "get_vector", in_p1)
     monkeypatch.setattr(api.raster, "get_raster", in_p1)
-    monkeypatch.setattr(api.styledmap, "get_styled_map", in_p1)
+    # Background refreshes of the upload destinations must not reach the network
+    monkeypatch.setattr(base, "run_task", lambda *a, **k: None)
+    monkeypatch.setattr(base, "_project_choices", [])
+    monkeypatch.setattr(base, "_refreshing", False)
+    monkeypatch.setattr(base, "_last_refresh", -1e9)
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -65,11 +82,7 @@ class TestProject:
         # algorithm dialog disappear along with its log
         from qgis.core import QgsProcessingOutputHtml
 
-        from plugin_dir.processing.organization.list_organizations import (
-            ListOrganizationsAlgorithm,
-        )
-
-        alg = ListOrganizationsAlgorithm()
+        alg = _alg("organization.list_organizations", "ListOrganizationsAlgorithm")
         alg.initAlgorithm()
 
         assert not any(
@@ -77,29 +90,32 @@ class TestProject:
         )
 
     def test_list_organizations_returns_plain_dicts(self, api, monkeypatch):
-        from plugin_dir.processing.organization.list_organizations import (
-            ListOrganizationsAlgorithm,
-        )
-
-        org = api.organization.OrganizationWithRole(
-            id="o1",
-            name="Org",
-            stripeCustomerId=None,
-            subscriptionPlan="FREE",
-            storageUnits=1,
-            createdAt="",
-            updatedAt="",
-            role="OWNER",
-            scheduledDeletionAt=None,
+        org = api.models.from_dict(
+            api.models.OrganizationWithRole,
+            {
+                "id": "o1",
+                "name": "Org",
+                "iconImage": None,
+                "stripeCustomerId": None,
+                "subscriptionPlan": "FREE",
+                "storageUnits": 1,
+                "createdAt": "",
+                "updatedAt": "",
+                "role": "OWNER",
+            },
         )
         monkeypatch.setattr(api.organization, "get_organizations", lambda: [org])
 
-        result = _run(ListOrganizationsAlgorithm(), {})
+        result = _run(
+            _alg("organization.list_organizations", "ListOrganizationsAlgorithm"), {}
+        )
 
+        # The keys scripts got before the rewrite, plus iconImage
         assert result["ORGANIZATIONS"] == [
             {
                 "id": "o1",
                 "name": "Org",
+                "iconImage": None,
                 "stripeCustomerId": None,
                 "subscriptionPlan": "FREE",
                 "storageUnits": 1,
@@ -111,26 +127,23 @@ class TestProject:
         ]
 
     def test_list_projects_passes_organization_id(self, api, monkeypatch):
-        from plugin_dir.processing.organization.list_projects import (
-            ListProjectsAlgorithm,
-        )
-
         captured = {}
 
         def fake(organization_id):
             captured["id"] = organization_id
             return []
 
-        monkeypatch.setattr(api.project, "get_projects_by_organization", fake)
+        monkeypatch.setattr(api.organization, "get_projects", fake)
 
-        result = _run(ListProjectsAlgorithm(), {"ORGANIZATION_ID": " o1 "})
+        result = _run(
+            _alg("organization.list_projects", "ListProjectsAlgorithm"),
+            {"ORGANIZATION_ID": " o1 "},
+        )
 
         assert captured["id"] == "o1"
         assert result["PROJECTS"] == []
 
     def test_get_project_targets_selected_project(self, api, monkeypatch):
-        from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
-
         requested = []
         monkeypatch.setattr(
             api.project,
@@ -149,7 +162,7 @@ class TestProject:
             lambda _: [{"id": "m1", "project": {"id": "p1"}}],
         )
 
-        result = _run(GetProjectAlgorithm(), {})
+        result = _run(_alg("organization.get_project", "GetProjectAlgorithm"), {})
 
         assert requested == ["p1"]
         assert result["PROJECT"] == {
@@ -162,21 +175,115 @@ class TestProject:
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
+class TestOutputCompatibility:
+    """Outputs keep the keys of the old API classes, parsed from server JSON."""
+
+    PROJECT = {
+        "id": "p1",
+        "name": "P",
+        "teamId": "t1",
+        "team": {
+            "id": "t1",
+            "name": "T",
+            "organizationId": "o1",
+            "organization": {"id": "o1", "name": "O", "stripeCustomerId": None},
+        },
+    }
+
+    def test_get_vector_includes_project(self, api, monkeypatch):
+        detail = api.models.from_dict(
+            api.models.VectorDetail,
+            {
+                "id": "v1",
+                "name": "roads",
+                "type": "LINESTRING",
+                "projectId": "p1",
+                "project": self.PROJECT,
+                "attribution": "",
+                "storageUnits": 0.5,
+                "role": "ADMIN",
+                "extent": [0, 0, 1, 1],
+                "count": 3,
+                "columns": [{"name": "a", "type": "string"}],
+                "createdAt": "",
+                "updatedAt": "",
+            },
+        )
+        monkeypatch.setattr(api.vector, "get_vector", lambda _: detail)
+
+        vector = _run(_alg("vector.get", "GetVectorAlgorithm"), {"VECTOR_ID": "v1"})[
+            "VECTOR"
+        ]
+
+        assert {
+            "id",
+            "name",
+            "type",
+            "projectId",
+            "project",
+            "attribution",
+            "storageUnits",
+            "createdAt",
+            "updatedAt",
+            "role",
+            "extent",
+            "count",
+            "columns",
+        } <= set(vector)
+        assert vector["project"]["team"]["organization"]["id"] == "o1"
+        assert vector["columns"] == [{"name": "a", "type": "string"}]
+
+    def test_update_vector_includes_uri_and_bytes(self, api, monkeypatch):
+        updated = api.models.from_dict(
+            api.models.VectorMutationResult,
+            {
+                "id": "v1",
+                "name": "n",
+                "uri": "table",
+                "type": "POINT",
+                "projectId": "p1",
+                "attribution": None,
+                "bytes": 10,
+                "createdAt": "",
+                "updatedAt": "",
+            },
+        )
+        monkeypatch.setattr(api.vector, "update_vector", lambda *_, **__: updated)
+
+        vector = _run(
+            _alg("vector.update", "UpdateVectorAlgorithm"),
+            {"VECTOR_ID": "v1", "NAME": "n"},
+        )["VECTOR"]
+
+        assert vector["uri"] == "table"
+        assert vector["bytes"] == 10
+
+    def test_list_rasters_includes_bytes(self, api, monkeypatch):
+        raster = api.models.from_dict(
+            api.models.Raster,
+            {"id": "r1", "name": "dem", "projectId": "p1", "bytes": 42},
+        )
+        monkeypatch.setattr(api.raster, "get_rasters", lambda _: [raster])
+
+        rasters = _run(
+            _alg("raster.list", "ListRastersAlgorithm"), {"PROJECT_ID": "p1"}
+        )["RASTERS"]
+
+        assert rasters[0]["bytes"] == 42
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
 class TestList:
     @pytest.mark.parametrize(
         "module, alg_name, api_name, fn, output",
         [
             ("vector.list", "ListVectorsAlgorithm", "vector", "get_vectors", "VECTORS"),
             ("raster.list", "ListRastersAlgorithm", "raster", "get_rasters", "RASTERS"),
-            ("map.list", "ListMapsAlgorithm", "styledmap", "get_styled_maps", "MAPS"),
         ],
     )
     def test_lists_given_project(
         self, api, monkeypatch, module, alg_name, api_name, fn, output
     ):
-        import importlib
-
-        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
         requested = []
         monkeypatch.setattr(
             getattr(api, api_name),
@@ -184,7 +291,7 @@ class TestList:
             lambda i: requested.append(i) or [{"id": "x", "project": {"id": i}}],
         )
 
-        result = _run(getattr(alg_module, alg_name)(), {"PROJECT_ID": "p9"})
+        result = _run(_alg(module, alg_name), {"PROJECT_ID": "p9"})
 
         assert requested == ["p9"]
         assert result[output] == [{"id": "x"}]
@@ -193,24 +300,21 @@ class TestList:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestVector:
     def _update_alg(self):
-        from plugin_dir.processing.vector.update import UpdateVectorAlgorithm
-
-        return UpdateVectorAlgorithm()
+        return _alg("vector.update", "UpdateVectorAlgorithm")
 
     def test_update_sends_only_given_fields(self, api, monkeypatch):
         captured = {}
 
-        def fake(vector_id, options):
+        def fake(vector_id, **changes):
             captured["id"] = vector_id
-            captured["options"] = options
+            captured["changes"] = changes
             return {"id": vector_id}
 
         monkeypatch.setattr(api.vector, "update_vector", fake)
 
         _run(self._update_alg(), {"VECTOR_ID": "v1", "NAME": "new"})
 
-        assert captured["id"] == "v1"
-        assert captured["options"] == api.vector.UpdateVectorOptions(name="new")
+        assert captured == {"id": "v1", "changes": {"name": "new"}}
 
     def test_update_without_changes_fails(self):
         with pytest.raises(QgsProcessingException, match="Nothing to update"):
@@ -227,8 +331,6 @@ class TestVector:
         assert "255" in alg.parameterDefinition("ATTRIBUTION").description()
 
     def test_delete_clears_local_cache(self, api, local_cache, monkeypatch):
-        from plugin_dir.processing.vector.delete import DeleteVectorAlgorithm
-
         calls = []
         monkeypatch.setattr(
             api.vector, "delete_vector", lambda i: calls.append(("api", i))
@@ -237,14 +339,15 @@ class TestVector:
             local_cache.vector, "clear", lambda i: calls.append(("cache", i)) or True
         )
 
-        result = _run(DeleteVectorAlgorithm(), {"VECTOR_ID": "v1"})
+        result = _run(
+            _alg("vector.delete", "DeleteVectorAlgorithm"), {"VECTOR_ID": "v1"}
+        )
 
         assert calls == [("api", "v1"), ("cache", "v1")]
         assert result["VECTOR_ID"] == "v1"
 
     def test_add_to_map_loads_layer_on_completion(self, api, monkeypatch):
         from plugin_dir.kumoy import vector_layer
-        from plugin_dir.processing.vector.add_to_map import AddVectorToMapAlgorithm
 
         monkeypatch.setattr(
             api.vector,
@@ -255,7 +358,7 @@ class TestVector:
         layer = QgsVectorLayer("LineString?crs=EPSG:4326", "tmp", "memory")
         monkeypatch.setattr(vector_layer, "create_vector_layer", lambda _: layer)
 
-        alg = AddVectorToMapAlgorithm()
+        alg = _alg("vector.add_to_map", "AddVectorToMapAlgorithm")
         alg.initAlgorithm()
         context = QgsProcessingContext()
         result = alg.processAlgorithm(
@@ -268,25 +371,15 @@ class TestVector:
         assert details.name == "Roads"
         assert details.outputName == "OUTPUT"
 
-    def test_add_to_map_runs_on_main_thread(self):
-        from plugin_dir.processing.vector.add_to_map import AddVectorToMapAlgorithm
-
-        assert (
-            AddVectorToMapAlgorithm().flags() & Qgis.ProcessingAlgorithmFlag.NoThreading
-        )
-
     def test_blank_id_fails(self):
-        from plugin_dir.processing.vector.get import GetVectorAlgorithm
-
         with pytest.raises(QgsProcessingException, match="required"):
-            _run(GetVectorAlgorithm(), {"VECTOR_ID": "  "})
+            _run(_alg("vector.get", "GetVectorAlgorithm"), {"VECTOR_ID": "  "})
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestRaster:
     def test_add_to_map_loads_layer_on_completion(self, api, monkeypatch, tmp_path):
         from plugin_dir.kumoy import raster_layer
-        from plugin_dir.processing.raster.add_to_map import AddRasterToMapAlgorithm
 
         monkeypatch.setattr(
             api.raster,
@@ -297,7 +390,7 @@ class TestRaster:
         layer = QgsRasterLayer(str(tmp_path / "tmp.tif"), "tmp")
         monkeypatch.setattr(raster_layer, "create_raster_layer", lambda _: layer)
 
-        alg = AddRasterToMapAlgorithm()
+        alg = _alg("raster.add_to_map", "AddRasterToMapAlgorithm")
         alg.initAlgorithm()
         context = QgsProcessingContext()
         result = alg.processAlgorithm(
@@ -305,113 +398,24 @@ class TestRaster:
         )
 
         assert result["OUTPUT"] == layer.id()
-        assert context.temporaryLayerStore().mapLayer(layer.id()) is layer
         details = context.layersToLoadOnCompletion()[layer.id()]
         assert details.name == "DEM"
         assert details.outputName == "OUTPUT"
 
-    def test_add_to_map_runs_on_main_thread(self):
-        from plugin_dir.processing.raster.add_to_map import AddRasterToMapAlgorithm
-
-        assert (
-            AddRasterToMapAlgorithm().flags() & Qgis.ProcessingAlgorithmFlag.NoThreading
+    def test_update_sends_only_given_fields(self, api, monkeypatch):
+        captured = {}
+        monkeypatch.setattr(
+            api.raster,
+            "update_raster",
+            lambda raster_id, **changes: captured.update(changes) or {},
         )
 
-
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestProjectFileMapCanvas:
-    """Kumoy opens a map at the extent of <mapcanvas name="theMapCanvas">."""
-
-    @pytest.fixture(autouse=True)
-    def cache_dir(self, monkeypatch, tmp_path):
-        from plugin_dir.kumoy.local_cache import map as map_cache
-
-        cache_dir = tmp_path / "maps"
-        cache_dir.mkdir()
-        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
-
-    @staticmethod
-    def _canvas_extents(qgisproject):
-        import xml.etree.ElementTree as ET
-
-        return [
-            [
-                float(e.find("extent").find(k).text)
-                for k in ("xmin", "ymin", "xmax", "ymax")
-            ]
-            for e in ET.fromstring(qgisproject).iter("mapcanvas")
-            if e.get("name") == "theMapCanvas"
-        ]
-
-    @staticmethod
-    def _project(tmp_path, configure=lambda project: None):
-        from qgis.core import QgsCoordinateReferenceSystem, QgsProject
-
-        project = QgsProject()
-        project.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
-        configure(project)
-        path = tmp_path / "project.qgs"
-        project.write(str(path))
-        return path
-
-    def _load(self, path):
-        from plugin_dir.processing.map._project_file import load_project_file
-
-        return load_project_file(str(path)).qgisproject
-
-    def test_map_canvas_of_file_is_kept(self, tmp_path):
-        path = self._project(tmp_path)
-        # As QGIS writes it when saving from the GUI
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "</qgis>",
-                '<mapcanvas name="theMapCanvas"><units>degrees</units><extent>'
-                "<xmin>139</xmin><ymin>35</ymin><xmax>140</xmax><ymax>36</ymax>"
-                "</extent><rotation>0</rotation></mapcanvas></qgis>",
-            ),
-            encoding="utf-8",
+        _run(
+            _alg("raster.update", "UpdateRasterAlgorithm"),
+            {"RASTER_ID": "r1", "ATTRIBUTION": "(c) me"},
         )
 
-        assert self._canvas_extents(self._load(path)) == [[139, 35, 140, 36]]
-
-    def test_default_view_extent_is_used_in_project_crs(self, tmp_path):
-        from qgis.core import (
-            QgsCoordinateReferenceSystem,
-            QgsRectangle,
-            QgsReferencedRectangle,
-        )
-
-        path = self._project(
-            tmp_path,
-            lambda project: project.viewSettings().setDefaultViewExtent(
-                QgsReferencedRectangle(
-                    QgsRectangle(15473000, 4163000, 15585000, 4300000),
-                    QgsCoordinateReferenceSystem("EPSG:3857"),
-                )
-            ),
-        )
-
-        ((xmin, ymin, xmax, ymax),) = self._canvas_extents(self._load(path))
-        assert (xmin, xmax) == (
-            pytest.approx(139.0, abs=0.01),
-            pytest.approx(140.0, abs=0.01),
-        )
-        assert (ymin, ymax) == (
-            pytest.approx(35.0, abs=0.1),
-            pytest.approx(36.0, abs=0.1),
-        )
-
-    def test_project_without_extent_has_no_map_canvas(self, tmp_path):
-        assert self._canvas_extents(self._load(self._project(tmp_path))) == []
-
-    def test_open_project_is_not_affected(self, tmp_path):
-        from qgis.core import QgsProject
-
-        self._load(self._project(tmp_path))
-
-        out = tmp_path / "open.qgs"
-        QgsProject.instance().write(str(out))
-        assert 'name="theMapCanvas"' not in out.read_text(encoding="utf-8")
+        assert captured == {"attribution": "(c) me"}
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -421,17 +425,13 @@ class TestMainThread:
         [
             ("vector.add_to_map", "AddVectorToMapAlgorithm", True),
             ("raster.add_to_map", "AddRasterToMapAlgorithm", True),
-            ("map.create", "CreateMapAlgorithm", True),
-            ("map.update", "UpdateMapAlgorithm", True),
-            ("map.get", "GetMapAlgorithm", False),
             ("vector.update", "UpdateVectorAlgorithm", False),
+            ("vector.upload.algorithm", "UploadVectorAlgorithm", False),
+            ("raster.upload.algorithm", "UploadRasterAlgorithm", False),
         ],
     )
     def test_flag_and_help_match(self, module, alg_name, expected):
-        import importlib
-
-        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
-        alg = getattr(alg_module, alg_name)()
+        alg = _alg(module, alg_name)
 
         no_threading = bool(alg.flags() & Qgis.ProcessingAlgorithmFlag.NoThreading)
         assert no_threading is expected
@@ -442,292 +442,298 @@ class TestMainThread:
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestApiErrors:
     def _raise(self, error):
-        def fake(*_):
+        def fake(*_, **__):
             raise error
 
         return fake
 
-    def test_unauthorized_becomes_processing_exception(self, api, monkeypatch):
-        from plugin_dir.processing.raster.get import GetRasterAlgorithm
-
-        monkeypatch.setattr(
-            api.raster,
-            "get_raster",
-            self._raise(api.error.UnauthorizedError("Unauthorized", "expired")),
-        )
-
-        with pytest.raises(QgsProcessingException, match="expired"):
-            _run(GetRasterAlgorithm(), {"RASTER_ID": "r1"})
-
-    def test_not_found_becomes_processing_exception(self, api, monkeypatch):
-        from plugin_dir.processing.raster.get import GetRasterAlgorithm
-
-        monkeypatch.setattr(
-            api.raster,
-            "get_raster",
-            self._raise(api.error.NotFoundError("Not Found", "raster")),
-        )
-
-        with pytest.raises(QgsProcessingException, match="Not Found - raster"):
-            _run(GetRasterAlgorithm(), {"RASTER_ID": "r1"})
-
-
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestMap:
-    def _capture_update(self, api, monkeypatch):
-        captured = {}
-
-        def fake(map_id, options):
-            captured["options"] = options
-            return {"id": map_id, "qgisproject": "<qgis/>"}
-
-        monkeypatch.setattr(api.styledmap, "update_styled_map", fake)
-        return captured
-
-    def _update_alg(self):
-        from plugin_dir.processing.map.update import UpdateMapAlgorithm
-
-        return UpdateMapAlgorithm()
-
-    def test_create_without_file_uploads_empty_project(self, api, monkeypatch):
-        from plugin_dir.processing.map.create import CreateMapAlgorithm
-
-        captured = {}
-
-        def fake(project_id, options):
-            captured["project_id"] = project_id
-            captured["options"] = options
-            return {"id": "m1", "qgisproject": options.qgisproject}
-
-        monkeypatch.setattr(api.styledmap, "add_styled_map", fake)
-
-        result = _run(
-            CreateMapAlgorithm(),
-            {"NAME": "map", "IS_PUBLIC": True},
-        )
-
-        assert captured["project_id"] == "p1"
-        assert "<qgis" in captured["options"].qgisproject
-        assert captured["options"].isPublic is True
-        assert captured["options"].description is None
-        # The project XML is too large to return as a result
-        assert result["MAP"] == {"id": "m1"}
-
-    def test_create_requires_name(self):
-        from plugin_dir.processing.map.create import CreateMapAlgorithm
-
-        with pytest.raises(QgsProcessingException, match="required"):
-            _run(CreateMapAlgorithm(), {"NAME": ""})
-
     @pytest.fixture
-    def uploads(self, monkeypatch, tmp_path, fake_kumoy_provider):
-        from plugin_dir.kumoy.local_cache import map as map_cache
-        from plugin_dir.processing.map import create, update
+    def handled(self, base, monkeypatch):
+        handled = []
+        monkeypatch.setattr(base, "handle_api_error", handled.append)
+        return handled
 
-        cache_dir = tmp_path / "maps"
-        cache_dir.mkdir()
-        monkeypatch.setattr(map_cache, "get_cache_dir", lambda: str(cache_dir))
-        uploads = []
-        for module in (create, update):
-            monkeypatch.setattr(
-                module,
-                "upload_sprites",
-                lambda map_id, sprite: uploads.append((map_id, sprite.assets_hash)),
-            )
-        return uploads
-
-    def _current_map(self, api, monkeypatch, assets_hash):
-        monkeypatch.setattr(
-            api.styledmap,
-            "get_styled_map",
-            lambda _: SimpleNamespace(projectId="p1", assetsHash=assets_hash),
-        )
-
-    def test_update_reads_project_from_qgz(self, api, monkeypatch, tmp_path, uploads):
-        from .project_files import to_qgz, write_kumoy_point_project
-
-        captured = self._capture_update(api, monkeypatch)
-        self._current_map(api, monkeypatch, None)
-        qgz = to_qgz(write_kumoy_point_project(tmp_path))
-
-        _run(self._update_alg(), {"MAP_ID": "m1", "PROJECT_FILE": str(qgz)})
-
-        assert "vector_id=v1" in captured["options"].qgisproject
-        assert captured["options"].isPublic is None
-
-    def test_update_uploads_sprites_of_project_file(
-        self, api, monkeypatch, tmp_path, uploads
+    def test_unauthorized_ends_session_only_in_gui(
+        self, api, base, handled, monkeypatch
     ):
-        from .project_files import fixed_aspect_ratios, write_kumoy_point_project
+        error = api.error.UnauthorizedError("Unauthorized", "expired")
+        monkeypatch.setattr(api.raster, "get_raster", self._raise(error))
+        alg = _alg("raster.get", "GetRasterAlgorithm")
 
-        captured = self._capture_update(api, monkeypatch)
-        self._current_map(api, monkeypatch, "old")
-        path = write_kumoy_point_project(tmp_path)
+        # Headless (qgis_process) or layer conversion: no project in the context
+        with pytest.raises(QgsProcessingException, match="expired"):
+            _run(alg, {"RASTER_ID": "r1"})
+        assert handled == []
 
-        _run(self._update_alg(), {"MAP_ID": "m1", "PROJECT_FILE": str(path)})
-
-        new_hash = captured["options"].assetsHash
-        assert new_hash not in (None, "old")
-        assert uploads == [("m1", new_hash)]
-        assert fixed_aspect_ratios(captured["options"].qgisproject) == ["0.5"]
-
-    def test_update_skips_unchanged_sprites(self, api, monkeypatch, tmp_path, uploads):
-        from plugin_dir.kumoy.sprite import generate_sprite
-        from plugin_dir.kumoy.local_cache import map as map_cache
-        from .project_files import write_kumoy_point_project
-
-        path = write_kumoy_point_project(tmp_path)
-        assets_hash = generate_sprite(
-            map_cache.read_project_file(str(path))
-        ).assets_hash
-        captured = self._capture_update(api, monkeypatch)
-        self._current_map(api, monkeypatch, assets_hash)
-
-        _run(self._update_alg(), {"MAP_ID": "m1", "PROJECT_FILE": str(path)})
-
-        assert uploads == []
-        assert captured["options"].assetsHash is api.styledmap._UNSET
-
-    def test_update_clears_sprites_without_point_symbols(
-        self, api, monkeypatch, tmp_path, uploads
-    ):
-        from qgis.core import QgsProject
-
-        captured = self._capture_update(api, monkeypatch)
-        self._current_map(api, monkeypatch, "old")
-        path = str(tmp_path / "empty.qgs")
-        QgsProject().write(path)
-
-        _run(self._update_alg(), {"MAP_ID": "m1", "PROJECT_FILE": path})
-
-        assert uploads == []
-        assert captured["options"].assetsHash is None
-
-    def test_create_uploads_sprites_of_project_file(
-        self, api, monkeypatch, tmp_path, uploads
-    ):
-        from plugin_dir.processing.map.create import CreateMapAlgorithm
-        from .project_files import write_kumoy_point_project
-
-        monkeypatch.setattr(
-            api.styledmap, "add_styled_map", lambda *_: SimpleNamespace(id="m1")
-        )
-        captured = self._capture_update(api, monkeypatch)
-        path = write_kumoy_point_project(tmp_path)
-
-        _run(CreateMapAlgorithm(), {"NAME": "map", "PROJECT_FILE": str(path)})
-
-        new_hash = captured["options"].assetsHash
-        assert new_hash is not None
-        assert uploads == [("m1", new_hash)]
-
-    def test_create_deletes_map_when_sprite_upload_fails(
-        self, api, monkeypatch, tmp_path, uploads
-    ):
-        from plugin_dir.processing.map import create
-        from .project_files import write_kumoy_point_project
-
-        monkeypatch.setattr(
-            api.styledmap, "add_styled_map", lambda *_: SimpleNamespace(id="m1")
-        )
-
-        def fail(*_):
-            raise RuntimeError("upload failed")
-
-        monkeypatch.setattr(create, "upload_sprites", fail)
-        deleted = []
-        monkeypatch.setattr(api.styledmap, "delete_styled_map", deleted.append)
-        path = write_kumoy_point_project(tmp_path)
-
-        with pytest.raises(QgsProcessingException, match="upload failed"):
+        monkeypatch.setattr(base, "iface", object())
+        gui_context = QgsProcessingContext()
+        gui_context.setProject(QgsProject.instance())
+        with pytest.raises(QgsProcessingException, match="(?i)log in"):
             _run(
-                create.CreateMapAlgorithm(),
-                {"NAME": "map", "PROJECT_FILE": str(path)},
+                _alg("raster.get", "GetRasterAlgorithm"),
+                {"RASTER_ID": "r1"},
+                gui_context,
             )
+        assert handled == [error]
 
-        assert deleted == ["m1"]
+    @pytest.mark.parametrize(
+        "error_name, message",
+        [
+            ("ForbiddenError", "permission"),
+            ("QuotaExceededError", "limit"),
+            ("NotFoundError", "Not Found - raster"),
+        ],
+    )
+    def test_errors_become_processing_exceptions(
+        self, api, handled, monkeypatch, error_name, message
+    ):
+        error = getattr(api.error, error_name)("Not Found", "raster")
+        monkeypatch.setattr(api.raster, "get_raster", self._raise(error))
 
-    @pytest.mark.parametrize("index, expected", [(1, True), (2, False)])
-    def test_update_visibility(self, api, monkeypatch, index, expected):
-        captured = self._capture_update(api, monkeypatch)
-
-        _run(self._update_alg(), {"MAP_ID": "m1", "IS_PUBLIC": index})
-
-        assert captured["options"].isPublic is expected
-
-    def test_update_without_changes_fails(self):
-        with pytest.raises(QgsProcessingException, match="Nothing to update"):
-            _run(self._update_alg(), {"MAP_ID": "m1"})
-
-    def test_get_writes_project_file(self, api, monkeypatch, tmp_path):
-        from plugin_dir.processing.map.get import GetMapAlgorithm
-
-        monkeypatch.setattr(
-            api.styledmap,
-            "get_styled_map",
-            lambda i: api.styledmap.KumoyStyledMapDetail(
-                id=i,
-                name="map",
-                description="",
-                isPublic=False,
-                projectId="p1",
-                project=None,
-                attribution="",
-                assetsHash=None,
-                thumbnailImageUrl="",
-                createdAt="",
-                updatedAt="",
-                qgisproject="<qgis/>",
-                role="OWNER",
-            ),
-        )
-        out = tmp_path / "out.qgs"
-
-        result = _run(GetMapAlgorithm(), {"MAP_ID": "m1", "PROJECT_FILE": str(out)})
-
-        assert out.read_text(encoding="utf-8") == "<qgis/>"
-        assert result["PROJECT_FILE"] == str(out)
-        assert "qgisproject" not in result["MAP"]
+        with pytest.raises(QgsProcessingException, match=message):
+            _run(_alg("raster.get", "GetRasterAlgorithm"), {"RASTER_ID": "r1"})
+        # Only 401 ends the session
+        assert handled == []
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
-class TestUploadProjectId:
+class TestBrowserRefresh:
+    @pytest.fixture
+    def refreshed(self, base, monkeypatch):
+        calls = []
+        monkeypatch.setattr(base, "run_on_main_thread", calls.append)
+        monkeypatch.setattr(base, "iface", object())
+        return calls
+
+    def _gui_context(self):
+        context = QgsProcessingContext()
+        context.setProject(QgsProject.instance())
+        return context
+
+    def test_change_in_gui_refreshes_browser(
+        self, api, base, local_cache, refreshed, monkeypatch
+    ):
+        monkeypatch.setattr(api.vector, "delete_vector", lambda _: None)
+        monkeypatch.setattr(local_cache.vector, "clear", lambda _: True)
+
+        _run(
+            _alg("vector.delete", "DeleteVectorAlgorithm"),
+            {"VECTOR_ID": "v1"},
+            self._gui_context(),
+        )
+
+        assert refreshed == [base.refresh_kumoy_browser]
+
+    def test_read_only_tool_does_not_refresh(self, api, refreshed, monkeypatch):
+        monkeypatch.setattr(api.vector, "get_vectors", lambda _: [])
+
+        _run(
+            _alg("vector.list", "ListVectorsAlgorithm"),
+            {"PROJECT_ID": "p1"},
+            self._gui_context(),
+        )
+
+        assert refreshed == []
+
+    def test_projectless_context_does_not_refresh(
+        self, api, local_cache, refreshed, monkeypatch
+    ):
+        # Layer conversion runs the upload tools while holding Browser items
+        monkeypatch.setattr(api.vector, "delete_vector", lambda _: None)
+        monkeypatch.setattr(local_cache.vector, "clear", lambda _: True)
+
+        _run(_alg("vector.delete", "DeleteVectorAlgorithm"), {"VECTOR_ID": "v1"})
+
+        assert refreshed == []
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestUploadProjectChoices:
     @pytest.fixture(params=["vector", "raster"])
-    def alg(self, request, api, monkeypatch):
-        if request.param == "vector":
-            from plugin_dir.processing.vector.upload import algorithm
-        else:
-            from plugin_dir.processing.raster.upload import algorithm
-
-        monkeypatch.setattr(algorithm, "get_token", lambda: "token")
-        org = SimpleNamespace(id="o1", name="Org", scheduledDeletionAt=None)
-        monkeypatch.setattr(api.organization, "get_organizations", lambda: [org])
+    def alg_class(self, request, base, monkeypatch):
         monkeypatch.setattr(
-            api.project,
-            "get_projects_by_organization",
-            lambda _: [
-                SimpleNamespace(id="p1", name="A"),
-                SimpleNamespace(id="p2", name="B"),
-            ],
+            base, "_project_choices", [("p1", "Org / A"), ("p2", "Org / B")]
         )
+        module = importlib.import_module(
+            f"plugin_dir.processing.{request.param}.upload.algorithm"
+        )
+        return getattr(module, f"Upload{request.param.capitalize()}Algorithm")
 
-        alg = (
-            algorithm.UploadVectorAlgorithm()
-            if request.param == "vector"
-            else algorithm.UploadRasterAlgorithm()
-        )
+    def test_project_id_overrides_enum(self, alg_class):
+        alg = alg_class()
         alg.initAlgorithm()
-        return alg
-
-    def test_project_id_overrides_enum(self, alg):
         project_id = alg._resolve_project_id(
             {"PROJECT_ID": " p9 ", "PROJECT": 1}, QgsProcessingContext()
         )
         assert project_id == "p9"
 
-    def test_falls_back_to_enum(self, alg):
-        project_id = alg._resolve_project_id({"PROJECT": 1}, QgsProcessingContext())
-        assert project_id == "p2"
+    def test_falls_back_to_enum(self, alg_class):
+        alg = alg_class()
+        alg.initAlgorithm()
+        assert alg._resolve_project_id({"PROJECT": 1}, QgsProcessingContext()) == "p2"
+
+    def test_enum_labels_and_selected_default(self, alg_class, monkeypatch):
+        _select_project(monkeypatch, "p2")
+        alg = alg_class()
+        alg.initAlgorithm()
+
+        definition = alg.parameterDefinition("PROJECT")
+        assert definition.options() == ["Org / A", "Org / B"]
+        assert definition.defaultValue() == 1
+
+    def test_run_copy_keeps_the_list_the_dialog_showed(
+        self, alg_class, base, monkeypatch
+    ):
+        dialog_alg = alg_class()
+        dialog_alg.initAlgorithm()
+        # A background refresh lands while the dialog is open
+        monkeypatch.setattr(
+            base,
+            "_project_choices",
+            [("p0", "Org / New"), ("p1", "Org / A"), ("p2", "Org / B")],
+        )
+
+        # The toolbox runs a create()d copy
+        run_alg = dialog_alg.create()
+
+        assert (
+            run_alg._resolve_project_id({"PROJECT": 1}, QgsProcessingContext()) == "p2"
+        )
+
+    def test_prototype_does_not_pin_its_list(self, alg_class, base, monkeypatch):
+        prototype = alg_class(prototype=True)
+        prototype.initAlgorithm()
+        monkeypatch.setattr(base, "_project_choices", [("p3", "Org / C")])
+
+        alg = prototype.create()
+
+        assert alg.parameterDefinition("PROJECT").options() == ["Org / C"]
+
+    def test_empty_list_still_accepts_project_id(self, alg_class, base, monkeypatch):
+        monkeypatch.setattr(base, "_project_choices", [])
+        alg = alg_class()
+        alg.initAlgorithm()
+
+        # A required enum without options would reject runs that pass PROJECT_ID
+        flags = alg.parameterDefinition("PROJECT").flags()
+        assert flags & Qgis.ProcessingParameterFlag.Optional
+        with pytest.raises(QgsProcessingException, match="open it again"):
+            alg._resolve_project_id({}, QgsProcessingContext())
+
+    def test_init_does_not_call_the_network(self, alg_class, api, monkeypatch):
+        def fail(*_):
+            raise AssertionError("network in initAlgorithm")
+
+        monkeypatch.setattr(api.organization, "get_organizations", fail)
+        monkeypatch.setattr(api.organization, "get_projects", fail)
+
+        alg_class().initAlgorithm()
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestRefreshProjectChoices:
+    @pytest.fixture
+    def tasks(self, base, monkeypatch):
+        from ._real_tasks import RealTasks
+
+        tasks = RealTasks()
+        monkeypatch.setattr(base, "run_task", tasks.run_task)
+        return tasks
+
+    def test_lists_writable_projects(self, api, base, tasks, monkeypatch):
+        monkeypatch.setattr(
+            api.organization,
+            "get_organizations",
+            lambda: [
+                SimpleNamespace(id="o1", name="Org", scheduledDeletionAt=None),
+                SimpleNamespace(id="o2", name="Gone", scheduledDeletionAt="2026-01-01"),
+            ],
+        )
+        monkeypatch.setattr(
+            api.organization,
+            "get_my_teams",
+            lambda _: [
+                SimpleNamespace(id="t1", role="ADMIN"),
+                SimpleNamespace(id="t2", role="MEMBER"),
+            ],
+        )
+        monkeypatch.setattr(
+            api.organization,
+            "get_projects",
+            lambda _: [
+                SimpleNamespace(id="p1", name="A", teamId="t1"),
+                SimpleNamespace(id="p2", name="B", teamId="t2"),
+            ],
+        )
+
+        base.refresh_project_choices()
+        assert len(tasks.queue) == 1
+        tasks.flush()
+
+        assert base.project_choices() == [("p1", "Org / A")]
+        # Throttled: a second call right away does not fetch again
+        base.refresh_project_choices()
+        assert tasks.queue == []
+
+    def test_logout_clears(self, base, tasks, monkeypatch):
+        from plugin_dir.kumoy import session
+
+        monkeypatch.setattr(base, "_project_choices", [("p1", "Org / A")])
+        monkeypatch.setattr(session, "_token", None)
+
+        base.refresh_project_choices()
+
+        assert base.project_choices() == []
+        assert tasks.queue == []
+
+    def test_fetch_for_a_previous_login_is_dropped(self, api, base, monkeypatch):
+        """Real QgsTask: log out and back in while the first fetch runs."""
+        import threading
+        import time
+
+        from qgis.PyQt.QtCore import QCoreApplication
+
+        from plugin_dir.kumoy import session, tasks
+
+        monkeypatch.setattr(base, "run_task", tasks.run_task)  # the real one
+        monkeypatch.setattr(session, "_token", "first-user")
+        monkeypatch.setattr(base, "_project_choices", [])
+        monkeypatch.setattr(base, "_refreshing", False)
+        monkeypatch.setattr(base, "_last_refresh", 0.0)
+        release = threading.Event()
+        finished = []
+
+        def get_organizations():
+            release.wait(10)
+            finished.append(1)
+            return [SimpleNamespace(id="o1", name="Old", scheduledDeletionAt=None)]
+
+        monkeypatch.setattr(api.organization, "get_organizations", get_organizations)
+        monkeypatch.setattr(
+            api.organization,
+            "get_my_teams",
+            lambda _: [SimpleNamespace(id="t1", role="ADMIN")],
+        )
+        monkeypatch.setattr(
+            api.organization,
+            "get_projects",
+            lambda _: [SimpleNamespace(id="p-old", name="A", teamId="t1")],
+        )
+
+        base.refresh_project_choices()
+        base.forget_project_choices()  # login changed while it runs
+        monkeypatch.setattr(session, "_token", "second-user")
+        release.set()
+
+        deadline = time.monotonic() + 10
+        while not finished:
+            assert time.monotonic() < deadline
+            QCoreApplication.processEvents()
+            time.sleep(0.01)
+        for _ in range(50):  # let the task's finished() callback run
+            QCoreApplication.processEvents()
+            time.sleep(0.01)
+        assert base.project_choices() == []
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -736,12 +742,10 @@ class TestSelectedProject:
     not mix layers of different projects."""
 
     def test_no_selected_project_fails(self, monkeypatch):
-        from plugin_dir.processing.organization.get_project import GetProjectAlgorithm
-
         _select_project(monkeypatch, "")
 
         with pytest.raises(QgsProcessingException, match="No Kumoy project"):
-            _run(GetProjectAlgorithm(), {})
+            _run(_alg("organization.get_project", "GetProjectAlgorithm"), {})
 
     @pytest.mark.parametrize(
         "module, api_name, alg_name, getter, parameters",
@@ -765,24 +769,20 @@ class TestSelectedProject:
     def test_add_to_map_of_other_project_fails(
         self, api, monkeypatch, module, api_name, alg_name, getter, parameters
     ):
-        import importlib
-
-        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
         monkeypatch.setattr(
             getattr(api, api_name), getter, lambda _: SimpleNamespace(projectId="p2")
         )
 
         with pytest.raises(QgsProcessingException, match="selected Kumoy project"):
-            _run(getattr(alg_module, alg_name)(), parameters)
+            _run(_alg(module, alg_name), parameters)
 
     @pytest.mark.parametrize(
-        "module, api_name, alg_name, getter, mutator, parameters",
+        "module, api_name, alg_name, mutator, parameters",
         [
             (
                 "vector.update",
                 "vector",
                 "UpdateVectorAlgorithm",
-                "get_vector",
                 "update_vector",
                 {"VECTOR_ID": "v1", "NAME": "n"},
             ),
@@ -790,7 +790,6 @@ class TestSelectedProject:
                 "vector.delete",
                 "vector",
                 "DeleteVectorAlgorithm",
-                "get_vector",
                 "delete_vector",
                 {"VECTOR_ID": "v1"},
             ),
@@ -798,7 +797,6 @@ class TestSelectedProject:
                 "raster.update",
                 "raster",
                 "UpdateRasterAlgorithm",
-                "get_raster",
                 "update_raster",
                 {"RASTER_ID": "r1", "NAME": "n"},
             ),
@@ -806,25 +804,8 @@ class TestSelectedProject:
                 "raster.delete",
                 "raster",
                 "DeleteRasterAlgorithm",
-                "get_raster",
                 "delete_raster",
                 {"RASTER_ID": "r1"},
-            ),
-            (
-                "map.update",
-                "styledmap",
-                "UpdateMapAlgorithm",
-                "get_styled_map",
-                "update_styled_map",
-                {"MAP_ID": "m1", "NAME": "n"},
-            ),
-            (
-                "map.delete",
-                "styledmap",
-                "DeleteMapAlgorithm",
-                "get_styled_map",
-                "delete_styled_map",
-                {"MAP_ID": "m1"},
             ),
         ],
     )
@@ -836,51 +817,29 @@ class TestSelectedProject:
         module,
         api_name,
         alg_name,
-        getter,
         mutator,
         parameters,
     ):
-        import importlib
-
         _select_project(monkeypatch, "")
-        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
-        api_module = getattr(api, api_name)
-        monkeypatch.setattr(
-            api_module, getter, lambda _: SimpleNamespace(projectId="p2")
-        )
         called = []
-        monkeypatch.setattr(api_module, mutator, lambda *a: called.append(a) or {})
-        for cache in (local_cache.vector, local_cache.raster, local_cache.map):
+        monkeypatch.setattr(
+            getattr(api, api_name), mutator, lambda *a, **k: called.append(a) or {}
+        )
+        for cache in (local_cache.vector, local_cache.raster):
             monkeypatch.setattr(cache, "clear", lambda _: True)
 
-        _run(getattr(alg_module, alg_name)(), parameters)
+        _run(_alg(module, alg_name), parameters)
 
         assert len(called) == 1
-
-    def test_create_map_goes_to_selected_project(self, api, monkeypatch):
-        from plugin_dir.processing.map.create import CreateMapAlgorithm
-
-        _select_project(monkeypatch, "p9")
-        captured = {}
-
-        def fake(project_id, options):
-            captured["project_id"] = project_id
-            return {"id": "m1"}
-
-        monkeypatch.setattr(api.styledmap, "add_styled_map", fake)
-
-        _run(CreateMapAlgorithm(), {"NAME": "map"})
-
-        assert captured["project_id"] == "p9"
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
 class TestNotLoggedIn:
     @pytest.fixture(autouse=True)
     def logged_out(self, monkeypatch):
-        from plugin_dir.processing import base
+        from plugin_dir.kumoy import session
 
-        monkeypatch.setattr(base, "get_token", lambda: None)
+        monkeypatch.setattr(session, "_token", None)
         # Logging out also clears the selected project
         _select_project(monkeypatch, "")
 
@@ -890,32 +849,13 @@ class TestNotLoggedIn:
             ("organization.list_organizations", "ListOrganizationsAlgorithm", {}),
             ("organization.get_project", "GetProjectAlgorithm", {}),
             ("vector.get", "GetVectorAlgorithm", {"VECTOR_ID": "v1"}),
-            ("map.delete", "DeleteMapAlgorithm", {"MAP_ID": "m1"}),
+            ("vector.upload.algorithm", "UploadVectorAlgorithm", {"PROJECT_ID": "p1"}),
+            ("raster.upload.algorithm", "UploadRasterAlgorithm", {"PROJECT_ID": "p1"}),
         ],
     )
     def test_says_not_logged_in(self, module, alg_name, parameters):
-        import importlib
-
-        alg_module = importlib.import_module(f"plugin_dir.processing.{module}")
-
         with pytest.raises(QgsProcessingException, match="not logged in"):
-            _run(getattr(alg_module, alg_name)(), parameters)
-
-    @pytest.mark.parametrize("kind", ["vector", "raster"])
-    def test_upload_says_not_logged_in(self, kind):
-        import importlib
-
-        algorithm = importlib.import_module(
-            f"plugin_dir.processing.{kind}.upload.algorithm"
-        )
-        alg = (
-            algorithm.UploadVectorAlgorithm()
-            if kind == "vector"
-            else algorithm.UploadRasterAlgorithm()
-        )
-
-        with pytest.raises(QgsProcessingException, match="not logged in"):
-            _run(alg, {"PROJECT_ID": "p1"})
+            _run(_alg(module, alg_name), parameters)
 
 
 @pytest.mark.usefixtures("qgis_plugin_path")
@@ -924,33 +864,149 @@ class TestServerUrlInLoginErrors:
     def custom_server(self, api, monkeypatch):
         monkeypatch.setattr(
             api.config,
-            "get_settings",
-            lambda: SimpleNamespace(
-                use_custom_server="true",
-                custom_server_url="https://kumoy.example.com",
-            ),
+            "get_api_config",
+            lambda: api.config.ApiConfig(SERVER_URL="https://kumoy.example.com"),
         )
 
     def test_not_logged_in(self, monkeypatch):
-        from plugin_dir.processing import base
-        from plugin_dir.processing.organization.list_organizations import (
-            ListOrganizationsAlgorithm,
-        )
+        from plugin_dir.kumoy import session
 
-        monkeypatch.setattr(base, "get_token", lambda: None)
+        monkeypatch.setattr(session, "_token", None)
 
         with pytest.raises(QgsProcessingException, match="https://kumoy.example.com"):
-            _run(ListOrganizationsAlgorithm(), {})
+            _run(
+                _alg("organization.list_organizations", "ListOrganizationsAlgorithm"),
+                {},
+            )
 
     def test_rejected(self, api, monkeypatch):
-        from plugin_dir.processing.organization.list_organizations import (
-            ListOrganizationsAlgorithm,
-        )
-
         def fake():
             raise api.error.UnauthorizedError("Unauthorized", "expired")
 
         monkeypatch.setattr(api.organization, "get_organizations", fake)
 
         with pytest.raises(QgsProcessingException, match="https://kumoy.example.com"):
-            _run(ListOrganizationsAlgorithm(), {})
+            _run(
+                _alg("organization.list_organizations", "ListOrganizationsAlgorithm"),
+                {},
+            )
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+def test_provider_loads_all_tools():
+    from plugin_dir.processing.provider import KumoyProcessingProvider
+
+    provider = KumoyProcessingProvider()
+    provider.refreshAlgorithms()
+
+    ids = {alg.name() for alg in provider.algorithms()}
+    assert {
+        "uploadvector",
+        "uploadraster",
+        "listorganizations",
+        "listprojects",
+        "getproject",
+        "listvectors",
+        "getvector",
+        "addvectortomap",
+        "updatevector",
+        "deletevector",
+        "listrasters",
+        "getraster",
+        "addrastertomap",
+        "updateraster",
+        "deleteraster",
+    } <= ids
+
+
+@pytest.mark.usefixtures("qgis_plugin_path")
+class TestUploadRasterFlow:
+    """The contract _upload_raster relies on: RASTER_ID, {} on cancel, cleanup."""
+
+    @pytest.fixture
+    def flow(self, api, local_cache, monkeypatch, tmp_path):
+        from osgeo import gdal, osr
+
+        from qgis.PyQt import sip
+
+        from plugin_dir.processing.raster.upload import algorithm
+
+        path = str(tmp_path / "src.tif")
+        ds = gdal.GetDriverByName("GTiff").Create(path, 4, 4, 1, gdal.GDT_Byte)
+        ds.SetGeoTransform([0, 1, 0, 4, 0, -1])
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
+        ds.SetProjection(srs.ExportToWkt())
+        ds.FlushCache()
+        ds.Close()
+        calls = []
+        organization = SimpleNamespace(
+            usage=SimpleNamespace(vectors=0, rasters=0, usedStorageUnits=0),
+            availableStorageUnits=10,
+            planSettings=SimpleNamespace(maxRasters=10),
+        )
+        project = SimpleNamespace(
+            role="ADMIN", team=SimpleNamespace(organizationId="o1")
+        )
+        monkeypatch.setattr(api.project, "get_project", lambda _: project)
+        monkeypatch.setattr(
+            api.organization, "get_organization", lambda _: organization
+        )
+
+        def convert_to_cog(src_path, dst_path, **_):
+            with open(dst_path, "wb") as f:
+                f.write(b"cog")
+
+        def create_raster(*args):
+            calls.append(("create",) + args)
+            return SimpleNamespace(raster_id="r1", upload_url="https://s3")
+
+        monkeypatch.setattr(algorithm, "convert_to_cog", convert_to_cog)
+        monkeypatch.setattr(api.raster, "create_raster", create_raster)
+        monkeypatch.setattr(
+            api.raster, "delete_raster", lambda i: calls.append(("delete", i))
+        )
+        monkeypatch.setattr(
+            local_cache.raster, "store", lambda i, p: calls.append(("store", i))
+        )
+        layer = QgsRasterLayer(path, "dem", "gdal")
+        assert layer.isValid()
+        yield SimpleNamespace(algorithm=algorithm, layer=layer, calls=calls)
+        # Not left to the garbage collector after QGIS has exited
+        sip.delete(layer)
+
+    def _run(self, flow):
+        alg = flow.algorithm.UploadRasterAlgorithm()
+        alg.initAlgorithm()
+        return alg.processAlgorithm(
+            {"INPUT": flow.layer, "PROJECT_ID": "p1"},
+            QgsProcessingContext(),
+            QgsProcessingFeedback(),
+        )
+
+    def test_success_caches_the_cog(self, flow, monkeypatch):
+        monkeypatch.setattr(
+            flow.algorithm, "upload_file_to_presigned_put", lambda **_: None
+        )
+
+        assert self._run(flow) == {"RASTER_ID": "r1"}
+        assert flow.calls == [("create", "p1", "dem", 3), ("store", "r1")]
+
+    def test_cancel_during_upload_cleans_up(self, flow, monkeypatch):
+        def cancel(**_):
+            raise flow.algorithm.UploadCanceled()
+
+        monkeypatch.setattr(flow.algorithm, "upload_file_to_presigned_put", cancel)
+
+        assert self._run(flow) == {}
+        assert flow.calls[-1] == ("delete", "r1")
+
+    def test_failure_cleans_up_and_explains(self, flow, api, monkeypatch):
+        def fail(**_):
+            raise api.error.NetworkError("offline")
+
+        monkeypatch.setattr(flow.algorithm, "upload_file_to_presigned_put", fail)
+
+        with pytest.raises(QgsProcessingException, match="Could not connect"):
+            self._run(flow)
+        assert flow.calls[-1] == ("delete", "r1")

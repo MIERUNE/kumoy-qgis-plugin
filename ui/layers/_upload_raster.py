@@ -1,11 +1,13 @@
-"""Raster-specific half of the local-to-Kumoy conversion driven by ``convert.py``.
+"""Raster half of converting a local layer into a Kumoy layer (convert.py).
 
-Runs ``kumoy:uploadraster`` on a worker thread (see ``_run_upload``) and repairs
-pseudocolor min/max lost in the style round-trip.
+The upload pipeline (COG conversion, create_raster, presigned PUT, storing the
+COG into the local cache, server-side cleanup on failure) lives in the
+`kumoy:uploadraster` algorithm; it is run by id so that ui/ does not import
+processing/.
 """
 
 import math
-from typing import Optional
+from typing import Callable, List, Optional
 
 from qgis.core import (
     QgsApplication,
@@ -15,41 +17,104 @@ from qgis.core import (
     QgsRasterLayer,
     QgsSingleBandPseudoColorRenderer,
 )
-from qgis.PyQt.QtCore import QEventLoop
 
 from ... import i18n
-from ...kumoy import api, raster_layer
-from ...pyqt_version import exec_event_loop
-from .upload_progress import UploadProgressDialog
+from ...kumoy import constants, raster_layer
+from ...kumoy.api.models import Raster
+
+_ALGORITHM_ID = "kumoy:uploadraster"
+
+# QgsTaskManager does not keep Python wrappers (or their feedback/context)
+# alive; hold them until the task reports back
+_running: List[object] = []
+
+
+class _RecordingFeedback(QgsProcessingFeedback):
+    """Keeps the algorithm's reportError() messages.
+
+    A background run reports failure only as `executed(False)`; the message
+    explaining it (quota, missing CRS, ...) arrives here.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.errors: List[str] = []
+
+    def reportError(self, error: str, fatalError: bool = False) -> None:
+        self.errors.append(error)
+        super().reportError(error, fatalError)
 
 
 def upload(
     layer: QgsRasterLayer,
-    project_index: int,
+    project_id: str,
     raster_name: str,
-    progress: UploadProgressDialog,
-) -> Optional[QgsRasterLayer]:
-    """Upload ``layer`` as a COG and return the Kumoy layer, or None on cancel."""
-    result = _run_upload(layer, project_index, raster_name, progress)
-    if result is None:
-        return None  # user cancel
+    on_progress: Optional[Callable[[float], None]] = None,
+    on_done: Optional[Callable[[Optional[QgsRasterLayer]], None]] = None,
+    on_error: Optional[Callable[[Exception], None]] = None,
+) -> QgsProcessingAlgRunnerTask:
+    """Upload `layer` as a new raster of `project_id` in a background task.
 
-    if "RASTER_ID" not in result:
-        raise Exception(i18n.tr("Upload failed - unable to get raster id"))
+    Returns at once with the task; `task.cancel()` cancels (it also shows in
+    the task manager). Callbacks run on the main thread:
+    - on_progress(percent 0-100)
+    - on_done(kumoy_layer): the new Kumoy layer (not added to the project;
+      its COG is already cached), or None when canceled. Cancel is silent.
+    - on_error(exception): failure, with the algorithm's message.
+    Raises RuntimeError when the algorithm is not registered.
+    """
+    alg = QgsApplication.processingRegistry().createAlgorithmById(_ALGORITHM_ID)
+    if alg is None:
+        raise RuntimeError(i18n.tr("Upload algorithm is not available"))
 
-    return _build_kumoy_layer(result["RASTER_ID"])
+    name = raster_name or layer.name()[: constants.MAX_CHARACTERS_RASTER_NAME]
+    params = {"INPUT": layer, "PROJECT_ID": project_id, "RASTER_NAME": name}
+    context = QgsProcessingContext()
+    feedback = _RecordingFeedback()
+    if on_progress is not None:
+        # Emitted in the worker thread, delivered queued on the main thread
+        feedback.progressChanged.connect(on_progress)
+    task = QgsProcessingAlgRunnerTask(alg, params, context, feedback)
+    keep = (task, context, feedback)
+
+    def executed(ok: bool, results: dict) -> None:
+        _running.remove(keep)
+        if feedback.isCanceled():
+            if on_done is not None:
+                on_done(None)
+            return
+        try:
+            raster_id = results.get("RASTER_ID") if ok else None
+            if not raster_id:
+                raise RuntimeError(
+                    feedback.errors[-1] if feedback.errors else i18n.tr("Upload failed")
+                )
+            # Built locally: fetching the raster would be a blocking request
+            raster = Raster(id=raster_id, name=name, projectId=project_id)
+            kumoy_layer = raster_layer.create_raster_layer(raster)
+        except Exception as e:
+            if on_error is not None:
+                on_error(e)
+            return
+        if on_done is not None:
+            on_done(kumoy_layer)
+
+    task.executed.connect(executed)
+    _running.append(keep)
+    QgsApplication.taskManager().addTask(task)
+    return task
 
 
 def repair_nan_classification(
     source_layer: QgsRasterLayer, target_layer: QgsRasterLayer
 ) -> None:
-    """スタイルXML往復で失われた疑似カラーの min/max をシェーダー値から復元する。
+    """Restore pseudocolor min/max lost in the style XML round-trip.
 
-    元レンダラーの classificationMin/Max が未設定(NaN)でも、シェーダー側の
-    min/max が有効なら描画・凡例とも正常に見える。ところがスタイルを XML 経由で
-    コピーすると、QgsSingleBandPseudoColorRenderer.create() が classificationMin/Max
-    属性("nan")でシェーダーの有効な min/max まで上書きするため、変換後のレイヤー
-    だけ凡例が「nan」表示になる（色分け項目は保持されるので描画は変わらない）。
+    A renderer can have NaN classificationMin/Max yet render and show its
+    legend fine through the shader's valid min/max. Copying the style via XML
+    makes QgsSingleBandPseudoColorRenderer.create() overwrite the shader's
+    min/max with those "nan" attributes, so only the converted layer's legend
+    says "nan" (the color classes, and so the rendering, survive).
     """
     renderer = target_layer.renderer()
     source_renderer = source_layer.renderer()
@@ -71,92 +136,3 @@ def repair_nan_classification(
         shader_fn.maximumValue()
     ):
         renderer.setClassificationMax(shader_fn.maximumValue())
-
-
-class _RecordingFeedback(QgsProcessingFeedback):
-    """アルゴリズムが reportError で出したメッセージを控えるフィードバック。
-
-    バックグラウンド実行では例外が呼び出し側に伝播しないため、失敗時に具体的な
-    原因（クォータ超過・CRS 未設定等）を拾えるようにエラー文字列を蓄える。
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._errors: list[str] = []
-
-    def reportError(self, error: str, fatalError: bool = False) -> None:
-        self._errors.append(error)
-        super().reportError(error, fatalError)
-
-    def last_error(self) -> Optional[str]:
-        return self._errors[-1] if self._errors else None
-
-
-def _run_upload(
-    layer: QgsRasterLayer,
-    project_index: int,
-    raster_name: str,
-    progress: UploadProgressDialog,
-) -> Optional[dict]:
-    """``kumoy:uploadraster`` をバックグラウンドスレッドで実行し、完了まで待つ。
-
-    presigned PUT は単一の長寿命 QNetworkReply を入れ子イベントループで待つ。
-    これをメインスレッドで走らせると、進捗更新に伴う modal ダイアログの
-    processEvents 再入が送信中の reply を破棄し "connection closed" になる。
-    アルゴリズムをワーカースレッドで実行すれば、進捗は queued signal でメインに
-    届くため再入が起きない。
-
-    Returns:
-        成功時は結果 dict、ユーザーキャンセル時は None。
-    Raises:
-        実行に失敗した場合は例外（可能ならアルゴリズムのエラーメッセージ付き）。
-    """
-    alg = QgsApplication.processingRegistry().createAlgorithmById("kumoy:uploadraster")
-    if alg is None:
-        raise Exception(i18n.tr("Upload algorithm is not available"))
-
-    context = QgsProcessingContext()
-    feedback = _RecordingFeedback()
-    params = {
-        "INPUT": layer,
-        "PROJECT": project_index,
-        "RASTER_NAME": raster_name,
-    }
-
-    # Progress arrives from the worker thread as a queued signal, so no pumping here
-    feedback.progressChanged.connect(progress.set_layer_progress)
-    progress.canceled.connect(feedback.cancel)
-    if progress.is_canceled():
-        # Cancel pressed while a previous layer was running must not be lost
-        feedback.cancel()
-
-    outcome: dict = {}
-    loop = QEventLoop()
-
-    def on_executed(successful: bool, results: dict) -> None:
-        outcome["ok"] = successful
-        outcome["results"] = results
-        loop.quit()
-
-    task = QgsProcessingAlgRunnerTask(alg, params, context, feedback)
-    task.executed.connect(on_executed)
-    QgsApplication.taskManager().addTask(task)
-
-    try:
-        exec_event_loop(loop)
-    finally:
-        # Drop only this feedback's connections: the dialog outlives it
-        progress.canceled.disconnect(feedback.cancel)
-        feedback.progressChanged.disconnect(progress.set_layer_progress)
-
-    if feedback.isCanceled():
-        return None
-
-    if not outcome.get("ok"):
-        raise Exception(feedback.last_error() or i18n.tr("Upload failed"))
-
-    return outcome.get("results") or {}
-
-
-def _build_kumoy_layer(raster_id: str) -> QgsRasterLayer:
-    return raster_layer.create_raster_layer(api.raster.get_raster(raster_id))

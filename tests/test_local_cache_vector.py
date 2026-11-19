@@ -1,335 +1,202 @@
-"""kumoy/local_cache/vector.py のテスト
-
-カラム順序チェック (_columns_match) と sync_local_cache の分岐挙動を検証する。
-"""
+"""kumoy/local_cache/vector.py: versioned GeoPackage cache files."""
 
 import os
 import types
 
 import pytest
-from qgis.core import (
-    QgsCoordinateReferenceSystem,
-    QgsField,
-    QgsFields,
-    QgsGeometry,
-    QgsPointXY,
-    QgsProject,
-    QgsVectorFileWriter,
-    QgsWkbTypes,
-)
-from qgis.PyQt.QtCore import QVariant
+from qgis.core import QgsGeometry, QgsPointXY, QgsVectorLayer
 
 
-def _build_fields(column_names):
-    """kumoy_id 先頭 + 指定カラム名（全て String）の QgsFields を作る"""
-    fs = QgsFields()
-    fs.append(QgsField("kumoy_id", QVariant.LongLong))
-    for name in column_names:
-        fs.append(QgsField(name, QVariant.String))
-    return fs
+def _wkb(x: float, y: float) -> bytes:
+    return bytes(QgsGeometry.fromPointXY(QgsPointXY(x, y)).asWkb())
 
 
-def _make_gpkg(path: str, column_names):
-    """テスト用に直接 GPKG を生成する"""
-    fields = _build_fields(column_names)
-    options = QgsVectorFileWriter.SaveVectorOptions()
-    options.layerOptions = ["FID=kumoy_id"]
-    options.driverName = "GPKG"
-    options.fileEncoding = "UTF-8"
-    writer = QgsVectorFileWriter.create(
-        path,
-        fields,
-        QgsWkbTypes.Point,
-        QgsCoordinateReferenceSystem("EPSG:4326"),
-        QgsProject.instance().transformContext(),
-        options,
+def _row(fid, x=0.0, **props):
+    return {"kumoy_id": fid, "kumoy_wkb": _wkb(x, 0.0), "properties": props}
+
+
+@pytest.fixture
+def cache(tmp_path, monkeypatch, qgis_plugin_path):
+    from plugin_dir.kumoy.api.models import Column, VectorDetail
+    from plugin_dir.kumoy.local_cache import vector
+
+    root = tmp_path / "vectors"
+    root.mkdir()
+    monkeypatch.setattr(vector, "_root_dir", lambda: str(root))
+    detail = VectorDetail(
+        id="v1",
+        name="vec",
+        type="POINT",
+        role="ADMIN",
+        columns=[
+            Column("name", "string"),
+            Column("n", "integer"),
+            Column("ok", "boolean"),
+        ],
     )
-    assert writer.hasError() == QgsVectorFileWriter.NoError
-    del writer
+    return types.SimpleNamespace(mod=vector, root=root, detail=detail)
 
 
-def _point_wkb(x: float, y: float) -> bytes:
-    g = QgsGeometry.fromPointXY(QgsPointXY(x, y))
-    return bytes(g.asWkb())
+def _features(path):
+    from plugin_dir.kumoy.local_cache.vector import ogr_uri
+
+    layer = QgsVectorLayer(ogr_uri(path), "t", "ogr")
+    assert layer.isValid()
+    return {f.id(): (f.geometry().asWkt(), f.attributes()) for f in layer.getFeatures()}
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestColumnsMatch:
-    def _fn(self):
-        from plugin_dir.kumoy.local_cache.vector import _columns_match
+class TestCreateAndWrite:
+    def test_new_version_is_incomplete_until_last_updated(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [_row(1, name="a", n=2, ok=True)])
+        assert cache.mod.open_cache("v1") is None
 
-        return _columns_match
-
-    def test_same_order(self, tmp_path):
-        gpkg = str(tmp_path / "x.gpkg")
-        _make_gpkg(gpkg, ["a", "b", "c"])
-        assert self._fn()(gpkg, _build_fields(["a", "b", "c"])) is True
-
-    def test_swapped_order(self, tmp_path):
-        gpkg = str(tmp_path / "x.gpkg")
-        _make_gpkg(gpkg, ["a", "b", "c"])
-        assert self._fn()(gpkg, _build_fields(["a", "c", "b"])) is False
-
-    def test_extra_in_cache(self, tmp_path):
-        gpkg = str(tmp_path / "x.gpkg")
-        _make_gpkg(gpkg, ["a", "b", "c", "extra"])
-        assert self._fn()(gpkg, _build_fields(["a", "b", "c"])) is False
-
-    def test_extra_on_server(self, tmp_path):
-        gpkg = str(tmp_path / "x.gpkg")
-        _make_gpkg(gpkg, ["a", "b"])
-        assert self._fn()(gpkg, _build_fields(["a", "b", "c"])) is False
-
-    def test_only_kumoy_id(self, tmp_path):
-        gpkg = str(tmp_path / "x.gpkg")
-        _make_gpkg(gpkg, [])
-        assert self._fn()(gpkg, _build_fields([])) is True
-
-    def test_missing_file(self, tmp_path):
-        gpkg = str(tmp_path / "missing.gpkg")
-        assert self._fn()(gpkg, _build_fields(["a"])) is False
-
-
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestSyncLocalCache:
-    """sync_local_cache の分岐挙動を検証する"""
-
-    @pytest.fixture
-    def sync_setup(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy import api as real_api
-        from plugin_dir.kumoy.local_cache import vector as vector_mod
-        from plugin_dir.kumoy.local_cache.settings import (
-            delete_last_updated,
-            store_last_updated,
+        cache.mod.write(
+            path, [], vector=cache.detail, last_updated="2026-01-01T00:00:00Z"
         )
 
-        cache_dir = tmp_path / "cache"
-        cache_dir.mkdir()
-        monkeypatch.setattr(vector_mod, "_get_cache_dir", lambda: str(cache_dir))
+        current = cache.mod.open_cache("v1")
+        assert current.path == path
+        assert current.last_updated == "2026-01-01T00:00:00Z"
+        assert [c.name for c in current.vector.columns] == ["name", "n", "ok"]
+        assert current.vector.role == "ADMIN"
+        assert _features(path) == {1: ("Point (0 0)", [1, "a", 2, True])}
 
-        calls = {"get_features": 0, "get_diff": 0}
+    def test_fields_follow_column_order_with_kumoy_id_first(self, cache):
+        path = cache.mod.create(cache.detail)
+        layer = QgsVectorLayer(cache.mod.ogr_uri(path), "t", "ogr")
+        assert layer.fields().names() == ["kumoy_id", "name", "n", "ok"]
 
-        def default_get_features(vector_id, after_id=None):
-            return [
-                {
-                    "kumoy_id": 1,
-                    "kumoy_wkb": _point_wkb(0.0, 0.0),
-                    "properties": {"a": "v1", "b": "v2"},
-                }
-            ]
-
-        def default_get_diff(vector_id, last_updated):
-            return {"updatedRows": [], "deletedRows": []}
-
-        state = {
-            "get_features": default_get_features,
-            "get_diff": default_get_diff,
-        }
-
-        fake_qgis_vector = types.SimpleNamespace(
-            get_features=lambda **kwargs: (
-                calls.__setitem__("get_features", calls["get_features"] + 1)
-                or state["get_features"](**kwargs)
-            ),
-            get_diff=lambda *args, **kwargs: (
-                calls.__setitem__("get_diff", calls["get_diff"] + 1)
-                or state["get_diff"](*args, **kwargs)
-            ),
-        )
-        fake_api = types.SimpleNamespace(
-            qgis_vector=fake_qgis_vector,
-            error=real_api.error,
-        )
-        monkeypatch.setattr(vector_mod, "api", fake_api)
-
-        vector_id = "test-vec-1"
-        delete_last_updated(vector_id)
-
-        yield types.SimpleNamespace(
-            vector_mod=vector_mod,
-            cache_dir=str(cache_dir),
-            vector_id=vector_id,
-            calls=calls,
-            state=state,
-            store_last_updated=store_last_updated,
-            delete_last_updated=delete_last_updated,
-            real_api=real_api,
+    def test_failed_write_changes_nothing(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(
+            path, [_row(1, name="a")], vector=cache.detail, last_updated="t1"
         )
 
-        delete_last_updated(vector_id)
-
-    def _gpkg_column_order(self, cache_file):
-        from qgis.core import QgsVectorLayer
-
-        layer = QgsVectorLayer(cache_file, "tmp", "ogr")
-        names = [n for n in layer.fields().names() if n != "kumoy_id"]
-        del layer
-        return names
-
-    def test_creates_new_cache_when_missing(self, sync_setup):
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        assert not os.path.exists(cache_file)
-
-        s.vector_mod.sync_local_cache(
-            vector_id=s.vector_id,
-            fields=_build_fields(["a", "b"]),
-            geometry_type=QgsWkbTypes.Point,
-        )
-
-        assert os.path.exists(cache_file)
-        assert s.calls["get_features"] >= 1
-        assert s.calls["get_diff"] == 0
-        assert self._gpkg_column_order(cache_file) == ["a", "b"]
-
-    def test_uses_diff_when_order_matches(self, sync_setup):
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        _make_gpkg(cache_file, ["a", "b"])
-        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
-
-        s.vector_mod.sync_local_cache(
-            vector_id=s.vector_id,
-            fields=_build_fields(["a", "b"]),
-            geometry_type=QgsWkbTypes.Point,
-        )
-
-        assert s.calls["get_diff"] == 1
-        assert s.calls["get_features"] == 0
-        assert self._gpkg_column_order(cache_file) == ["a", "b"]
-
-    def test_recreates_when_order_differs(self, sync_setup):
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        _make_gpkg(cache_file, ["b", "a"])
-        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
-
-        s.vector_mod.sync_local_cache(
-            vector_id=s.vector_id,
-            fields=_build_fields(["a", "b"]),
-            geometry_type=QgsWkbTypes.Point,
-        )
-
-        assert s.calls["get_diff"] == 0
-        assert s.calls["get_features"] >= 1
-        assert self._gpkg_column_order(cache_file) == ["a", "b"]
-
-        from plugin_dir.kumoy.local_cache.settings import get_last_updated
-
-        assert get_last_updated(s.vector_id) is not None
-
-    def test_raises_when_clear_fails(self, sync_setup, monkeypatch):
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        _make_gpkg(cache_file, ["b", "a"])
-        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
-
-        monkeypatch.setattr(s.vector_mod, "clear", lambda vid: False)
-
-        with pytest.raises(Exception, match="Failed to clear cache"):
-            s.vector_mod.sync_local_cache(
-                vector_id=s.vector_id,
-                fields=_build_fields(["a", "b"]),
-                geometry_type=QgsWkbTypes.Point,
+        bad = {"kumoy_id": 2, "kumoy_wkb": b"not wkb", "properties": {}}
+        with pytest.raises(Exception):
+            cache.mod.write(
+                path, [_row(3), bad], [1], vector=cache.detail, last_updated="t2"
             )
 
-        assert s.calls["get_features"] == 0
+        assert cache.mod.open_cache("v1").last_updated == "t1"
+        assert list(_features(path)) == [1]
 
-    def test_clear_preserves_last_updated_on_failure(self, sync_setup, monkeypatch):
-        """clear() がファイル削除に失敗した場合は last_updated を消さない。
-        消してしまうと GPKG だけ残って last_updated が None という不整合状態になり、
-        以降の sync_local_cache が 'cache file exists but last_updated is None'
-        パスに入り続けてしまう。
-        """
-        from plugin_dir.kumoy.local_cache.settings import get_last_updated
-
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        _make_gpkg(cache_file, ["a", "b"])
-        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
-
-        def fail_unlink(path):
-            raise PermissionError(f"locked: {path}")
-
-        monkeypatch.setattr(s.vector_mod.os, "unlink", fail_unlink)
-
-        result = s.vector_mod.clear(s.vector_id)
-
-        assert result is False
-        assert get_last_updated(s.vector_id) == "2025-01-01T00:00:00Z"
-
-    def test_recreates_on_max_diff_count_exceeded(self, sync_setup):
-        s = sync_setup
-        cache_file = os.path.join(s.cache_dir, f"{s.vector_id}.gpkg")
-        _make_gpkg(cache_file, ["a", "b"])
-        s.store_last_updated(s.vector_id, "2025-01-01T00:00:00Z")
-
-        def raise_max_diff(vector_id, last_updated):
-            raise s.real_api.error.AppError(
-                "Application Error", "MAX_DIFF_COUNT_EXCEEDED"
-            )
-
-        s.state["get_diff"] = raise_max_diff
-
-        s.vector_mod.sync_local_cache(
-            vector_id=s.vector_id,
-            fields=_build_fields(["a", "b"]),
-            geometry_type=QgsWkbTypes.Point,
+    def test_upsert_delete_and_unknown_properties(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [_row(1, name="a"), _row(2, name="b")])
+        cache.mod.write(
+            path,
+            [_row(1, x=5, name="A", gone="ignored")],
+            deleted_ids=[2, 99],  # 99 is not cached: ignored
         )
+        assert _features(path) == {1: ("Point (5 0)", [1, "A", None, None])}
 
-        assert s.calls["get_diff"] == 1
-        assert s.calls["get_features"] >= 1
-        assert self._gpkg_column_order(cache_file) == ["a", "b"]
+    def test_write_is_skipped_after_any_number_of_noted_edits(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [_row(1, name="a")])
+        seen = cache.mod.local_edit_count("v1")
+
+        # Two edits (e.g. two layers of the vector, or a Processing tool):
+        # any change of the count means the fetched rows may be older
+        cache.mod.note_local_edit("v1")
+        cache.mod.note_local_edit("v1")
+        assert not cache.mod.write(path, [_row(1, name="stale")], edits_seen=seen)
+        assert _features(path)[1][1][1] == "a"
+
+        # Edits of another vector do not matter
+        seen = cache.mod.local_edit_count("v1")
+        cache.mod.note_local_edit("v2")
+        assert cache.mod.write(path, [_row(1, name="new")], edits_seen=seen)
+        assert _features(path)[1][1][1] == "new"
+
+    def test_partial_updates_only_given_keys(self, cache):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [_row(1, name="a", n=1)])
+        cache.mod.write(
+            path,
+            [
+                {"kumoy_id": 1, "properties": {"n": 7}},
+                {"kumoy_id": 5, "properties": {"n": 1}},  # not cached: skipped
+            ],
+            partial=True,
+        )
+        cache.mod.write(path, [{"kumoy_id": 1, "kumoy_wkb": _wkb(3, 3)}], partial=True)
+        assert _features(path) == {1: ("Point (3 3)", [1, "a", 7, None])}
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
-class TestCacheSize:
-    @pytest.fixture
-    def cache(self, tmp_path, monkeypatch):
-        from plugin_dir.kumoy.local_cache import vector as vector_cache
+class TestVersions:
+    def _complete(self, cache, last_updated):
+        path = cache.mod.create(cache.detail)
+        cache.mod.write(path, [], vector=cache.detail, last_updated=last_updated)
+        return path
 
-        cache_dir = tmp_path / "vectors"
-        cache_dir.mkdir()
-        monkeypatch.setattr(vector_cache, "_get_cache_dir", lambda: str(cache_dir))
-        return types.SimpleNamespace(mod=vector_cache, cache_dir=cache_dir)
+    def test_newest_complete_version_wins(self, cache):
+        old = self._complete(cache, "t1")
+        new = self._complete(cache, "t2")
+        cache.mod.create(cache.detail)  # an unfinished rebuild
+        assert old != new
+        assert cache.mod.open_cache("v1").path == new
 
-    def test_zero_when_not_cached(self, cache):
-        assert cache.mod.get_cache_size("v-1") == 0
+    def test_cleanup_keeps_current_and_in_use(self, cache):
+        first = self._complete(cache, "t1")
+        second = self._complete(cache, "t2")
+        current = self._complete(cache, "t3")
+        unfinished = cache.mod.create(cache.detail)
+        legacy = cache.root / "v1.gpkg"
+        legacy.write_bytes(b"old layout")
 
-    def test_zero_when_cache_file_is_empty(self, cache):
-        (cache.cache_dir / "v-1.gpkg").write_bytes(b"")
+        cache.mod.cleanup("v1", keep=[second])
 
-        assert cache.mod.get_cache_size("v-1") == 0
+        assert not os.path.exists(first)
+        assert os.path.exists(second)
+        assert os.path.exists(current)
+        assert not os.path.exists(unfinished)
+        assert not legacy.exists()
 
-    def test_includes_sqlite_side_files(self, cache):
-        (cache.cache_dir / "v-1.gpkg").write_bytes(b"x" * 100)
-        (cache.cache_dir / "v-1.gpkg-wal").write_bytes(b"x" * 30)
-        (cache.cache_dir / "v-1.gpkg-shm").write_bytes(b"x" * 20)
-        # Files of other vectors are not counted
-        (cache.cache_dir / "v-2.gpkg").write_bytes(b"x" * 999)
+    def test_cleanup_tolerates_locked_files(self, cache, monkeypatch):
+        self._complete(cache, "t1")
+        current = self._complete(cache, "t2")
 
-        assert cache.mod.get_cache_size("v-1") == 150
+        def locked(path):
+            raise PermissionError(path)
 
-    def test_total_zero_when_no_files(self, cache):
-        assert cache.mod.get_total_cache_size() == 0
+        monkeypatch.setattr(cache.mod.os, "unlink", locked)
+        cache.mod.cleanup("v1")  # Windows: retried at the next sync
+        assert cache.mod.open_cache("v1").path == current
 
-    def test_total_sums_all_files(self, cache):
-        (cache.cache_dir / "v-1.gpkg").write_bytes(b"x" * 100)
-        (cache.cache_dir / "v-2.gpkg").write_bytes(b"x" * 50)
-        (cache.cache_dir / "v-2.gpkg-wal").write_bytes(b"x" * 25)
 
-        assert cache.mod.get_total_cache_size() == 175
+class TestClearAndSize:
+    def test_size_and_clear(self, cache):
+        assert cache.mod.get_cache_size("v1") == 0
+        path = cache.mod.create(cache.detail)
+        (cache.root / "v1.gpkg").write_bytes(b"x" * 10)  # legacy file
+        (cache.root / "v2.gpkg").write_bytes(b"x" * 999)  # another vector
 
-    def test_clear_all_removes_files_and_subdirs(self, cache, monkeypatch):
-        deleted_ids = []
-        monkeypatch.setattr(cache.mod, "delete_last_updated", deleted_ids.append)
-        (cache.cache_dir / "v-1.gpkg").write_bytes(b"x" * 100)
-        sub = cache.cache_dir / "sub"
-        sub.mkdir()
-        (sub / "nested.gpkg").write_bytes(b"x" * 50)
+        size = cache.mod.get_cache_size("v1")
+        assert size == os.path.getsize(path) + 10
+        assert cache.mod.get_total_cache_size() == size + 999
 
+        assert cache.mod.clear("v1") is True
+        assert cache.mod.get_cache_size("v1") == 0
+        assert cache.mod.open_cache("v1") is None
+        assert (cache.root / "v2.gpkg").exists()
+
+    def test_clear_missing_is_ok(self, cache):
+        assert cache.mod.clear("nope") is True
+
+    def test_clear_all(self, cache):
+        cache.mod.create(cache.detail)
+        (cache.root / "v2.gpkg").write_bytes(b"x")
         assert cache.mod.clear_all() is True
-        assert list(cache.cache_dir.iterdir()) == []
+        assert list(cache.root.iterdir()) == []
         assert cache.mod.get_total_cache_size() == 0
-        # last_updated is tracked per top-level gpkg only
-        assert deleted_ids == ["v-1"]
+
+    def test_clear_reports_locked_files(self, cache, monkeypatch):
+        cache.mod.create(cache.detail)
+
+        def locked(*args, **kwargs):
+            raise PermissionError("locked")
+
+        monkeypatch.setattr(cache.mod.shutil, "rmtree", locked)
+        assert cache.mod.clear("v1") is False

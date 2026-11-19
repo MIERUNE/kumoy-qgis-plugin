@@ -1,118 +1,117 @@
+"""Synchronous HTTP client for the Kumoy API.
+
+Calls block the calling thread. QgsBlockingNetworkRequest is designed to be
+used from worker threads, so UI code runs these calls through
+kumoy.tasks.run_task instead of calling them on the main thread.
+"""
+
 import json
 from typing import Any, Dict, Optional
+from urllib.parse import urlencode
 
 from qgis.core import QgsBlockingNetworkRequest
 from qgis.PyQt.QtCore import QByteArray, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
 from ...pyqt_version import Q_NETWORK_REQUEST_ATTRIBUTE, Q_NETWORK_REQUEST_HEADER
-from ..get_token import get_token
-from . import config as api_config
-from . import error as api_error
+from .. import session
+from . import config
+from .error import UnauthorizedError, error_from_response
 
 
-def handle_blocking_reply(content: QByteArray) -> Any:
-    """Handle QgsBlockingNetworkRequest reply and convert to Python dict"""
-    if not content or content.isEmpty():
-        return {}
-    text = str(content.data(), "utf-8")
-    if not text.strip():
-        return {}
-
-    return json.loads(text)
+def server_url() -> str:
+    return config.get_api_config().SERVER_URL
 
 
-def _build_request(url: str) -> QNetworkRequest:
-    """Build an authorized QNetworkRequest. Raises UnauthorizedError if no token."""
-    token = get_token()
-    if not token:
-        raise api_error.UnauthorizedError("Unauthorized", "No session token")
+def _decode(content: QByteArray) -> Any:
+    if content is None or content.isEmpty():
+        return None
+    text = bytes(content.data()).decode("utf-8", errors="replace").strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except ValueError:
+        # Proxies and load balancers answer HTML on errors
+        return None
 
+
+def request(
+    method: str,
+    path: str,
+    data: Any = None,
+    params: Optional[Dict[str, Any]] = None,
+    auth: bool = True,
+    headers: Optional[Dict[str, str]] = None,
+    response_headers: Optional[Dict[str, str]] = None,
+) -> Any:
+    """Send a request to `{server}{path}` and return the decoded JSON body.
+
+    `path` includes the `/api` prefix. Raises an AppError subclass on any
+    failure, chosen by HTTP status (see error.py). When `response_headers` is
+    given it is filled with the reply headers (lower-case names).
+    """
+    url = f"{server_url()}{path}"
+    if params:
+        url = f"{url}?{urlencode(params)}"
     req = QNetworkRequest(QUrl(url))
-    req.setRawHeader(
-        "Authorization".encode("utf-8"),
-        f"Bearer {token}".encode("utf-8"),
-    )
-    return req
+    for key, value in (headers or {}).items():
+        req.setRawHeader(key.encode("utf-8"), value.encode("utf-8"))
+    token = session.get_token() if auth else None
+    if auth:
+        if not token:
+            error = UnauthorizedError("Unauthorized", "Not logged in")
+            error.rejected_token = token or ""
+            raise error
+        req.setRawHeader(b"Authorization", f"Bearer {token}".encode("utf-8"))
 
-
-def _process_response(blocking_request: QgsBlockingNetworkRequest, err: int) -> Any:
-    """Inspect the reply, raise typed errors on failure, otherwise return content."""
-    reply = blocking_request.reply()
-    status_code = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
-    content = handle_blocking_reply(reply.content())
-
-    if status_code in (401, 403):
-        message = "Unauthorized"
-        detail = ""
-        if isinstance(content, dict):
-            detail = content.get("error", "") or content.get("message", "")
-        raise api_error.UnauthorizedError(message, detail)
-
-    if err != QgsBlockingNetworkRequest.NoError:
-        if not content:
-            error_message = blocking_request.errorMessage()
-            api_error.raise_error({"message": error_message, "error": ""})
-        else:
-            api_error.raise_error(content)
-
-    return content
-
-
-class ApiClient:
-    """Base API client for Kumoy backend"""
-
-    @staticmethod
-    def get(endpoint: str, params: Optional[Dict] = None) -> Any:
-        _api_config = api_config.get_api_config()
-        url = f"{_api_config.SERVER_URL}/api{endpoint}"
-        if params:
-            query_items = [f"{key}={value}" for key, value in params.items()]
-            url = f"{url}?{'&'.join(query_items)}"
-
-        req = _build_request(url)
-
-        blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.get(req, forceRefresh=True)
-        return _process_response(blocking_request, err)
-
-    @staticmethod
-    def post(endpoint: str, data: Any) -> Any:
-        _api_config = api_config.get_api_config()
-        url = f"{_api_config.SERVER_URL}/api{endpoint}"
-
-        req = _build_request(url)
+    body = QByteArray()
+    if data is not None:
         req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
+        body = QByteArray(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
-        json_data = json.dumps(data, ensure_ascii=False)
-        byte_array = QByteArray(json_data.encode("utf-8"))
+    blocking = QgsBlockingNetworkRequest()
+    if method == "GET":
+        err = blocking.get(req, forceRefresh=True)
+    elif method == "POST":
+        err = blocking.post(req, body)
+    elif method == "PUT":
+        err = blocking.put(req, body)
+    elif method == "DELETE":
+        err = blocking.deleteResource(req)
+    else:
+        raise ValueError(f"Unsupported method: {method}")
 
-        blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.post(req, byte_array)
-        return _process_response(blocking_request, err)
+    reply = blocking.reply()
+    if response_headers is not None:
+        # QgsNetworkReplyContent has no rawHeaderPairs() (QNetworkReply does)
+        for name in reply.rawHeaderList():
+            key = bytes(name).decode("latin-1").lower()
+            response_headers[key] = bytes(reply.rawHeader(name)).decode("latin-1")
+    status = reply.attribute(Q_NETWORK_REQUEST_ATTRIBUTE.HttpStatusCodeAttribute)
+    status = int(status) if status is not None else None
+    content = _decode(reply.content())
 
-    @staticmethod
-    def put(endpoint: str, data: Any) -> Any:
-        _api_config = api_config.get_api_config()
-        url = f"{_api_config.SERVER_URL}/api{endpoint}"
+    if err == QgsBlockingNetworkRequest.NoError and status is not None and status < 400:
+        return content
+    error = error_from_response(status, content, blocking.errorMessage())
+    if isinstance(error, UnauthorizedError):
+        # Lets the 401 handler tell this login from one made since
+        error.rejected_token = token or ""
+    raise error
 
-        req = _build_request(url)
-        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
 
-        json_data = json.dumps(data, ensure_ascii=False)
-        byte_array = QByteArray(json_data.encode("utf-8"))
+def get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    return request("GET", f"/api{path}", params=params)
 
-        blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.put(req, byte_array)
-        return _process_response(blocking_request, err)
 
-    @staticmethod
-    def delete(endpoint: str) -> Any:
-        _api_config = api_config.get_api_config()
-        url = f"{_api_config.SERVER_URL}/api{endpoint}"
+def post(path: str, data: Any = None) -> Any:
+    return request("POST", f"/api{path}", data=data if data is not None else {})
 
-        req = _build_request(url)
 
-        blocking_request = QgsBlockingNetworkRequest()
-        err = blocking_request.deleteResource(req)
-        return _process_response(blocking_request, err)
+def put(path: str, data: Any) -> Any:
+    return request("PUT", f"/api{path}", data=data)
+
+
+def delete(path: str) -> Any:
+    return request("DELETE", f"/api{path}")

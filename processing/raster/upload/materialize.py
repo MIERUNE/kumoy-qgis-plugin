@@ -1,13 +1,12 @@
-"""QGIS 仮想ラスタ(virtualraster)を GDAL が読める GeoTIFF へ実体化する。
+"""Render a QGIS virtual raster to a GeoTIFF that GDAL can open.
 
-仮想ラスタ（ラスタ計算機の仮想出力など）はディスク上のファイルパスを持たず
-``gdal.Open`` できないため、``QgsRasterInterface`` 経由で一時 GeoTIFF に描き出して
-から COG 変換する。COG ドライバは ``CreateCopy`` 専用で ``QgsRasterFileWriter``
-（``Create`` ベース）では直接書けないため、「GeoTIFF に実体化 → GDAL で COG 化」
-の二段になる。
+Virtual rasters (e.g. a raster calculator's virtual output) have no file for
+gdal.Open, so their pixels are written to a temporary GeoTIFF first. The COG
+driver only supports CreateCopy, which QgsRasterFileWriter (Create based)
+cannot use, hence the two steps: GeoTIFF here, then convert_to_cog().
 
-WMS/WCS などオンライン系や他プロバイダは対応せず、明示的に拒否する（アップロード
-用途では原ピクセルを持つローカル由来のラスタだけを対象にする方針）。
+WMS/WCS and other providers are refused: uploads take only rasters whose
+original pixels are local.
 """
 
 from typing import Callable, Optional
@@ -21,10 +20,11 @@ from qgis.core import (
 )
 
 from .... import i18n
+from ....kumoy.tasks import Canceled
 
 
-class RasterMaterializeCanceled(Exception):
-    """ユーザーが実体化を中断した。"""
+class RasterMaterializeCanceled(Canceled):
+    """The `is_canceled` callback asked to stop."""
 
 
 def materialize_to_geotiff(
@@ -33,14 +33,12 @@ def materialize_to_geotiff(
     progress_callback: Optional[Callable[[float], None]] = None,
     is_canceled: Optional[Callable[[], bool]] = None,
 ) -> None:
-    """``layer`` の画素を GeoTIFF として ``dst_path`` へ書き出す。
+    """Write the pixels of `layer` (provider `virtualraster`) to `dst_path`.
 
-    呼び出し規約は ``convert_to_cog`` と同じ: 進捗は 0-100、中断は ``is_canceled``
-    のポーリング、``dst_path`` の用意と削除は呼び出し側の責務。
-
-    Raises:
-        RasterMaterializeCanceled: ``is_canceled`` が True を返した場合。
-        Exception: 非対応プロバイダ、または QGIS が書き出しに失敗した場合。
+    Same conventions as convert_to_cog(): progress 0-100, cancel by polling
+    `is_canceled`, `dst_path` is the caller's to create and delete.
+    Raises RasterMaterializeCanceled, or Exception for other providers or
+    when QGIS fails to write.
     """
     if layer.providerType() != "virtualraster":
         raise Exception(
@@ -58,27 +56,27 @@ def materialize_to_geotiff(
     if is_canceled is not None and is_canceled():
         raise RasterMaterializeCanceled()
 
-    # provider を clone してパイプへ委譲する（writeRaster が所有権を取る）。
+    # The pipe takes ownership of what it is given, hence the clone
     clone = provider.clone()
     pipe = QgsRasterPipe()
     if not pipe.set(clone):
         raise Exception(i18n.tr("Failed to prepare the raster for rendering."))
 
-    # writeRaster の進捗・中断はシグナル/QgsFeedback ベースなので、進捗通知の
-    # たびに is_canceled をポーリングして cancel へ変換する。
-    block_feedback = QgsRasterBlockFeedback()
+    # writeRaster reports through a feedback object; poll is_canceled on each
+    # progress step and turn it into feedback.cancel()
+    feedback = QgsRasterBlockFeedback()
 
-    def _on_progress(p: float) -> None:
+    def on_progress(percent: float) -> None:
         if is_canceled is not None and is_canceled():
-            block_feedback.cancel()
+            feedback.cancel()
         if progress_callback is not None:
-            progress_callback(p)
+            progress_callback(percent)
 
-    block_feedback.progressChanged.connect(_on_progress)
+    feedback.progressChanged.connect(on_progress)
 
     writer = QgsRasterFileWriter(dst_path)
     writer.setOutputFormat("GTiff")
-    # 再投影しないので変換コンテキストは空で足りる（出力 CRS = 元の CRS）。
+    # Same CRS in and out, so an empty transform context is enough
     err = writer.writeRaster(
         pipe,
         clone.xSize(),
@@ -86,10 +84,10 @@ def materialize_to_geotiff(
         clone.extent(),
         clone.crs(),
         QgsCoordinateTransformContext(),
-        block_feedback,
+        feedback,
     )
 
-    if block_feedback.isCanceled():
+    if feedback.isCanceled():
         raise RasterMaterializeCanceled()
     if err != QgsRasterFileWriter.NoError:
         raise Exception(

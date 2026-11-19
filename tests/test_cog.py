@@ -1,4 +1,4 @@
-"""convert_to_cog のユニットテスト（GDAL が必要）"""
+"""processing/raster/upload/cog.py (needs GDAL)."""
 
 import os
 
@@ -6,40 +6,40 @@ import pytest
 from osgeo import gdal, osr
 
 
-def _make_geotiff(path: str, with_crs: bool = True, size: int = 16) -> None:
-    """テスト用 GeoTIFF を作る。"""
-    driver = gdal.GetDriverByName("GTiff")
-    ds = driver.Create(path, size, size, 1, gdal.GDT_Byte)
-    ds.SetGeoTransform([0, 1, 0, size, 0, -1])
+def _make_geotiff(
+    path: str, with_crs: bool = True, size: int = 16, georeferenced: bool = True
+) -> None:
+    ds = gdal.GetDriverByName("GTiff").Create(path, size, size, 1, gdal.GDT_Byte)
+    if georeferenced:
+        ds.SetGeoTransform([0, 1, 0, size, 0, -1])
     if with_crs:
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
         ds.SetProjection(srs.ExportToWkt())
-    band = ds.GetRasterBand(1)
-    band.Fill(42)
-    ds.FlushCache()
+    ds.GetRasterBand(1).Fill(42)
     ds.Close()
 
 
-def _is_cog(path: str) -> bool:
+def _make_multiband(path: str) -> None:
+    ds = gdal.GetDriverByName("GTiff").Create(path, 16, 16, 3, gdal.GDT_Byte)
+    ds.SetGeoTransform([0, 1, 0, 16, 0, -1])
+    for i in (1, 2, 3):
+        ds.GetRasterBand(i).Fill(i * 10)
+    ds.Close()
+
+
+def _epsg(path: str) -> str:
     ds = gdal.Open(path)
-    layout = ds.GetMetadataItem("LAYOUT", "IMAGE_STRUCTURE")
-    ds.Close()
-    return layout == "COG"
+    return osr.SpatialReference(wkt=ds.GetProjection()).GetAuthorityCode(None)
 
 
 def _cog_band_interleave_supported() -> bool:
-    """COG ドライバが INTERLEAVE 作成オプション(=GDAL 3.11+)に対応するか。
-
-    convert_to_cog の内部判定と同じ。GDAL バージョンではなく能力で見る。
-    """
-    col = gdal.GetDriverByName("COG").GetMetadataItem("DMD_CREATIONOPTIONLIST") or ""
-    return "INTERLEAVE" in col
+    options = gdal.GetDriverByName("COG").GetMetadataItem("DMD_CREATIONOPTIONLIST")
+    return "INTERLEAVE" in (options or "")
 
 
-# 単バンドの変換は古い GDAL でも通る（CI の docker=GDAL 3.10.3 でも検証できる）。
-# 多バンドの成功パス（INTERLEAVE=BAND 格納）だけは GDAL 3.11+ が要るのでスキップ、
-# その拒否挙動を別テストで検証する。
+# Single-band conversion works on any GDAL; only the multi-band success path
+# needs 3.11+, and the refusal on older GDAL has its own test
 requires_gdal_311 = pytest.mark.skipif(
     not _cog_band_interleave_supported(),
     reason="multi-band COG requires GDAL 3.11+ (INTERLEAVE creation option)",
@@ -50,175 +50,161 @@ only_without_gdal_311 = pytest.mark.skipif(
 )
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
+@pytest.fixture
+def paths(qgis_plugin_path, tmp_path):
+    return str(tmp_path / "src.tif"), str(tmp_path / "out.tif")
+
+
+def convert(*args, **kwargs):
+    from plugin_dir.processing.raster.upload.cog import convert_to_cog
+
+    convert_to_cog(*args, **kwargs)
+
+
 class TestConvertToCog:
-    def _fn(self):
-        from plugin_dir.processing.raster.upload.cog import convert_to_cog
+    def test_produces_cog_without_altering_data(self, paths):
+        src, dst = paths
+        _make_geotiff(src)
 
-        return convert_to_cog
-
-    def test_produces_cog(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)
-
-        self._fn()(src, dst)
-
-        assert _is_cog(dst)
-
-    def test_preserves_crs(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)
-
-        self._fn()(src, dst)
+        convert(src, dst)
 
         ds = gdal.Open(dst)
-        srs = osr.SpatialReference(wkt=ds.GetProjection())
-        assert srs.GetAuthorityCode(None) == "4326"
-        ds.Close()
-
-    def test_does_not_reproject(self, tmp_path):
-        """元データの geotransform/ピクセル値がそのまま保持されること。"""
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)
-
-        self._fn()(src, dst)
-
-        ds = gdal.Open(dst)
-        assert ds.GetGeoTransform()[0] == 0
+        assert ds.GetMetadataItem("LAYOUT", "IMAGE_STRUCTURE") == "COG"
+        assert ds.GetGeoTransform() == (0, 1, 0, 16, 0, -1)
         assert ds.GetRasterBand(1).ReadAsArray()[0][0] == 42
-        ds.Close()
+        assert _epsg(dst) == "4326"
 
-    def test_writes_approximate_statistics(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)
+    def test_writes_approximate_statistics(self, paths):
+        src, dst = paths
+        _make_geotiff(src)
 
-        self._fn()(src, dst)
+        convert(src, dst)
 
-        ds = gdal.Open(dst)
+        # The STATISTICS_APPROXIMATE flag is never written by the COG path of
+        # gdal_translate (3.8 to 3.14); the contract is that stats exist
+        ds = gdal.Open(dst)  # keep: a band outlives no dataset
         metadata = ds.GetRasterBand(1).GetMetadata()
-        # STATISTICS_APPROXIMATE フラグは検証しない。gdal_translate の COG 経路は
-        # どの GDAL バージョン(3.8〜3.14 で確認)でもこのフラグを書き出さない。
-        # 契約は「近似統計そのものが書かれること」で、それは min/max の存在で担保する。
         assert float(metadata["STATISTICS_MINIMUM"]) == 42.0
         assert float(metadata["STATISTICS_MAXIMUM"]) == 42.0
-        ds.Close()
 
     @requires_gdal_311
-    def test_stores_band_interleaved(self, tmp_path):
-        """対応 GDAL では多バンドが INTERLEAVE=BAND で格納される。"""
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        ds = gdal.GetDriverByName("GTiff").Create(src, 16, 16, 3, gdal.GDT_Byte)
-        ds.SetGeoTransform([0, 1, 0, 16, 0, -1])
-        for i in (1, 2, 3):
-            ds.GetRasterBand(i).Fill(i * 10)
-        ds.Close()
+    def test_stores_band_interleaved(self, paths):
+        src, dst = paths
+        _make_multiband(src)
 
-        self._fn()(src, dst)
+        convert(src, dst)
 
-        out = gdal.Open(dst)
-        assert out.GetMetadataItem("INTERLEAVE", "IMAGE_STRUCTURE") == "BAND"
-        out.Close()
+        ds = gdal.Open(dst)
+        assert ds.GetMetadataItem("INTERLEAVE", "IMAGE_STRUCTURE") == "BAND"
 
-    def test_assigns_crs_when_missing(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
+    def test_assigns_crs_when_missing(self, paths):
+        src, dst = paths
         _make_geotiff(src, with_crs=False)
-
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(3857)
-        self._fn()(src, dst, assign_crs_wkt=srs.ExportToWkt())
 
-        ds = gdal.Open(dst)
-        out_srs = osr.SpatialReference(wkt=ds.GetProjection())
-        assert out_srs.GetAuthorityCode(None) == "3857"
-        ds.Close()
+        convert(src, dst, assign_crs_wkt=srs.ExportToWkt())
 
-    def test_overrides_embedded_crs(self, tmp_path):
-        """埋め込み CRS があっても assign_crs_wkt が勝つ（QGIS 上の手動上書き用）。"""
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)  # EPSG:4326 埋め込み
+        assert _epsg(dst) == "3857"
 
+    def test_assigned_crs_overrides_embedded(self, paths):
+        # For a CRS overridden on the layer in QGIS; no reprojection
+        src, dst = paths
+        _make_geotiff(src)
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(3857)
-        self._fn()(src, dst, assign_crs_wkt=srs.ExportToWkt())
 
-        ds = gdal.Open(dst)
-        out_srs = osr.SpatialReference(wkt=ds.GetProjection())
-        assert out_srs.GetAuthorityCode(None) == "3857"
-        ds.Close()
+        convert(src, dst, assign_crs_wkt=srs.ExportToWkt())
 
-    def test_cancellation_raises(self, tmp_path):
+        assert _epsg(dst) == "3857"
+        assert gdal.Open(dst).GetGeoTransform() == (0, 1, 0, 16, 0, -1)
+
+    def test_georeferences_raster_without_geotransform(self, paths):
+        src, dst = paths
+        _make_geotiff(src, with_crs=False, georeferenced=False)
+
+        convert(src, dst)
+
+        assert gdal.Open(dst).GetGeoTransform(can_return_null=True) == (
+            0,
+            1,
+            0,
+            0,
+            0,
+            -1,
+        )
+        # The user's file is left alone (no sidecar written next to it)
+        assert not os.path.exists(src + ".aux.xml")
+
+    def test_cancel_raises_a_task_cancel(self, paths):
+        from plugin_dir.kumoy.tasks import Canceled
         from plugin_dir.processing.raster.upload.cog import CogConversionCanceled
 
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        # 進捗コールバックが複数回呼ばれるよう、ある程度の大きさにする。
-        _make_geotiff(src, with_crs=True, size=2048)
+        src, dst = paths
+        _make_geotiff(src, size=2048)  # big enough for several progress calls
 
         with pytest.raises(CogConversionCanceled):
-            self._fn()(src, dst, is_canceled=lambda: True)
+            convert(src, dst, is_canceled=lambda: True)
+        assert issubclass(CogConversionCanceled, Canceled)  # silent in run_task
 
-    def test_reports_progress(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        dst = str(tmp_path / "out.tif")
-        _make_geotiff(src, with_crs=True)
-
+    def test_reports_progress(self, paths):
+        src, dst = paths
+        _make_geotiff(src)
         seen = []
-        self._fn()(src, dst, progress_callback=seen.append)
 
-        assert seen, "progress callback was never called"
-        assert all(0 <= p <= 100 for p in seen)
+        convert(src, dst, progress_callback=seen.append)
+
+        assert seen and all(0 <= p <= 100 for p in seen)
+
+    def test_unreadable_source_raises(self, paths):
+        src, dst = paths
+        with pytest.raises(Exception, match="failed to open"):
+            convert(src, dst)
+
+    @only_without_gdal_311
+    def test_multiband_refused_without_gdal_311(self, paths):
+        src, dst = paths
+        _make_multiband(src)
+
+        with pytest.raises(Exception, match="GDAL 3.11"):
+            convert(src, dst)
+        assert not os.path.exists(dst)
 
 
-@pytest.mark.usefixtures("qgis_plugin_path")
 class TestReadSourceCrsWkt:
     def _fn(self):
         from plugin_dir.processing.raster.upload.cog import read_source_crs_wkt
 
         return read_source_crs_wkt
 
-    def test_returns_wkt_when_crs_embedded(self, tmp_path):
-        src = str(tmp_path / "src.tif")
-        _make_geotiff(src, with_crs=True)
+    def test_returns_embedded_crs(self, paths):
+        src, _ = paths
+        _make_geotiff(src)
         wkt = self._fn()(src)
-        assert isinstance(wkt, str)
         assert osr.SpatialReference(wkt=wkt).GetAuthorityCode(None) == "4326"
 
-    def test_returns_none_when_crs_missing(self, tmp_path):
-        src = str(tmp_path / "src.tif")
+    def test_returns_none_without_crs(self, paths):
+        src, _ = paths
         _make_geotiff(src, with_crs=False)
         assert self._fn()(src) is None
 
-    def test_defers_error_for_unopenable_path(self, tmp_path):
-        """開けないパスは SOURCE_UNREADABLE でエラー報告を convert_to_cog に委ねる。"""
+    def test_defers_error_for_unopenable_path(self, paths):
         from plugin_dir.processing.raster.upload.cog import SOURCE_UNREADABLE
 
-        assert self._fn()(str(tmp_path / "missing.tif")) is SOURCE_UNREADABLE
+        src, _ = paths
+        assert self._fn()(src) is SOURCE_UNREADABLE
 
+    def test_works_in_gdal_exception_mode(self, paths):
+        # Other plugins may turn exceptions on process-wide
+        src, _ = paths
+        previous = gdal.GetUseExceptions()
+        gdal.UseExceptions()
+        try:
+            from plugin_dir.processing.raster.upload.cog import SOURCE_UNREADABLE
 
-@only_without_gdal_311
-@pytest.mark.usefixtures("qgis_plugin_path")
-def test_multiband_errors_without_gdal_311(tmp_path):
-    """GDAL 3.11 未満では、多バンドの変換を成果物を残さず拒否する。
-
-    単バンドは古い GDAL でも通る（TestConvertToCog の各テストが担保）。
-    """
-    from plugin_dir.processing.raster.upload.cog import convert_to_cog
-
-    src = str(tmp_path / "src.tif")
-    dst = str(tmp_path / "out.tif")
-    ds = gdal.GetDriverByName("GTiff").Create(src, 16, 16, 3, gdal.GDT_Byte)
-    ds.SetGeoTransform([0, 1, 0, 16, 0, -1])
-    for i in (1, 2, 3):
-        ds.GetRasterBand(i).Fill(i * 10)
-    ds.Close()
-
-    with pytest.raises(Exception, match="GDAL 3.11"):
-        convert_to_cog(src, dst)
-    assert not os.path.exists(dst)
+            assert self._fn()(src) is SOURCE_UNREADABLE
+            with pytest.raises(Exception, match="failed to open"):
+                convert(src, src + ".out")
+        finally:
+            if not previous:
+                gdal.DontUseExceptions()

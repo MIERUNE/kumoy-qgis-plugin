@@ -1,18 +1,17 @@
 import webbrowser
-from typing import Literal
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from qgis.core import (
-    Qgis,
-    QgsDataItem,
-    QgsMessageLog,
-    QgsProject,
-)
+from qgis.core import Qgis, QgsDataItem, QgsMessageLog, QgsProject
+from qgis.PyQt import sip
 from qgis.PyQt.QtWidgets import (
     QAction,
+    QApplication,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QMenu,
     QMessageBox,
@@ -22,47 +21,37 @@ from qgis.PyQt.QtWidgets import (
 from qgis.utils import iface
 
 from ... import i18n
-from ...kumoy import api, constants, local_cache, settings_manager
-from ...kumoy.api.error import UnauthorizedError, format_api_error
-from ...kumoy.local_cache.map import (
-    commit_to_cache,
-    serialize_project,
+from ...kumoy import api, constants, local_cache, map_project
+from ...kumoy.api.error import UnauthorizedError
+from ...kumoy.api.models import (
+    OrganizationDetail,
+    ProjectDetail,
+    StyledMap,
+    is_editor,
 )
-from ...kumoy.settings_manager import get_settings
-from ...kumoy.sprite import generate_sprite
-from ...kumoy.sprite.uploader import upload_sprites
+from ...kumoy.tasks import run_task
 from ...pyqt_version import (
     Q_MESSAGEBOX_STD_BUTTON,
     Q_SIZE_POLICY,
     QT_DIALOG_BUTTON_CANCEL,
     QT_DIALOG_BUTTON_OK,
+    QT_TEXT_INTERACTION,
     QT_TEXTCURSOR_MOVE_OPERATION,
     exec_dialog,
 )
-from ...qgis_version import (
-    restore_project_crs_if_invalid,
-    restore_xyz_layer_datasources,
-)
-from ...ui.layers.convert import convert_local_layers
-from ..error_handler import handle_api_error, refresh_kumoy_browser
+from .. import project_storage
+from ..error_handler import describe_error, handle_api_error, push_success
 from ..icons import BROWSER_MAP_ICON
-from ..project_save_handler import (
-    confirm_symbol_embedding,
-    show_map_save_result,
-    warn_if_project_too_large,
-)
 from .cache_size import cache_size_text, combined_cache_size, make_clear_cache_action
-from .utils import ErrorItem
+from .utils import ErrorItem, paged
+
+
+def public_url(styled_map_id: str) -> str:
+    return f"{api.client.server_url()}/public/map/{styled_map_id}"
 
 
 class StyledMapItem(QgsDataItem):
-    def __init__(
-        self,
-        parent,
-        path: str,
-        styled_map: api.styledmap.KumoyStyledMap,
-        role: Literal["ADMIN", "OWNER", "MEMBER"],
-    ):
+    def __init__(self, parent, path: str, styled_map: StyledMap, role: str):
         QgsDataItem.__init__(
             self,
             QgsDataItem.Collection,
@@ -70,31 +59,25 @@ class StyledMapItem(QgsDataItem):
             name=styled_map.name,
             path=path,
         )
-
         self.styled_map = styled_map
         self.role = role
-
-        # アイコン設定
         self.setIcon(BROWSER_MAP_ICON)
+        # A map has no children: populated now, so no expand arrow is shown
+        self.populate(True)
 
-        self.populate()
-
-    def build_actions(self, parent: QMenu) -> list[QAction]:
-        """Build context menu actions for this item (used by KumoyDataItemGuiProvider)."""
+    def build_actions(self, parent: QMenu) -> List[QAction]:
+        """Context menu actions (used by KumoyDataItemGuiProvider)."""
         actions = []
 
-        # スタイルマップ適用アクション
-        apply_action = QAction(i18n.tr("Load into QGIS"), parent)
-        apply_action.triggered.connect(self.apply_style)
-        actions.append(apply_action)
+        load_action = QAction(i18n.tr("Load into QGIS"), parent)
+        load_action.triggered.connect(self.load)
+        actions.append(load_action)
 
         if self.styled_map.isPublic:
-            # 公開マップの場合、公開ページを開くアクション
-            open_public_action = QAction(i18n.tr("Open Public Page"), parent)
-            open_public_action.triggered.connect(self.open_public_page)
-            actions.append(open_public_action)
+            public_action = QAction(i18n.tr("Open Public Page"), parent)
+            public_action.triggered.connect(self.open_public_page)
+            actions.append(public_action)
 
-        # Clear map cache action
         actions.append(
             make_clear_cache_action(
                 parent,
@@ -104,341 +87,147 @@ class StyledMapItem(QgsDataItem):
             )
         )
 
-        if self.role in ["ADMIN", "OWNER"]:
-            # スタイルマップ上書き保存アクション
+        if is_editor(self.role):
             save_action = QAction(i18n.tr("Overwrite with current state"), parent)
-            save_action.triggered.connect(self.apply_qgisproject_to_styledmap)
+            save_action.triggered.connect(self.overwrite)
             actions.append(save_action)
 
-            # スタイルマップ編集アクション
             edit_action = QAction(i18n.tr("Edit Metadata"), parent)
-            edit_action.triggered.connect(self.update_metadata_styled_map)
+            edit_action.triggered.connect(self.edit_metadata)
             actions.append(edit_action)
 
-            # スタイルマップ削除アクション
             delete_action = QAction(i18n.tr("Delete"), parent)
-            delete_action.triggered.connect(self.delete_styled_map)
+            delete_action.triggered.connect(self.delete)
             actions.append(delete_action)
 
         return actions
 
-    def open_public_page(self) -> None:
-        """公開ページをブラウザで開く"""
-        url = (
-            f"{api.config.get_api_config().SERVER_URL}/public/map/{self.styled_map.id}"
-        )
-        webbrowser.open(url)
-
-    def apply_style(self) -> None:
-        """KumoyサーバーからMapを取得してQGISに適用する"""
-
-        # QGISプロジェクトに変更がある場合、適用前に確認ダイアログを表示
-        if QgsProject.instance().isDirty():
-            confirm = QMessageBox.question(
-                None,
-                i18n.tr("Load Map"),
-                i18n.tr(
-                    "Are you sure you want to load the map '{}'? This will replace your current project."
-                ).format(self.styled_map.name),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.No,
-            )
-            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-                return
-
-        try:
-            styled_map_detail = api.styledmap.get_styled_map(self.styled_map.id)
-        except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error loading map"))
-            return
-
-        # XML文字列をQGISプロジェクトにロード
-        qgs_path = local_cache.map.get_filepath(styled_map_detail.id)
-
-        with open(qgs_path, "w", encoding="utf-8") as f:
-            f.write(styled_map_detail.qgisproject)
-        iface.addProject(qgs_path)
-
-        # Restore CRS if it became invalid after loading
-        # (e.g. QGIS 4 project opened in QGIS 3)
-        restore_project_crs_if_invalid(styled_map_detail.qgisproject)
-        # Fix XYZ tile datasources whose URL was percent-encoded by QGIS 4
-        restore_xyz_layer_datasources()
-
-        QgsProject.instance().setTitle(self.styled_map.name)
-        # store map kumoy info to project instance
-        QgsProject.instance().setCustomVariables(
-            {
-                "kumoy_map_id": self.styled_map.id,
-            }
-        )
-        QgsProject.instance().setDirty(False)
-
-    def handleDoubleClick(self) -> bool:
-        self.apply_style()
+    def handleDoubleClick(self) -> bool:  # noqa: N802
+        self.load()
         return True
 
-    def update_metadata_styled_map(self) -> None:
-        # Create dialog
-        dialog, name_field, description_field, attribution_field, is_public_field = (
-            _create_styled_map_dialog(
-                i18n.tr("Edit Map"),
-                name=self.styled_map.name,
-                description=self.styled_map.description,
-                attribution=self.styled_map.attribution,
-                is_public=self.styled_map.isPublic,
+    def load(self) -> None:
+        project_storage.open_map(self.styled_map.id)
+
+    def open_public_page(self) -> None:
+        webbrowser.open(public_url(self.styled_map.id))
+
+    def overwrite(self) -> None:
+        text = i18n.tr(
+            "Are you sure you want to overwrite the map '{}' with the current "
+            "project state?"
+        ).format(self.styled_map.name)
+        if not project_storage.is_open(self.styled_map.id):
+            text += "\n\n" + i18n.tr(
+                "The open project is then linked to this map: saving it (Ctrl+S) "
+                "updates this map."
             )
-        )
-
-        # Show dialog
-        if not exec_dialog(dialog):
+        if not _confirm(i18n.tr("Save Map"), text):
             return
+        project_storage.save_to_map(self.styled_map.id)
 
-        # Get values
-        new_name = name_field.text()
-        new_description = description_field.toPlainText()
-        new_attribution = attribution_field.text()
-        new_is_public = is_public_field.isChecked()
-
-        if not new_name:
+    def edit_metadata(self) -> None:
+        values = _ask_map_fields(i18n.tr("Edit Map"), self.styled_map)
+        if values is None:
             return
+        map_id = self.styled_map.id
+        was_public = self.styled_map.isPublic
 
-        try:
-            # スタイルマップ上書き保存
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    name=new_name,
-                    isPublic=new_is_public,
-                    attribution=new_attribution,
-                    description=new_description,
-                ),
-            )
-        except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error updating map"))
-            return
-
-        # Itemを更新
-        self.styled_map = updated_styled_map
-        self.setName(updated_styled_map.name)
-        self.refresh()
-
-        QgsProject.instance().setTitle(updated_styled_map.name)
-        QgsProject.instance().setDirty(False)
-
-        iface.messageBar().pushSuccess(
-            i18n.tr("Success"),
-            i18n.tr("Map '{}' has been updated successfully.").format(new_name),
-        )
-
-    def apply_qgisproject_to_styledmap(self) -> None:
-        # 確認ダイアログ
-        confirm = QMessageBox.question(
-            None,
-            i18n.tr("Save Map"),
-            i18n.tr(
-                "Are you sure you want to overwrite the map '{}' with the current project state?"
-            ).format(self.styled_map.name),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
-        )
-        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-            return
-
-        # Avoid saving a Kumoy map to a wrong project
-        custom_vars = QgsProject.instance().customVariables()
-        existing_map_id = custom_vars.get("kumoy_map_id")
-
-        if existing_map_id:
-            # Validate that existing map belongs to current project
-            styled_map_detail = api.styledmap.get_styled_map(existing_map_id)
-
-            if self.styled_map.projectId != styled_map_detail.projectId:
-                QMessageBox.critical(
-                    None,
-                    i18n.tr("Wrong Project"),
-                    i18n.tr(
-                        "Please switch to the correct Kumoy project to create a map."
-                    ),
+        def updated(styled_map: StyledMap) -> None:
+            if not sip.isdeleted(self):
+                self.styled_map = styled_map
+                self.setName(styled_map.name)
+                self.refresh()
+            if project_storage.is_open(map_id):
+                # Renaming is not a save of the open project: keep its state
+                project = QgsProject.instance()
+                dirty = project.isDirty()
+                project.setTitle(styled_map.name)
+                project.setDirty(dirty)
+            push_success(
+                i18n.tr("Map '{}' has been updated successfully.").format(
+                    styled_map.name
                 )
-                return
-
-        confirm_symbol_embedding(QgsProject.instance())
-
-        # Pre-flight size check before any upload: serialize to a throwaway temp
-        # file and validate, without touching the cache. The .qgs size barely
-        # changes after conversion (only datasource strings are swapped), so
-        # failing here avoids converting/uploading layers for a project that
-        # would be rejected anyway.
-        if warn_if_project_too_large(serialize_project()):
-            return
-
-        # Convert local layers to Kumoy layers if any
-        conversion = convert_local_layers(self.styled_map.projectId)
-        if conversion.cancelled:
-            return
-
-        new_qgisproject = serialize_project()
-        if warn_if_project_too_large(new_qgisproject):
-            return
-
-        try:
-            # Generate sprites and upload if changed
-            sprite_data = generate_sprite(QgsProject.instance())
-            new_assets_hash = sprite_data.assets_hash if sprite_data else None
-
-            update_options = api.styledmap.UpdateStyledMapOptions(
-                qgisproject=new_qgisproject,
             )
-            if new_assets_hash != self.styled_map.assetsHash:
-                if sprite_data is not None:
-                    upload_sprites(self.styled_map.id, sprite_data)
-                update_options.assetsHash = new_assets_hash
+            if styled_map.isPublic and not was_public:
+                show_public_url(styled_map)
 
-            updated_styled_map = api.styledmap.update_styled_map(
-                self.styled_map.id,
-                update_options,
-            )
-
-            # Persist to cache only after a successful server save.
-            commit_to_cache(self.styled_map.id, new_qgisproject)
-        except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error saving map"))
-            return
-
-        # Itemを更新
-        self.styled_map = updated_styled_map
-        self.setName(updated_styled_map.name)
-        self.refresh()
-
-        QgsProject.instance().setTitle(updated_styled_map.name)
-        QgsProject.instance().setDirty(False)
-
-        # Show result message with conversion errors summary if any
-        show_map_save_result(
-            updated_styled_map.name,
-            conversion.errors,
-            conversion.skipped,
+        run_task(
+            i18n.tr("Updating map"),
+            lambda _: api.styledmap.update_styled_map(map_id, **values),
+            updated,
+            lambda e: handle_api_error(e, title=i18n.tr("Could not update the map")),
         )
 
-        # 変換で新しいKumoyレイヤーができた場合はツリー全体を更新する。
-        # 再構築で self ごとアイテムが破棄されるため、self を参照し終えた
-        # フローの最後に置くこと。
-        if conversion.converted:
-            refresh_kumoy_browser()
-
-    def process_delete_map(self) -> None:
-        api.styledmap.delete_styled_map(self.styled_map.id)
-
-        # Close the map if it's currently loaded in QGIS
-        custom_vars = QgsProject.instance().customVariables()
-        if custom_vars.get("kumoy_map_id") == self.styled_map.id:
-            QgsProject.instance().clear()
-
-        local_cache.map.clear(self.styled_map.id)
-
-    def delete_styled_map(self) -> None:
-        confirm = QMessageBox.question(
-            None,
-            i18n.tr("Delete Map"),
-            i18n.tr("Are you sure you want to delete map '{}'?").format(
-                self.styled_map.name
-            ),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
+    def delete(self) -> None:
+        text = i18n.tr("Are you sure you want to delete map '{}'?").format(
+            self.styled_map.name
         )
-
-        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            try:
-                self.process_delete_map()
-                self.parent().refresh()
-                iface.messageBar().pushSuccess(
-                    i18n.tr("Success"),
-                    i18n.tr("Map '{}' has been deleted successfully.").format(
-                        self.styled_map.name
-                    ),
-                )
-            except Exception as e:
-                handle_api_error(
-                    e, parent=None, log_prefix=i18n.tr("Error deleting map")
-                )
+        if project_storage.is_open(self.styled_map.id):
+            text += "\n\n" + _open_map_note()
+        if _confirm(i18n.tr("Delete Map"), text):
+            _delete_maps([self.styled_map], self.parent())
 
     def cache_size(self) -> int:
         return local_cache.map.get_cache_size(self.styled_map.id)
 
     def process_map_cache_clear(self) -> bool:
-        cleared = local_cache.map.clear(self.styled_map.id)
-        return cleared
+        return local_cache.map.clear(self.styled_map.id)
 
     def clear_map_cache(self) -> None:
-        confirm = QMessageBox.question(
-            None,
+        if not _confirm(
             i18n.tr("Clear Map Cache Data"),
             i18n.tr(
                 "This will clear the local cache for map '{}' ({}).\n"
                 "The cached data will be re-downloaded when you access it next time.\n"
                 "Do you want to continue?"
             ).format(self.styled_map.name, cache_size_text(self.cache_size)),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
-        )
-
-        if confirm == Q_MESSAGEBOX_STD_BUTTON.Yes:
-            if self.process_map_cache_clear():
-                iface.messageBar().pushSuccess(
-                    i18n.tr("Success"),
-                    i18n.tr("Cache cleared successfully for map '{}'.").format(
-                        self.styled_map.name
-                    ),
+        ):
+            return
+        if self.process_map_cache_clear():
+            push_success(
+                i18n.tr("Cache cleared successfully for map '{}'.").format(
+                    self.styled_map.name
                 )
-            else:
-                iface.messageBar().pushMessage(
-                    i18n.tr("Cache Clear Failed"),
-                    i18n.tr("Cache could not be cleared for map '{}'. ").format(
-                        self.styled_map.name
-                    ),
-                )
+            )
+        else:
+            iface.messageBar().pushMessage(
+                i18n.tr("Cache Clear Failed"),
+                i18n.tr("Cache could not be cleared for map '{}'. ").format(
+                    self.styled_map.name
+                ),
+            )
 
 
 class StyledMapRoot(QgsDataItem):
-    """スタイルマップルートアイテム（ブラウザ用）"""
+    """The "Maps" node of a project in the Browser panel."""
 
     def __init__(
         self,
         parent,
         name: str,
         path: str,
-        organization: api.organization.OrganizationDetail,
-        project: api.project.ProjectDetail,
+        organization: OrganizationDetail,
+        project: ProjectDetail,
     ):
-        QgsDataItem.__init__(
-            self,
-            QgsDataItem.Collection,
-            parent,
-            name,
-            path,
-        )
-        self.setIcon(BROWSER_MAP_ICON)
-        self.populate()
-
+        QgsDataItem.__init__(self, QgsDataItem.Collection, parent, name, path)
+        # Set before anything can call createChildren(); children are created
+        # lazily, when the node is expanded
         self.organization = organization
         self.project = project
+        self.setIcon(BROWSER_MAP_ICON)
 
-    def actions(self, parent: QMenu) -> list[QAction]:
+    def actions(self, parent: QMenu) -> List[QAction]:
         actions = []
-
-        if self.project.role in ["ADMIN", "OWNER"]:
-            # 空のMapを作成する
+        if is_editor(self.project.role):
             empty_map_action = QAction(i18n.tr("Create New Map"), parent)
             empty_map_action.triggered.connect(self.add_empty_map)
             actions.append(empty_map_action)
 
-            # Upload current QGIS project as new Kumoy styled map
-            new_action = QAction(i18n.tr("Save Current Project As..."), parent)
-            new_action.triggered.connect(self.add_styled_map)
-            actions.append(new_action)
+            save_as_action = QAction(i18n.tr("Save Current Project As..."), parent)
+            save_as_action.triggered.connect(self.add_styled_map)
+            actions.append(save_as_action)
 
-        # Clear map cache data
         actions.append(
             make_clear_cache_action(
                 parent,
@@ -447,189 +236,18 @@ class StyledMapRoot(QgsDataItem):
                 self.clear_all_map_cache,
             )
         )
-
         return actions
 
-    def add_empty_map(self) -> None:
-        if QgsProject.instance().isDirty():
-            confirm = QMessageBox.question(
-                None,
-                i18n.tr("Create new Map"),
-                i18n.tr(
-                    "Creating an new map will clear your current project. Continue?"
-                ),
-                Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-                Q_MESSAGEBOX_STD_BUTTON.No,
-            )
-            if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
-                return
-
-        self.add_styled_map(clear=True)
-
-    def add_styled_map(self, clear: bool = False) -> None:
-        """Add a new map to kumoy server
-        Options:
-        clear - whether to clear current QGIS project"""
-
+    def createChildren(self) -> List[QgsDataItem]:  # noqa: N802
+        # Runs in a QGIS worker thread
         try:
-            # maxStyledMaps is the org-wide cap, so count usage.styledMaps (total
-            # Check org-wide map limit.
-            # Re-fetch usage to avoid stale cache.
-            organization = api.organization.get_organization(self.organization.id)
-            if organization.usage.styledMaps >= organization.planSettings.maxStyledMaps:
-                QMessageBox.critical(
-                    None,
-                    i18n.tr("Error"),
-                    i18n.tr(
-                        "Cannot create new map. Your plan allows up to {} maps, "
-                        "but you have reached the limit."
-                    ).format(organization.planSettings.maxStyledMaps),
-                )
-                return
-
-            # Avoid saving a Kumoy map to a wrong project
-            custom_vars = QgsProject.instance().customVariables()
-            existing_map_id = custom_vars.get("kumoy_map_id")
-
-            if existing_map_id:
-                # Validate that existing map belongs to current project
-                styled_map_detail = api.styledmap.get_styled_map(existing_map_id)
-                settings = settings_manager.get_settings()
-
-                if settings.selected_project_id != styled_map_detail.projectId:
-                    QMessageBox.critical(
-                        None,
-                        i18n.tr("Wrong Project"),
-                        i18n.tr(
-                            "Please switch to the correct Kumoy project to create a map."
-                        ),
-                    )
-                    return
-        except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error adding map"))
-            return
-
-        # Create dialog
-        (
-            dialog,
-            name_field,
-            description_field,
-            attribution_field,
-            is_public_field,
-        ) = _create_styled_map_dialog(
-            i18n.tr("Add Map"),
-        )
-
-        # Show dialog
-        if not exec_dialog(dialog):
-            return
-
-        # Get values
-        name = name_field.text()
-        description = description_field.toPlainText()
-        attribution = attribution_field.text()
-        is_public = is_public_field.isChecked()
-
-        if not name:
-            return
-
-        if clear:
-            # Create an empty QGIS project
-            QgsProject.instance().clear()
-
-        confirm_symbol_embedding(QgsProject.instance())
-
-        # Pre-flight size check before any upload: serialize to a throwaway temp
-        # file and validate, without touching the cache.
-        if warn_if_project_too_large(serialize_project()):
-            return
-
-        # conversion.converted is unused here: this flow ends with
-        # self.parent().refresh(), which rebuilds the tree and shows new layers anyway
-        conversion = convert_local_layers(self.project.id)
-        if conversion.cancelled:
-            return
-
-        qgisproject = serialize_project()
-        if warn_if_project_too_large(qgisproject):
-            return
-
-        try:
-            # Create the styled map
-            new_styled_map = api.styledmap.add_styled_map(
-                self.project.id,
-                api.styledmap.AddStyledMapOptions(
-                    name=name,
-                    qgisproject=qgisproject,
-                    attribution=attribution,
-                    description=description,
-                    isPublic=is_public,
-                ),
-            )
-
-            # Update UI after the save completes
-            QgsProject.instance().setCustomVariables(
-                {"kumoy_map_id": new_styled_map.id}
-            )
-            QgsProject.instance().setTitle(new_styled_map.name)
-
-            # Re-serialize so the file embeds kumoy_map_id linking the new map
-            updated_qgisproject = serialize_project()
-            if warn_if_project_too_large(updated_qgisproject):
-                return
-
-            # Generate and upload sprites
-            sprite_data = generate_sprite(QgsProject.instance())
-            new_assets_hash = None
-            if sprite_data is not None:
-                new_assets_hash = sprite_data.assets_hash
-                upload_sprites(new_styled_map.id, sprite_data)
-
-            api.styledmap.update_styled_map(
-                new_styled_map.id,
-                api.styledmap.UpdateStyledMapOptions(
-                    qgisproject=updated_qgisproject,
-                    assetsHash=new_assets_hash,  # memo: set null when new_assets_hash is None
-                ),
-            )
-
-            # Persist to cache only after a successful server save.
-            commit_to_cache(new_styled_map.id, updated_qgisproject)
-
-            # Point the project at the cache file so handle_project_saved()
-            # keeps the map linked on subsequent saves (in-cache check).
-            QgsProject.instance().setFileName(
-                local_cache.map.get_filepath(new_styled_map.id)
-            )
-
-            # reload browser panel
-            self.parent().refresh()
-
-            # Show result message with conversion errors summary if any
-            show_map_save_result(
-                name,
-                conversion.errors,
-                conversion.skipped,
-            )
-            QgsProject.instance().setDirty(False)
-        except Exception as e:
-            handle_api_error(e, parent=None, log_prefix=i18n.tr("Error adding map"))
-
-    def createChildren(self) -> list[QgsDataItem]:
-        project_id = get_settings().selected_project_id
-
-        if not project_id:
-            return [ErrorItem(self, i18n.tr("No project selected"))]
-
-        # プロジェクトのスタイルマップを取得
-        try:
-            styled_maps = api.styledmap.get_styled_maps(project_id)
+            styled_maps = api.styledmap.get_styled_maps(self.project.id)
         except UnauthorizedError as e:
-            handle_api_error(e, parent=None)
+            handle_api_error(e)
             return [ErrorItem(self, i18n.tr("Session expired - please log in"))]
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error loading maps: {format_api_error(e)}",
+                f"Error loading maps: {describe_error(e)}",
                 constants.LOG_CATEGORY,
                 Qgis.Critical,
             )
@@ -637,42 +255,76 @@ class StyledMapRoot(QgsDataItem):
 
         if not styled_maps:
             return [ErrorItem(self, i18n.tr("No maps available."))]
+        return paged(
+            self,
+            styled_maps,
+            lambda m: StyledMapItem(
+                self, f"{self.path()}/{m.id}", m, self.project.role
+            ),
+        )
 
-        children = []
-        for styled_map in styled_maps:
-            path = f"{self.path()}/{styled_map.id}"
-            child = StyledMapItem(self, path, styled_map, self.project.role)
-            children.append(child)
+    def add_empty_map(self) -> None:
+        values = _ask_map_fields(i18n.tr("Add Map"))
+        if values is None:
+            return
+        # Asks to save unsaved changes first; False when canceled
+        if not iface.newProject(True):
+            return
+        self._create_map(values)
 
-        return children
+    def add_styled_map(self) -> None:
+        """Save the current project as a new map."""
+        values = _ask_map_fields(i18n.tr("Add Map"))
+        if values is not None:
+            self._create_map(values)
+
+    def _create_map(self, values: Dict[str, Any]) -> None:
+        # The map is created empty, then saved like any map, so that the open
+        # project is linked to it and saving later updates it
+        empty = map_project.empty_project_xml()
+        project_id = self.project.id
+
+        def created(styled_map: StyledMap) -> None:
+            if project_storage.save_to_map(styled_map.id):
+                self._refresh()
+                if styled_map.isPublic:
+                    show_public_url(styled_map)
+                return
+            # Do not leave an empty map behind
+            run_task(
+                i18n.tr("Deleting map"),
+                lambda _: api.styledmap.delete_styled_map(styled_map.id),
+                lambda _: self._refresh(),
+                lambda e: handle_api_error(
+                    e, title=i18n.tr("Could not delete the unsaved map")
+                ),
+            )
+
+        run_task(
+            i18n.tr("Creating map"),
+            lambda _: api.styledmap.create_styled_map(
+                project_id, qgisproject=empty, **values
+            ),
+            created,
+            lambda e: handle_api_error(e, title=i18n.tr("Could not create the map")),
+        )
+
+    def _refresh(self) -> None:
+        if not sip.isdeleted(self):
+            self.refresh()
 
     def clear_all_map_cache(self) -> None:
-        # Show confirmation dialog
-        confirm = QMessageBox.question(
-            None,
+        if not _confirm(
             i18n.tr("Clear Map Cache"),
             i18n.tr(
                 "This will clear all locally cached map files ({}). "
                 "Data will be re-downloaded next time you access maps.\n\n"
                 "Continue?"
             ).format(cache_size_text(local_cache.map.get_total_cache_size)),
-            Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-            Q_MESSAGEBOX_STD_BUTTON.No,
-        )
-        if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+        ):
             return
-
-        cache_cleared = local_cache.map.clear_all()
-        if cache_cleared:
-            QgsMessageLog.logMessage(
-                i18n.tr("All map cache files cleared successfully."),
-                constants.LOG_CATEGORY,
-                Qgis.Info,
-            )
-            iface.messageBar().pushSuccess(
-                i18n.tr("Success"),
-                i18n.tr("All map cache files have been cleared successfully."),
-            )
+        if local_cache.map.clear_all():
+            push_success(i18n.tr("All map cache files have been cleared successfully."))
         else:
             iface.messageBar().pushMessage(
                 i18n.tr("Map Cache Clear Failed"),
@@ -683,44 +335,130 @@ class StyledMapRoot(QgsDataItem):
             )
 
 
-def _create_styled_map_dialog(
-    title: str,
-    name: str = "",
-    description: str = "",
-    attribution: str = "",
-    is_public: bool = False,
-) -> tuple[QDialog, QLineEdit, QPlainTextEdit, QLineEdit, QCheckBox]:
-    """Create a styled map dialog with common fields.
+def _open_map_note() -> str:
+    return i18n.tr(
+        "This map is open in QGIS. The project stays open with your changes, but "
+        "it is no longer saved to Kumoy: use Project > Save As to keep it."
+    )
 
-    Args:
-        title: Dialog window title
-        name: Initial name value
-        description: Initial description value
-        attribution: Initial attribution value
-        is_public: Initial public checkbox state
 
-    Returns:
-        Tuple of (dialog, name_field, description_field, attribution_field, is_public_field)
-    """
-    dialog = QDialog()
+def _confirm(title: str, text: str) -> bool:
+    answer = QMessageBox.question(
+        None,
+        title,
+        text,
+        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
+        Q_MESSAGEBOX_STD_BUTTON.No,
+    )
+    return answer == Q_MESSAGEBOX_STD_BUTTON.Yes
+
+
+@dataclass
+class _DeleteResult:
+    deleted: List[StyledMap]
+    failed: List[tuple]  # (name, reason)
+    session_error: Optional[UnauthorizedError] = None
+
+
+def _delete_maps(maps: List[StyledMap], parent_item: Optional[QgsDataItem]) -> None:
+    def work(task) -> _DeleteResult:
+        result = _DeleteResult([], [])
+        for index, styled_map in enumerate(maps):
+            try:
+                api.styledmap.delete_styled_map(styled_map.id)
+                result.deleted.append(styled_map)
+            except UnauthorizedError as e:
+                # Every further request would fail the same way
+                result.session_error = e
+                result.failed.extend(
+                    (m.name, i18n.tr("not deleted: you are not logged in"))
+                    for m in maps[index:]
+                )
+                break
+            except Exception as e:
+                result.failed.append((styled_map.name, describe_error(e)))
+            task.setProgress(100 * (index + 1) / len(maps))
+        return result
+
+    def done(result: _DeleteResult) -> None:
+        for styled_map in result.deleted:
+            project_storage.unlink_map(styled_map.id)
+            local_cache.map.clear(styled_map.id)
+        if parent_item is not None and not sip.isdeleted(parent_item):
+            parent_item.refresh()
+        if result.session_error is not None:
+            handle_api_error(result.session_error)
+        if result.failed:
+            QMessageBox.warning(
+                None,
+                i18n.tr("Delete Maps"),
+                i18n.tr("{} of {} maps were deleted. Not deleted:\n{}").format(
+                    len(result.deleted),
+                    len(maps),
+                    "\n".join(
+                        f"  - {name}: {reason}" for name, reason in result.failed
+                    ),
+                ),
+            )
+        elif len(maps) == 1:
+            push_success(
+                i18n.tr("Map '{}' has been deleted successfully.").format(maps[0].name)
+            )
+        else:
+            push_success(
+                i18n.tr("{} maps have been deleted successfully.").format(len(maps))
+            )
+
+    run_task(
+        i18n.tr("Deleting maps"),
+        work,
+        done,
+        lambda e: handle_api_error(e, title=i18n.tr("Could not delete maps")),
+    )
+
+
+def show_public_url(styled_map: StyledMap) -> None:
+    """Tell the user where the public map is, with a button to copy the link."""
+    url = public_url(styled_map.id)
+    box = QMessageBox(iface.mainWindow() if iface is not None else None)
+    box.setIcon(QMessageBox.Icon.Information)
+    box.setWindowTitle(i18n.tr("Public Map"))
+    box.setText(
+        i18n.tr(
+            "The map '{}' is public. Anyone with this link can view it:\n\n{}"
+        ).format(styled_map.name, url)
+    )
+    box.setTextInteractionFlags(QT_TEXT_INTERACTION.TextSelectableByMouse)
+    copy_button = box.addButton(i18n.tr("Copy Link"), QMessageBox.ButtonRole.ActionRole)
+    open_button = box.addButton(i18n.tr("Open"), QMessageBox.ButtonRole.ActionRole)
+    box.addButton(QMessageBox.StandardButton.Close)
+    exec_dialog(box)
+    if box.clickedButton() is copy_button:
+        QApplication.clipboard().setText(url)
+        push_success(i18n.tr("Link copied to the clipboard."))
+    elif box.clickedButton() is open_button:
+        webbrowser.open(url)
+
+
+def _ask_map_fields(
+    title: str, styled_map: Optional[StyledMap] = None
+) -> Optional[Dict[str, Any]]:
+    """Show the map dialog; the entered fields (API names), or None if canceled."""
+    dialog = QDialog(iface.mainWindow() if iface is not None else None)
     dialog.setWindowTitle(title)
 
-    # Layout
-    layout = QVBoxLayout()
-    form_layout = QFormLayout()
-
-    # Fields
-    name_field = QLineEdit(name)
+    name_field = QLineEdit(styled_map.name if styled_map else "")
     name_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_NAME)
 
-    attribution_field = QLineEdit(attribution)
+    attribution_field = QLineEdit((styled_map.attribution or "") if styled_map else "")
     attribution_field.setMaxLength(constants.MAX_CHARACTERS_STYLEDMAP_ATTRIBUTION)
 
-    description_field = QPlainTextEdit(description)
+    description_field = QPlainTextEdit(
+        (styled_map.description or "") if styled_map else ""
+    )
     description_field.setSizePolicy(Q_SIZE_POLICY.Expanding, Q_SIZE_POLICY.Expanding)
 
-    # Limit text length (integrated as part of UI construction)
-    def limit_description_length():
+    def limit_description_length() -> None:
         text = description_field.toPlainText()
         if len(text) > constants.MAX_CHARACTERS_STYLEDMAP_DESCRIPTION:
             description_field.setPlainText(
@@ -733,115 +471,78 @@ def _create_styled_map_dialog(
     description_field.textChanged.connect(limit_description_length)
 
     is_public_field = QCheckBox(i18n.tr("Make Public"))
-    is_public_field.setChecked(is_public)
+    is_public_field.setChecked(bool(styled_map and styled_map.isPublic))
+    public_note = QLabel(
+        i18n.tr(
+            "Anyone with the link can view a public map, including the data of "
+            "its layers, in a web browser without logging in."
+        )
+    )
+    public_note.setWordWrap(True)
 
-    # Add fields to form
+    form_layout = QFormLayout()
     form_layout.addRow(
         i18n.tr("Name:") + ' <span style="color: red;">*</span>', name_field
     )
     form_layout.addRow(i18n.tr("Description:"), description_field)
     form_layout.addRow(i18n.tr("Attribution:"), attribution_field)
     form_layout.addRow(i18n.tr("Public:"), is_public_field)
+    form_layout.addRow("", public_note)
 
-    # Buttons
     button_box = QDialogButtonBox(QT_DIALOG_BUTTON_OK | QT_DIALOG_BUTTON_CANCEL)
     button_box.accepted.connect(dialog.accept)
     button_box.rejected.connect(dialog.reject)
-
-    # Disable OK if name is empty
     ok_button = button_box.button(QT_DIALOG_BUTTON_OK)
     ok_button.setEnabled(bool(name_field.text().strip()))
     name_field.textChanged.connect(
         lambda text: ok_button.setEnabled(bool(text.strip()))
     )
 
-    # Add layouts to dialog
+    layout = QVBoxLayout()
     layout.addLayout(form_layout)
     layout.addWidget(button_box)
     dialog.setLayout(layout)
 
-    return dialog, name_field, description_field, attribution_field, is_public_field
+    if not exec_dialog(dialog) or not name_field.text().strip():
+        return None
+    return {
+        "name": name_field.text().strip(),
+        "description": description_field.toPlainText(),
+        "attribution": attribution_field.text(),
+        "isPublic": is_public_field.isChecked(),
+    }
 
 
-def delete_multiple_maps(items: list[StyledMapItem]) -> None:
+def delete_multiple_maps(items: List[StyledMapItem]) -> None:
     names = "\n".join(f"  - {i.styled_map.name}" for i in items)
-    confirm = QMessageBox.question(
-        None,
-        i18n.tr("Delete Maps"),
-        i18n.tr("Are you sure you want to delete {} maps?\n{}").format(
-            len(items), names
-        ),
-        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-        Q_MESSAGEBOX_STD_BUTTON.No,
+    text = i18n.tr("Are you sure you want to delete {} maps?\n{}").format(
+        len(items), names
     )
-    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+    if any(project_storage.is_open(i.styled_map.id) for i in items):
+        text += "\n\n" + _open_map_note()
+    if not _confirm(i18n.tr("Delete Maps"), text):
         return
-
-    errors = []
-    deleted_count = 0
-    parent_item = items[0].parent() if items else None
-
-    aborted_unauthorized = False
-    for item in items:
-        try:
-            item.process_delete_map()
-            deleted_count += 1
-        except UnauthorizedError as e:
-            handle_api_error(e, parent=None)
-            aborted_unauthorized = True
-            break
-        except Exception as e:
-            error_text = format_api_error(e)
-            QgsMessageLog.logMessage(
-                f"Error deleting map '{item.styled_map.name}': {error_text}",
-                constants.LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            errors.append(f"{item.styled_map.name}: {error_text}")
-
-    if parent_item:
-        parent_item.refresh()
-
-    if aborted_unauthorized:
-        return
-
-    if errors:
-        QMessageBox.critical(
-            None,
-            i18n.tr("Error"),
-            i18n.tr("Some maps could not be deleted:\n{}").format("\n".join(errors)),
-        )
-    else:
-        iface.messageBar().pushSuccess(
-            i18n.tr("Success"),
-            i18n.tr("{} maps have been deleted successfully.").format(deleted_count),
-        )
+    _delete_maps([i.styled_map for i in items], items[0].parent() if items else None)
 
 
-def clear_cache_multiple_maps(items: list[StyledMapItem]) -> None:
-    confirm = QMessageBox.question(
-        None,
+def clear_cache_multiple_maps(items: List[StyledMapItem]) -> None:
+    if not _confirm(
         i18n.tr("Clear Map Cache Data"),
         i18n.tr(
             "This will clear the local cache for {} maps ({}).\n"
             "The cached data will be re-downloaded when you access it next time.\n"
             "Do you want to continue?"
         ).format(len(items), cache_size_text(lambda: combined_cache_size(items))),
-        Q_MESSAGEBOX_STD_BUTTON.Yes | Q_MESSAGEBOX_STD_BUTTON.No,
-        Q_MESSAGEBOX_STD_BUTTON.No,
-    )
-    if confirm != Q_MESSAGEBOX_STD_BUTTON.Yes:
+    ):
         return
 
     failed = [i.styled_map.name for i in items if not i.process_map_cache_clear()]
-
     if failed:
         iface.messageBar().pushMessage(
             i18n.tr("Cache Clear Failed"),
             i18n.tr("Could not clear cache for: {}").format(", ".join(failed)),
         )
     else:
-        iface.messageBar().pushSuccess(
-            i18n.tr("Success"),
-            i18n.tr("Cache cleared successfully for {} maps.").format(len(items)),
+        push_success(
+            i18n.tr("Cache cleared successfully for {} maps.").format(len(items))
         )

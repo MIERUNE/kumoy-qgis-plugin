@@ -1,13 +1,14 @@
 from . import (
+    auth,
+    client,
     config,
     error,
+    models,
     organization,
     project,
-    public,
     qgis_vector,
     raster,
     styledmap,
-    team,
     user,
     vector,
 )

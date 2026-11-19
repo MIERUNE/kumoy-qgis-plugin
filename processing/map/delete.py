@@ -11,6 +11,7 @@ from ..base import KumoyApiAlgorithm
 
 
 class DeleteMapAlgorithm(KumoyApiAlgorithm):
+    CHANGES_RESOURCES = True
     GROUP_ID = "map"
     MAP_ID = "MAP_ID"
 

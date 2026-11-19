@@ -17,6 +17,7 @@ class UpdateVectorAlgorithm(KumoyApiAlgorithm):
     NAME = "NAME"
     ATTRIBUTION = "ATTRIBUTION"
     VECTOR = "VECTOR"
+    CHANGES_RESOURCES = True
 
     def name(self) -> str:
         return "updatevector"
@@ -49,13 +50,17 @@ class UpdateVectorAlgorithm(KumoyApiAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Dict[str, Any]:
         vector_id = self.parameter_as_id(parameters, self.VECTOR_ID, context)
-        options = api.vector.UpdateVectorOptions(
-            name=self.parameter_as_text(parameters, self.NAME, context),
-            attribution=self.parameter_as_text(parameters, self.ATTRIBUTION, context),
-        )
-        if options.name is None and options.attribution is None:
+        given = {
+            "name": self.parameter_as_text(parameters, self.NAME, context),
+            "attribution": self.parameter_as_text(
+                parameters, self.ATTRIBUTION, context
+            ),
+        }
+        # Send only the given fields: absent ones keep their value
+        changes = {key: value for key, value in given.items() if value is not None}
+        if not changes:
             raise QgsProcessingException(i18n.tr("Nothing to update."))
 
-        vector = to_output(api.vector.update_vector(vector_id, options))
+        vector = to_output(api.vector.update_vector(vector_id, **changes))
         self.log_result(feedback, vector)
         return {self.VECTOR: vector}

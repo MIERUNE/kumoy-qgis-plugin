@@ -63,10 +63,5 @@ docker run --rm \
   "
 ```
 
-For a manual end-to-end check against a real Kumoy server, `scripts/e2e_qgis_console.py` exercises the full user workflow: login → project → vectors → save/upload → provider read-back → feature editing → sprites → reopen → raster (COG) upload → metadata, renames and deletions. Run it from the QGIS Python console with the plugin loaded:
+`tests/integration/` runs the plugin's real code paths against a running Kumoy server at any URL; see [tests/integration/README.md](tests/integration/README.md).
 
-```python
-exec(open("/abs/path/to/kumoy-qgis-plugin/scripts/e2e_qgis_console.py").read())
-```
-
-A configuration dialog asks for the account email and team ID (the organization is derived from the team). See the script's docstring for details.

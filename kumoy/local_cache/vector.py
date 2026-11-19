@@ -1,414 +1,378 @@
-import datetime
+"""Local GeoPackage cache of vector features (file operations only).
+
+Each vector has a directory of versioned files `{n}.gpkg`. A file is complete
+once its `kumoy_meta` table holds the sync state (server metadata of the
+vector + `last_updated`); that row is written in the same transaction as the
+last rows, so a crash or cancel never exposes a half-written cache. The newest
+complete file is the current one.
+
+A full rebuild writes a new version instead of rewriting the current file:
+providers keep reading the old one meanwhile, and on Windows a file that QGIS
+still has open cannot be replaced. Older versions are deleted lazily by
+`cleanup()` (failures are retried at the next sync).
+
+Fetching from the server and scheduling live in kumoy/provider/dataprovider.py.
+"""
+
+import contextlib
+import dataclasses
+import json
 import os
+import re
 import shutil
-from typing import Callable, Optional
+import sqlite3
+import threading
+from dataclasses import dataclass
+from typing import Callable, Dict, Iterable, List, Optional
 
-from qgis.core import (
-    Qgis,
-    QgsApplication,
-    QgsCoordinateReferenceSystem,
-    QgsFeature,
-    QgsFields,
-    QgsGeometry,
-    QgsMessageLog,
-    QgsProject,
-    QgsVectorFileWriter,
-    QgsVectorLayer,
-    QgsWkbTypes,
-)
+from osgeo import gdal, ogr, osr
+from qgis.core import Qgis, QgsApplication, QgsMessageLog
 
-from .. import api
+from ..api.models import VectorDetail, from_dict
 from ..constants import LOG_CATEGORY
-from .settings import delete_last_updated, get_last_updated, store_last_updated
-from .size import dir_total_size, files_total_size
+from .size import dir_total_size
+
+LAYER_NAME = "features"
+_META_TABLE = "kumoy_meta"
+_VERSION_FILE = re.compile(r"^(\d+)\.gpkg$")
+_SIDE_SUFFIXES = ("", "-wal", "-shm", "-journal")
+
+_GEOMETRY_TYPES = {
+    "POINT": ogr.wkbPoint,
+    "LINESTRING": ogr.wkbLineString,
+    "POLYGON": ogr.wkbPolygon,
+}
+
+# Writes to one file from two connections fail with SQLITE_BUSY instead of
+# waiting. ponytail: one lock for all vectors; writes are short transactions
+# (a page or a diff), make it per vector if that ever shows up as contention.
+_write_lock = threading.Lock()
+
+# Edits of this QGIS session that reached the server and are written here,
+# per vector. In memory on purpose: the race it guards (a sync writing data
+# it fetched before an edit) only exists between a sync task and an edit of
+# the same process. Guarded by _write_lock.
+_local_edits: Dict[str, int] = {}
 
 
-def _get_cache_dir() -> str:
-    """Return the directory where cache files are stored.
-    data_type: subdirectory name maps or vectors"""
-    setting_dir = QgsApplication.qgisSettingsDirPath()
-    cache_dir = os.path.join(setting_dir, "kumoygis", "local_cache", "vectors")
-    os.makedirs(cache_dir, exist_ok=True)
-    return cache_dir
+@dataclass
+class Cache:
+    path: str
+    vector: VectorDetail  # server metadata as of the last sync
+    last_updated: str  # server time to pass to get-diff next time
 
 
-def _create_new_cache(
-    cache_file: str,
-    vector_id: str,
-    fields: QgsFields,
-    geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]] = None,
-) -> str:
-    """
-    新規にキャッシュファイルを作成する
-
-    Returns:
-        updated_at: 最終更新日時
-    """
-    options = QgsVectorFileWriter.SaveVectorOptions()
-    options.layerOptions = ["FID=kumoy_id"]
-    options.driverName = "GPKG"
-    options.fileEncoding = "UTF-8"
-
-    writer = QgsVectorFileWriter.create(
-        cache_file,
-        fields,
-        geometry_type,
-        QgsCoordinateReferenceSystem("EPSG:4326"),
-        QgsProject.instance().transformContext(),
-        options,
+def _root_dir() -> str:
+    path = os.path.join(
+        QgsApplication.qgisSettingsDirPath(), "kumoygis", "local_cache", "vectors"
     )
+    os.makedirs(path, exist_ok=True)
+    return path
 
-    if writer.hasError() != QgsVectorFileWriter.NoError:
-        QgsMessageLog.logMessage(
-            f"Error creating cache file {cache_file}: {writer.errorMessage()}",
-            LOG_CATEGORY,
-            Qgis.Info,
-        )
-        raise Exception(
-            f"Error creating cache file {cache_file}: {writer.errorMessage()}"
-        )
 
-    # memo: ページングによりレコードを逐次取得していくが、取得中にレコードの更新があった際に
-    # 正しく差分を取得するために、逐次取得開始前の時刻をlast_updatedとする
-    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
+def _vector_dir(vector_id: str) -> str:
+    return os.path.join(_root_dir(), vector_id)
+
+
+def _versions(vector_id: str) -> List[int]:
+    """Version numbers of the vector's files, newest first."""
+    try:
+        names = os.listdir(_vector_dir(vector_id))
+    except FileNotFoundError:
+        return []
+    found = [_VERSION_FILE.match(n) for n in names]
+    return sorted((int(m.group(1)) for m in found if m), reverse=True)
+
+
+def _path(vector_id: str, version: int) -> str:
+    return os.path.join(_vector_dir(vector_id), f"{version}.gpkg")
+
+
+def ogr_uri(path: str) -> str:
+    """URI for the QGIS "ogr" provider (the file also holds the meta table)."""
+    return f"{path}|layername={LAYER_NAME}"
+
+
+def _read_meta(path: str) -> Optional[dict]:
+    try:
+        # closing(): sqlite3's own context manager commits but does not close,
+        # and an open connection keeps the -wal/-shm files (and Windows locks)
+        with contextlib.closing(sqlite3.connect(path)) as con:
+            row = con.execute(
+                "SELECT value FROM kumoy_meta WHERE fid = 1"  # = _META_TABLE
+            ).fetchone()
+    except sqlite3.Error:
+        return None  # not a cache file, or still being built
+    return json.loads(row[0]) if row else None
+
+
+def open_cache(vector_id: str) -> Optional[Cache]:
+    """The newest complete cache of the vector, or None."""
+    for version in _versions(vector_id):
+        path = _path(vector_id, version)
+        meta = _read_meta(path)
+        if meta is None:
+            continue
+        try:
+            vector = from_dict(VectorDetail, meta["vector"])
+            return Cache(path, vector, meta["last_updated"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
+def _check(code, what: str) -> None:
+    # GDAL returns error codes unless some code enabled exceptions globally;
+    # in that mode the call itself raises and this never sees a failure
+    if code not in (0, None):
+        raise RuntimeError(f"{what}: {gdal.GetLastErrorMsg()}")
+
+
+def _field_defn(name: str, column_type: str) -> ogr.FieldDefn:
+    if column_type == "integer":
+        return ogr.FieldDefn(name, ogr.OFTInteger64)
+    if column_type == "float":
+        return ogr.FieldDefn(name, ogr.OFTReal)
+    if column_type == "boolean":
+        defn = ogr.FieldDefn(name, ogr.OFTInteger)
+        defn.SetSubType(ogr.OFSTBoolean)
+        return defn
+    return ogr.FieldDefn(name, ogr.OFTString)
+
+
+def create(vector: VectorDetail) -> str:
+    """Create an empty, not yet complete cache version and return its path.
+
+    Fill it with write(); the write that passes `last_updated` completes it.
+    """
+    os.makedirs(_vector_dir(vector.id), exist_ok=True)
+    versions = _versions(vector.id)
+    path = _path(vector.id, (versions[0] + 1) if versions else 1)
+    ds = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+    if ds is None:
+        raise RuntimeError(f"Cannot create {path}: {gdal.GetLastErrorMsg()}")
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    # kumoy_id as FID: QGIS's ogr provider then exposes it as the first field
+    # and uses it as the feature id, matching the Kumoy provider's fields
+    layer = ds.CreateLayer(
+        LAYER_NAME,
+        srs,
+        _GEOMETRY_TYPES.get(vector.type, ogr.wkbUnknown),
+        options=["FID=kumoy_id"],
     )
-
-    after_id = None  # 1回のバッチで最後に取得したkumoy_idを保持する
-    processed_features = 0
-    while True:
-        # Fetch features in batches
-        features = api.qgis_vector.get_features(
-            vector_id=vector_id,
-            after_id=after_id,
-        )
-
-        for feature in features:
-            qgsfeature = QgsFeature()
-            # Set geometry
-            g = QgsGeometry()
-            g.fromWkb(feature["kumoy_wkb"])
-            qgsfeature.setGeometry(g)
-
-            # Set attributes
-            qgsfeature.setFields(fields)
-            for name in fields.names():
-                if name == "kumoy_id":
-                    qgsfeature["kumoy_id"] = feature["kumoy_id"]
-                else:
-                    qgsfeature[name] = feature["properties"][name]
-
-            # Set feature ID and validity
-            qgsfeature.setValid(True)
-            # 地物を書き込み
-            writer.addFeature(qgsfeature)
-
-            if progress_callback is not None:
-                processed_features += 1
-                progress_callback(processed_features)
-
-        BATCH_SIZE = 5000  # 1回のバッチで取得する最大レコード数。API仕様として固定値
-        if len(features) < BATCH_SIZE:
-            # 取得終了
-            break
-
-        # Update after_id for the next batch
-        after_id = features[-1]["kumoy_id"]
-    del writer
-
-    return updated_at
+    if layer is None:
+        raise RuntimeError(f"Cannot create layer in {path}: {gdal.GetLastErrorMsg()}")
+    for column in vector.columns:
+        _check(layer.CreateField(_field_defn(column.name, column.type)), "CreateField")
+    meta = ds.CreateLayer(_META_TABLE, geom_type=ogr.wkbNone)
+    _check(meta.CreateField(ogr.FieldDefn("value", ogr.OFTString)), "CreateField")
+    # WAL: render threads keep reading while a sync writes (persistent setting)
+    ds.ExecuteSQL("PRAGMA journal_mode=WAL")
+    ds = None
+    return path
 
 
-def _columns_match(cache_file: str, fields: QgsFields) -> bool:
+def write(
+    path: str,
+    rows: Iterable[Dict],
+    deleted_ids: Iterable[int] = (),
+    vector: Optional[VectorDetail] = None,
+    last_updated: Optional[str] = None,
+    partial: bool = False,
+    edits_seen: Optional[int] = None,
+) -> bool:
+    """Apply rows and deletions to a cache file in one transaction.
+
+    rows: {"kumoy_id", "kumoy_wkb": bytes, "properties": {...}}. By default
+    each row replaces the feature (or adds it). With partial=True a row only
+    updates the keys it has, and rows of features not in the cache are
+    skipped (local edits of features the cache does not know yet).
+    Properties without a column in the file are ignored.
+
+    Passing `last_updated` (with `vector`) stores the sync state, which also
+    marks a new version complete.
+
+    `edits_seen` is the vector's local_edit_count() taken before the caller
+    fetched `rows`. If an edit was noted since, the rows may predate it and
+    would hide it: nothing is written and this returns False. The check and
+    the write happen under the lock that note_local_edit() takes, so no edit
+    can come in between.
     """
-    キャッシュGPKGの物理カラム順とサーバー側 fields のカラム順を比較する。
-    kumoy_id は FID として特別扱いされるので比較対象から除外する。
-    一致すれば True、不一致なら False。GPKGがロードできない場合も False。
-    """
-    vlayer = QgsVectorLayer(cache_file, "tmp", "ogr")
-    if not vlayer.isValid():
-        del vlayer
-        return False
-
-    cache_names = [n for n in vlayer.fields().names() if n != "kumoy_id"]
-    server_names = [n for n in fields.names() if n != "kumoy_id"]
-    del vlayer
-
-    return cache_names == server_names
-
-
-def _recreate_cache(
-    cache_file: str,
-    vector_id: str,
-    fields: QgsFields,
-    geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]],
-    reason: str,
-) -> str:
-    """既存キャッシュを破棄して新規作成する"""
-    QgsMessageLog.logMessage(
-        f"Recreating cache for vector {vector_id}: {reason}",
-        LOG_CATEGORY,
-        Qgis.Info,
-    )
-    if not clear(vector_id):
-        # clear() がファイルロック等で失敗した場合、上書き作成も失敗するので
-        # 部分的な再生成で壊れた状態にしないように中断する
-        raise Exception(
-            f"Failed to clear cache for vector {vector_id} "
-            "(file may be locked by another process)"
-        )
-    return _create_new_cache(
-        cache_file,
-        vector_id,
-        fields,
-        geometry_type,
-        progress_callback=progress_callback,
-    )
-
-
-def _update_existing_cache(cache_file: str, fields: QgsFields, diff: dict) -> str:
-    """
-    既存のキャッシュファイルに差分を適用する。
-    カラム集合・順序の整合は呼び出し側で担保する前提（不一致なら再生成パスに入る）。
-
-    Returns:
-        updated_at: 最終更新日時
-    """
-
-    vlayer = QgsVectorLayer(cache_file, "temp", "ogr")
-    vlayer.startEditing()
-
-    updated_at = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-    should_deleted_fids = diff["deletedRows"] + list(
-        map(lambda rec: rec["kumoy_id"], diff["updatedRows"])
-    )
-
-    if len(should_deleted_fids) == 0 and len(diff["updatedRows"]) == 0:
-        # No changes, do nothing
-        pass
-    else:
-        # 削除された行と更新された行を全て削除する
-        if len(should_deleted_fids) > 0:
-            for fid in should_deleted_fids:
-                # Delete features by fid
-                feature = vlayer.getFeature(fid)
-                if feature.isValid():
-                    vlayer.deleteFeature(feature.id())
-
-        # 更新された行を新たなレコードとして追加する
-        if len(diff["updatedRows"]) > 0:
-            # add features
-            for feature in diff["updatedRows"]:
-                qgsfeature = QgsFeature()
-                # Set geometry
-                g = QgsGeometry()
-                g.fromWkb(feature["kumoy_wkb"])
-                qgsfeature.setGeometry(g)
-
-                # Set attributes
-                qgsfeature.setFields(fields)
-
-                for name in fields.names():
-                    if name == "kumoy_id":
-                        qgsfeature["kumoy_id"] = feature["kumoy_id"]
-                    else:
-                        qgsfeature[name] = feature["properties"][name]
-
-                # Set feature ID and validity
-                qgsfeature.setValid(True)
-                vlayer.addFeature(qgsfeature)
-
-    vlayer.commitChanges()
-    return updated_at
-
-
-def sync_local_cache(
-    vector_id: str,
-    fields: QgsFields,
-    geometry_type: QgsWkbTypes.GeometryType,
-    progress_callback: Optional[Callable[[int], None]] = None,
-):
-    """
-    サーバー上のデータとローカルのキャッシュを同期する
-    - キャッシュはGPKGを用いる
-    - ローカルにGPKGが存在しなければ新規で作成する
-    - この関数の実行時、サーバー上のデータとの差分を取得してローカルのキャッシュを更新する
-    """
-    cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-
-    last_updated = get_last_updated(vector_id)
-    if last_updated is None and os.path.exists(cache_file):
-        # キャッシュファイルが存在するが、最終更新日時が設定されていない場合
-        # 不整合が生じているので既存ファイルを削除する
-        clear(vector_id)
-    if last_updated is not None and not os.path.exists(cache_file):
-        # キャッシュファイルが存在しないが、最終更新日時が設定されている場合
-        # 不整合が生じているので最終更新日時を削除する
-        delete_last_updated(vector_id)
-        last_updated = None
-
-    if os.path.exists(cache_file):
-        # 既存キャッシュファイルを更新（ファイルが存在するのでlast_updatedはNoneではないはず）
-        if last_updated is None:
-            raise Exception(
-                "Inconsistent state: cache file exists but last_updated is None"
-            )
-
-        if not _columns_match(cache_file, fields):
-            # 物理カラム順とサーバー順が一致しない → 再生成
-            updated_at = _recreate_cache(
-                cache_file,
-                vector_id,
-                fields,
-                geometry_type,
-                progress_callback,
-                reason="cache column order differs from server",
-            )
-        else:
+    with _write_lock:
+        if (
+            edits_seen is not None
+            and _local_edits.get(_vector_id_of(path), 0) != edits_seen
+        ):
+            return False
+        ds = ogr.Open(path, 1)
+        if ds is None:
+            raise RuntimeError(f"Cannot open {path}: {gdal.GetLastErrorMsg()}")
+        try:
+            layer = ds.GetLayerByName(LAYER_NAME)
+            defn = layer.GetLayerDefn()
+            names = {
+                defn.GetFieldDefn(i).GetName() for i in range(defn.GetFieldCount())
+            }
+            _check(ds.StartTransaction(), "StartTransaction")
             try:
-                # memo: この処理は失敗しうる（e.g. 差分が大きすぎる場合）
-                diff = api.qgis_vector.get_diff(vector_id, last_updated)
-                # 差分取得でエラーがなかった場合は、得られた差分をキャッシュに適用する
-                updated_at = _update_existing_cache(cache_file, fields, diff)
-            except api.error.AppError as e:
-                if e.error == "MAX_DIFF_COUNT_EXCEEDED":
-                    updated_at = _recreate_cache(
-                        cache_file,
-                        vector_id,
-                        fields,
-                        geometry_type,
-                        progress_callback,
-                        reason="MAX_DIFF_COUNT_EXCEEDED",
-                    )
-                else:
-                    raise
+                for fid in deleted_ids:
+                    # DeleteFeature on a missing id is an error (or an exception)
+                    if layer.GetFeature(fid) is not None:
+                        _check(layer.DeleteFeature(fid), "DeleteFeature")
+                for row in rows:
+                    _write_row(layer, defn, names, row, partial)
+                if last_updated is not None:
+                    _write_meta(ds, vector, last_updated)
+                _check(ds.CommitTransaction(), "CommitTransaction")
+            except BaseException:
+                ds.RollbackTransaction()
+                raise
+        finally:
+            ds = None
+    return True
+
+
+def note_local_edit(vector_id: str) -> None:
+    """Record an edit that reached the server, before writing it here.
+
+    Noting it first matters: a sync that checked before the note writes its
+    data before the edit's write, which then overwrites it; one that checks
+    after the note skips its data.
+    """
+    with _write_lock:
+        _local_edits[vector_id] = _local_edits.get(vector_id, 0) + 1
+
+
+def local_edit_count(vector_id: str) -> int:
+    with _write_lock:
+        return _local_edits.get(vector_id, 0)
+
+
+def _vector_id_of(path: str) -> str:
+    # Cache files are <root>/<vector id>/<version>.gpkg (see create())
+    return os.path.basename(os.path.dirname(path))
+
+
+def _write_row(layer, defn, names, row: Dict, partial: bool) -> None:
+    fid = int(row["kumoy_id"])
+    if partial:
+        feature = layer.GetFeature(fid)
+        if feature is None:
+            return
     else:
-        # 新規キャッシュファイルを作成
-        updated_at = _create_new_cache(
-            cache_file,
-            vector_id,
-            fields,
-            geometry_type,
-            progress_callback=progress_callback,
-        )
-
-    store_last_updated(vector_id, updated_at)
-
-
-def get_layer(vector_id: str) -> QgsVectorLayer:
-    """Retrieve a cached QgsVectorLayer by vector ID."""
-    cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-
-    layer = QgsVectorLayer(cache_file, "cache", "ogr")
-
-    if layer.isValid():
-        return layer
+        feature = ogr.Feature(defn)
+        feature.SetFID(fid)
+    wkb = row.get("kumoy_wkb")
+    if wkb is not None:
+        geometry = ogr.CreateGeometryFromWkb(bytes(wkb))
+        if geometry is None:
+            raise RuntimeError(f"Invalid geometry of feature {fid}")
+        feature.SetGeometry(geometry)
+    for name, value in (row.get("properties") or {}).items():
+        if name not in names:
+            continue
+        if value is None:
+            feature.SetFieldNull(name)
+        else:
+            feature.SetField(name, value)
+    if partial:
+        _check(layer.SetFeature(feature), "SetFeature")
     else:
+        _check(layer.UpsertFeature(feature), "UpsertFeature")
+
+
+def _write_meta(ds, vector: Optional[VectorDetail], last_updated: str) -> None:
+    if vector is None:
+        raise ValueError("vector is required with last_updated")
+    layer = ds.GetLayerByName(_META_TABLE)
+    feature = ogr.Feature(layer.GetLayerDefn())
+    feature.SetFID(1)
+    value = {"vector": dataclasses.asdict(vector), "last_updated": last_updated}
+    feature.SetField("value", json.dumps(value))
+    _check(layer.UpsertFeature(feature), "UpsertFeature")
+
+
+def _remove(path: str) -> bool:
+    ok = True
+    for suffix in _SIDE_SUFFIXES:
+        try:
+            os.unlink(path + suffix)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            # Windows: still open in QGIS (a layer or the ogr connection pool)
+            QgsMessageLog.logMessage(
+                f"Cannot delete {path + suffix} yet: {e}", LOG_CATEGORY, Qgis.Info
+            )
+            ok = False
+    return ok
+
+
+def cleanup(vector_id: str, keep: Iterable[str] = ()) -> None:
+    """Delete the vector's files except the current version and `keep`.
+
+    Only call this while no sync of the vector runs: an unfinished rebuild
+    looks like garbage. Files that are still open stay for the next call.
+    """
+    current = open_cache(vector_id)
+    keep = set(keep) | ({current.path} if current else set())
+    for version in _versions(vector_id):
+        path = _path(vector_id, version)
+        if path not in keep:
+            _remove(path)
+    # Cache files of plugin versions before the versioned layout
+    _remove(os.path.join(_root_dir(), f"{vector_id}.gpkg"))
+
+
+def clear(vector_id: str) -> bool:
+    """Delete the vector's cache. False when some file is still in use."""
+    ok = _remove(os.path.join(_root_dir(), f"{vector_id}.gpkg"))
+    directory = _vector_dir(vector_id)
+    try:
+        # A partial failure is safe: each remaining file is a consistent
+        # cache with its own last_updated
+        shutil.rmtree(directory)
+    except FileNotFoundError:
+        pass
+    except OSError as e:
         QgsMessageLog.logMessage(
-            f"Cache layer {vector_id} is not valid.", LOG_CATEGORY, Qgis.Info
+            f"Cannot delete {directory}: {e}", LOG_CATEGORY, Qgis.Info
         )
-        return None
+        ok = False
+    return ok
 
 
 def clear_all() -> bool:
-    """Clear all cached GPKG files. Returns True if all files were deleted successfully."""
-
-    cache_dir = _get_cache_dir()
-    success = True
-
-    # Subdirectories too: clear_all must cover everything dir_total_size counts.
-    for entry in list(os.scandir(cache_dir)):
+    """Delete all vector caches. False when some file is still in use."""
+    ok = True
+    for entry in list(os.scandir(_root_dir())):
         try:
             if entry.is_dir(follow_symlinks=False):
                 shutil.rmtree(entry.path)
             else:
                 os.unlink(entry.path)
-                if entry.name.endswith(".gpkg"):
-                    project_id = entry.name.split(".gpkg")[0]
-                    delete_last_updated(project_id)
-        except PermissionError as e:
-            # Ignore Permission denied error and continue
+        except OSError as e:
             QgsMessageLog.logMessage(
-                f"Ignored file access error: {e}",
-                LOG_CATEGORY,
-                Qgis.Info,
+                f"Cannot delete {entry.path}: {e}", LOG_CATEGORY, Qgis.Info
             )
-            success = False  # Flag unsucceed deletion
-        except Exception as e:
-            QgsMessageLog.logMessage(
-                f"Unexpected error for {entry.path}: {e}",
-                LOG_CATEGORY,
-                Qgis.Critical,
-            )
-            success = False  # Flag unsucceed
-
-    return success
+            ok = False
+    return ok
 
 
 def get_cache_size(vector_id: str) -> int:
-    """Return the vector's cache size in bytes (0 when not cached).
-
-    Covers the same file set as clear(): the GPKG plus its SQLite side files.
-    """
-    cache_file = os.path.join(_get_cache_dir(), f"{vector_id}.gpkg")
-    candidates = (
-        cache_file,
-        f"{cache_file}-shm",
-        f"{cache_file}-wal",
-        f"{cache_file}-journal",
-    )
-    # Existence is the caller's concern: files_total_size expects paths that
-    # exist, and the SQLite side files usually don't.
-    return files_total_size(p for p in candidates if os.path.isfile(p))
+    """Size in bytes of the vector's cache files (0 when not cached)."""
+    size = 0
+    legacy = os.path.join(_root_dir(), f"{vector_id}.gpkg")
+    for suffix in _SIDE_SUFFIXES:
+        if os.path.isfile(legacy + suffix):
+            size += os.path.getsize(legacy + suffix)
+    directory = _vector_dir(vector_id)
+    if os.path.isdir(directory):
+        size += dir_total_size(directory)
+    return size
 
 
 def get_total_cache_size() -> int:
-    """Return the total size in bytes of all cached vector files."""
-    return dir_total_size(_get_cache_dir())
-
-
-def clear(vector_id: str) -> bool:
-    """Clear cache for a specific vector.
-    Returns True if all files were deleted successfully, False otherwise.
-    """
-    cache_dir = _get_cache_dir()
-    cache_file = os.path.join(cache_dir, f"{vector_id}.gpkg")
-    gpkg_shm_file = f"{cache_file}-shm"
-    gpkg_wal_file = f"{cache_file}-wal"
-    gpkg_journal_file = f"{cache_file}-journal"
-
-    files_to_remove = [cache_file, gpkg_shm_file, gpkg_wal_file, gpkg_journal_file]
-    success = True
-
-    # Remove cache file if it exists
-    for f in files_to_remove:
-        if os.path.exists(f):
-            try:
-                os.unlink(f)
-            except PermissionError as e:
-                QgsMessageLog.logMessage(
-                    f"Ignored file access error for {f}: {e}", LOG_CATEGORY, Qgis.Info
-                )
-                success = False  # Flag unsucceed deletion
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Unexpected error for {f}: {e}",
-                    LOG_CATEGORY,
-                    Qgis.Critical,
-                )
-                success = False
-    # ファイル削除に失敗した状態で last_updated を消すと、GPKGは残るのに
-    # タイムスタンプだけ消える不整合状態になり、以後の同期が
-    # 'cache file exists but last_updated is None' で固まる。
-    # 削除が全件成功した場合のみタイムスタンプも消す。
-    if success:
-        delete_last_updated(vector_id)
-
-    return success
+    """Size in bytes of all vector cache files."""
+    return dir_total_size(_root_dir())
