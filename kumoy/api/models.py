@@ -72,6 +72,8 @@ def is_editor(role: Optional[str]) -> bool:
 class Organization:
     id: str
     name: str
+    # Server path (/user-content/...) of the icon, if one was uploaded
+    iconImage: Optional[str] = None
     # Processing tools returned it before the rewrite; kept for scripts
     stripeCustomerId: Optional[str] = None
     subscriptionPlan: str = ""
@@ -129,6 +131,8 @@ class OrganizationDetail(OrganizationWithRole):
 class Team:
     id: str
     name: str
+    # 6-digit hex without "#"
+    color: str = ""
     organizationId: str = ""
     organization: Optional[Organization] = None
     createdAt: str = ""

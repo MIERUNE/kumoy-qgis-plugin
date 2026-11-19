@@ -23,6 +23,11 @@ RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "raster.svg"))
 PIN_ICON = QIcon(os.path.join(_IMGS_PATH, "pin.svg"))
 SEARCH_ICON = QIcon(os.path.join(_IMGS_PATH, "search.svg"))
 WARNING_ICON = QIcon(os.path.join(_IMGS_PATH, "mIconWarning.svg"))
+GRID_ICON = QIcon(os.path.join(_IMGS_PATH, "grid.svg"))
+LIST_ICON = QIcon(os.path.join(_IMGS_PATH, "list.svg"))
+# White: drawn on a team color / gray badge
+TEAM_ICON = QIcon(os.path.join(_IMGS_PATH, "team.svg"))
+ORGANIZATION_ICON = QIcon(os.path.join(_IMGS_PATH, "organization.svg"))
 
 # browser
 BROWSER_FOLDER_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_folder.svg"))
@@ -37,6 +42,22 @@ BROWSER_GEOMETRY_POLYGON_ICON = QIcon(
 )
 BROWSER_MAP_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_map.svg"))
 BROWSER_RASTER_ICON = QIcon(os.path.join(_IMGS_PATH, "browser_raster.svg"))
+
+
+def badge_pixmap(color: str, icon: QIcon, size: int) -> QPixmap:
+    """`icon` (white) on a rounded square of `color` (#rrggbb), like the web app."""
+    pixmap = QPixmap(size, size)
+    pixmap.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(pixmap)
+    painter.setRenderHint(Q_PAINTER_RENDER_HINT.Antialiasing)
+    painter.setPen(QColor(0, 0, 0, 0))
+    painter.setBrush(QColor(color))
+    radius = size / 4
+    painter.drawRoundedRect(QRectF(0, 0, size, size), radius, radius)
+    inset = size // 8
+    icon.paint(painter, inset, inset, size - 2 * inset, size - 2 * inset)
+    painter.end()
+    return pixmap
 
 
 # Steps of the progress gauge: icons are cached per step, and the Layers
