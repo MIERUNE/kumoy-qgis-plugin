@@ -16,7 +16,7 @@ Optional:
 
 | Variable | |
 |---|---|
-| `KUMOY_E2E_TOKEN` | Session token to reuse. Without it the run asks you to log in (below) and prints the token |
+| `KUMOY_E2E_TOKEN` | Access token to reuse (valid for 1 hour). Without it the run asks you to log in (below) and prints the token |
 | `KUMOY_E2E_OTHER_TOKEN` | Token of a user outside the team, for the permission (403) check |
 | `KUMOY_E2E_INTERACTIVE=1` | Also run the tests that need another login each (login dialog, sign-out, logout) |
 | `KUMOY_E2E_LOGIN_TIMEOUT` | Seconds to wait for a login approval (default 300) |

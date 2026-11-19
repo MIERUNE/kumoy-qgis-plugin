@@ -7,6 +7,7 @@ real QgsBlockingNetworkRequest / QgsNetworkReplyContent calls.
 import http.server
 import json
 import threading
+from urllib.parse import parse_qs
 
 import pytest
 
@@ -24,7 +25,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         seen["authorization"] = self.headers.get("Authorization")
-        if self.path.startswith("/api/ok"):
+        if self.path == "/api/needs-fresh":
+            if self.headers.get("Authorization") == "Bearer fresh":
+                self._reply(200, {"ok": True})
+            else:
+                self._reply(401, {"message": "Unauthorized"})
+        elif self.path.startswith("/api/ok"):
             self._reply(200, {"path": self.path})
         elif self.path == "/api/forbidden":
             self._reply(403, {"message": "Forbidden", "error": "role"})
@@ -33,7 +39,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
-        self._reply(200, json.loads(self.rfile.read(length) or b"{}"))
+        body = self.rfile.read(length)
+        if self.path == "/api/auth/oauth2/token":
+            seen["content_type"] = self.headers.get("Content-Type")
+            form = {k: v[0] for k, v in parse_qs(body.decode()).items()}
+            seen.setdefault("refreshes", []).append(form)
+            if form.get("refresh_token") == "rt-good":
+                self._reply(200, {"access_token": "fresh", "refresh_token": "rt-next"})
+            else:
+                self._reply(400, {"error": "invalid_grant"})
+            return
+        self._reply(200, json.loads(body or b"{}"))
 
     def log_message(self, *args):
         pass
@@ -49,6 +65,7 @@ def client(qgis_app, monkeypatch):
     host, port = httpd.server_address
     monkeypatch.setattr(client, "server_url", lambda: f"http://{host}:{port}")
     monkeypatch.setattr(session, "_token", "tok")
+    monkeypatch.setattr(session, "_refresh_token", None)
     seen.clear()
     yield client
     httpd.shutdown()
@@ -89,3 +106,57 @@ def test_network_error(client, monkeypatch):
     monkeypatch.setattr(client, "server_url", lambda: "http://127.0.0.1:1")
     with pytest.raises(NetworkError):
         client.get("/ok")
+
+
+def test_401_refreshes_once_and_retries(client, monkeypatch):
+    from plugin_dir.kumoy import session
+
+    monkeypatch.setattr(session, "_refresh_token", "rt-good")
+    assert client.get("/needs-fresh") == {"ok": True}
+    assert seen["content_type"] == "application/x-www-form-urlencoded"
+    assert seen["refreshes"] == [
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": "rt-good",
+            "client_id": "kumoy-qgis",
+        }
+    ]
+    assert session.get_token() == "fresh"
+    assert session.get_refresh_token() == "rt-next"
+
+
+def test_rejected_refresh_reports_the_401(client, monkeypatch):
+    from plugin_dir.kumoy import session
+    from plugin_dir.kumoy.api.error import UnauthorizedError
+
+    monkeypatch.setattr(session, "_refresh_token", "rt-revoked")
+    with pytest.raises(UnauthorizedError) as e:
+        client.get("/needs-fresh")
+    # The 401 handler then logs out this login
+    assert e.value.rejected_token == "tok"
+    assert len(seen["refreshes"]) == 1
+
+
+def test_login_before_oauth_does_not_refresh(client):
+    from plugin_dir.kumoy.api.error import UnauthorizedError
+
+    with pytest.raises(UnauthorizedError):
+        client.get("/needs-fresh")
+    assert "refreshes" not in seen
+
+
+def test_refresh_skipped_when_the_login_changed(client, monkeypatch):
+    from plugin_dir.kumoy import session
+
+    # Another request refreshed while this one was in flight
+    monkeypatch.setattr(session, "_refresh_token", "rt-used")
+    assert client._refreshed_token("old") == "tok"
+    assert "refreshes" not in seen
+
+
+def test_session_reads_both_storage_formats(qgis_app):
+    from plugin_dir.kumoy import session
+
+    assert session._decode("legacy-session") == ("legacy-session", None)
+    stored = json.dumps({"access_token": "a", "refresh_token": "r"})
+    assert session._decode(stored) == ("a", "r")

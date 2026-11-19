@@ -16,7 +16,7 @@ def login(plugin):
     flow = DeviceLogin()
     events = []
     flow.code_received.connect(lambda code, url: events.append(("code", code, url)))
-    flow.succeeded.connect(lambda token: events.append(("ok", token)))
+    flow.succeeded.connect(lambda tokens: events.append(("ok", tokens)))
     flow.failed.connect(lambda message: events.append(("failed", message)))
     yield flow, events
     flow.cancel()
@@ -39,10 +39,11 @@ def test_approved(login, plugin, pytestconfig):
     assert events[1][0] == "ok", events[1]
 
     saved = session._token
-    session._token = events[1][1]
+    tokens = events[1][1]
+    session._token = tokens.access_token
     try:
         assert api.user.get_me().email
-        api.auth.sign_out(events[1][1])
+        api.auth.sign_out(tokens.access_token, tokens.refresh_token)
     finally:
         session._token = saved
 
@@ -57,11 +58,13 @@ def test_logout_revokes_the_session(plugin, token, project, pytestconfig):
     require_interactive()
     second = interactive_login(pytestconfig)
     try:
-        session._token = second
+        session._token = second.access_token
+        session._refresh_token = second.refresh_token
         assert account_actions.logout(ask=False)
         assert not session.is_logged_in()
         wait_for_tasks()
-        session._token = second
+        # The refresh token was revoked, and the access tokens issued from it
+        session._token = second.access_token
         with pytest.raises(api.error.UnauthorizedError):
             api.user.get_me()
     finally:

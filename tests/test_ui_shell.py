@@ -380,11 +380,13 @@ class TestLogout:
     def test_revokes_and_clears(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
         signed_out = []
-        monkeypatch.setattr(api.auth, "sign_out", signed_out.append)
+        monkeypatch.setattr(
+            api.auth, "sign_out", lambda t, r: signed_out.append((t, r))
+        )
         assert shell.account_actions.logout()
         shell.tasks.flush()
 
-        assert signed_out == ["token"]
+        assert signed_out == [("token", None)]
         assert not shell.session.is_logged_in()
         assert shell.settings.selected_project_id() == ""
         assert len(shell.closed.calls) == 1
@@ -393,7 +395,7 @@ class TestLogout:
     def test_sign_out_failure_still_logs_out(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
 
-        def fail(token):
+        def fail(token, refresh_token):
             raise NetworkError("offline")
 
         monkeypatch.setattr(api.auth, "sign_out", fail)
@@ -404,7 +406,7 @@ class TestLogout:
 
     def test_open_map_asks_and_closes(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
-        monkeypatch.setattr(api.auth, "sign_out", lambda t: None)
+        monkeypatch.setattr(api.auth, "sign_out", lambda t, r: None)
         QgsProject.instance().setFileName("kumoy:m1")
         answers = [False, True]
         monkeypatch.setattr(shell.account_actions, "confirm", lambda *a: answers.pop(0))
@@ -417,7 +419,7 @@ class TestLogout:
 
     def test_forced_logout_keeps_project(self, shell, api, monkeypatch):
         log_in(shell, monkeypatch)
-        monkeypatch.setattr(api.auth, "sign_out", lambda t: None)
+        monkeypatch.setattr(api.auth, "sign_out", lambda t, r: None)
         QgsProject.instance().setFileName("kumoy:m1")
         monkeypatch.setattr(
             shell.account_actions, "confirm", lambda *a: pytest.fail("asked")
@@ -439,7 +441,7 @@ class TestVersionCheck:
             "get_public_params",
             lambda: models.PublicParams(minQgisPluginVersion="v999.0.0"),
         )
-        monkeypatch.setattr(api.auth, "sign_out", lambda t: None)
+        monkeypatch.setattr(api.auth, "sign_out", lambda t, r: None)
         monkeypatch.setattr(
             shell.account_actions, "read_plugin_version", lambda: "v1.0.0"
         )

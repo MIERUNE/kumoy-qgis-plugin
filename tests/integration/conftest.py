@@ -62,11 +62,11 @@ def wait_for_tasks(timeout: float = 60) -> None:
     )
 
 
-def interactive_login(config) -> str:
+def interactive_login(config):
     """Log in through the plugin's device flow, approved by a person.
 
     Prints the URL and code (past pytest's output capture) and waits until
-    they are approved in the browser. Returns the plugin's session token.
+    they are approved in the browser. Returns the plugin's api.auth.Tokens.
     """
     from plugin_dir.kumoy import api
 
@@ -82,14 +82,14 @@ def interactive_login(config) -> str:
     while time.monotonic() < deadline:
         time.sleep(interval)
         try:
-            token = api.auth.poll_device_token(code.device_code)
+            tokens = api.auth.poll_device_token(code.device_code)
         except api.error.AppError as e:
             if e.error != "slow_down":
                 raise
             interval += 5
             continue
-        if token:
-            return token
+        if tokens:
+            return tokens
     pytest.fail("the login code was not approved in time")
 
 
@@ -175,10 +175,12 @@ def token(plugin, pytestconfig):
 
     value = os.environ.get("KUMOY_E2E_TOKEN")
     if not value:
-        value = interactive_login(pytestconfig)
+        # Only the access token: a refresh would rotate the refresh token and
+        # make the exported one unusable
+        value = interactive_login(pytestconfig).access_token
         _tell(
             pytestconfig,
-            "Logged in. To skip the login next time (valid for 7 days of use):\n"
+            "Logged in. To skip the login next time (valid for 1 hour):\n"
             f"  export KUMOY_E2E_TOKEN={value}",
         )
     session._token = value

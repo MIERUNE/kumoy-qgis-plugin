@@ -18,6 +18,7 @@ from qgis.utils import iface
 
 from .. import i18n
 from ..kumoy import session, settings_manager
+from ..kumoy.api import auth
 from ..kumoy.auth_manager import DeviceLogin
 from ..kumoy.basemap import add_xyz_connections
 from ..kumoy.constants import LOG_CATEGORY
@@ -216,8 +217,8 @@ class DialogLogin(QDialog):
             ).format(verification_url)
         )
 
-    def _on_succeeded(self, token: str) -> None:
-        self.persisted = session.set_token(token)
+    def _on_succeeded(self, tokens: auth.Tokens) -> None:
+        self.persisted = session.set_token(tokens.access_token, tokens.refresh_token)
         add_xyz_connections()
         if iface is not None:
             iface.reloadConnections()

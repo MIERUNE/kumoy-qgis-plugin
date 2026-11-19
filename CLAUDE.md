@@ -32,8 +32,9 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
 - `kumoy/` — Kumoyドメインロジック（API・キャッシュ・プロバイダ・設定など、UI非依存の中核）
   - `kumoy/api/` — APIクライアント。`client.py` は同期（QgsBlockingNetworkRequest）で、HTTPステータスから型付きエラー（`error.py`）を投げる。401だけがセッション切れ、403は権限不足。レスポンスは `models.py` のdataclassに `from_dict` で変換
   - `kumoy/tasks.py` — `run_task()`。ブロッキング処理（API・ファイルI/O）をQgsTaskでワーカースレッドに逃がす。UI操作起点の通信はメインスレッドで直接呼ばず、必ずこれを使う
-  - `kumoy/session.py` — セッショントークン。QGIS認証DBに暗号化保存（マスターパスワード必須、保存できなければメモリのみ）。ワーカースレッドはメモリ上のコピーを読むだけ
-  - `kumoy/auth_manager.py` — OAuth Device Authorization Flow（非同期）
+  - `kumoy/session.py` — ログインのトークン（OAuthのアクセストークンとリフレッシュトークン。OAuth対応前のログインはセッショントークンのみ）。QGIS認証DBに暗号化保存（マスターパスワード必須、保存できなければメモリのみ）。ワーカースレッドはメモリ上のコピーを読むだけ（リフレッシュ後の差し替えだけは例外で、プロンプトを出さずに保存する）
+  - `kumoy/auth_manager.py` — OAuth Device Authorization Flow（非同期）。client_id `kumoy-qgis`、スコープ `read qgis offline_access`。OAuthトークンで呼べる更新系はサーバー側の許可リストで限られるため、新しい更新系のAPIを呼ぶときはバックエンドの `QGIS_MUTATIONS` への追加も必要
+  - `kumoy/api/client.py` の401処理 — リフレッシュトークンで更新して1回だけ再試行する。リフレッシュトークンは使い捨てで、再利用するとサーバーがログインごと失効させるため、更新はロックで直列化している
   - `kumoy/settings_manager.py` — 秘密でない設定（選択中のorganization/project、カスタムサーバURL）
   - `kumoy/provider/` — データプロバイダ。キャッシュがあれば通信せず即座に開き、同期はバックグラウンド（`sync_events` シグナルで通知）
   - `kumoy/local_cache/` — ローカルキャッシュ（純粋なファイル操作のみ）。ベクターはGPKG内に同期状態を持ち、再構築は新ファイル＋差し替え
