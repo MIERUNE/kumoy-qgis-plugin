@@ -65,22 +65,25 @@ class RootCollection(QgsDataCollectionItem):
         )
         self.setIcon(MAIN_ICON)
         self._refresh_pending = False
-        self.stateChanged.connect(self._on_state_changed)
 
     def refresh(self):
         """Rebuild all children: they were made for one project and login."""
         if self.state() == Qgis.BrowserItemState.Populating:
-            # Rerun once the current load ends, or this change would be lost
-            self._refresh_pending = True
+            # Retry once the current load ends, or this change would be lost.
+            # Polls because stateChanged's enum arg can't be converted by SIP.
+            if not self._refresh_pending:
+                self._refresh_pending = True
+                QTimer.singleShot(200, self._retry_refresh)
             return
         self.depopulate()
         super().refresh()
 
-    def _on_state_changed(self, item, old_state) -> None:
-        populating = Qgis.BrowserItemState.Populating
-        if self._refresh_pending and self.state() != populating:
-            self._refresh_pending = False
-            QTimer.singleShot(0, self.refresh)
+    def _retry_refresh(self) -> None:
+        self._refresh_pending = False
+        try:
+            self.refresh()
+        except RuntimeError:
+            pass  # the Browser deleted the item (plugin unloaded)
 
     def _set_title(self, title: str) -> None:
         # From the worker thread via run_on_main_thread
