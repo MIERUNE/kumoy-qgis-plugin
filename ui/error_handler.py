@@ -31,6 +31,7 @@ def _clear_session() -> None:
     再ログイン後にユーザーがプロジェクトを選び直さなくて済むようにする。
     """
     store_setting("session_token", "")
+    store_setting("refresh_token", "")
     store_setting("user_info", "")
 
     remove_xyz_connections()

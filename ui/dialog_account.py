@@ -223,7 +223,9 @@ class DialogAccount(QDialog):
 
         close_all_processing_dialogs()
 
+        api.client.revoke_refresh_token()
         store_setting("session_token", "")
+        store_setting("refresh_token", "")
         store_setting("user_info", "")
         store_setting("selected_project_id", "")
         store_setting("selected_organization_id", "")

@@ -1,5 +1,6 @@
 import json
 import time
+from urllib.parse import urlencode
 from typing import Optional, Tuple
 
 from qgis.core import (
@@ -25,14 +26,15 @@ from ..pyqt_version import (
 )
 from .. import i18n
 from .api.error import format_api_error
-from .constants import LOG_CATEGORY
-
-
-DEVICE_AUTH_CLIENT_ID = "kumoy-qgis-plugin"
+from .constants import LOG_CATEGORY, OAUTH_CLIENT_ID, OAUTH_SCOPE
 
 
 class AuthManager(QObject):
-    """OAuth Device Authorization Flow による認証マネージャー"""
+    """OAuth Device Authorization Flow による認証マネージャー
+
+    スコープ付きのアクセストークン（1時間）とリフレッシュトークンを受け取る。
+    リフレッシュは api.client が 401 を受けたときに行う。
+    """
 
     auth_completed = pyqtSignal(bool, str)  # success, error_message
 
@@ -40,6 +42,7 @@ class AuthManager(QObject):
         super().__init__()
         self.server_url = server_url
         self.access_token: Optional[str] = None
+        self.refresh_token: Optional[str] = None
         self.expires_in: Optional[int] = None
         self.user_code: Optional[str] = None
         self.device_code: Optional[str] = None
@@ -60,7 +63,9 @@ class AuthManager(QObject):
             (success, user_code_or_error)
         """
         url = f"{self.server_url}/api/auth/device/code"
-        data = json.dumps({"client_id": DEVICE_AUTH_CLIENT_ID}).encode("utf-8")
+        data = json.dumps({"client_id": OAUTH_CLIENT_ID, "scope": OAUTH_SCOPE}).encode(
+            "utf-8"
+        )
 
         try:
             req = QNetworkRequest(QUrl(url))
@@ -130,12 +135,12 @@ class AuthManager(QObject):
     def start_polling(self):
         """トークン取得のためのポーリングを開始する"""
         self._auth_start_time = time.time()
-        self._poll_url = f"{self.server_url}/api/auth/device/token"
-        self._poll_data = json.dumps(
+        self._poll_url = f"{self.server_url}/api/auth/oauth2/token"
+        self._poll_data = urlencode(
             {
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 "device_code": self.device_code,
-                "client_id": DEVICE_AUTH_CLIENT_ID,
+                "client_id": OAUTH_CLIENT_ID,
             }
         ).encode("utf-8")
         self._poll_timer = QTimer(self)
@@ -155,7 +160,10 @@ class AuthManager(QObject):
             return
 
         req = QNetworkRequest(QUrl(self._poll_url))
-        req.setHeader(Q_NETWORK_REQUEST_HEADER.ContentTypeHeader, "application/json")
+        req.setHeader(
+            Q_NETWORK_REQUEST_HEADER.ContentTypeHeader,
+            "application/x-www-form-urlencoded",
+        )
         req.setRawHeader(b"Origin", self.server_url.encode("utf-8"))
 
         # A plain QNetworkAccessManager ignores QGIS proxy settings (and proxy
@@ -198,6 +206,7 @@ class AuthManager(QObject):
                 token = resp_data.get("access_token") or resp_data.get("accessToken")
                 if token:
                     self.access_token = token
+                    self.refresh_token = resp_data.get("refresh_token")
                     self.expires_in = resp_data.get("expires_in") or resp_data.get(
                         "expiresIn"
                     )
@@ -269,6 +278,9 @@ class AuthManager(QObject):
 
     def get_access_token(self) -> Optional[str]:
         return self.access_token
+
+    def get_refresh_token(self) -> Optional[str]:
+        return self.refresh_token
 
     def get_expires_in(self) -> Optional[int]:
         return self.expires_in

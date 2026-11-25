@@ -214,6 +214,7 @@ class DialogLogin(QDialog):
             return
 
         store_setting("session_token", self.auth_manager.get_access_token())
+        store_setting("refresh_token", self.auth_manager.get_refresh_token() or "")
 
         add_xyz_connections()
         iface.reloadConnections()

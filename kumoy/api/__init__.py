@@ -1,4 +1,5 @@
 from . import (
+    client,
     config,
     error,
     organization,

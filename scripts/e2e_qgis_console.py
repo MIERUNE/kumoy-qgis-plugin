@@ -399,6 +399,7 @@ def phase_0_preflight(config):
     # If the wrong account is used during login, phase 1 will refuse to
     # continue (via the email check) — no resources are created in that case.
     settings_manager.store_setting("session_token", "")
+    settings_manager.store_setting("refresh_token", "")
     _ok("Cleared QGIS session token")
 
     return server_url
@@ -439,6 +440,7 @@ def phase_1_login(config, server_url, state):
         raise RuntimeError(f"Login failed: {result['error']}")
 
     settings_manager.store_setting("session_token", auth.get_access_token())
+    settings_manager.store_setting("refresh_token", auth.get_refresh_token() or "")
     state["session_logged_in"] = True
     _ok("Token persisted to QSettings")
 
@@ -1507,7 +1509,9 @@ def phase_13_cleanup(state):
             print(f"  ⚠ Failed to clear QGIS project: {e}")
 
     if session_logged_in:
+        api.client.revoke_refresh_token()
         settings_manager.store_setting("session_token", "")
+        settings_manager.store_setting("refresh_token", "")
         _ok("Cleared QGIS session token (logout)")
 
 
