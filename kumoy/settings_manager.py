@@ -10,6 +10,7 @@ from .local_cache.settings import reset_local_cache_settings
 @dataclass
 class UserSettings:
     session_token: str = ""
+    refresh_token: str = ""
     selected_organization_id: str = ""
     selected_project_id: str = ""
     use_custom_server: str = "false"
@@ -27,6 +28,7 @@ def get_settings():
     try:
         loaded_settings = UserSettings(
             session_token=qsettings.value("session_token", ""),
+            refresh_token=qsettings.value("refresh_token", ""),
             selected_organization_id=qsettings.value("selected_organization_id", ""),
             selected_project_id=qsettings.value("selected_project_id", ""),
             use_custom_server=qsettings.value("use_custom_server", "false"),

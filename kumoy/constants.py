@@ -48,3 +48,8 @@ RESERVED_FIELD_NAME_PREFIX = "kumoy_"
 
 # ドキュメントのURL
 DOCUMENTATION_URL = "https://docs.kumoy.io/"
+
+# OAuthクライアント（kumoy-services の docs/qgis-oauth.md）。
+# "read qgis" はサーバー側でQGISで必要な操作だけに絞られたスコープ
+OAUTH_CLIENT_ID = "kumoy-qgis"
+OAUTH_SCOPE = "read qgis offline_access"

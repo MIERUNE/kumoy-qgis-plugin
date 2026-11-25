@@ -33,7 +33,7 @@ QGIS向けクラウドサービス「Kumoy」を利用するためのプラグ�
   - `kumoy/api/` — APIクライアント。QgsBlockingNetworkRequestベースのHTTP通信、Bearer認証
   - `kumoy/provider/` — QGISデータプロバイダ実装（QgsVectorDataProvider）
   - `kumoy/local_cache/` — ローカルキャッシュ機構（純粋なファイル操作のみ）
-  - `kumoy/auth_manager.py` — OAuth2認証（PKCE、ローカルHTTPサーバ port 9248）
+  - `kumoy/auth_manager.py` — OAuth2 Device Authorization Grant（client_id `kumoy-qgis`、スコープ付きトークン）。アクセストークン切れ（401）時のリフレッシュは `kumoy/api/client.py` が行う
   - `kumoy/settings_manager.py` — QSettingsラッパー（session_token等のドメイン状態を保持）
 - `ui/` — PyQt UI（ダイアログ、ブラウザパネル、レイヤーUI、保存ハンドラ、共通エラーハンドラ等）
   - `ui/error_handler.py` — 共通APIエラーハンドラ（QMessageBox表示・Browserリフレッシュを含むのでUI責務）
