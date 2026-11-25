@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        docker_tags: ["3.44", "4.0-trixie"]
+        docker_tags: ["3.44", "4.4"]
 
     steps:
       - name: Checkout
